@@ -133,6 +133,10 @@ labelled "AI …".
   the suite fork (`[patch.crates-io]`).
 - **Progress docs** follow RFC-0017: a PR adds one `docs/progress.d/<issue>-<branch-slug>.md`; it
   never edits the `ROADMAP.md` status line. Parity numbers come from `cargo xtask parity`.
+- **Parity table.** A feature PR flips rows in `docs/target-app-parity.md` (D/P/M) and must not
+  commit the generated block between the `parity:` markers. `cargo xtask ci` validates the rows
+  strictly but only warns when the block is stale. A maintainer refreshes it with
+  `cargo xtask parity --write` in a separate PR.
 - **Build output** stays in the repository's `target/`.
 
 ## See also
