@@ -1,0 +1,1 @@
+- 2026-11-17: Timing and planning: key, breakdown and inbetween marks on drawings; a spacing chart with ease guides; timing presets; re-timing between keys that keeps keys in place; an inbetween helper that adds drawings along the chart with blended guides.

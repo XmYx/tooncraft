@@ -683,3 +683,29 @@ fn nested_folders_fold_lock_clip_and_filter_the_timeline() {
     h.run();
     assert_eq!(crate::layer_tree::rows(h.state()), vec![0]);
 }
+
+#[test]
+fn timing_panel_marks_adds_inbetweens_and_applies_presets() {
+    let mut h = harness(false);
+    h.run();
+    for frame in [0u32, 8] {
+        h.state_mut().run(tooncraft_engine::Command::NewDrawing { layer: 0, frame });
+    }
+    h.state_mut().workspace.raise(crate::dock::Pane::Timing);
+    h.run();
+    h.get_by_label("Key").click();
+    h.run();
+    assert_eq!(h.state().engine.project.marks.values().copied().collect::<Vec<_>>(), vec![tooncraft_doc::Mark::Key]);
+    h.get(By::new().role(egui::Role::Cell).label_contains("frame 1: drawing"));
+    h.get(By::new().role(egui::Role::Cell).label_contains(", key"));
+    h.get(By::new().role(egui::Role::Image).label_contains("Spacing chart"));
+    h.get(By::new().role(egui::Role::ComboBox).label("Spacing"));
+    h.get_by_label("Add Inbetweens").click();
+    h.run();
+    assert_eq!(&sheet(&h.state().engine.project.layers[0].cells)[..9], "#-#-#-#-#");
+    assert_eq!(h.state().engine.project.layers.len(), 2, "a guide layer");
+    h.get(By::new().role(egui::Role::ComboBox).label("Timing preset"));
+    h.get_by_label("Apply").click();
+    h.run();
+    assert!(sheet(&h.state().engine.project.layers[0].cells).starts_with("#-#-#-#-#-"), "on twos");
+}

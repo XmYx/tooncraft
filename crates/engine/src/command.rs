@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use tooncraft_brush::{Brush, Sample};
-use tooncraft_doc::{Cell, DocError, Ease, OnionSkin, PegId, PegKey, Pin, Shake};
+use tooncraft_doc::{Cell, DocError, Ease, Mark, OnionSkin, PegId, PegKey, Pin, Shake, TimingPreset};
 use tooncraft_raster::fill::FillOptions;
 
 use crate::undo::{Entry, Part};
@@ -456,6 +456,41 @@ pub enum Command {
         #[serde(default)]
         collapsed: Option<bool>,
     },
+    /// Mark the drawing at the frame as a key, breakdown or inbetween (`None`: no mark).
+    SetMark {
+        layer: usize,
+        frame: u32,
+        #[serde(default)]
+        mark: Option<Mark>,
+    },
+    /// Re-time `from..=to` with a timing preset (each drawing held as the preset says).
+    ApplyTiming {
+        layer: usize,
+        from: u32,
+        to: u32,
+        preset: TimingPreset,
+    },
+    /// Re-space the drawings between keys and breakdowns in `from..=to` along a spacing chart;
+    /// the keys and breakdowns keep their frames.
+    RetimeBetweenKeys {
+        layer: usize,
+        from: u32,
+        to: u32,
+        #[serde(default)]
+        ease: Ease,
+    },
+    /// Add `count` new, empty inbetween drawings between the drawing at `frame` and the next one,
+    /// placed along the spacing chart for `ease`; with `guides`, a guide layer above shows each
+    /// one as a blend of the two drawings, weighted by where it falls.
+    AddInbetweens {
+        layer: usize,
+        frame: u32,
+        count: u32,
+        #[serde(default)]
+        ease: Ease,
+        #[serde(default = "yes")]
+        guides: bool,
+    },
     /// Clip the layer to the layer below (it shows only where that layer has paint), or not.
     SetLayerClip {
         layer: usize,
@@ -584,6 +619,10 @@ pub enum Command {
         #[serde(default)]
         matte: Option<tooncraft_doc::Matte>,
     },
+}
+
+fn yes() -> bool {
+    true
 }
 
 fn unit() -> f32 {
@@ -1081,6 +1120,30 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.push(Entry { label: "Folder".into(), parts: vec![before] });
             Ok(())
         }
+        Command::SetMark { layer, frame, mark } => {
+            frame_ok(e, frame)?;
+            let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;
+            let before = Part::Marks(e.project.marks.clone());
+            match mark {
+                Some(m) => e.project.marks.insert(d, m),
+                None => e.project.marks.remove(&d),
+            };
+            e.push(Entry { label: "Mark drawing".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::ApplyTiming { layer, from, to, preset } => edit_layers(e, "Timing preset", |e| {
+            e.check_unlocked(layer)?;
+            e.project.layer_mut(layer)?.apply_timing(from, to, &preset).map_err(DocError::from)?;
+            Ok(())
+        }),
+        Command::RetimeBetweenKeys { layer, from, to, ease } => edit_layers(e, "Re-time between keys", |e| {
+            e.check_unlocked(layer)?;
+            let marks = e.project.marks.clone();
+            let anchor = |d| marks.get(&d).is_some_and(|m: &Mark| m.is_anchor());
+            e.project.layer_mut(layer)?.retime_between_anchors(from, to, anchor, ease).map_err(DocError::from)?;
+            Ok(())
+        }),
+        Command::AddInbetweens { layer, frame, count, ease, guides } => crate::inbetween::add(e, layer, frame, count, ease, guides),
         Command::SetLayerClip { layer, clip } => edit_layers(e, "Clipping", |e| {
             e.project.layer_mut(layer)?.clip = clip;
             Ok(())
@@ -1166,7 +1229,9 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }
         Command::PurgeUnused => {
-            let mut parts = Vec::new();
+            let mut parts = vec![Part::Marks(e.project.marks.clone())];
+            let unused = e.project.unused_drawings();
+            e.project.marks.retain(|d, _| !unused.contains(d));
             for id in e.project.unused_drawings() {
                 let s = e.project.swap_drawing(id, None);
                 parts.push(Part::Drawing { id, surface: s });

@@ -26,6 +26,7 @@ mod tablet;
 mod textures;
 mod theme;
 mod timeline;
+mod timing_panel;
 #[cfg(test)]
 mod ui_tests;
 mod view;
