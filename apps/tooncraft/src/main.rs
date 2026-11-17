@@ -10,6 +10,7 @@
 mod i18n;
 mod app;
 mod args;
+mod brush_editor;
 mod canvas;
 mod color;
 mod dock;

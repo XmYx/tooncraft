@@ -39,6 +39,9 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Depth, Shake, Add Shake Here | Generic film words | Use |
 | Fill every drawing of the layer | Our wording | Use |
 | Tip, Tip from Image, Brush preset, My brushes | Generic | Use (common) |
+| Dynamics, Curve, Scatter, Jitter, Tip shape, Roundness, Tip angle | Generic brush words; our wording for the per-input response curves | Use |
+| Grain texture, Grain from Image, Canvas weave, Speckle, Clouds | Descriptive | Use |
+| Wet mixing, Colour pickup, Watercolour, Smudge, Smear fade | Generic painting words | Use (common) |
 | Sound, Import Sound, Start Sound Here | Generic | Use |
 | XDTS Exposure Sheet with Drawings | File format name (rule 3) | Use |
 | ProRes 4444 / 422 HQ (MOV), Layered PSD, OpenRaster | Format names (rule 3: formats we support) | Use |

@@ -16,7 +16,6 @@ F = request).
 | 2 | Effects, the rest: drawn mask shapes, smoothing of jagged lines, a GPU path (RFC-0022) | Effects | | 14 | target rows |
 | 3 | Lip-sync assist: mouth charts from the soundtrack | Audio | | 24 | F1 |
 | 5 | Nested folders, clipping layers, folders in the timeline | Layers | | 12 | F15 |
-| 6 | Brush editor with curves per dynamic; textured brush grain images | Brushes | | 20 | F7 |
 | 7 | Key / breakdown / inbetween marks and a planning chart | Animation | | 10 | target rows |
 | 8 | Field guide, safe areas, canvas resize / crop | Canvas | | 10 | target rows |
 | 9 | Saved workspaces (panel layouts) | UI | | 6 | A13 |

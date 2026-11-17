@@ -23,7 +23,7 @@ row but most of the remaining work, which is why the effort-weighted estimate is
 
 | Dimension | Today | Next |
 |---|---|---|
-| Drawing | 5 brushes with pressure / tilt / velocity, smoothing, steady line, paper grain, eraser, picker | pen input everywhere, selection and transform, shape tools, brush editor |
+| Drawing | 7 brushes (pencil, ink, airbrush, chalk, eraser, watercolour, smudge) with a brush editor: response curves per input, tip shape, jitter, grain textures, wet mixing; smoothing, steady line, picker | pen input everywhere, GPU dabs, brush library |
 | Timeline | keys / holds / blanks, drag-to-hold, range select, copy / paste, reverse, cycles, re-time | audio waveform, camera, thumbnails |
 | Onion skin and light table | before / after, tint, falloff, by drawings or frames, pins | outline mode |
 | Colouring | fill with gap closing, paint under lines, swatches | fill all frames, palette files |

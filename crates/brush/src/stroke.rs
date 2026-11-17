@@ -1,14 +1,18 @@
 //! Samples → dabs ([`StrokeEngine`]) and dabs → pixels ([`Stroke`]).
 
 use std::collections::HashMap;
+use std::f32::consts::TAU;
 use std::sync::Arc;
 
 use tooncraft_raster::{Surface, TILE, TILE_PIXELS, Tile, TileSnapshot, over, premultiply, scale_alpha};
 
 use crate::dab::Shape;
-use crate::{Brush, BrushKind, Dab, Sample, Stabilizer};
+use crate::{Brush, BrushKind, Dab, GrainKind, Inputs, Sample, Source, Stabilizer, Target, hash01};
 
 /// Turns input samples into evenly spaced dabs with the brush's dynamics applied.
+///
+/// Everything random (the Random source, scatter directions) comes from a hash of the stroke's
+/// first position and the dab's number, so replaying the same samples gives the same dabs.
 #[derive(Clone, Debug)]
 pub struct StrokeEngine {
     brush: Brush,
@@ -18,12 +22,17 @@ pub struct StrokeEngine {
     carry: f32,
     /// Filtered pointer speed in pixels per second.
     speed: f32,
+    /// Direction of the last movement in turns (0 rightwards, 0.25 downwards).
+    heading: f32,
+    /// Number of dabs made so far, and the stroke's random seed.
+    index: u64,
+    seed: u64,
 }
 
 impl StrokeEngine {
     pub fn new(brush: Brush) -> Self {
         let brush = brush.sanitized();
-        Self { stabilizer: Stabilizer::new(brush.smoothing), brush, last: None, carry: 0.0, speed: 0.0 }
+        Self { stabilizer: Stabilizer::new(brush.smoothing), brush, last: None, carry: 0.0, speed: 0.0, heading: 0.0, index: 0, seed: 0 }
     }
 
     pub fn brush(&self) -> &Brush {
@@ -50,6 +59,7 @@ impl StrokeEngine {
 
     fn walk(&mut self, s: Sample, out: &mut Vec<Dab>) {
         let Some(prev) = self.last else {
+            self.seed = ((s.x.to_bits() as u64) << 32) | s.y.to_bits() as u64;
             out.push(self.dab(&s));
             self.last = Some(s);
             self.carry = 0.0;
@@ -64,13 +74,14 @@ impl StrokeEngine {
             self.last = Some(s);
             return;
         }
+        self.heading = (dy.atan2(dx) / TAU).rem_euclid(1.0);
         // Cap the number of dabs one segment may emit: hostile input cannot stall the app.
         let mut budget = 20_000usize;
         let mut travelled = 0.0f32;
         loop {
             let t = (travelled / len).clamp(0.0, 1.0);
             let here = lerp_sample(&prev, &s, t);
-            let step = (self.brush.spacing * self.diameter(&here)).max(0.5);
+            let step = (self.brush.spacing * self.diameter(&here, 1.0)).max(0.5);
             let need = step - self.carry;
             if travelled + need > len || budget == 0 {
                 self.carry += len - travelled;
@@ -85,25 +96,58 @@ impl StrokeEngine {
         self.last = Some(s);
     }
 
-    fn diameter(&self, s: &Sample) -> f32 {
-        let d = self.brush.dynamics;
-        let p = 1.0 - d.pressure_size * (1.0 - s.pressure);
-        let v = 1.0 - d.velocity_size * (self.speed / 2500.0).clamp(0.0, 1.0);
-        (self.brush.size * p.max(d.min_size) * v.max(0.05)).max(0.5)
+    /// The inputs of a dab: pressure, tilt, speed, heading and (filled in per target) chance.
+    fn inputs(&self, s: &Sample, random: f32) -> Inputs {
+        let tilt = (s.tilt_x * s.tilt_x + s.tilt_y * s.tilt_y).sqrt().min(1.0);
+        let mut i = [0.0; 5];
+        i[Source::Pressure.index()] = s.pressure;
+        i[Source::Tilt.index()] = tilt;
+        i[Source::Speed.index()] = (self.speed / 2500.0).clamp(0.0, 1.0);
+        i[Source::Rotation.index()] = self.heading;
+        i[Source::Random.index()] = random;
+        i
     }
 
-    fn dab(&self, s: &Sample) -> Dab {
+    /// The chance input for one target of the current dab.
+    fn random(&self, t: Target) -> f32 {
+        hash01(self.seed ^ self.index.wrapping_mul(0xA24B_AED4_963E_E407), t.index() as u64 + 1)
+    }
+
+    /// Dab diameter for the inputs at `s`; `random` is the chance input (1 for spacing, which
+    /// follows the nominal size).
+    fn diameter(&self, s: &Sample, random: f32) -> f32 {
+        let d = &self.brush.dynamics;
+        let f = d.response.factor(Target::Size, &self.inputs(s, random)).max(d.min_size);
+        (self.brush.size * f).clamp(0.5, crate::MAX_SIZE)
+    }
+
+    fn dab(&mut self, s: &Sample) -> Dab {
         let d = self.brush.dynamics;
+        let r = d.response;
+        let with = |t: Target| self.inputs(s, self.random(t));
+        let diameter = self.diameter(s, self.random(Target::Size));
+        let alpha = (self.brush.flow * r.factor(Target::Flow, &with(Target::Flow)) * r.factor(Target::Opacity, &with(Target::Opacity))).clamp(0.0, 1.0);
         let m = (s.tilt_x * s.tilt_x + s.tilt_y * s.tilt_y).sqrt().min(1.0);
-        Dab {
-            x: s.x,
-            y: s.y,
-            radius: self.diameter(s) * 0.5,
-            alpha: (self.brush.flow * (1.0 - d.pressure_opacity * (1.0 - s.pressure))).clamp(0.0, 1.0),
-            angle: if m > 0.0 { s.tilt_y.atan2(s.tilt_x) } else { 0.0 },
-            roundness: (1.0 - d.tilt * m * 0.75).clamp(0.1, 1.0),
-            pressure: s.pressure,
+        let tilt_angle = if m > 0.0 { s.tilt_y.atan2(s.tilt_x) } else { 0.0 };
+        let turn = r.offset(Target::Angle, &with(Target::Angle));
+        let scatter = r.offset(Target::Scatter, &with(Target::Scatter)).max(0.0) * diameter;
+        let (mut x, mut y) = (s.x, s.y);
+        if scatter > 0.0 {
+            let a = hash01(self.seed ^ self.index.wrapping_mul(0xD6E8_FEB8_6659_FD93), 77) * TAU;
+            x += a.cos() * scatter;
+            y += a.sin() * scatter;
         }
+        let dab = Dab {
+            x,
+            y,
+            radius: diameter * 0.5,
+            alpha,
+            angle: self.brush.angle.to_radians() + tilt_angle + turn * TAU,
+            roundness: (self.brush.roundness * (1.0 - d.tilt * m * 0.75)).clamp(0.1, 1.0),
+            pressure: s.pressure,
+        };
+        self.index = self.index.wrapping_add(1);
+        dab
     }
 }
 
@@ -119,40 +163,79 @@ fn lerp_sample(a: &Sample, b: &Sample, t: f32) -> Sample {
     }
 }
 
+/// The images a brush refers to, resolved by the caller from the shot's tip table.
+#[derive(Clone, Debug, Default)]
+pub struct Images {
+    /// The image tip stamped instead of the round dab.
+    pub tip: Option<Arc<crate::Tip>>,
+    /// The grain image (used when the brush's grain kind is `Image`).
+    pub grain: Option<Arc<crate::Tip>>,
+}
+
+/// Paint carried by a wet brush: premultiplied RGBA, each 0 … 1.
+type Load = [f32; 4];
+
 /// A stroke being painted onto one surface.
 ///
 /// Holds 16-bit coverage per touched tile. Each touched pixel is recomputed from the tile as it
 /// was before the stroke (the surface's capture) plus the coverage, so the result never depends
-/// on how the dabs overlapped.
+/// on how the dabs overlapped. Wet brushes (see [`Stroke::is_wet`]) instead stamp onto the tile
+/// as it is now, because they read the colour under them.
 pub struct Stroke {
     brush: Brush,
     shape: Shape,
     color: [u8; 4],
     coverage: HashMap<u32, Vec<u16>>,
     dabs: u64,
+    wet: bool,
+    load: Option<Load>,
 }
 
 impl Stroke {
     /// Start a stroke; the surface starts capturing tiles for undo.
     pub fn begin(surface: &mut Surface, brush: Brush) -> Self {
-        Self::begin_with_tip(surface, brush, None)
+        Self::begin_with(surface, brush, Images::default())
     }
 
     /// Start a stroke stamping an image tip (the brush's `tip` resolved by the caller).
     pub fn begin_with_tip(surface: &mut Surface, brush: Brush, tip: Option<Arc<crate::Tip>>) -> Self {
+        Self::begin_with(surface, brush, Images { tip, grain: None })
+    }
+
+    /// Start a stroke with its tip and grain images.
+    pub fn begin_with(surface: &mut Surface, brush: Brush, images: Images) -> Self {
         let brush = brush.sanitized();
         surface.begin_capture();
+        // a grain image that is missing falls back to paper
+        let grain_kind = if brush.grain_kind == GrainKind::Image && images.grain.is_none() { GrainKind::Paper } else { brush.grain_kind };
+        let wet = brush.kind != BrushKind::Eraser && (brush.kind == BrushKind::Smudge || brush.wet.pickup > 0.0);
         Self {
-            shape: Shape { kind: brush.kind, hardness: brush.hardness, grain: brush.grain, grain_scale: brush.grain_scale, tip },
+            shape: Shape {
+                kind: brush.kind,
+                hardness: brush.hardness,
+                grain: brush.grain,
+                grain_scale: brush.grain_scale,
+                grain_kind,
+                grain_image: images.grain,
+                tip: images.tip,
+            },
             color: premultiply(brush.color),
             brush,
             coverage: HashMap::new(),
             dabs: 0,
+            wet,
+            load: None,
         }
     }
 
     pub fn dab_count(&self) -> u64 {
         self.dabs
+    }
+
+    /// Whether this stroke mixes with the colours under it (the smudge brush, or any brush with
+    /// colour pickup).
+    pub fn is_wet(&self) -> bool {
+        self.wet
     }
 
     /// Rasterise dabs into the surface.
@@ -173,6 +256,10 @@ impl Stroke {
             return;
         }
         self.dabs += 1;
+        if self.wet {
+            self.add_wet(surface, dab, (x0, y0, x1, y1));
+            return;
+        }
         let (sin, cos) = dab.angle.sin_cos();
         let t = TILE as i64;
         let opacity = (self.brush.opacity * 255.0).round().clamp(0.0, 255.0) as u32;
@@ -219,19 +306,114 @@ impl Stroke {
         }
     }
 
+    /// One dab of a wet brush. The brush carries a load of paint. A painting brush starts with
+    /// its colour and mixes the colour of the layer under it into the load; the smudge brush
+    /// starts with the layer's colour and lets go of it gradually, so the colour is dragged along.
+    /// Each dab then lays the load onto the pixels under it. Flow, opacity and pickup are per
+    /// brush width of travel, not per dab, so the look does not change with the spacing.
+    fn add_wet(&mut self, surface: &mut Surface, dab: &Dab, (x0, y0, x1, y1): (i64, i64, i64, i64)) {
+        let smudge = self.brush.kind == BrushKind::Smudge;
+        let step = self.brush.spacing.clamp(0.02, 1.0);
+        let rate = |p: f32| 1.0 - (1.0 - p.clamp(0.0, 0.999)).powf(step);
+        let avg = average_under(surface, dab);
+        let first = self.load.is_none();
+        let paint = {
+            let c = self.color;
+            [c[0] as f32 / 255.0, c[1] as f32 / 255.0, c[2] as f32 / 255.0, c[3] as f32 / 255.0]
+        };
+        let load = self.load.get_or_insert(if smudge { avg } else { paint });
+        let k = rate(self.brush.wet.pickup);
+        if smudge {
+            if !first {
+                for c in 0..4 {
+                    load[c] += (avg[c] - load[c]) * k;
+                }
+            }
+        } else if avg[3] > 0.0 && load[3] > 0.0 {
+            // mix the colours, not the transparency: paint does not thin out on blank canvas
+            let w = (k * avg[3]).clamp(0.0, 1.0);
+            for c in 0..3 {
+                let (own, theirs) = (load[c] / load[3], avg[c] / avg[3]);
+                load[c] = (own + (theirs - own) * w).clamp(0.0, 1.0) * load[3];
+            }
+        }
+        let load = *load;
+        let (sin, cos) = dab.angle.sin_cos();
+        let t = TILE as i64;
+        let opacity = self.brush.opacity;
+        let salt = self.dabs;
+        for ty in y0 / t..=y1 / t {
+            for tx in x0 / t..=x1 / t {
+                let Some(index) = surface.tile_index(tx as u32, ty as u32) else { continue };
+                let Some(tile) = surface.tile_mut(index) else { continue };
+                let px = tile.bytes_mut();
+                let (bx, by) = (tx * t, ty * t);
+                for y in y0.max(by)..=y1.min(by + t - 1) {
+                    for x in x0.max(bx)..=x1.min(bx + t - 1) {
+                        let a = dab.coverage(x, y, &self.shape, cos, sin) * opacity;
+                        if a <= 0.0 {
+                            continue;
+                        }
+                        let d = 1.0 - (1.0 - a.min(0.999)).powf(step);
+                        let i = (((y - by) * t + (x - bx)) * 4) as usize;
+                        // an unbiased rounding keeps slow blends moving
+                        let dither = hash01(salt, (x as u64) << 20 ^ y as u64);
+                        for c in 0..4 {
+                            let cur = px[i + c] as f32;
+                            let v = if smudge { cur + (load[c] * 255.0 - cur) * d } else { cur * (1.0 - load[3] * d) + load[c] * 255.0 * d };
+                            px[i + c] = (v + dither).floor().clamp(0.0, 255.0) as u8;
+                        }
+                        // keep the pixel a valid premultiplied colour
+                        let alpha = px[i + 3];
+                        for c in 0..3 {
+                            px[i + c] = px[i + c].min(alpha);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Finish the stroke; returns the tiles as they were before it (the undo record).
     pub fn end(self, surface: &mut Surface) -> TileSnapshot {
-        if self.brush.kind == BrushKind::Eraser {
+        if self.brush.kind == BrushKind::Eraser || self.wet {
             surface.prune();
         }
         surface.take_capture()
     }
 }
 
+/// The mean of the premultiplied colours under a dab (13 sample points inside its radius).
+fn average_under(surface: &Surface, dab: &Dab) -> Load {
+    let r = dab.radius.max(0.5);
+    let mut sum = [0.0f32; 4];
+    let mut n = 0.0;
+    let mut add = |dx: f32, dy: f32| {
+        let p = surface.pixel((dab.x + dx).floor() as i64, (dab.y + dy).floor() as i64);
+        for c in 0..4 {
+            sum[c] += p[c] as f32 / 255.0;
+        }
+        n += 1.0;
+    };
+    add(0.0, 0.0);
+    for ring in [0.45f32, 0.85] {
+        for k in 0..6 {
+            let a = k as f32 * TAU / 6.0 + ring * 2.0;
+            add(a.cos() * r * ring, a.sin() * r * ring);
+        }
+    }
+    [sum[0] / n, sum[1] / n, sum[2] / n, sum[3] / n]
+}
+
 /// Paint a whole stroke in one call (commands, tests, replay). Returns the undo record.
 pub fn paint(surface: &mut Surface, brush: Brush, samples: &[Sample]) -> TileSnapshot {
+    paint_with(surface, brush, samples, Images::default())
+}
+
+/// [`paint`] with the brush's tip and grain images.
+pub fn paint_with(surface: &mut Surface, brush: Brush, samples: &[Sample], images: Images) -> TileSnapshot {
     let mut engine = StrokeEngine::new(brush);
-    let mut stroke = Stroke::begin(surface, brush);
+    let mut stroke = Stroke::begin_with(surface, brush, images);
     for s in samples {
         let d = engine.feed(*s);
         stroke.add(surface, &d);
@@ -362,7 +544,7 @@ mod tests {
         #[test]
         fn hostile_samples_never_panic(
             pts in proptest::collection::vec((-1e4f32..1e4, -1e4f32..1e4, -2f32..2.0, -2f32..2.0, 0f64..10.0), 0..40),
-            kind in 0usize..5, size in -10f32..2000.0,
+            kind in 0usize..BrushKind::ALL.len(), size in -10f32..2000.0,
         ) {
             let mut s = Surface::new(256, 256).unwrap();
             let before = s.clone();
@@ -372,6 +554,231 @@ mod tests {
             s.swap_snapshot(undo);
             s.prune();
             proptest::prop_assert_eq!(s, before);
+        }
+    }
+}
+
+#[cfg(test)]
+mod dynamics_tests {
+    use super::*;
+    use crate::{Curve, Dynamics, Response, Smoothing, Wet};
+
+    fn plain(kind: BrushKind) -> Brush {
+        Brush { smoothing: Smoothing { average: 0.0, catch_up: false, ..Default::default() }, ..Brush::preset(kind) }
+    }
+
+    fn dabs(brush: Brush, samples: &[Sample]) -> Vec<Dab> {
+        let mut e = StrokeEngine::new(brush);
+        let mut out: Vec<Dab> = samples.iter().flat_map(|s| e.feed(*s)).collect();
+        out.extend(e.finish());
+        out
+    }
+
+    fn row(n: usize, pressure: f32) -> Vec<Sample> {
+        (0..n).map(|i| Sample::at(20.0 + i as f32 * 4.0, 50.0, pressure, i as f64 * 0.01)).collect()
+    }
+
+    fn with_response(f: impl FnOnce(&mut Response)) -> Brush {
+        let mut dynamics = Dynamics { min_size: 0.01, ..Dynamics::linear(0.0, 0.0, 0.0, 0.01) };
+        f(&mut dynamics.response);
+        Brush { dynamics, size: 20.0, ..plain(BrushKind::Ink) }
+    }
+
+    #[test]
+    fn the_curve_changes_how_pressure_maps_to_size() {
+        let linear = with_response(|r| r.set(Target::Size, Source::Pressure, 1.0));
+        let eased = with_response(|r| {
+            r.set(Target::Size, Source::Pressure, 1.0);
+            r.get_mut(Target::Size, Source::Pressure).curve = Curve::ease_in();
+        });
+        let radius = |b: Brush| dabs(b, &row(6, 0.5)).first().map(|d| d.radius).unwrap_or(0.0);
+        assert!((radius(linear) - 5.0).abs() < 0.2, "{}", radius(linear));
+        assert!(radius(eased) < radius(linear) * 0.8, "{} vs {}", radius(eased), radius(linear));
+    }
+
+    #[test]
+    fn every_source_can_drive_every_scaled_target() {
+        for target in [Target::Size, Target::Opacity, Target::Flow] {
+            for source in [Source::Pressure, Source::Tilt, Source::Speed, Source::Rotation, Source::Random] {
+                let brush = with_response(|r| r.set(target, source, 1.0));
+                // two strokes with different inputs: pressure, tilt, speed, heading
+                let a: Vec<Sample> =
+                    (0..30).map(|i| Sample { x: 10.0 + i as f32 * 2.0, y: 20.0, pressure: 1.0, tilt_x: 0.0, tilt_y: 0.0, time: i as f64 * 0.5 }).collect();
+                let b: Vec<Sample> =
+                    (0..30).map(|i| Sample { x: 200.0, y: 10.0 + i as f32 * 12.0, pressure: 0.1, tilt_x: 0.9, tilt_y: 0.0, time: i as f64 * 0.0005 }).collect();
+                // the mean size and strength of the dabs after the first (the speed is unknown there)
+                let key = |ds: Vec<Dab>| {
+                    let n = ds.len().saturating_sub(1).max(1) as f32;
+                    (ds.iter().skip(1).map(|d| d.radius).sum::<f32>() / n, ds.iter().skip(1).map(|d| d.alpha).sum::<f32>() / n)
+                };
+                let (ka, kb) = (key(dabs(brush, &a)), key(dabs(brush, &b)));
+                assert!(ka != kb || source == Source::Random, "{target:?} ignores {source:?}: {ka:?} {kb:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn random_jitter_varies_the_dabs_but_replays_exactly() {
+        let brush = with_response(|r| r.set(Target::Size, Source::Random, 0.8));
+        let (a, b) = (dabs(brush, &row(40, 1.0)), dabs(brush, &row(40, 1.0)));
+        assert_eq!(a, b, "the same samples give the same dabs");
+        let (lo, hi) = a.iter().fold((f32::MAX, 0.0f32), |m, d| (m.0.min(d.radius), m.1.max(d.radius)));
+        assert!(hi > lo * 1.5, "no variation: {lo}..{hi}");
+        let moved: Vec<Sample> = row(40, 1.0).into_iter().map(|s| Sample { y: s.y + 3.0, ..s }).collect();
+        assert_ne!(
+            a.iter().map(|d| d.radius).collect::<Vec<_>>(),
+            dabs(brush, &moved).iter().map(|d| d.radius).collect::<Vec<_>>(),
+            "another stroke jitters differently"
+        );
+    }
+
+    #[test]
+    fn scatter_moves_dabs_off_the_path_and_angle_jitter_turns_them() {
+        let scatter = with_response(|r| r.set(Target::Scatter, Source::Random, 1.0));
+        let off = dabs(scatter, &row(40, 1.0)).iter().filter(|d| (d.y - 50.0).abs() > 1.0).count();
+        assert!(off > 10, "{off} dabs left the path");
+        let turn = with_response(|r| r.set(Target::Angle, Source::Random, 0.5));
+        let angles: Vec<f32> = dabs(turn, &row(40, 1.0)).iter().map(|d| d.angle).collect();
+        assert!(angles.iter().any(|a| a.abs() > 0.5) && angles.iter().all(|a| a.abs() <= std::f32::consts::PI + 1e-3));
+    }
+
+    #[test]
+    fn tip_shape_sets_roundness_and_angle() {
+        let blade = Brush { roundness: 0.2, angle: 90.0, ..with_response(|_| {}) };
+        let d = dabs(blade, &row(4, 1.0));
+        assert!(d.iter().all(|d| (d.roundness - 0.2).abs() < 1e-5 && (d.angle - std::f32::consts::FRAC_PI_2).abs() < 1e-4));
+        // a thin blade turned upright covers a tall, narrow patch
+        let mut s = Surface::new(80, 80).unwrap();
+        let mut st = Stroke::begin(&mut s, Brush { size: 40.0, hardness: 1.0, ..blade });
+        st.add(&mut s, &[Dab { x: 40.0, y: 40.0, radius: 20.0, alpha: 1.0, angle: std::f32::consts::FRAC_PI_2, roundness: 0.2, pressure: 1.0 }]);
+        st.end(&mut s);
+        let (tall, wide) = ((0..80).filter(|y| s.pixel(40, *y)[3] > 128).count(), (0..80).filter(|x| s.pixel(*x, 40)[3] > 128).count());
+        assert!(tall > wide * 3, "{tall} tall, {wide} wide");
+    }
+
+    #[test]
+    fn a_grain_image_decides_where_paint_lands() {
+        // columns alternate between peak and valley, one image pixel per canvas pixel
+        let mut alpha = vec![0u8; 8 * 8];
+        for y in 0..8 {
+            for x in 0..8 {
+                alpha[y * 8 + x] = if x % 2 == 0 { 255 } else { 0 };
+            }
+        }
+        let grain = Arc::new(crate::Tip::new("columns", 8, 8, alpha).unwrap());
+        let brush = Brush { grain: 1.0, grain_kind: GrainKind::Image, grain_scale: 1.0, size: 30.0, hardness: 1.0, opacity: 1.0, ..plain(BrushKind::Chalk) };
+        // light pressure only touches the peaks of the grain
+        let pts: Vec<Sample> = (0..40).map(|i| Sample::at(30.0 + i as f32 * 2.0, 30.0, 0.3, i as f64 * 0.01)).collect();
+        let mut s = Surface::new(120, 60).unwrap();
+        paint_with(&mut s, brush, &pts, Images { tip: None, grain: Some(grain) });
+        let (even, odd): (u32, u32) =
+            (0..100).fold((0, 0), |(e, o), x| if x % 2 == 0 { (e + s.pixel(x, 30)[3] as u32, o) } else { (e, o + s.pixel(x, 30)[3] as u32) });
+        assert!(even > odd * 3, "peaks {even} vs valleys {odd}");
+        // without the image the brush falls back to paper instead of failing
+        let mut t = Surface::new(120, 60).unwrap();
+        paint(&mut t, brush, &pts);
+        assert!(!t.is_empty());
+    }
+
+    #[test]
+    fn built_in_grains_change_the_stroke() {
+        let paint_with_kind = |kind: GrainKind| {
+            let mut s = Surface::new(200, 80).unwrap();
+            let brush = Brush { grain: 1.0, grain_kind: kind, size: 24.0, ..plain(BrushKind::Chalk) };
+            let pts: Vec<Sample> = (0..60).map(|i| Sample::at(20.0 + i as f32 * 2.5, 40.0, 0.5, i as f64 * 0.01)).collect();
+            paint(&mut s, brush, &pts);
+            s
+        };
+        let paper = paint_with_kind(GrainKind::Paper);
+        for kind in [GrainKind::Canvas, GrainKind::Speckle, GrainKind::Clouds] {
+            assert_ne!(paint_with_kind(kind), paper, "{kind:?} looks like paper");
+        }
+    }
+
+    fn block(s: &mut Surface, x0: u32, x1: u32, color: [u8; 4]) {
+        for y in 20..60 {
+            for x in x0..x1 {
+                if let Some(i) = s.tile_index(x / TILE, y / TILE)
+                    && let Some(t) = s.tile_mut(i)
+                {
+                    let (lx, ly) = (x % TILE, y % TILE);
+                    let o = ((ly * TILE + lx) * 4) as usize;
+                    t.bytes_mut()[o..o + 4].copy_from_slice(&premultiply(color));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn smudge_drags_colour_into_empty_space_and_is_one_undo_step() {
+        let mut s = Surface::new(200, 80).unwrap();
+        block(&mut s, 20, 70, [220, 30, 30, 255]);
+        let before = s.clone();
+        let brush = Brush { size: 24.0, flow: 0.9, wet: Wet { pickup: 0.2 }, ..plain(BrushKind::Smudge) };
+        let pts: Vec<Sample> = (0..60).map(|i| Sample::at(50.0 + i as f32 * 2.0, 40.0, 1.0, i as f64 * 0.01)).collect();
+        let undo = paint(&mut s, brush, &pts);
+        let smear = s.pixel(90, 40);
+        assert!(smear[3] > 40 && smear[0] > smear[2] + 30, "no red smear past the block: {smear:?}");
+        assert!(s.pixel(160, 40)[3] < smear[3], "the smear thins out along the stroke");
+        // reloading fully from the empty layer at every step leaves no smear behind
+        let mut t = before.clone();
+        paint(&mut t, Brush { wet: Wet { pickup: 1.0 }, ..brush }, &pts);
+        assert!(t.pixel(110, 40)[3] < s.pixel(110, 40)[3] / 2, "{} vs {}", t.pixel(110, 40)[3], s.pixel(110, 40)[3]);
+        s.swap_snapshot(undo);
+        s.prune();
+        let mut b = before;
+        b.prune();
+        assert_eq!(s, b);
+    }
+
+    #[test]
+    fn smudging_empty_canvas_paints_nothing() {
+        let mut s = Surface::new(100, 80).unwrap();
+        paint(&mut s, plain(BrushKind::Smudge), &row(20, 1.0));
+        assert!(s.is_empty());
+    }
+
+    #[test]
+    fn wet_paint_picks_up_the_colour_under_it() {
+        let ground = [20, 40, 230, 255];
+        let stroke = |pickup: f32| {
+            let mut s = Surface::new(240, 80).unwrap();
+            block(&mut s, 0, 240, ground);
+            let brush =
+                Brush { color: [240, 220, 20, 255], size: 20.0, flow: 1.0, opacity: 1.0, hardness: 1.0, wet: Wet { pickup }, ..plain(BrushKind::Watercolour) };
+            let pts: Vec<Sample> = (0..80).map(|i| Sample::at(20.0 + i as f32 * 2.5, 40.0, 1.0, i as f64 * 0.01)).collect();
+            paint(&mut s, brush, &pts);
+            unpremultiply_blue(s.pixel(190, 40))
+        };
+        let (dry, wet) = (stroke(0.0), stroke(0.8));
+        assert!(wet > dry + 40, "blue from the ground should mix in: dry {dry}, wet {wet}");
+    }
+
+    fn unpremultiply_blue(p: [u8; 4]) -> i32 {
+        tooncraft_raster::unpremultiply(p)[2] as i32
+    }
+
+    #[test]
+    fn wet_strokes_replay_exactly() {
+        let make = || {
+            let mut s = Surface::new(160, 80).unwrap();
+            block(&mut s, 10, 80, [200, 60, 60, 255]);
+            let pts: Vec<Sample> = (0..50).map(|i| Sample::at(30.0 + i as f32 * 2.0, 38.0 + (i as f32 * 0.3).sin() * 6.0, 0.7, i as f64 * 0.01)).collect();
+            paint(&mut s, Brush { size: 22.0, ..plain(BrushKind::Smudge) }, &pts);
+            paint(&mut s, Brush { color: [30, 200, 60, 255], ..plain(BrushKind::Watercolour) }, &pts);
+            s
+        };
+        assert_eq!(make(), make());
+    }
+
+    #[test]
+    fn wet_strokes_keep_valid_premultiplied_pixels() {
+        let mut s = Surface::new(120, 80).unwrap();
+        block(&mut s, 10, 60, [255, 255, 255, 255]);
+        let pts: Vec<Sample> = (0..40).map(|i| Sample::at(20.0 + i as f32 * 2.5, 40.0, 1.0, i as f64 * 0.01)).collect();
+        paint(&mut s, Brush { size: 30.0, flow: 1.0, wet: Wet { pickup: 0.9 }, ..plain(BrushKind::Smudge) }, &pts);
+        for (_, t) in s.tiles() {
+            assert!(t.bytes().as_chunks::<4>().0.iter().all(|p| p[0] <= p[3] && p[1] <= p[3] && p[2] <= p[3]));
         }
     }
 }

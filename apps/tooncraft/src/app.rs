@@ -24,6 +24,8 @@ pub enum Tool {
     Airbrush,
     Chalk,
     Eraser,
+    Watercolour,
+    Smudge,
     Fill,
     Picker,
     Select,
@@ -57,8 +59,20 @@ pub enum XformKind {
 }
 
 impl Tool {
-    pub const ALL: [Tool; 10] =
-        [Tool::Pencil, Tool::Ink, Tool::Airbrush, Tool::Chalk, Tool::Eraser, Tool::Fill, Tool::Picker, Tool::Select, Tool::Shape, Tool::Hand];
+    pub const ALL: [Tool; 12] = [
+        Tool::Pencil,
+        Tool::Ink,
+        Tool::Airbrush,
+        Tool::Chalk,
+        Tool::Eraser,
+        Tool::Watercolour,
+        Tool::Smudge,
+        Tool::Fill,
+        Tool::Picker,
+        Tool::Select,
+        Tool::Shape,
+        Tool::Hand,
+    ];
 
     pub fn brush(self) -> Option<BrushKind> {
         Some(match self {
@@ -67,6 +81,8 @@ impl Tool {
             Tool::Airbrush => BrushKind::Airbrush,
             Tool::Chalk => BrushKind::Chalk,
             Tool::Eraser => BrushKind::Eraser,
+            Tool::Watercolour => BrushKind::Watercolour,
+            Tool::Smudge => BrushKind::Smudge,
             _ => return None,
         })
     }
@@ -78,6 +94,8 @@ impl Tool {
             Tool::Airbrush => tl!("Airbrush"),
             Tool::Chalk => tl!("Chalk"),
             Tool::Eraser => tl!("Eraser"),
+            Tool::Watercolour => tl!("Watercolour"),
+            Tool::Smudge => tl!("Smudge"),
             Tool::Fill => tl!("Paint bucket"),
             Tool::Picker => tl!("Colour picker"),
             Tool::Select => tl!("Select"),
@@ -95,6 +113,8 @@ impl Tool {
             Tool::Airbrush => "airbrush",
             Tool::Chalk => "chalk",
             Tool::Eraser => "eraser",
+            Tool::Watercolour => "watercolour",
+            Tool::Smudge => "smudge",
             Tool::Fill => "fill",
             Tool::Picker => "picker",
             Tool::Select => "select",
@@ -164,7 +184,7 @@ pub struct ToonApp {
     pub frame: u32,
     pub layer: usize,
     pub tool: Tool,
-    pub brushes: [Brush; 5],
+    pub brushes: [Brush; BrushKind::ALL.len()],
     /// Straight RGBA drawing colour.
     pub color: [u8; 4],
     pub swatches: Vec<[u8; 3]>,

@@ -9,12 +9,14 @@
 //! tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
 //! tooncraft-cli check <file.toon>                          interrupted saves, backup, load check
 //! tooncraft-cli bench [--json]                             stroke latency, fill, compositing, save
+//! tooncraft-cli brush (make <kind> <file> | info <file> | preview <file> <png> [--size WxH])
 //! ```
 //! Exit codes: 0 success, 1 failure, 2 usage error.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
 mod bench;
+mod brush;
 
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
@@ -33,6 +35,7 @@ const USAGE: &str = "usage:
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
   tooncraft-cli check <file.toon>
   tooncraft-cli bench [--json]
+  tooncraft-cli brush (make <kind> <file.toonbrush> | info <file.toonbrush> | preview <file.toonbrush> <out.png> [--size WxH])
 ";
 
 struct Args {
@@ -299,6 +302,7 @@ fn run() -> Result<(), String> {
             Ok(())
         }
         "bench" => bench::run(a.has("json")),
+        "brush" => brush::run(&rest.positional, rest.flag("name"), size(rest.flag("size"), (320, 96))?),
         "" | "help" => {
             print!("{USAGE}");
             Ok(())

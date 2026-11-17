@@ -13,6 +13,8 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("tool.airbrush", "Airbrush", "A"),
     ("tool.chalk", "Chalk", "C"),
     ("tool.eraser", "Eraser", "E"),
+    ("tool.watercolour", "Watercolour", "W"),
+    ("tool.smudge", "Smudge", "K"),
     ("tool.fill", "Paint bucket", "F"),
     ("tool.picker", "Colour picker", "I"),
     ("tool.select", "Select", "S"),

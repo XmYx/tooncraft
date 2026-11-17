@@ -18,11 +18,11 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 | | Value | Kind |
 |---|---|---|
 | Feature rows | 144 | measured |
-| Done (D) | 108 | measured |
-| Partial (P) | 18 | measured |
-| Missing (M) | 18 | measured |
-| Parity score, (D + ½·P) / rows | 81 % | measured |
-| Brush engine and tools | 81 % (19 D, 1 P, 4 M) | measured |
+| Done (D) | 109 | measured |
+| Partial (P) | 20 | measured |
+| Missing (M) | 15 | measured |
+| Parity score, (D + ½·P) / rows | 83 % | measured |
+| Brush engine and tools | 90 % (20 D, 3 P, 1 M) | measured |
 | Paper and canvas | 73 % (7 D, 2 P, 2 M) | measured |
 | Layers and timeline / exposure sheet | 82 % (16 D, 1 P, 3 M) | measured |
 | Onion skin and light table | 80 % (7 D, 2 P, 1 M) | measured |
@@ -63,10 +63,10 @@ features (video export, effects, audio) and understates it for small ones.
 | Textured chalk / grain brush | TV, CSP, PD | D | |
 | Opacity vs flow without dab overlap darkening | TV, CSP | D | |
 | Brush presets | all | D | `.toonbrush` files and a preset library folder |
-| Custom brush tips from images | TV, CSP, PD | D | |
-| Brush editor with curves for each dynamic | TV, CSP | M | |
-| Watercolour / wet mixing brushes | TV, CSP, PD | M | |
-| Smudge / blur tool | all | M | |
+| Custom brush tips from images | TV, CSP, PD | D | Tip shape (roundness, angle), tileable grain images and four built-in grains too |
+| Brush editor with curves for each dynamic | TV, CSP | D | **Ours:** a response curve for each of five inputs (pressure, tilt, speed, direction, chance) on each of five dab properties (size, opacity, flow, scatter, angle), tip shape, jitter, grain textures, live preview; every control works from the keyboard; [format](toonbrush-format.md) |
+| Watercolour / wet mixing brushes | TV, CSP, PD | P | Watercolour brush and colour pickup on any brush: the paint mixes with the colour already on the layer, with a clouds grain; no edge darkening, bleeding or drying |
+| Smudge / blur tool | all | P | Smudge brush drags the layer's colour along the stroke; no blur brush yet |
 | Shape tools (line, rectangle, ellipse) | all | D | Shift: 15° lines, squares, circles |
 | Lasso / rectangle selection | all | D | |
 | Transform selection (move, scale, rotate) | all | D | Live preview, one undo step; flips and 90° turns |

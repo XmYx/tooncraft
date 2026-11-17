@@ -692,4 +692,4 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
 }
 
 /// Index into `ToonApp::brushes` for each `BrushKind` discriminant (same order as `BrushKind::ALL`).
-const BRUSH_INDEX: [usize; 5] = [0, 1, 2, 3, 4];
+const BRUSH_INDEX: [usize; 7] = [0, 1, 2, 3, 4, 5, 6];
