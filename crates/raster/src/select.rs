@@ -46,6 +46,28 @@ impl Affine {
     pub fn is_finite(&self) -> bool {
         [self.a, self.b, self.c, self.d, self.tx, self.ty].iter().all(|v| v.is_finite())
     }
+
+    /// Apply `self`, then `next`.
+    pub fn then(&self, next: &Affine) -> Affine {
+        Affine {
+            a: next.a * self.a + next.b * self.c,
+            b: next.a * self.b + next.b * self.d,
+            c: next.c * self.a + next.d * self.c,
+            d: next.c * self.b + next.d * self.d,
+            tx: next.a * self.tx + next.b * self.ty + next.tx,
+            ty: next.c * self.tx + next.d * self.ty + next.ty,
+        }
+    }
+
+    /// A move by `(dx, dy)`.
+    pub fn translate(dx: f32, dy: f32) -> Affine {
+        Affine { tx: dx, ty: dy, ..Affine::IDENTITY }
+    }
+
+    /// Within `eps` of the identity (a pure copy, no resampling needed).
+    pub fn is_identity(&self, eps: f32) -> bool {
+        (self.a - 1.0).abs() <= eps && self.b.abs() <= eps && self.c.abs() <= eps && (self.d - 1.0).abs() <= eps && self.tx.abs() <= eps && self.ty.abs() <= eps
+    }
 }
 
 /// Pixels whose centres lie inside the polygon (even-odd rule), clipped to `w`×`h`.

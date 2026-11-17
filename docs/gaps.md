@@ -15,7 +15,6 @@ F = request).
 | 1 | Pen input in Wayland-native windows (tablet-v2 protocol through winit) | Input | B | 16 | A5 |
 | 2 | Effects: blur, glow, shadow, colour adjust as a non-destructive stack | Effects | | 30 | target rows |
 | 3 | Lip-sync assist: mouth charts from the soundtrack | Audio | | 24 | F1 |
-| 4 | Pegs and transform layers (keyframed moves over drawings) | Animation | | 24 | F16 |
 | 5 | Nested folders, clipping layers, folders in the timeline | Layers | | 12 | F15 |
 | 6 | Brush editor with curves per dynamic; textured brush grain images | Brushes | | 20 | F7 |
 | 7 | Key / breakdown / inbetween marks and a planning chart | Animation | | 10 | target rows |

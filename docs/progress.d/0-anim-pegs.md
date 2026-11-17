@@ -1,0 +1,1 @@
+- 2026-11-17: Pegs and transform layers: nested pegs with pivot, move, rotate, scale and skew keys, eases (presets or a custom curve) and a motion path on the canvas; drawing on a pegged layer lands under the pen; multiplane layer depth and camera shakes for the camera.

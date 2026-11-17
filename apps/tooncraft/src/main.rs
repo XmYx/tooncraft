@@ -16,6 +16,7 @@ mod dock;
 mod icons;
 mod keys;
 mod panels;
+mod pegs;
 mod sound;
 mod tablet;
 mod textures;

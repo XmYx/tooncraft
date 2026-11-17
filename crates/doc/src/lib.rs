@@ -12,12 +12,15 @@
 pub mod camera;
 mod exposure;
 mod onion;
+pub mod peg;
 pub mod render;
 
-pub use camera::{Camera, CameraKey};
+pub use camera::{Camera, CameraKey, Shake};
 pub use exposure::{Cell, ExposureError};
 pub use onion::{LightTable, OnionMode, OnionSkin, Pin};
+pub use peg::{Ease, Peg, PegId, PegKey};
 pub use render::{RenderOptions, render_camera, render_frame, render_region};
+pub use tooncraft_raster::select::Affine;
 
 use std::collections::BTreeMap;
 
@@ -67,6 +70,12 @@ pub enum DocError {
     Locked(String),
     #[error("the project must keep at least one layer")]
     LastLayer,
+    #[error("a project can have at most {} pegs", peg::MAX_PEGS)]
+    TooManyPegs,
+    #[error("there is no peg {0}")]
+    NoPeg(u64),
+    #[error("a peg cannot hang from itself or from a peg below it")]
+    PegLoop,
 }
 
 pub type Result<T> = std::result::Result<T, DocError>;
@@ -90,8 +99,18 @@ pub struct Layer {
     /// Name of the folder the layer is in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub folder: Option<String>,
+    /// The peg the layer hangs from (its drawings move with the peg).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peg: Option<PegId>,
+    /// Distance from the drawing plane for the multiplane camera (negative: nearer the camera).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub depth: f32,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
+}
+
+fn is_zero(v: &f32) -> bool {
+    *v == 0.0
 }
 
 fn is_normal(b: &BlendMode) -> bool {
@@ -188,6 +207,8 @@ pub struct Project {
     pub folders: Vec<Folder>,
     /// Image brush tips used by this shot's brushes, by id.
     pub tips: BTreeMap<u64, std::sync::Arc<tooncraft_brush::Tip>>,
+    /// Pegs layers can hang from (see [`peg`]).
+    pub pegs: Vec<Peg>,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -205,6 +226,7 @@ impl PartialEq for Project {
             && self.camera == o.camera
             && self.folders == o.folders
             && self.tips == o.tips
+            && self.pegs == o.pegs
     }
 }
 
@@ -235,6 +257,7 @@ impl Project {
             camera: Camera::default(),
             folders: Vec::new(),
             tips: BTreeMap::new(),
+            pegs: Vec::new(),
             next_drawing: 1,
             next_layer: 1,
         };
@@ -259,6 +282,7 @@ impl Project {
             camera: Camera::default(),
             folders: Vec::new(),
             tips: BTreeMap::new(),
+            pegs: Vec::new(),
             next_drawing: 1,
             next_layer: 1,
         };
@@ -306,6 +330,7 @@ impl Project {
             if !layer.opacity.is_finite() {
                 layer.opacity = 1.0;
             }
+            layer.depth = if layer.depth.is_finite() { layer.depth.clamp(camera::MIN_DEPTH, camera::MAX_DEPTH) } else { 0.0 };
             layer.opacity = layer.opacity.clamp(0.0, 1.0);
             layer.name = layer.name.chars().take(200).collect();
             if !seen.insert(layer.id) {
@@ -395,6 +420,8 @@ impl Project {
                 blend: Default::default(),
                 color: None,
                 folder: None,
+                peg: None,
+                depth: 0.0,
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );
@@ -493,6 +520,90 @@ impl Project {
     /// Bytes of pixel data held by the library (shared tiles counted in full).
     pub fn memory_bytes(&self) -> u64 {
         self.drawings.values().map(Surface::memory_bytes).sum()
+    }
+
+    /// Replace the pegs with repaired ones (file loading); layers on pegs that do not exist are
+    /// taken off.
+    pub fn set_pegs(&mut self, pegs: Vec<Peg>) {
+        self.pegs = peg::sanitize(pegs);
+        let ids: Vec<PegId> = self.pegs.iter().map(|p| p.id).collect();
+        for l in &mut self.layers {
+            if l.peg.is_some_and(|p| !ids.contains(&p)) {
+                l.peg = None;
+            }
+        }
+    }
+
+    pub fn peg(&self, id: PegId) -> Option<&Peg> {
+        self.pegs.iter().find(|p| p.id == id)
+    }
+
+    pub fn peg_mut(&mut self, id: PegId) -> Option<&mut Peg> {
+        self.pegs.iter_mut().find(|p| p.id == id)
+    }
+
+    /// Add a peg pivoting about the canvas centre. Returns its id.
+    pub fn add_peg(&mut self, name: &str, parent: Option<PegId>) -> Result<PegId> {
+        if self.pegs.len() >= peg::MAX_PEGS {
+            return Err(DocError::TooManyPegs);
+        }
+        if let Some(p) = parent
+            && self.peg(p).is_none()
+        {
+            return Err(DocError::NoPeg(p.0));
+        }
+        let id = PegId(self.pegs.iter().map(|p| p.id.0).max().unwrap_or(0).saturating_add(1));
+        let pivot = (self.width as f32 / 2.0, self.height as f32 / 2.0);
+        self.pegs.push(Peg { id, name: name.chars().take(200).collect(), parent, pivot, keys: Vec::new() });
+        Ok(id)
+    }
+
+    /// Remove a peg: its layers are taken off and its child pegs hang from its parent.
+    pub fn delete_peg(&mut self, id: PegId) -> Result<Peg> {
+        let i = self.pegs.iter().position(|p| p.id == id).ok_or(DocError::NoPeg(id.0))?;
+        let gone = self.pegs.remove(i);
+        for p in &mut self.pegs {
+            if p.parent == Some(id) {
+                p.parent = gone.parent;
+            }
+        }
+        for l in &mut self.layers {
+            if l.peg == Some(id) {
+                l.peg = None;
+            }
+        }
+        Ok(gone)
+    }
+
+    /// Hang a peg from another (or from nothing). Refuses loops.
+    pub fn set_peg_parent(&mut self, id: PegId, parent: Option<PegId>) -> Result<()> {
+        if let Some(q) = parent {
+            if self.peg(q).is_none() {
+                return Err(DocError::NoPeg(q.0));
+            }
+            if peg::would_loop(&self.pegs, id, q) {
+                return Err(DocError::PegLoop);
+            }
+        }
+        self.peg_mut(id).ok_or(DocError::NoPeg(id.0))?.parent = parent;
+        Ok(())
+    }
+
+    /// The transform of a layer's drawings at `frame` (drawing pixels → canvas pixels): its peg
+    /// chain, or the identity.
+    pub fn layer_transform(&self, layer: usize, frame: u32) -> Affine {
+        match self.layers.get(layer).and_then(|l| l.peg) {
+            Some(id) => peg::chain(&self.pegs, id, frame),
+            None => Affine::IDENTITY,
+        }
+    }
+
+    /// Canvas positions of a peg's pivot over `from..=to` (its motion path), at most 10 000
+    /// points.
+    pub fn motion_path(&self, id: PegId, from: u32, to: u32) -> Vec<(f32, f32)> {
+        let Some(p) = self.peg(id) else { return Vec::new() };
+        let to = to.min(self.length.saturating_sub(1)).min(from.saturating_add(10_000));
+        (from..=to).map(|f| peg::chain(&self.pegs, id, f).apply(p.pivot.0, p.pivot.1)).collect()
     }
 
     /// Onion-skin drawings around `frame` on a layer: `(drawing, offset)` with negative offsets

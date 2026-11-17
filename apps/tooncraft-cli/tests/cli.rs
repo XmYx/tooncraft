@@ -46,3 +46,39 @@ fn create_script_export_check() {
     let (ok, _) = cli(&["bogus"]);
     assert!(!ok);
 }
+
+#[test]
+fn pegs_from_a_command_file_move_the_export() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-pegs-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let shot = dir.join("pegs.toon");
+    let shot_s = shot.to_str().unwrap();
+    assert!(cli(&["new", shot_s, "--size", "200x100", "--fps", "12", "--frames", "4"]).0);
+    let cmds = dir.join("pegs.jsonl");
+    std::fs::write(
+        &cmds,
+        r#"{"cmd":"stroke","layer":0,"frame":0,"brush":{"kind":"ink","size":12},"samples":[{"x":20,"y":50},{"x":30,"y":50}]}
+{"cmd":"set_exposure","layer":0,"frame":0,"length":4}
+{"cmd":"add_peg","name":"Body"}
+{"cmd":"add_peg","name":"Arm","parent":1}
+{"cmd":"set_layer_peg","layer":0,"peg":2}
+{"cmd":"set_peg_key","peg":1,"frame":0,"ease":{"kind":"linear"}}
+{"cmd":"set_peg_key","peg":1,"frame":3,"x":120}
+{"cmd":"set_layer_depth","layer":0,"depth":0.5}
+{"cmd":"add_camera_shake","shake":{"from":0,"to":3,"amplitude":3,"frequency":0.5}}
+"#,
+    )
+    .unwrap();
+    let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap()]);
+    assert!(ok, "{out}");
+    let (ok, out) = cli(&["info", shot_s]);
+    assert!(ok && out.contains("\"peg\": \"Arm\"") && out.contains("\"parent\": 1") && out.contains("\"camera_shakes\": 1"), "{out}");
+    let png = dir.join("png");
+    let (ok, out) = cli(&["export", shot_s, "--png", png.to_str().unwrap()]);
+    assert!(ok, "{out}");
+    assert!(png.join("frame_0004.png").is_file());
+    // a loop is refused with the line number
+    std::fs::write(&cmds, "{\"cmd\":\"set_peg_parent\",\"peg\":1,\"parent\":2}\n").unwrap();
+    let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap()]);
+    assert!(!ok && out.contains("line 1") && out.contains("peg"), "{out}");
+}

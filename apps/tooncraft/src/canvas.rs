@@ -35,7 +35,18 @@ impl Ctx<'_> {
     }
 }
 
-fn draw_surface(app_tex: &mut crate::textures::TileTextures, ctx: &egui::Context, c: &Ctx, id: DrawingId, s: &Surface, opacity: f32, tint: Option<[u8; 3]>) {
+/// Draw a drawing's tiles; `t` maps its pixels to canvas pixels (its peg chain). An affine map
+/// keeps every tile a parallelogram, so the textured quads stay exact.
+fn draw_surface(
+    app_tex: &mut crate::textures::TileTextures,
+    ctx: &egui::Context,
+    c: &Ctx,
+    id: DrawingId,
+    s: &Surface,
+    opacity: f32,
+    tint: Option<[u8; 3]>,
+    t: &tooncraft_doc::Affine,
+) {
     let o = (opacity.clamp(0.0, 1.0) * 255.0).round() as u8;
     if o == 0 {
         return;
@@ -46,7 +57,11 @@ fn draw_surface(app_tex: &mut crate::textures::TileTextures, ctx: &egui::Context
         let (tx, ty) = s.tile_coords(index);
         let (x0, y0) = (tx * TILE, ty * TILE);
         let (x1, y1) = ((x0 + TILE).min(w), (y0 + TILE).min(h));
-        let corners = [c.screen(x0 as f32, y0 as f32), c.screen(x1 as f32, y0 as f32), c.screen(x1 as f32, y1 as f32), c.screen(x0 as f32, y1 as f32)];
+        let at = |x: u32, y: u32| {
+            let (x, y) = t.apply(x as f32, y as f32);
+            c.screen(x, y)
+        };
+        let corners = [at(x0, y0), at(x1, y0), at(x1, y1), at(x0, y1)];
         let bb = Rect::from_points(&corners);
         if !bb.intersects(c.rect) {
             continue;
@@ -63,8 +78,21 @@ fn draw_surface(app_tex: &mut crate::textures::TileTextures, ctx: &egui::Context
     }
 }
 
-/// Canvas pixel under a screen point.
+/// Pixel of the current layer's drawing under a screen point (through the inverse of its peg
+/// chain, so drawing on a pegged layer lands where the pen is).
 fn to_canvas(app: &ToonApp, rect: Rect, p: Pos2) -> Pos2 {
+    let c = to_picture(app, rect, p);
+    match app.engine.project.layer_transform(app.layer, app.frame).inverse() {
+        Some(inv) => {
+            let (x, y) = inv.apply(c.x, c.y);
+            pos2(x, y)
+        }
+        None => c,
+    }
+}
+
+/// Canvas pixel (of the composited picture) under a screen point.
+fn to_picture(app: &ToonApp, rect: Rect, p: Pos2) -> Pos2 {
     let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
     app.view.to_canvas(rect, size, p)
 }
@@ -404,7 +432,7 @@ fn draw_selection(painter: &egui::Painter, app: &ToonApp, c: &Ctx, pal: &crate::
 }
 
 fn pick(app: &mut ToonApp, rect: Rect, p: Pos2) {
-    let c = to_canvas(app, rect, p);
+    let c = to_picture(app, rect, p);
     if c.x < 0.0 || c.y < 0.0 {
         return;
     }
@@ -556,7 +584,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             if let Some(d) = p.drawing_at(li, pin.frame)
                 && let Some(s) = p.drawing(d)
             {
-                draw_surface(tex, &ctx, &c, d, s, p.light_table.opacity, Some(p.light_table.tint));
+                draw_surface(tex, &ctx, &c, d, s, p.light_table.opacity, Some(p.light_table.tint), &p.layer_transform(li, pin.frame));
             }
         }
     }
@@ -566,6 +594,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             if !p.layers.get(li).is_some_and(|l| l.visible) {
                 continue;
             }
+            let t = p.layer_transform(li, app.frame);
             let mut n = p.onion_drawings(li, app.frame);
             n.sort_by_key(|(_, off)| std::cmp::Reverse(off.unsigned_abs()));
             for (d, off) in n {
@@ -577,7 +606,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
                 } else {
                     Some(p.onion.after_tint)
                 };
-                draw_surface(tex, &ctx, &c, d, s, p.onion.step_opacity(off.unsigned_abs()), tint);
+                draw_surface(tex, &ctx, &c, d, s, p.onion.step_opacity(off.unsigned_abs()), tint, &t);
             }
         }
     }
@@ -594,10 +623,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
         if let Some((_, s)) = &app.blend_cache {
-            draw_surface(tex, &ctx, &c, tooncraft_doc::DrawingId(u64::MAX), s, 1.0, None);
+            draw_surface(tex, &ctx, &c, tooncraft_doc::DrawingId(u64::MAX), s, 1.0, None, &tooncraft_doc::Affine::IDENTITY);
         }
     } else {
-        for layer in &p.layers {
+        for (li, layer) in p.layers.iter().enumerate() {
             let (visible, opacity) = p.effective(layer);
             if !visible {
                 continue;
@@ -605,7 +634,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             if let Some(d) = layer.drawing_at(app.frame)
                 && let Some(s) = p.drawing(d)
             {
-                draw_surface(tex, &ctx, &c, d, s, opacity, None);
+                draw_surface(tex, &ctx, &c, d, s, opacity, None, &p.layer_transform(li, app.frame));
             }
         }
     }
@@ -618,9 +647,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         let line: Vec<Pos2> = pts.iter().step_by(2).map(|s| c.screen(s.x, s.y)).collect();
         painter.add(Shape::line(line, Stroke::new(1.5, pal.accent)));
     }
+    crate::pegs::draw_path(app, &painter, |x, y| c.screen(x, y), pal.accent);
     // camera frame
     let cam = &app.engine.project.camera;
-    if app.show_camera && !cam.keys.is_empty() {
+    if app.show_camera && (!cam.keys.is_empty() || !cam.shakes.is_empty()) {
         let (w, h) = (app.engine.project.width(), app.engine.project.height());
         let map = cam.output_to_canvas(app.frame, w, h);
         let pts: Vec<Pos2> = [(0.0, 0.0), (w as f32, 0.0), (w as f32, h as f32), (0.0, h as f32)]

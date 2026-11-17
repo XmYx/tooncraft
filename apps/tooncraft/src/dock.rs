@@ -17,6 +17,7 @@ pub enum Pane {
     Layers,
     Onion,
     Camera,
+    Pegs,
 }
 
 impl Pane {
@@ -29,6 +30,7 @@ impl Pane {
             Pane::Layers => tl!("Layers"),
             Pane::Onion => tl!("Onion Skin"),
             Pane::Camera => tl!("Camera"),
+            Pane::Pegs => tl!("Pegs"),
         }
         .to_string()
     }
@@ -41,6 +43,7 @@ impl Pane {
             "onion" => Pane::Onion,
             "layers" => Pane::Layers,
             "camera" => Pane::Camera,
+            "pegs" => Pane::Pegs,
             _ => Pane::Canvas,
         }
     }
@@ -77,7 +80,7 @@ impl Default for Workspace {
             axis: SplitAxis::Vertical,
             size: SplitSize::Ratio(0.5),
             first: Box::new(tabs(&[Pane::Colour, Pane::Brush], 0)),
-            second: Box::new(tabs(&[Pane::Layers, Pane::Onion, Pane::Camera], 0)),
+            second: Box::new(tabs(&[Pane::Layers, Pane::Onion, Pane::Camera, Pane::Pegs], 0)),
         };
         let root = Node::Split { axis: SplitAxis::Horizontal, size: SplitSize::FixedSecond(300.0), first: Box::new(centre), second: Box::new(right) };
         Self {
@@ -133,6 +136,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             Pane::Layers => crate::panels::layers(app, ui),
             Pane::Onion => crate::panels::onion(app, ui),
             Pane::Camera => crate::panels::camera(app, ui),
+            Pane::Pegs => crate::pegs::panel(app, ui),
         },
     );
     if let Some(e) = out.error {

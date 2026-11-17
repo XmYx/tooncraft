@@ -2,7 +2,8 @@
 //! the canvas on the GPU from cached tile textures instead; both follow the same stacking order:
 //! paper, light table pins, onion skin, then the layers bottom to top.
 
-use tooncraft_raster::{RgbaImage, premultiply};
+use tooncraft_raster::select::Affine;
+use tooncraft_raster::{BlendMode, RgbaImage, Surface, premultiply};
 
 use crate::Project;
 
@@ -17,11 +18,14 @@ pub struct RenderOptions {
     pub light_table: bool,
     /// Only this layer (fill reference "current layer").
     pub only_layer: Option<usize>,
+    /// A map applied to the whole canvas before compositing (canvas pixels → output pixels);
+    /// the fill uses it to see the picture in a pegged layer's own space.
+    pub space: Option<Affine>,
 }
 
 impl Default for RenderOptions {
     fn default() -> Self {
-        Self { paper: true, onion_layer: None, light_table: false, only_layer: None }
+        Self { paper: true, onion_layer: None, light_table: false, only_layer: None, space: None }
     }
 }
 
@@ -30,23 +34,41 @@ pub fn render_frame(p: &Project, frame: u32, o: RenderOptions) -> RgbaImage {
     render_region(p, frame, (0, 0, p.width(), p.height()), o)
 }
 
+fn background(p: &Project, w: u32, h: u32, paper: bool) -> RgbaImage {
+    if paper {
+        let c = p.paper.color;
+        RgbaImage::filled(w, h, premultiply([c[0], c[1], c[2], 255]))
+    } else {
+        RgbaImage::transparent(w, h)
+    }
+}
+
+fn draw(s: &Surface, img: &mut RgbaImage, origin: (u32, u32), t: Option<&Affine>, opacity: f32, tint: Option<[u8; 3]>) {
+    match t {
+        None => s.composite_region(img, origin.0, origin.1, opacity, tint),
+        Some(t) => s.composite_affine(img, origin, t, opacity, tint),
+    }
+}
+
+/// `t`, or nothing when it is the identity (the fast, exact copy).
+fn non_identity(t: Affine) -> Option<Affine> {
+    if t.is_identity(1e-6) { None } else { Some(t) }
+}
+
 /// Composite the canvas rectangle `(x, y, w, h)` (clipped to the canvas) at `frame`.
 pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: RenderOptions) -> RgbaImage {
     let x = rect.0.min(p.width());
     let y = rect.1.min(p.height());
     let w = rect.2.min(p.width() - x);
     let h = rect.3.min(p.height() - y);
-    let mut img = if o.paper {
-        let c = p.paper.color;
-        RgbaImage::filled(w, h, premultiply([c[0], c[1], c[2], 255]))
-    } else {
-        RgbaImage::transparent(w, h)
-    };
+    let mut img = background(p, w, h, o.paper);
+    let space = o.space.unwrap_or(Affine::IDENTITY);
+    let map = |li: usize, f: u32| non_identity(p.layer_transform(li, f).then(&space));
     if o.light_table && p.light_table.enabled {
         for pin in &p.light_table.pins {
             let Some(li) = p.layer_index(pin.layer) else { continue };
             if let Some(s) = p.drawing_at(li, pin.frame).and_then(|d| p.drawing(d)) {
-                s.composite_region(&mut img, x, y, p.light_table.opacity, Some(p.light_table.tint));
+                draw(s, &mut img, (x, y), map(li, pin.frame).as_ref(), p.light_table.opacity, Some(p.light_table.tint));
             }
         }
     }
@@ -58,6 +80,7 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
             if !p.layers.get(li).is_some_and(|l| l.visible) {
                 continue;
             }
+            let t = map(li, frame);
             // furthest first, so nearer steps sit on top
             let mut n = p.onion_drawings(li, frame);
             n.sort_by_key(|(_, off)| std::cmp::Reverse(off.unsigned_abs()));
@@ -70,53 +93,48 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
                 } else {
                     Some(p.onion.after_tint)
                 };
-                s.composite_region(&mut img, x, y, p.onion.step_opacity(off.unsigned_abs()), tint);
+                draw(s, &mut img, (x, y), t.as_ref(), p.onion.step_opacity(off.unsigned_abs()), tint);
             }
         }
     }
-    for (li, layer) in p.layers.iter().enumerate() {
-        let (visible, opacity) = p.effective(layer);
-        if o.only_layer.is_some_and(|only| only != li) || (!visible && o.only_layer.is_none()) {
-            continue;
-        }
-        if let Some(s) = layer.drawing_at(frame).and_then(|d| p.drawing(d)) {
-            if layer.blend == tooncraft_raster::BlendMode::Normal || o.only_layer.is_some() {
-                s.composite_region(&mut img, x, y, opacity, None);
-            } else {
-                let mut top = RgbaImage::transparent(w, h);
-                s.composite_region(&mut top, x, y, opacity, None);
-                img.blend_image(&top, layer.blend);
-            }
-        }
-    }
+    layers(p, frame, &mut img, (x, y), o.only_layer, |li| Some(map(li, frame)));
     img
 }
 
-/// The frame as the camera sees it (same size as the canvas). Without camera keys, or with the
-/// camera off, this is [`render_frame`].
-pub fn render_camera(p: &Project, frame: u32, o: RenderOptions) -> RgbaImage {
-    let full = render_frame(p, frame, o);
-    if !p.camera.enabled || p.camera.keys.is_empty() {
-        return full;
-    }
-    let (w, h) = (p.width(), p.height());
-    let map = p.camera.output_to_canvas(frame, w, h);
-    let mut out = if o.paper {
-        let c = p.paper.color;
-        RgbaImage::filled(w, h, tooncraft_raster::premultiply([c[0], c[1], c[2], 255]))
-    } else {
-        RgbaImage::transparent(w, h)
-    };
-    for y in 0..h {
-        for x in 0..w {
-            let (cx, cy) = map(x as f32 + 0.5, y as f32 + 0.5);
-            let s = tooncraft_raster::sample_bilinear(&full, cx, cy);
-            if s[3] != 0 {
-                let d = out.pixel(x, y);
-                out.set_pixel(x, y, tooncraft_raster::over(d, s));
-            }
+/// Composite the layers bottom to top; `map` gives each layer's transform (`None`: skip the
+/// layer, `Some(None)`: drawn as is).
+fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), only: Option<usize>, map: impl Fn(usize) -> Option<Option<Affine>>) {
+    for (li, layer) in p.layers.iter().enumerate() {
+        let (visible, opacity) = p.effective(layer);
+        if only.is_some_and(|only| only != li) || (!visible && only.is_none()) {
+            continue;
+        }
+        let Some(s) = layer.drawing_at(frame).and_then(|d| p.drawing(d)) else { continue };
+        let Some(t) = map(li) else { continue };
+        if layer.blend == BlendMode::Normal || only.is_some() {
+            draw(s, img, origin, t.as_ref(), opacity, None);
+        } else {
+            let mut top = RgbaImage::transparent(img.width, img.height);
+            draw(s, &mut top, origin, t.as_ref(), opacity, None);
+            img.blend_image(&top, layer.blend);
         }
     }
+}
+
+/// The frame as the camera sees it (same size as the canvas). Without camera keys or shakes, or
+/// with the camera off, this is [`render_frame`]. Each layer is filmed at its own depth
+/// (multiplane) through its peg chain; onion skin and light table are not filmed.
+pub fn render_camera(p: &Project, frame: u32, o: RenderOptions) -> RgbaImage {
+    if !p.camera.active() {
+        return render_frame(p, frame, o);
+    }
+    let (w, h) = (p.width(), p.height());
+    let mut out = background(p, w, h, o.paper);
+    layers(p, frame, &mut out, (0, 0), o.only_layer, |li| {
+        let depth = p.layers.get(li).map(|l| l.depth).unwrap_or(0.0);
+        let cam = p.camera.layer_map(frame, w, h, depth)?;
+        Some(Some(p.layer_transform(li, frame).then(&cam)))
+    });
     out
 }
 
@@ -143,6 +161,7 @@ mod tests {
         let cam = render_camera(&p, 1, RenderOptions::default());
         let px = cam.pixel(4, 4);
         assert!(px[2] > 200 && px[0] < 150, "zoomed ×2 on the blue pixel at (1, 0): {px:?}");
+        p.camera.keys.clear();
         // multiply layer and a hidden folder
         p.add_layer("Shade", 1).unwrap();
         let shade = p.add_drawing(None).unwrap();
@@ -156,5 +175,68 @@ mod tests {
         assert_eq!(render_frame(&p, 1, RenderOptions::default()).pixel(2, 0), [246, 243, 236, 255]);
         let clear = render_region(&p, 2, (1, 0, 4, 4), RenderOptions { paper: false, ..Default::default() });
         assert_eq!((clear.width, clear.pixel(0, 0)), (4, [0, 0, 255, 255]));
+    }
+
+    fn dot_project() -> (Project, crate::DrawingId) {
+        let mut p = Project::new("t", 128, 64, 24, 4).unwrap();
+        let d = p.add_drawing(None).unwrap();
+        let s = p.drawing_mut(d).unwrap();
+        for y in 10..14u32 {
+            for x in 10..14u32 {
+                let o = ((y * 64 + x) * 4) as usize;
+                s.tile_mut(0).unwrap().bytes_mut()[o..o + 4].copy_from_slice(&[0, 0, 0, 255]);
+            }
+        }
+        p.layers[0].cells = vec![Cell::Key(d), Cell::Hold, Cell::Hold, Cell::Hold];
+        (p, d)
+    }
+
+    #[test]
+    fn pegged_layers_render_through_their_keys() {
+        let (mut p, _) = dot_project();
+        let peg = p.add_peg("Body", None).unwrap();
+        p.layers[0].peg = Some(peg);
+        let k = |frame, x| crate::PegKey { x, ease: crate::Ease::Linear, ..crate::PegKey::rest(frame) };
+        p.peg_mut(peg).unwrap().set_key(k(0, 0.0));
+        p.peg_mut(peg).unwrap().set_key(k(2, 80.0));
+        let ink = |img: &RgbaImage, x, y| img.pixel(x, y)[0] < 50;
+        assert!(ink(&render_frame(&p, 0, RenderOptions::default()), 12, 12));
+        let mid = render_frame(&p, 1, RenderOptions::default());
+        assert!(ink(&mid, 52, 12) && !ink(&mid, 12, 12), "half way at frame 2");
+        assert!(ink(&render_frame(&p, 3, RenderOptions::default()), 92, 12), "holds the last key");
+        // the fill sees the layer in its own space through `space`
+        let local = p.layer_transform(0, 3).inverse();
+        let img = render_frame(&p, 3, RenderOptions { space: local, ..Default::default() });
+        assert!(ink(&img, 12, 12));
+        // a child peg rides on its parent
+        let arm = p.add_peg("Arm", Some(peg)).unwrap();
+        p.layers[0].peg = Some(arm);
+        p.peg_mut(arm).unwrap().set_key(crate::PegKey { y: 30.0, ..crate::PegKey::rest(0) });
+        assert!(ink(&render_frame(&p, 3, RenderOptions::default()), 92, 42));
+        let path = p.motion_path(arm, 0, 3);
+        assert_eq!(path.len(), 4);
+        assert!((path[3].0 - path[0].0 - 80.0).abs() < 1e-3);
+        // deleting the parent re-hangs the child at the top
+        p.delete_peg(peg).unwrap();
+        assert_eq!(p.peg(arm).unwrap().parent, None);
+        assert!(ink(&render_frame(&p, 3, RenderOptions::default()), 12, 42));
+    }
+
+    #[test]
+    fn camera_films_each_layer_at_its_depth() {
+        let (mut p, d) = dot_project();
+        p.add_layer("Far", 0).unwrap();
+        p.layers[0].cells = vec![Cell::Key(d), Cell::Hold, Cell::Hold, Cell::Hold];
+        p.layers[0].depth = 1.0;
+        p.layers[0].opacity = 0.5;
+        p.camera.enabled = true;
+        p.camera.set(crate::CameraKey { frame: 0, x: 64.0, y: 32.0, zoom: 1.0, angle: 0.0 });
+        p.camera.set(crate::CameraKey { frame: 3, x: 54.0, y: 32.0, zoom: 1.0, angle: 0.0 });
+        let rest = render_camera(&p, 0, RenderOptions::default());
+        assert!(rest.pixel(12, 12)[0] < 50, "both planes on top of each other at rest");
+        let moved = render_camera(&p, 3, RenderOptions::default());
+        assert!(moved.pixel(22, 12)[0] < 50, "the drawing plane slides 10 px");
+        let far = moved.pixel(16, 12)[0];
+        assert!(far > 50 && far < 200, "the far plane slides 5 px: {far}");
     }
 }

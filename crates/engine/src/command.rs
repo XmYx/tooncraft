@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use tooncraft_brush::{Brush, Sample};
-use tooncraft_doc::{Cell, DocError, OnionSkin, Pin};
+use tooncraft_doc::{Cell, DocError, Ease, OnionSkin, PegId, PegKey, Pin, Shake};
 use tooncraft_raster::fill::FillOptions;
 
 use crate::undo::{Entry, Part};
@@ -183,6 +183,75 @@ pub enum Command {
     SetCamera {
         enabled: bool,
     },
+    /// Add a peg (pivot at the canvas centre), optionally hanging from `parent`.
+    AddPeg {
+        name: String,
+        #[serde(default)]
+        parent: Option<PegId>,
+    },
+    /// Remove a peg: its layers come off it and its child pegs hang from its parent.
+    DeletePeg {
+        peg: PegId,
+    },
+    RenamePeg {
+        peg: PegId,
+        name: String,
+    },
+    /// Hang a peg from another peg, or from nothing (`None`). Loops are refused.
+    SetPegParent {
+        peg: PegId,
+        #[serde(default)]
+        parent: Option<PegId>,
+    },
+    /// The canvas point the peg rotates and scales about.
+    SetPegPivot {
+        peg: PegId,
+        x: f32,
+        y: f32,
+    },
+    /// Set (or replace) a peg key: move by `x`, `y`, rotate `angle` degrees clockwise, scale,
+    /// skew (degrees), and the ease towards the next key.
+    SetPegKey {
+        peg: PegId,
+        frame: u32,
+        #[serde(default)]
+        x: f32,
+        #[serde(default)]
+        y: f32,
+        #[serde(default)]
+        angle: f32,
+        #[serde(default = "unit")]
+        scale_x: f32,
+        #[serde(default = "unit")]
+        scale_y: f32,
+        #[serde(default)]
+        skew: f32,
+        #[serde(default)]
+        ease: Ease,
+    },
+    RemovePegKey {
+        peg: PegId,
+        frame: u32,
+    },
+    /// Hang a layer from a peg, or take it off (`None`). Its pixels do not change.
+    SetLayerPeg {
+        layer: usize,
+        #[serde(default)]
+        peg: Option<PegId>,
+    },
+    /// The layer's distance from the drawing plane for the multiplane camera (negative: nearer).
+    SetLayerDepth {
+        layer: usize,
+        depth: f32,
+    },
+    /// Add a camera shake.
+    AddCameraShake {
+        shake: Shake,
+    },
+    /// Remove the camera shake at `index`.
+    RemoveCameraShake {
+        index: usize,
+    },
     /// Add an image brush tip (grey mask; dark is ink) under `id`, replacing a tip with that id.
     AddTip {
         id: u64,
@@ -354,6 +423,21 @@ fn edit_layers(e: &mut Engine, label: &str, edit: impl FnOnce(&mut Engine) -> Re
         Err(err) => {
             entry.swap(&mut e.project);
             Err(err)
+        }
+    }
+}
+
+/// Run `edit` on the project's pegs as one undo step; on error the pegs are restored.
+fn pegs(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Project) -> std::result::Result<(), DocError>) -> Result<()> {
+    let before = e.project.pegs.clone();
+    match edit(&mut e.project) {
+        Ok(()) => {
+            e.push(Entry { label: label.into(), parts: vec![Part::Pegs(before)] });
+            Ok(())
+        }
+        Err(err) => {
+            e.project.pegs = before;
+            Err(err.into())
         }
     }
 }
@@ -555,6 +639,67 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             let before = Part::Camera(e.project.camera.clone());
             e.project.camera.enabled = enabled;
             e.push(Entry { label: "Camera".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::AddPeg { name, parent } => pegs(e, "Add peg", |p| p.add_peg(&name, parent).map(|_| ())),
+        Command::DeletePeg { peg } => {
+            let parts = vec![Part::Layers(e.project.layers.clone()), Part::Pegs(e.project.pegs.clone())];
+            e.project.delete_peg(peg)?;
+            e.push(Entry { label: "Delete peg".into(), parts });
+            Ok(())
+        }
+        Command::RenamePeg { peg, name } => pegs(e, "Rename peg", |p| {
+            p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.name = name.chars().take(200).collect();
+            Ok(())
+        }),
+        Command::SetPegParent { peg, parent } => pegs(e, "Peg parent", |p| p.set_peg_parent(peg, parent)),
+        Command::SetPegPivot { peg, x, y } => pegs(e, "Peg pivot", |p| {
+            let f = |v: f32| if v.is_finite() { v.clamp(-1.0e6, 1.0e6) } else { 0.0 };
+            p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.pivot = (f(x), f(y));
+            Ok(())
+        }),
+        Command::SetPegKey { peg, frame, x, y, angle, scale_x, scale_y, skew, ease } => {
+            frame_ok(e, frame)?;
+            pegs(e, "Peg key", |p| {
+                p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.set_key(PegKey { frame, x, y, angle, scale_x, scale_y, skew, ease });
+                Ok(())
+            })
+        }
+        Command::RemovePegKey { peg, frame } => pegs(e, "Remove peg key", |p| {
+            p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.remove_key(frame);
+            Ok(())
+        }),
+        Command::SetLayerPeg { layer, peg } => edit_layers(e, "Layer peg", |e| {
+            if let Some(id) = peg
+                && e.project.peg(id).is_none()
+            {
+                return Err(DocError::NoPeg(id.0).into());
+            }
+            e.project.layer_mut(layer)?.peg = peg;
+            Ok(())
+        }),
+        Command::SetLayerDepth { layer, depth } => edit_layers(e, "Layer depth", |e| {
+            let d = if depth.is_finite() { depth.clamp(tooncraft_doc::camera::MIN_DEPTH, tooncraft_doc::camera::MAX_DEPTH) } else { 0.0 };
+            e.project.layer_mut(layer)?.depth = d;
+            Ok(())
+        }),
+        Command::AddCameraShake { shake } => {
+            if e.project.camera.shakes.len() >= tooncraft_doc::camera::MAX_SHAKES {
+                return Err(EngineError::Limit("camera shakes"));
+            }
+            let before = Part::Camera(e.project.camera.clone());
+            e.project.camera.shakes.push(shake.sanitized());
+            e.project.camera.enabled = true;
+            e.push(Entry { label: "Camera shake".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::RemoveCameraShake { index } => {
+            if index >= e.project.camera.shakes.len() {
+                return Err(EngineError::Limit("camera shake index"));
+            }
+            let before = Part::Camera(e.project.camera.clone());
+            e.project.camera.shakes.remove(index);
+            e.push(Entry { label: "Remove camera shake".into(), parts: vec![before] });
             Ok(())
         }
         Command::AddTip { id, name, width, height, alpha } => {
