@@ -15,9 +15,10 @@ A ZIP archive (PKWARE APPNOTE), written and read with craft-zip.
 
 Layers list bottom to top; each has `id`, `name`, `visible`, `locked`, `opacity` and `cells`, one per
 frame: `"blank"`, `"hold"` or `{"key": <drawing id>}`. A layer may have `effects`: a list, run in order, of
-`{"enabled", "kind": {"type": "blur", "radius": 4, …}, "keys": [{"frame", "value": {…}}]}`; the
+`{"enabled", "kind": {"type": "blur", "radius": 4, …}, "keys": [{"frame", "value": {…}}], "blend", "mix"}`; the
 kinds and their parameters are `tooncraft_fx::EffectKind`, and loading clamps every parameter
-and drops keys of another kind. `saved_at` is RFC 3339 UTC (chrono).
+and drops keys of another kind. `opacity_keys` (`[{"frame", "opacity"}]`) animate the opacity, and
+`matte` (`"inside"` / `"outside"`) makes the layer a matte for the layers right below it. `saved_at` is RFC 3339 UTC (chrono).
 
 Readers must refuse a higher `version` with a clear message, cap entries and expanded size, and
 repair rather than reject inconsistent cells (holds with nothing to hold and keys to missing

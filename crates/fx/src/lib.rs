@@ -22,7 +22,7 @@ mod par;
 mod shape;
 
 use serde::{Deserialize, Serialize};
-use tooncraft_raster::RgbaImage;
+use tooncraft_raster::{BlendMode, RgbaImage};
 
 pub use blur::gaussian;
 
@@ -81,6 +81,9 @@ pub enum EffectKind {
     /// Keep only what is inside a rectangle or ellipse centred at `x`, `y` (canvas pixels), with
     /// a soft edge `feather` pixels wide; `invert` keeps the outside.
     Mask { shape: MaskShape, x: f32, y: f32, width: f32, height: f32, feather: f32, invert: bool },
+    /// Make pixels close to `colour` transparent (scanned paper, coloured backdrops): within
+    /// `tolerance` (0…1 colour distance) they go, within `tolerance + softness` they fade.
+    ColourKey { colour: [u8; 3], tolerance: f32, softness: f32 },
 }
 
 impl EffectKind {
@@ -103,6 +106,7 @@ impl EffectKind {
             EffectKind::LightWrap { radius: 10.0, intensity: 0.6 },
             EffectKind::AlphaThreshold { threshold: 0.5 },
             EffectKind::Mask { shape: MaskShape::Ellipse, x: w / 2.0, y: h / 2.0, width: w * 0.6, height: h * 0.6, feather: 40.0, invert: false },
+            EffectKind::ColourKey { colour: [255, 255, 255], tolerance: 0.1, softness: 0.1 },
         ]
     }
 
@@ -124,6 +128,7 @@ impl EffectKind {
             EffectKind::LightWrap { .. } => "light_wrap",
             EffectKind::AlphaThreshold { .. } => "alpha_threshold",
             EffectKind::Mask { .. } => "mask",
+            EffectKind::ColourKey { .. } => "colour_key",
         }
     }
 
@@ -186,6 +191,7 @@ impl EffectKind {
                 feather: c(feather, 0.0, 4096.0, 0.0),
                 invert,
             },
+            ColourKey { colour, tolerance, softness } => ColourKey { colour, tolerance: c(tolerance, 0.0, 1.0, 0.0), softness: c(softness, 0.0, 1.0, 0.0) },
         }
     }
 
@@ -232,6 +238,9 @@ impl EffectKind {
             (Mask { shape, x: ax, y: ay, width: aw, height: ah, feather: af, invert }, Mask { x: bx, y: by, width: bw, height: bh, feather: bf, .. }) => {
                 Mask { shape: *shape, x: l(*ax, *bx), y: l(*ay, *by), width: l(*aw, *bw), height: l(*ah, *bh), feather: l(*af, *bf), invert: *invert }
             }
+            (ColourKey { colour: ac, tolerance: at, softness: asf }, ColourKey { colour: bc, tolerance: bt, softness: bs }) => {
+                ColourKey { colour: lc(*ac, *bc), tolerance: l(*at, *bt), softness: l(*asf, *bs) }
+            }
             _ => self.clone(),
         }
     }
@@ -263,11 +272,27 @@ pub struct Effect {
     /// Keys sorted by frame, all of `kind`'s kind.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub keys: Vec<EffectKey>,
+    /// How the effect's result combines with what it was given (normal: replaces it).
+    #[serde(default, skip_serializing_if = "is_normal")]
+    pub blend: BlendMode,
+    /// How much of the result is used, 0…1 (1: all of it).
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub mix: f32,
+}
+
+fn is_normal(b: &BlendMode) -> bool {
+    *b == BlendMode::Normal
+}
+fn one() -> f32 {
+    1.0
+}
+fn is_one(v: &f32) -> bool {
+    *v == 1.0
 }
 
 impl Effect {
     pub fn new(kind: EffectKind) -> Self {
-        Self { enabled: true, kind: kind.sanitized(), keys: Vec::new() }
+        Self { enabled: true, kind: kind.sanitized(), keys: Vec::new(), blend: BlendMode::Normal, mix: 1.0 }
     }
 
     /// The parameters at `frame`.
@@ -341,6 +366,7 @@ impl Effect {
         keys.sort_by_key(|k| k.frame);
         keys.dedup_by_key(|k| k.frame);
         self.keys = keys;
+        self.mix = c(self.mix, 0.0, 1.0, 1.0);
         self
     }
 }
@@ -364,8 +390,32 @@ pub fn needs_below(effects: &[Effect]) -> bool {
 /// `below` is the composite under the layer, for light wrap (without it light wrap does nothing).
 pub fn apply_stack(img: &mut RgbaImage, effects: &[Effect], frame: u32, below: Option<&RgbaImage>) {
     for e in effects.iter().take(MAX_EFFECTS) {
-        if e.enabled {
-            apply(img, &e.at(frame).sanitized(), frame, below);
+        if !e.enabled || e.mix <= 0.0 {
+            continue;
+        }
+        let k = e.at(frame).sanitized();
+        if e.blend == BlendMode::Normal && (e.mix.is_nan() || e.mix >= 1.0) {
+            apply(img, &k, frame, below);
+        } else {
+            let input = img.clone();
+            apply(img, &k, frame, below);
+            combine(img, &input, e.blend, e.mix);
+        }
+    }
+}
+
+/// `out` becomes `input` with the effect's result `out` laid over it in `mode`, `mix` of the way.
+fn combine(out: &mut RgbaImage, input: &RgbaImage, mode: BlendMode, mix: f32) {
+    let m = if mix.is_finite() { mix.clamp(0.0, 1.0) } else { 1.0 };
+    for (o, i) in out.data.as_chunks_mut::<4>().0.iter_mut().zip(input.data.as_chunks::<4>().0.iter()) {
+        let (fx, src) = ([o[0], o[1], o[2], o[3]], [i[0], i[1], i[2], i[3]]);
+        let target = if mode == BlendMode::Normal { fx } else { tooncraft_raster::blend(src, fx, mode) };
+        for c in 0..4 {
+            o[c] = (src[c] as f32 + (target[c] as f32 - src[c] as f32) * m).round().clamp(0.0, 255.0) as u8;
+        }
+        let a = o[3];
+        for c in 0..3 {
+            o[c] = o[c].min(a);
         }
     }
 }
@@ -397,6 +447,7 @@ pub fn apply(img: &mut RgbaImage, kind: &EffectKind, frame: u32, below: Option<&
         }
         EffectKind::AlphaThreshold { threshold } => colour::alpha_threshold(img, *threshold),
         EffectKind::Mask { shape, x, y, width, height, feather, invert } => shape::mask(img, *shape, (*x, *y, *width, *height), *feather, *invert),
+        EffectKind::ColourKey { colour, tolerance, softness } => colour::key(img, *colour, *tolerance, *softness),
     }
 }
 

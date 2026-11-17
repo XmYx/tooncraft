@@ -131,4 +131,26 @@ mod tests {
         e.apply(cmd).unwrap();
         assert_eq!(e.project.layers[0].effects[0].keys.len(), 1);
     }
+
+    #[test]
+    fn opacity_keys_and_mattes_as_commands() {
+        let mut e = engine();
+        let start = e.project.clone();
+        e.apply(Command::SetOpacityKey { layer: 0, frame: 0, opacity: 0.0 }).unwrap();
+        e.apply(Command::SetOpacityKey { layer: 0, frame: 1, opacity: 2.0 }).unwrap();
+        assert_eq!(e.project.layers[0].opacity_at(1), 1.0, "clamped");
+        assert!(e.apply(Command::SetOpacityKey { layer: 0, frame: 99, opacity: 1.0 }).is_err(), "past the end");
+        e.apply(Command::RemoveOpacityKey { layer: 0, frame: 1 }).unwrap();
+        assert!(e.apply(Command::RemoveOpacityKey { layer: 0, frame: 1 }).is_err());
+        e.apply(Command::AddLayer { name: "Matte".into(), index: None }).unwrap();
+        let cmd: Command = serde_json::from_str(r#"{"cmd":"set_layer_matte","layer":1,"matte":"inside"}"#).unwrap();
+        e.apply(cmd).unwrap();
+        assert_eq!(e.project.layers[1].matte, Some(tooncraft_doc::Matte::Inside));
+        let blank = render_frame(&e.project, 0, RenderOptions { paper: false, ..Default::default() });
+        assert!(blank.data.iter().all(|v| *v == 0), "an empty matte hides what it clips");
+        for _ in 0..5 {
+            e.undo().unwrap();
+        }
+        assert_eq!(e.project, start);
+    }
 }

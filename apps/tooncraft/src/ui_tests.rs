@@ -10,9 +10,13 @@ use crate::app::{Tool, ToonApp};
 use crate::args::Cli;
 
 fn harness(demo: bool) -> Harness<'static, ToonApp> {
+    harness_sized(demo, egui::vec2(1500.0, 940.0))
+}
+
+fn harness_sized(demo: bool, size: egui::Vec2) -> Harness<'static, ToonApp> {
     let ctx = egui::Context::default();
     let app = ToonApp::with_context(&ctx, Cli { demo, ..Default::default() }).without_autosave();
-    Harness::builder().with_size(egui::vec2(1500.0, 940.0)).with_accessibility_check(true).build_ui_state(
+    Harness::builder().with_size(size).with_accessibility_check(true).build_ui_state(
         |ui, app: &mut ToonApp| {
             let ctx = ui.ctx().clone();
             app.tick(&ctx);
@@ -479,7 +483,7 @@ fn pegs_panel_keys_a_move_and_draws_on_the_moved_layer() {
 
 #[test]
 fn effects_panel_builds_a_keyed_stack() {
-    let mut h = harness(true);
+    let mut h = harness_sized(true, egui::vec2(1500.0, 2600.0));
     h.state_mut().workspace.raise(crate::dock::Pane::Effects);
     h.run();
     let li = h.state().layer;
@@ -522,4 +526,32 @@ fn effects_panel_builds_a_keyed_stack() {
     h.state_mut().undo();
     h.run();
     assert_eq!(h.state().engine.project.layers[li].effects.len(), 2, "removing an effect undoes");
+}
+
+#[test]
+fn effects_panel_keys_opacity_and_sets_a_matte() {
+    let mut h = harness_sized(true, egui::vec2(1500.0, 2600.0));
+    h.state_mut().workspace.raise(crate::dock::Pane::Effects);
+    h.run();
+    let li = h.state().layer;
+    h.get_by_label("Key opacity here").click();
+    h.run();
+    assert_eq!(h.state().engine.project.layers[li].opacity_keys.len(), 1);
+    h.get(By::new().role(egui::Role::ComboBox).label("Matte")).click();
+    h.run();
+    h.get_by_label("Matte: keep inside").click();
+    h.run();
+    assert_eq!(h.state().engine.project.layers[li].matte, Some(tooncraft_doc::Matte::Inside));
+    assert!(h.state().blend_cache.is_some(), "a matte switches the canvas to the CPU composite");
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Add effect")).click();
+    h.run();
+    h.get_by_label("Glow").click();
+    h.run();
+    assert_eq!(h.state().engine.project.layers[li].effects.len(), 1, "glow added; status {:?}, undo {:?}", h.state().status, h.state().engine.undo_label());
+    h.get(By::new().role(egui::Role::ComboBox).label("Result blend")).click();
+    h.run();
+    h.get_by_label("Multiply").click();
+    h.run();
+    assert_eq!(h.state().engine.project.layers[li].effects[0].blend, tooncraft_doc::BlendMode::Multiply);
 }

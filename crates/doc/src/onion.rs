@@ -167,6 +167,8 @@ mod tests {
             peg: None,
             depth: 0.0,
             effects: Vec::new(),
+            opacity_keys: Vec::new(),
+            matte: None,
             cells,
         }
     }

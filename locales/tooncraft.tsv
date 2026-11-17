@@ -43,6 +43,7 @@ tooncraft	Close gaps
 tooncraft	Collapsed	
 tooncraft	Colour	
 tooncraft	Colour #{hex}	
+tooncraft	Colour key	
 tooncraft	Colour picker	
 tooncraft	Copied	
 tooncraft	Copied {frames} frames from {layers} layers	
@@ -175,6 +176,8 @@ tooncraft	Insert frame (Insert)
 tooncraft	Intensity	
 tooncraft	Keep the outside	
 tooncraft	Key at frame {n}	
+tooncraft	Key colour	
+tooncraft	Key opacity here	
 tooncraft	Key {name} here	
 tooncraft	Keyboard Shortcuts	
 tooncraft	Keyboard pen: move, put down / lift	
@@ -208,6 +211,9 @@ tooncraft	Lock
 tooncraft	Lock Layer	
 tooncraft	Look at	
 tooncraft	Loop playback	
+tooncraft	Matte	
+tooncraft	Matte: keep inside	
+tooncraft	Matte: keep outside	
 tooncraft	Memory: {pixels} MB drawings, {history} MB history	
 tooncraft	Mirror View	
 tooncraft	Mirror view	
@@ -242,6 +248,7 @@ tooncraft	No effects on this layer.
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
 tooncraft	None	
 tooncraft	Normal	
+tooncraft	Not a matte	
 tooncraft	Nothing copied yet	
 tooncraft	Nudge the selection (Shift: 10 px)	
 tooncraft	Offset X	
@@ -256,6 +263,7 @@ tooncraft	Onion skin on / off
 tooncraft	Onion skin on every visible layer	
 tooncraft	Opacity	
 tooncraft	Opacity from pressure	
+tooncraft	Opacity here	
 tooncraft	OpenRaster, Current Frame…	
 tooncraft	Opened {file}	
 tooncraft	Open…	
@@ -319,6 +327,7 @@ tooncraft	Redo {action}
 tooncraft	Remove	
 tooncraft	Remove Key	
 tooncraft	Remove Sound	
+tooncraft	Remove opacity key	
 tooncraft	Remove this shake	
 tooncraft	Remove {name}	
 tooncraft	Remove {name} key	
@@ -331,6 +340,7 @@ tooncraft	Reset Brush
 tooncraft	Reset Panels	
 tooncraft	Reset Rotation	
 tooncraft	Reset {what}	
+tooncraft	Result blend	
 tooncraft	Reverse Selected Frames	
 tooncraft	Rotate 90°	
 tooncraft	Rotate 90° Clockwise	
@@ -400,6 +410,7 @@ tooncraft	Steady line (px)
 tooncraft	Step by	
 tooncraft	Stop	
 tooncraft	Straight line from the last stroke	
+tooncraft	Strength	
 tooncraft	Stroke cancelled	
 tooncraft	Swatch #{hex}	
 tooncraft	Swatches	

@@ -610,7 +610,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
     }
-    let blended = p.layers.iter().any(|l| (l.blend != tooncraft_doc::BlendMode::Normal || tooncraft_fx::is_active(&l.effects)) && p.effective(l).0);
+    let blended =
+        p.layers.iter().any(|l| (l.blend != tooncraft_doc::BlendMode::Normal || tooncraft_fx::is_active(&l.effects) || l.matte.is_some()) && p.effective(l).0);
     if blended {
         // A blend mode needs what is below it, and effects reach past their tiles: composite the
         // layers on the CPU (cached until the project or frame changes) and show that as tiles.
@@ -627,7 +628,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         }
     } else {
         for (li, layer) in p.layers.iter().enumerate() {
-            let (visible, opacity) = p.effective(layer);
+            let (visible, opacity) = p.effective_at(layer, app.frame);
             if !visible {
                 continue;
             }

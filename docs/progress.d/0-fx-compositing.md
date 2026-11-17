@@ -1,0 +1,1 @@
+- 2026-11-17: Compositing basics: layer opacity keys, matte layers that cut the layers below (keep inside or outside), a colour key effect, and a blend mode and strength on every effect.

@@ -169,6 +169,17 @@ pub(crate) fn grain(img: &mut RgbaImage, amount: f32, size: f32, seed: u32, fram
     });
 }
 
+/// Colour key: transparent near `key`, fading out over `softness` past `tolerance`.
+pub(crate) fn key(img: &mut RgbaImage, key: [u8; 3], tolerance: f32, softness: f32) {
+    let k = [key[0] as f32 / 255.0, key[1] as f32 / 255.0, key[2] as f32 / 255.0];
+    let soft = softness.max(1e-4);
+    each(img, |_, _, s| {
+        let d = ((0..3).map(|i| (s[i] as f32 / 255.0 - k[i]).powi(2)).sum::<f32>() / 3.0).sqrt();
+        let keep = ((d - tolerance) / soft).clamp(0.0, 1.0);
+        [s[0], s[1], s[2], (s[3] as f32 * keep).round() as u8]
+    });
+}
+
 pub(crate) fn alpha_threshold(img: &mut RgbaImage, threshold: f32) {
     let t = (threshold * 255.0).round().clamp(1.0, 255.0) as u8;
     for p in img.data.as_chunks_mut::<4>().0.iter_mut() {

@@ -132,6 +132,32 @@ fn light_wrap_needs_the_layers_below() {
 }
 
 #[test]
+fn colour_key_and_effect_blending() {
+    let mut img = RgbaImage::filled(4, 1, [255, 255, 255, 255]);
+    img.set_pixel(1, 0, [0, 0, 0, 255]);
+    img.set_pixel(2, 0, [240, 240, 240, 255]);
+    run(EffectKind::ColourKey { colour: [255, 255, 255], tolerance: 0.02, softness: 0.1 }, &mut img);
+    assert_eq!(img.pixel(0, 0)[3], 0, "the key colour goes");
+    assert_eq!(img.pixel(1, 0), [0, 0, 0, 255], "far colours stay");
+    let a = img.pixel(2, 0)[3];
+    assert!(a > 0 && a < 255, "near colours fade: {a}");
+    // half the effect, and a blend mode for its result
+    let base = RgbaImage::filled(2, 1, [200, 100, 50, 255]);
+    let mut half = base.clone();
+    let mut e = Effect::new(EffectKind::Tint { colour: [0, 0, 0], amount: 1.0 });
+    e.mix = 0.5;
+    apply_stack(&mut half, std::slice::from_ref(&e), 0, None);
+    assert_eq!(half.pixel(0, 0), [100, 50, 25, 255]);
+    let mut screen = base.clone();
+    e.mix = 1.0;
+    e.blend = BlendMode::Screen;
+    apply_stack(&mut screen, &[e], 0, None);
+    assert_eq!(screen.pixel(0, 0), base.pixel(0, 0), "screening black changes nothing");
+    let json = serde_json::to_string(&Effect::new(EffectKind::Blur { radius: 1.0 })).unwrap();
+    assert!(!json.contains("blend") && !json.contains("mix"), "defaults stay out of the file: {json}");
+}
+
+#[test]
 fn keys_interpolate_and_hold() {
     let mut e = Effect::new(EffectKind::Blur { radius: 1.0 });
     assert_eq!(e.at(50), EffectKind::Blur { radius: 1.0 });
@@ -195,6 +221,7 @@ fn any_kind() -> impl Strategy<Value = EffectKind> {
         (f(), f(), any::<u32>(), any::<bool>()).prop_map(|(amount, size, seed, animated)| EffectKind::Grain { amount, size, seed, animated }),
         (f(), f()).prop_map(|(radius, intensity)| EffectKind::LightWrap { radius, intensity }),
         f().prop_map(|threshold| EffectKind::AlphaThreshold { threshold }),
+        (col(), f(), f()).prop_map(|(colour, tolerance, softness)| EffectKind::ColourKey { colour, tolerance, softness }),
         (any::<bool>(), f(), f(), f(), f(), f(), any::<bool>()).prop_map(|(e, x, y, width, height, feather, invert)| EffectKind::Mask {
             shape: if e { MaskShape::Ellipse } else { MaskShape::Rectangle },
             x,
@@ -221,7 +248,13 @@ proptest! {
             p.copy_from_slice(&[c, c / 2, a / 3, a]);
         }
         let below = RgbaImage::filled(w, h, [10, 200, 30, 255]);
-        let stack: Vec<Effect> = kinds.into_iter().map(Effect::new).collect();
+        let modes = [BlendMode::Normal, BlendMode::Multiply, BlendMode::Screen, BlendMode::Overlay, BlendMode::Add];
+        let stack: Vec<Effect> = kinds.into_iter().enumerate().map(|(i, k)| {
+            let mut e = Effect::new(k);
+            e.blend = modes[(seed as usize + i) % modes.len()];
+            e.mix = ((seed >> (i * 3)) % 5) as f32 / 4.0;
+            e
+        }).collect();
         apply_stack(&mut img, &stack, 7, Some(&below));
         prop_assert_eq!((img.width, img.height, img.data.len()), (w, h, (w * h * 4) as usize));
         prop_assert!(premultiplied(&img));
