@@ -18,20 +18,20 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 | | Value | Kind |
 |---|---|---|
 | Feature rows | 154 | measured |
-| Done (D) | 119 | measured |
+| Done (D) | 123 | measured |
 | Partial (P) | 19 | measured |
-| Missing (M) | 16 | measured |
-| Parity score, (D + ½·P) / rows | 83 % | measured |
+| Missing (M) | 12 | measured |
+| Parity score, (D + ½·P) / rows | 86 % | measured |
 | Brush engine and tools | 81 % (19 D, 1 P, 4 M) | measured |
-| Paper and canvas | 73 % (7 D, 2 P, 2 M) | measured |
+| Paper and canvas | 91 % (9 D, 2 P, 0 M) | measured |
 | Layers and timeline / exposure sheet | 86 % (19 D, 0 P, 3 M) | measured |
-| Onion skin and light table | 80 % (7 D, 2 P, 1 M) | measured |
+| Onion skin and light table | 90 % (8 D, 2 P, 0 M) | measured |
 | Animation tools | 95 % (9 D, 1 P, 0 M) | measured |
 | Colouring | 75 % (6 D, 3 P, 1 M) | measured |
 | Effects | 83 % (9 D, 2 P, 1 M) | measured |
 | Audio and lip-sync | 88 % (10 D, 1 P, 1 M) | measured |
 | Import / export | 88 % (13 D, 2 P, 1 M) | measured |
-| UI and workspace | 78 % (11 D, 3 P, 2 M) | measured |
+| UI and workspace | 84 % (12 D, 3 P, 1 M) | measured |
 | Stability and performance | 91 % (9 D, 2 P, 0 M) | measured |
 <!-- parity:end -->
 
@@ -88,8 +88,8 @@ features (video export, effects, audio) and understates it for small ones.
 | Paper colour | all | D | |
 | Paper grain texture | TV, CSP | P | Grain shapes pencil and chalk dabs; no visible paper texture layer |
 | Canvas presets (HD, 4K, square) | all | P | |
-| Field guide / safe areas | TV, TB | M | |
-| Canvas resize / crop | all | M | |
+| Field guide / safe areas | TV, TB | D | A 12-field guide with grid and centre, action-safe (90 %) and title-safe (80 %) frames; View menu |
+| Canvas resize / crop | all | D | Nine anchors, or crop to the camera frame; drawings are moved whole pixels, never resampled; peg pivots and camera keys follow; one undo step brings cut paint back |
 | Canvas up to 16384 px per side | TV | D | |
 
 ## Layers and timeline / exposure sheet
@@ -131,7 +131,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Onion on current layer or all layers | TV, CSP | P | Both work; only the current-layer path has a test |
 | Light table: pin any frame of any layer | TB, CSP | D | |
 | Light table opacity | TB, CSP | D | |
-| Onion skin as outlines only | TV | M | |
+| Onion skin as outlines only | TV | D | Also: hide only the previous step |
 | Onion skin cached on the GPU | — | P | **Ours:** tinted onion tiles are textures cached per tile revision, so scrubbing with onion skin costs no CPU compositing |
 
 ## Animation tools
@@ -235,7 +235,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Customisable shortcuts | all | D | Through craft-keymap, saved per user |
 | Every action reachable by keyboard | — | P | **Ours:** accessibility rule, kittest-tested |
 | Screen reader names for canvas and timeline | — | D | **Ours:** AccessKit nodes for the canvas and every visible timeline cell |
-| Saved workspaces | TV, TB, CSP | M | |
+| Saved workspaces | TV, TB, CSP | D | Named panel layouts saved per user, plus built-in Drawing and Timing layouts |
 | Localised UI | all | P | craft-i18n ready, English only today |
 | Command-line control | TV | D | **Ours:** every action is an engine command; `tooncraft-cli run` applies JSON-lines command files |
 | MCP / control channel for agents | — | M | **Ours:** planned on craft-control |
@@ -265,6 +265,7 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | major | First map, written before the vertical slice; statuses set when the slice landed |
 | 2026-11-17 | major | Polish pass: re-measured after user research (docs/user-research.md); 4 rows added |
 | 2026-11-17 | major | Second pass: the top 10 gaps and interchange with other apps; 6 rows added |
+| 2026-11-17 | minor | Canvas tools: field guide and safe areas, canvas resize and crop, saved workspaces, onion outlines |
 | 2026-11-17 | minor | Timing: drawing marks, spacing chart, presets, re-timing between keys, inbetween guides |
 | 2026-11-17 | minor | Nested folders, folder locks, clipping layers and a label filter; 2 rows added |
 | 2026-11-17 | minor | Pegs and transform layers with easing, multiplane depth and camera shake; 1 row added |

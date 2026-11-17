@@ -101,6 +101,13 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
                 } else {
                     Some(p.onion.after_tint)
                 };
+                let outlined;
+                let s = if p.onion.outline {
+                    outlined = s.outlined();
+                    &outlined
+                } else {
+                    s
+                };
                 draw(s, &mut img, (x, y), t.as_ref(), p.onion.step_opacity(off.unsigned_abs()), tint);
             }
         }
@@ -496,5 +503,28 @@ mod tests {
         assert_eq!(p.folders[2].parent, None);
         assert_eq!(p.layers[0].folder, None, "its folder is gone");
         assert!(p.folder_chain(Some("A")).len() <= 2);
+    }
+
+    #[test]
+    fn onion_outlines_leave_the_inside_clear() {
+        let mut p = Project::new("t", 64, 64, 24, 2).unwrap();
+        let a = p.add_drawing(None).unwrap();
+        let b = p.add_drawing(None).unwrap();
+        for y in 10..30u32 {
+            for x in 10..30u32 {
+                let o = ((y * 64 + x) * 4) as usize;
+                p.drawing_mut(a).unwrap().tile_mut(0).unwrap().bytes_mut()[o..o + 4].copy_from_slice(&[0, 0, 0, 255]);
+            }
+        }
+        p.layers[0].cells = vec![Cell::Key(a), Cell::Key(b)];
+        let o = RenderOptions { onion_layer: Some(0), paper: false, ..Default::default() };
+        let filled = render_frame(&p, 1, o);
+        assert!(filled.pixel(20, 20)[3] > 0);
+        p.onion.outline = true;
+        let lines = render_frame(&p, 1, o);
+        assert_eq!(lines.pixel(20, 20)[3], 0, "inside is clear");
+        assert!(lines.pixel(10, 20)[3] > 0, "the edge shows");
+        p.onion.hide_previous = true;
+        assert_eq!(render_frame(&p, 1, o).pixel(10, 20)[3], 0, "the previous step is hidden");
     }
 }

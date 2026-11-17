@@ -12,6 +12,7 @@ mod app;
 mod args;
 mod brush_editor;
 mod canvas;
+mod canvas_tools;
 mod color;
 mod dock;
 mod effects_panel;
