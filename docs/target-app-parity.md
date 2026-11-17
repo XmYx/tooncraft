@@ -24,16 +24,16 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 | | Value | Kind |
 |---|---|---|
 | In-scope feature rows | 267 | counted |
-| Done / exceeds / partial / missing | 112 / 3 / 34 / 118 | counted |
+| Done / exceeds / partial / missing | 118 / 3 / 34 / 112 | counted |
 | Out of scope (not in any denominator) | 4 | counted |
-| **Row parity**, (D + X + ½·P) / rows | **49.4 %** | counted |
-| **Weighted parity**, area weights × size-weighted rows | **36.7 %** | counted |
-| Size-weighted parity over all rows, no area weights | 35.5 % | counted |
+| **Row parity**, (D + X + ½·P) / rows | **51.7 %** | counted |
+| **Weighted parity**, area weights × size-weighted rows | **39.0 %** | counted |
+| Size-weighted parity over all rows, no area weights | 38.1 % | counted |
 
 | Area | Weight | Rows | D | X | P | M | Out | Row parity | Effort parity |
 |---|---|---|---|---|---|---|---|---|---|
-| Brush engine | 9 (9 %) | 29 | 10 | 0 | 2 | 17 | 1 | 38 % | 27 % |
-| Paper and textures | 3 (3 %) | 10 | 5 | 0 | 2 | 3 | 0 | 60 % | 55 % |
+| Brush engine | 9 (9 %) | 29 | 15 | 0 | 2 | 12 | 1 | 55 % | 46 % |
+| Paper and textures | 3 (3 %) | 10 | 6 | 0 | 2 | 2 | 0 | 70 % | 73 % |
 | Drawing tools | 7 (7 %) | 17 | 3 | 0 | 1 | 13 | 0 | 21 % | 9 % |
 | Selection and transform | 5 (5 %) | 14 | 4 | 0 | 1 | 9 | 0 | 32 % | 25 % |
 | Colour and paint | 7 (7 %) | 18 | 5 | 0 | 3 | 10 | 0 | 36 % | 23 % |
@@ -54,7 +54,7 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 
 ## How to read the map
 
-**Status** per row, checked against the code on `main` (2026-11-18, commit `a4ed418`):
+**Status** per row, checked against the code on `main` (2026-11-18, commit `62978c5`):
 
 | Code | Meaning | Credit |
 |---|---|---|
@@ -118,7 +118,7 @@ name appears once per area; an area with rows has a `Weight:` line; an O row giv
 
 | Audience | Ready? | Why |
 |---|---|---|
-| Student or hobbyist doing pencil tests and short loops | Preview | Pencil, ink, chalk, airbrush, onion skin, light table, holds, sound and MP4 / GIF export work; no brush editor yet |
+| Student or hobbyist doing pencil tests and short loops | Preview | Seven brushes with a brush editor, onion skin, light table, holds, sound and MP4 / GIF export work |
 | Traditional 2D animator (rough to clean-up) | Preview | Keys and breakdowns, spacing charts, re-timing, pegs, XDTS exchange; no exposure-sheet view, no stroke rulers |
 | Ink-and-paint artist | No | Gap-closing fill across frames works; no palette files, linked colour models, lock-transparency or auto-paint |
 | Cut-out or rigged character animator | No | Pegs with pivots and easing work; no deformers, kinematics or drawing-swap rigs |
@@ -135,21 +135,21 @@ Weight: 9
 | Tilt to dab angle and flattening | TV CS PD | D | S | |
 | Speed to size (thin when fast, or thick) | TV CS | D | S | |
 | Pen barrel rotation as an input | TV CS | M | S | The pen sample has no rotation field yet |
-| Response curves for every input and dab property | TV CS PD | M | M | Fixed linear amounts per input today |
-| Random jitter of size, opacity, angle and scatter | TV CS PD | M | S | |
+| Response curves for every input and dab property | TV CS PD | D | M | A curve for each of five inputs (pressure, tilt, speed, direction, chance) on size, opacity, flow, scatter and angle |
+| Random jitter of size, opacity, angle and scatter | TV CS PD | D | S | The chance input on each property, with quick sliders |
 | Colour jitter per dab and per stroke (hue, saturation, value) | TV CS PD | M | S | |
 | Stroke smoothing (moving average) | all | D | S | |
 | Pulled-string stabiliser with catch-up at the end | TV CS PD | D | S | |
-| Built-in families: pencil, ink, airbrush, chalk, eraser | all | D | M | Each with its own coverage rule; the airbrush builds up with flow |
+| Built-in families: pencil, ink, airbrush, chalk, eraser, watercolour, smudge | all | D | M | Each with its own coverage rule; the airbrush builds up with flow |
 | Opacity and flow without darkening where dabs overlap | TV CS | D | S | |
 | Image brush tips | TV CS PD | D | S | Tips stored in the shot |
-| Tip shape: hardness, spacing, roundness and angle | all | P | S | Hardness and spacing; no roundness or fixed angle |
+| Tip shape: hardness, spacing, roundness and angle | all | D | S |  |
 | Brush presets as files and a preset folder | all | D | S | `.toonbrush` files |
 | Brush library: categories, favourites, recent brushes, search | TV CS PD | D | M | **Ours:** every list and the search work from the keyboard (Ctrl+B) |
-| Brush editor panel with a live stroke preview | TV CS PD | M | M | The Brush panel edits the fixed settings only |
-| Wet paint: colour pickup, mixing and dilution | TV CS PD | M | L | |
+| Brush editor panel with a live stroke preview | TV CS PD | D | M | **Ours:** every control, the curve editor included, works from the keyboard; [format](toonbrush-format.md) |
+| Wet paint: colour pickup, mixing and dilution | TV CS PD | P | L | Watercolour brush and colour pickup on any brush; no dilution or drying |
 | Watercolour edges: darkening and bleeding | TV CS PD | M | M | |
-| Smudge brush | all | M | M | |
+| Smudge brush | all | D | M | Drags the layer's colour along the stroke; one undo step |
 | Blur and soften brush | TV CS PD | M | S | |
 | Thick paint with depth and lighting (impasto) | TV CS PD | M | L | |
 | Dual tips (a second tip or texture masking the first) | CS PD | M | M | |
@@ -171,7 +171,7 @@ Weight: 3
 | Paper colour | all | D | S | Exported or left out per shot |
 | Paper grain that shapes pencil and chalk dabs | TV CS PD | D | S | Hashed grain, so a replay gives the same pixels |
 | Visible paper texture under the drawing | TV CS PD | M | S | |
-| Paper and grain library, grain images from files | TV CS PD | M | M | One built-in grain |
+| Paper and grain library, grain images from files | TV CS PD | D | M | Four built-in grains and tileable grain images saved in the shot |
 | Grain scale, rotation and contrast | TV CS | P | S | Scale only |
 | Texture overlay on a layer or a fill | CS PD | M | S | |
 | Canvas size presets | all | P | S | Four sizes in the new-shot dialog; no user presets |
@@ -529,4 +529,4 @@ Weight: 4
 | 2026-11-17 | major | First map, written before the vertical slice; statuses set when the slice landed |
 | 2026-11-17 | major | Polish pass and second pass; rows added for the top gaps and interchange |
 | 2026-11-17 | minor | Rows flipped by the slices merged on 2026-11-17 (pegs, effects, compositing, sound, lip-sync, folders, timing, canvas tools, BoardCraft layout, brush library, effects performance) |
-| 2026-11-18 | major | Full-product map: 18 areas with weights, S/M/L/XL sizes, X and O statuses; every status re-checked against `main` at `a4ed418`; weighted parity becomes the headline |
+| 2026-11-18 | major | Full-product map: 18 areas with weights, S/M/L/XL sizes, X and O statuses; every status re-checked against `main` at `62978c5`; weighted parity becomes the headline |

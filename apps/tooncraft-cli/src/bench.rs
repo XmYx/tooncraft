@@ -10,7 +10,7 @@
 
 use std::time::Instant;
 
-use tooncraft_brush::{Brush, BrushKind, Sample};
+use tooncraft_brush::{Brush, BrushKind, Dynamics, GrainKind, Sample, Source, Target, Wet};
 use tooncraft_doc::{Project, RenderOptions};
 use tooncraft_engine::{Command, Engine, FillReference};
 use tooncraft_raster::fill::FillOptions;
@@ -24,13 +24,13 @@ fn percentile(v: &mut [f64], p: f64) -> f64 {
     v[i.min(v.len() - 1)]
 }
 
-fn stroke_latency(kind: BrushKind, size: f32) -> Result<(f64, f64, f64), String> {
+fn stroke_latency(brush: Brush) -> Result<(f64, f64, f64), String> {
     let mut e = Engine::new(Project::new("bench", 1920, 1080, 24, 1).map_err(|e| e.to_string())?);
-    let brush = Brush { size, ..Brush::preset(kind) };
+    let kind = brush.kind;
     let mut times = Vec::new();
     for s in 0..20 {
-        if kind == BrushKind::Eraser {
-            // erase real ink: lay down a wide band first, outside the timing
+        if matches!(kind, BrushKind::Eraser | BrushKind::Smudge) || brush.wet.pickup > 0.0 {
+            // erase, smudge or mix with real ink: lay down a wide band first, outside the timing
             let band: Vec<Sample> = (0..400).map(|i| Sample::at(200.0 + i as f32 * 4.0, 200.0 + s as f32 * 35.0, 1.0, i as f64 / 240.0)).collect();
             e.apply(Command::Stroke { layer: 0, frame: 0, brush: Brush { size: 90.0, ..Brush::preset(BrushKind::Ink) }, samples: band })
                 .map_err(|e| e.to_string())?;
@@ -58,14 +58,28 @@ fn stroke_latency(kind: BrushKind, size: f32) -> Result<(f64, f64, f64), String>
 
 pub fn run(json: bool) -> Result<(), String> {
     let mut rows: Vec<(String, f64, &str)> = Vec::new();
-    for (name, kind, size) in [
-        ("stroke: ink 6 px", BrushKind::Ink, 6.0),
-        ("stroke: pencil 4 px", BrushKind::Pencil, 4.0),
-        ("stroke: chalk 30 px", BrushKind::Chalk, 30.0),
-        ("stroke: airbrush 120 px", BrushKind::Airbrush, 120.0),
-        ("stroke: eraser 40 px", BrushKind::Eraser, 40.0),
+    // every dynamic switched on: a curve per source on size, opacity, flow, scatter and angle
+    let mut busy = Brush { size: 6.0, ..Brush::preset(BrushKind::Ink) };
+    for t in Target::ALL {
+        for s in [Source::Pressure, Source::Tilt, Source::Speed, Source::Rotation, Source::Random] {
+            busy.dynamics.response.set(t, s, 0.3);
+            busy.dynamics.response.get_mut(t, s).curve = tooncraft_brush::Curve::s_curve();
+        }
+    }
+    let busy = Brush { dynamics: Dynamics { min_size: 0.2, ..busy.dynamics }, ..busy };
+    let ink = |size| Brush { size, ..Brush::preset(BrushKind::Ink) };
+    for (name, brush) in [
+        ("stroke: ink 6 px", ink(6.0)),
+        ("stroke: pencil 4 px", Brush { size: 4.0, ..Brush::preset(BrushKind::Pencil) }),
+        ("stroke: chalk 30 px", Brush { size: 30.0, ..Brush::preset(BrushKind::Chalk) }),
+        ("stroke: airbrush 120 px", Brush { size: 120.0, ..Brush::preset(BrushKind::Airbrush) }),
+        ("stroke: eraser 40 px", Brush { size: 40.0, ..Brush::preset(BrushKind::Eraser) }),
+        ("stroke: ink 6 px, 25 response curves and jitter", busy),
+        ("stroke: chalk 30 px, canvas-weave grain", Brush { size: 30.0, grain_kind: GrainKind::Canvas, ..Brush::preset(BrushKind::Chalk) }),
+        ("stroke: watercolour 34 px (wet mixing)", Brush { size: 34.0, wet: Wet { pickup: 0.5 }, ..Brush::preset(BrushKind::Watercolour) }),
+        ("stroke: smudge 30 px", Brush { size: 30.0, ..Brush::preset(BrushKind::Smudge) }),
     ] {
-        let (mean, p50, p99) = stroke_latency(kind, size)?;
+        let (mean, p50, p99) = stroke_latency(brush)?;
         rows.push((format!("{name}, mean per sample"), mean, "ms"));
         rows.push((format!("{name}, median"), p50, "ms"));
         rows.push((format!("{name}, 99th percentile"), p99, "ms"));

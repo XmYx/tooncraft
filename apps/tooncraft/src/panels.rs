@@ -2,7 +2,7 @@
 //! table. Every value set by dragging (sliders, the colour field) also has a typed or keyboard
 //! alternative: sliders and drag values take arrow keys and typing, colours take hex and RGB.
 
-use egui::{Color32, Rect, Sense, Stroke, vec2};
+use egui::{Color32, Sense, Stroke, vec2};
 use tooncraft_brush::{BrushKind, Smoothing};
 use tooncraft_doc::{OnionMode, Pin};
 use tooncraft_engine::{Command, FillReference};
@@ -35,7 +35,7 @@ pub fn toolbar(app: &mut ToonApp, ui: &mut egui::Ui) {
             if resp.on_hover_text(&label).clicked() {
                 app.tool = t;
             }
-            if t == Tool::Eraser || t == Tool::Select {
+            if t == Tool::Smudge || t == Tool::Select {
                 ui.add_space(6.0);
             }
         }
@@ -224,6 +224,8 @@ pub fn brush(app: &mut ToonApp, ui: &mut egui::Ui) {
                 (Tool::Airbrush, BrushKind::Airbrush),
                 (Tool::Chalk, BrushKind::Chalk),
                 (Tool::Eraser, BrushKind::Eraser),
+                (Tool::Watercolour, BrushKind::Watercolour),
+                (Tool::Smudge, BrushKind::Smudge),
             ] {
                 if ui.selectable_label(app.tool == t, t.label()).clicked() {
                     app.tool = t;
@@ -250,11 +252,6 @@ pub fn brush(app: &mut ToonApp, ui: &mut egui::Ui) {
             row(ui, tl!("Spacing").into(), &mut b.spacing, 0.02..=1.0);
             row(ui, tl!("Paper grain").into(), &mut b.grain, 0.0..=1.0);
             row(ui, tl!("Grain size").into(), &mut b.grain_scale, 0.5..=16.0);
-            row(ui, tl!("Size from pressure").into(), &mut b.dynamics.pressure_size, 0.0..=1.0);
-            row(ui, tl!("Opacity from pressure").into(), &mut b.dynamics.pressure_opacity, 0.0..=1.0);
-            row(ui, tl!("Smallest size").into(), &mut b.dynamics.min_size, 0.01..=1.0);
-            row(ui, tl!("Shape from tilt").into(), &mut b.dynamics.tilt, 0.0..=1.0);
-            row(ui, tl!("Size from speed").into(), &mut b.dynamics.velocity_size, -1.0..=1.0);
             row(ui, tl!("Smoothing").into(), &mut b.smoothing.average, 0.0..=1.0);
             row(ui, tl!("Steady line (px)").into(), &mut b.smoothing.string, 0.0..=120.0);
         });
@@ -264,15 +261,13 @@ pub fn brush(app: &mut ToonApp, ui: &mut egui::Ui) {
             *app.brush_mut(kind) = tooncraft_brush::Brush::preset(kind);
         }
         ui.separator();
-        tips_and_presets(app, ui, kind);
-        // preview stroke
+        crate::brush_editor::sections(app, ui, kind);
         ui.separator();
-        let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width().min(260.0), 54.0), Sense::hover());
-        preview(app, ui, rect, kind);
+        tips_and_presets(app, ui, kind);
     });
 }
 
-fn next_tip_id(app: &ToonApp) -> u64 {
+pub(crate) fn next_tip_id(app: &ToonApp) -> u64 {
     app.engine.project.tips.keys().next_back().map(|k| k + 1).unwrap_or(1)
 }
 
@@ -281,25 +276,38 @@ pub fn preset_dir() -> Option<std::path::PathBuf> {
     crate::keys::overrides_path().and_then(|p| p.parent().map(|d| d.join("brushes")))
 }
 
+/// Put a preset to use: its images join the shot's tip table and its brush replaces the current
+/// brush of its kind.
 pub(crate) fn use_preset(app: &mut ToonApp, path: &std::path::Path) {
-    match tooncraft_engine::preset::load(path) {
-        Ok((name, mut brush, tip)) => {
-            if let Some(t) = tip {
-                let id = next_tip_id(app);
-                if app.run(tooncraft_engine::Command::AddTip { id, name: t.name, width: t.width, height: t.height, alpha: t.alpha }) {
-                    brush.tip = Some(id);
-                }
-            }
-            let kind = brush.kind;
-            app.color = brush.color;
-            *app.brush_mut(kind) = brush;
-            if let Some(t) = Tool::ALL.into_iter().find(|t| t.brush() == Some(kind)) {
-                app.tool = t;
-            }
-            app.set_status(tlf!("Brush {name} loaded", name = name));
-        }
+    match tooncraft_engine::preset::Preset::load(path) {
+        Ok(preset) => apply_preset(app, preset),
         Err(e) => app.set_status(e),
     }
+}
+
+pub(crate) fn apply_preset(app: &mut ToonApp, preset: tooncraft_engine::preset::Preset) {
+    let tooncraft_engine::preset::Preset { name, mut brush, tip, grain } = preset;
+    if let Some(t) = tip {
+        let id = next_tip_id(app);
+        if app.run(tooncraft_engine::Command::AddTip { id, name: t.name, width: t.width, height: t.height, alpha: t.alpha }) {
+            brush.tip = Some(id);
+        }
+    }
+    if let Some(g) = grain {
+        let id = next_tip_id(app);
+        if app.run(tooncraft_engine::Command::AddTip { id, name: g.name, width: g.width, height: g.height, alpha: g.alpha }) {
+            brush.grain_image = Some(id);
+        } else {
+            brush.grain_kind = tooncraft_brush::GrainKind::Paper;
+        }
+    }
+    let kind = brush.kind;
+    app.color = brush.color;
+    *app.brush_mut(kind) = brush;
+    if let Some(t) = Tool::ALL.into_iter().find(|t| t.brush() == Some(kind)) {
+        app.tool = t;
+    }
+    app.set_status(tlf!("Brush {name} loaded", name = name));
 }
 
 /// Image tips and brush preset files.
@@ -337,6 +345,7 @@ fn tips_and_presets(app: &mut ToonApp, ui: &mut egui::Ui, kind: BrushKind) {
         if ui.button(tl!("Save Preset…")).clicked() {
             let brush = tooncraft_brush::Brush { color: app.color, ..app.brushes[BrushKind::ALL.iter().position(|k| *k == kind).unwrap_or(0)] };
             let tip = brush.tip.and_then(|i| app.engine.project.tips.get(&i)).map(|t| (**t).clone());
+            let grain = brush.grain_image.and_then(|i| app.engine.project.tips.get(&i)).map(|t| (**t).clone());
             let dir = preset_dir();
             if let Some(d) = &dir {
                 let _ = std::fs::create_dir_all(d);
@@ -349,7 +358,7 @@ fn tips_and_presets(app: &mut ToonApp, ui: &mut egui::Ui, kind: BrushKind) {
             }
             if let Some(f) = dialog.save_file() {
                 let n = f.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-                match tooncraft_engine::preset::save(&f, &n, &brush, tip.as_ref()) {
+                match tooncraft_engine::preset::Preset::new(&n, &brush, tip.as_ref(), grain.as_ref()).save(&f) {
                     Ok(()) => app.set_status(tlf!("Saved brush {name}", name = n)),
                     Err(e) => app.set_status(e),
                 }
@@ -380,33 +389,6 @@ fn tips_and_presets(app: &mut ToonApp, ui: &mut egui::Ui, kind: BrushKind) {
             });
         }
     }
-}
-
-fn preview(app: &ToonApp, ui: &egui::Ui, rect: Rect, kind: BrushKind) {
-    let (w, h) = (rect.width().max(8.0) as u32, rect.height().max(8.0) as u32);
-    let Ok(mut s) = tooncraft_raster::Surface::new(w, h) else { return };
-    let brush = tooncraft_brush::Brush {
-        color: if kind == BrushKind::Eraser { [28, 26, 40, 255] } else { app.color },
-        kind: if kind == BrushKind::Eraser { BrushKind::Ink } else { kind },
-        ..app.brushes[BrushKind::ALL.iter().position(|k| *k == kind).unwrap_or(0)]
-    };
-    let samples: Vec<tooncraft_brush::Sample> = (0..60)
-        .map(|i| {
-            let t = i as f32 / 59.0;
-            tooncraft_brush::Sample::at(
-                8.0 + t * (w as f32 - 16.0),
-                h as f32 * 0.5 + (t * std::f32::consts::TAU).sin() * h as f32 * 0.25,
-                (t * std::f32::consts::PI).sin().max(0.05),
-                i as f64 * 0.01,
-            )
-        })
-        .collect();
-    tooncraft_brush::paint(&mut s, brush, &samples);
-    let img = s.to_image();
-    let tex =
-        ui.ctx().load_texture("brush-preview", egui::ColorImage::from_rgba_premultiplied([w as usize, h as usize], &img.data), egui::TextureOptions::LINEAR);
-    ui.painter().rect_filled(rect, 3.0, Color32::from_rgb(246, 243, 236));
-    ui.painter().image(tex.id(), rect, Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), Color32::WHITE);
 }
 
 /// The Layers panel (top layer first).

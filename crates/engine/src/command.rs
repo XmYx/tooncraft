@@ -265,6 +265,12 @@ pub enum Command {
         id: u64,
         path: String,
     },
+    /// Add a grain image from an image file (light is a peak, dark a valley; scaled down to
+    /// 1024 px at most) under `id`. Brushes use it with `grain_kind: "image"` and `grain_image: id`.
+    AddGrainFromImage {
+        id: u64,
+        path: String,
+    },
     /// The layers of a PSD / PSB or OpenRaster file, as new layers with a drawing at `frame`.
     ImportLayers {
         path: String,
@@ -990,6 +996,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }
         Command::AddTip { id, name, width, height, alpha } => {
             let tip = tooncraft_brush::Tip::new(&name, width, height, alpha).ok_or(tooncraft_raster::RasterError::BadImage { got: 0, want: 1 })?;
+            add_tip(e, id, tip)
+        }
+        Command::AddGrainFromImage { id, path } => {
+            let tip = crate::preset::grain_from_image(&path).map_err(EngineError::Import)?;
             add_tip(e, id, tip)
         }
         Command::AddTipFromImage { id, path } => {

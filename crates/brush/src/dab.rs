@@ -1,6 +1,6 @@
 //! One brush imprint and its coverage function.
 
-use crate::{BrushKind, paper_grain};
+use crate::{BrushKind, GrainKind, builtin_grain};
 
 /// One imprint of the brush.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -26,7 +26,20 @@ pub(crate) struct Shape {
     pub hardness: f32,
     pub grain: f32,
     pub grain_scale: f32,
+    pub grain_kind: GrainKind,
+    pub grain_image: Option<std::sync::Arc<crate::Tip>>,
     pub tip: Option<std::sync::Arc<crate::Tip>>,
+}
+
+impl Shape {
+    /// The grain height at a canvas pixel.
+    fn grain_height(&self, x: f32, y: f32) -> f32 {
+        match (&self.grain_kind, &self.grain_image) {
+            // image pixels are sampled at their centres, like the dab's own pixels
+            (GrainKind::Image, Some(img)) => img.tile_height(x + 0.5, y + 0.5, self.grain_scale),
+            (kind, _) => builtin_grain(*kind, x, y, self.grain_scale),
+        }
+    }
 }
 
 impl Dab {
@@ -67,7 +80,7 @@ impl Dab {
             return 0.0;
         }
         if shape.grain > 0.0 {
-            let g = paper_grain(px as f32, py as f32, shape.grain_scale);
+            let g = shape.grain_height(px as f32, py as f32);
             // Light pressure only touches the peaks of the paper; heavy pressure fills the tooth.
             let reveal = (g + (self.pressure - 0.5) * 0.7 + 0.15).clamp(0.0, 1.0);
             let t = if shape.kind == BrushKind::Chalk { smooth_step(0.35, 0.75, reveal) } else { reveal };

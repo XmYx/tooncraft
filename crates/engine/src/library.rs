@@ -29,7 +29,7 @@ const INDEX: &str = "library.json";
 /// Where a library brush comes from.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Source {
-    Builtin(Brush),
+    Builtin(Box<Brush>),
     File(PathBuf),
 }
 
@@ -68,6 +68,8 @@ pub fn builtin() -> Vec<(String, &'static str, Brush)> {
         b("Airbrush", BASICS, p(BrushKind::Airbrush)),
         b("Chalk", BASICS, p(BrushKind::Chalk)),
         b("Eraser", BASICS, p(BrushKind::Eraser)),
+        b("Watercolour", BASICS, p(BrushKind::Watercolour)),
+        b("Smudge", BASICS, p(BrushKind::Smudge)),
         b("Soft pencil", "Pencils", Brush { size: 5.0, hardness: 0.3, grain: 0.7, opacity: 0.8, ..p(BrushKind::Pencil) }),
         b("Hard pencil", "Pencils", Brush { size: 2.0, hardness: 0.95, grain: 0.35, opacity: 1.0, ..p(BrushKind::Pencil) }),
         b("Fine liner", "Inks", Brush { size: 2.5, ..p(BrushKind::Ink) }),
@@ -78,6 +80,10 @@ pub fn builtin() -> Vec<(String, &'static str, Brush)> {
         b("Wide chalk", "Chalks", Brush { size: 48.0, grain: 0.8, grain_scale: 4.0, ..p(BrushKind::Chalk) }),
         b("Hard eraser", "Erasers", Brush { size: 12.0, hardness: 1.0, ..p(BrushKind::Eraser) }),
         b("Soft eraser", "Erasers", Brush { size: 40.0, hardness: 0.2, ..p(BrushKind::Eraser) }),
+        b("Wet wash", "Watercolours", Brush { size: 70.0, flow: 0.2, hardness: 0.2, wet: tooncraft_brush::Wet { pickup: 0.6 }, ..p(BrushKind::Watercolour) }),
+        b("Dry wash", "Watercolours", Brush { size: 40.0, flow: 0.35, grain: 0.7, wet: tooncraft_brush::Wet { pickup: 0.15 }, ..p(BrushKind::Watercolour) }),
+        b("Soft smudge", "Smudges", Brush { size: 50.0, hardness: 0.1, flow: 0.4, ..p(BrushKind::Smudge) }),
+        b("Hard smudge", "Smudges", Brush { size: 16.0, hardness: 0.8, flow: 0.8, wet: tooncraft_brush::Wet { pickup: 0.15 }, ..p(BrushKind::Smudge) }),
     ]
 }
 
@@ -164,7 +170,7 @@ impl Library {
                 category: category.to_string(),
                 name,
                 kind: brush.kind,
-                source: Source::Builtin(brush),
+                source: Source::Builtin(Box::new(brush)),
             })
             .collect()
     }
@@ -282,7 +288,7 @@ impl Library {
     pub fn load(&self, id: &str) -> Result<(String, Brush, Option<Tip>), String> {
         let e = self.get(id).ok_or("that brush is not in the library")?;
         match &e.source {
-            Source::Builtin(b) => Ok((e.name.clone(), *b, None)),
+            Source::Builtin(b) => Ok((e.name.clone(), **b, None)),
             Source::File(p) => preset::load(p),
         }
     }
@@ -409,7 +415,7 @@ mod tests {
         assert_eq!(hits.first().map(String::as_str), Some("Chalk"), "the plain family leads: {hits:?}");
         assert!(hits.contains(&"Dry chalk".to_string()) && !hits.contains(&"Pencil".to_string()));
         // word prefix beats substring; every word must match
-        assert_eq!(names(&l, &q("soft")), vec!["Soft pencil", "Soft airbrush", "Soft eraser"]);
+        assert_eq!(names(&l, &q("soft")), vec!["Soft pencil", "Soft airbrush", "Soft eraser", "Soft smudge"]);
         assert_eq!(names(&l, &q("soft pen")), vec!["Soft pencil"]);
         assert_eq!(names(&l, &q("SOFT PEN")), vec!["Soft pencil"], "case does not matter");
         // the category and the kind are searchable too
