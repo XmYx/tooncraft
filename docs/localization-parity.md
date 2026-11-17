@@ -4,10 +4,10 @@
 
 | | Value | Kind |
 |---|---|---|
-| Source texts (`locales/tooncraft.tsv`) | 257 | measured (`cargo xtask strings`) |
+| Source texts (`locales/tooncraft.tsv`) | 525 | measured (`cargo xtask strings`) |
 | Languages with a ToonCraft catalog | 2: German (`de`), Spanish (`es`) | measured |
-| German: texts translated | 339 of 513 (66 %) | measured (`cargo xtask strings`) |
-| Spanish: texts translated | 339 of 513 (66 %) | measured (`cargo xtask strings`) |
+| German: texts translated | 338 of 525 (64 %) | measured (`cargo xtask strings`) |
+| Spanish: texts translated | 338 of 525 (64 %) | measured (`cargo xtask strings`) |
 
 Every user-visible string goes through `tl!` / `tlf!` (craft-i18n; the English source text is the
 key). `build.rs` embeds `locales/<locale>/common.tsv` and `locales/<locale>/tooncraft.tsv` from a

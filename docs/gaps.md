@@ -15,7 +15,6 @@ F = request).
 | 1 | Pen input in Wayland-native windows (tablet-v2 protocol through winit) | Input | B | 16 | A5 |
 | 2 | Effects, the rest: drawn mask shapes, smoothing of jagged lines, a GPU path (RFC-0022) | Effects | | 14 | target rows |
 | 3 | Lip-sync: check detection on recorded speech and tune it; microphone recording | Audio | | 12 | F1 |
-| 5 | Nested folders, clipping layers, folders in the timeline | Layers | | 12 | F15 |
 | 6 | Brush editor with curves per dynamic; textured brush grain images | Brushes | | 20 | F7 |
 | 7 | Key / breakdown / inbetween marks and a planning chart | Animation | | 10 | target rows |
 | 8 | Field guide, safe areas, canvas resize / crop | Canvas | | 10 | target rows |

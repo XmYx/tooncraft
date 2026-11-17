@@ -177,7 +177,7 @@ impl Engine {
 
     pub(crate) fn check_unlocked(&self, layer: usize) -> Result<()> {
         let l = self.project.layer(layer)?;
-        if l.locked {
+        if self.project.is_locked(l) {
             return Err(EngineError::Locked(l.name.clone()));
         }
         Ok(())
