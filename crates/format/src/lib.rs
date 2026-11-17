@@ -76,8 +76,13 @@ struct Manifest {
     project: ProjectJson,
     #[serde(default)]
     drawings: Vec<DrawingEntry>,
+    /// Files before sound clips: one soundtrack.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     soundtrack: Option<SoundEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    sounds: Vec<SoundEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    audio_tracks: Vec<tooncraft_doc::AudioTrack>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     tips: Vec<TipEntry>,
 }
@@ -90,6 +95,22 @@ struct TipEntry {
     height: u32,
 }
 
+fn unit_gain() -> f32 {
+    1.0
+}
+
+/// Each sound file once (clips may share one), with its entry name.
+fn sound_files(p: &Project) -> Vec<(usize, String)> {
+    let mut out: Vec<(usize, String)> = Vec::new();
+    for s in &p.sounds {
+        let ptr = std::sync::Arc::as_ptr(&s.bytes) as usize;
+        if !out.iter().any(|(q, _)| *q == ptr) {
+            out.push((ptr, format!("audio/sound-{}", out.len())));
+        }
+    }
+    out
+}
+
 fn tip_entry_name(id: u64) -> String {
     format!("tips/{id}.alpha")
 }
@@ -98,6 +119,22 @@ fn tip_entry_name(id: u64) -> String {
 struct SoundEntry {
     name: String,
     offset: i32,
+    #[serde(default)]
+    track: u32,
+    #[serde(default)]
+    trim_start: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    length: Option<f64>,
+    #[serde(default)]
+    fade_in: f64,
+    #[serde(default)]
+    fade_out: f64,
+    #[serde(default = "unit_gain")]
+    volume: f32,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    volume_keys: Vec<tooncraft_doc::VolumeKey>,
+    #[serde(default)]
+    muted: bool,
     entry: String,
 }
 
@@ -158,7 +195,29 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             pegs: p.pegs.clone(),
         },
         drawings: p.drawings().map(|(id, s)| DrawingEntry { id, tiles: s.tile_count() as u32 }).collect(),
-        soundtrack: p.soundtrack.as_ref().map(|s| SoundEntry { name: s.name.clone(), offset: s.offset, entry: "audio/soundtrack".into() }),
+        soundtrack: None,
+        sounds: p
+            .sounds
+            .iter()
+            .map(|s| {
+                let ptr = std::sync::Arc::as_ptr(&s.bytes) as usize;
+                let entry = sound_files(p).into_iter().find(|(q, _)| *q == ptr).map(|(_, e)| e).unwrap_or_default();
+                SoundEntry {
+                    name: s.name.clone(),
+                    offset: s.offset,
+                    track: s.track,
+                    trim_start: s.trim_start,
+                    length: s.length,
+                    fade_in: s.fade_in,
+                    fade_out: s.fade_out,
+                    volume: s.volume,
+                    volume_keys: s.volume_keys.clone(),
+                    muted: s.muted,
+                    entry,
+                }
+            })
+            .collect(),
+        audio_tracks: p.audio_tracks.clone(),
         tips: p.tips.iter().map(|(id, t)| TipEntry { id: *id, name: t.name.clone(), width: t.width, height: t.height }).collect(),
     };
     let json = serde_json::to_vec_pretty(&manifest).map_err(|e| FormatError::Damaged(e.to_string()))?;
@@ -179,9 +238,11 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
     for (id, t) in &p.tips {
         zip.add(&tip_entry_name(*id), &t.alpha, craft_zip::Compression::Deflated).map_err(z)?;
     }
-    if let Some(s) = &p.soundtrack {
-        // Compressed formats gain nothing from deflate; WAV and AIFF do.
-        zip.add("audio/soundtrack", &s.bytes, craft_zip::Compression::Level(1)).map_err(z)?;
+    for (ptr, entry) in sound_files(p) {
+        if let Some(s) = p.sounds.iter().find(|s| std::sync::Arc::as_ptr(&s.bytes) as usize == ptr) {
+            // Compressed formats gain nothing from deflate; WAV and AIFF do.
+            zip.add(&entry, &s.bytes, craft_zip::Compression::Level(1)).map_err(z)?;
+        }
     }
     let preview = tooncraft_doc::render_frame(p, 0, RenderOptions::default()).downscaled(256);
     if let Ok(png) = encode_png(&preview) {
@@ -270,17 +331,46 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Project> {
         let tip = tooncraft_brush::Tip::new(&t.name, t.width, t.height, alpha).ok_or_else(|| FormatError::Damaged(format!("brush tip {}", t.id)))?;
         p.tips.insert(t.id, std::sync::Arc::new(tip));
     }
+    let mut entries: Vec<SoundEntry> = m.sounds;
     if let Some(s) = m.soundtrack {
         if s.entry != "audio/soundtrack" {
             return Err(FormatError::Damaged("unexpected sound entry".into()));
         }
-        let bytes = read(&mut zip, &s.entry, MAX_SOUND_BYTES)?;
-        p.soundtrack = Some(tooncraft_doc::Soundtrack {
-            name: s.name.chars().take(200).collect(),
-            offset: s.offset.clamp(-1_000_000, 1_000_000),
-            bytes: std::sync::Arc::new(bytes),
-        });
+        entries.insert(0, s);
     }
+    if entries.len() > tooncraft_doc::sound::MAX_SOUNDS {
+        return Err(FormatError::TooLarge("too many sound clips".into()));
+    }
+    let mut files: Vec<(String, std::sync::Arc<Vec<u8>>)> = Vec::new();
+    let mut total = 0u64;
+    for s in entries {
+        if s.entry != "audio/soundtrack" && !(s.entry.starts_with("audio/sound-") && s.entry[12..].bytes().all(|b| b.is_ascii_digit())) {
+            return Err(FormatError::Damaged("unexpected sound entry".into()));
+        }
+        let bytes = match files.iter().find(|(e, _)| *e == s.entry) {
+            Some((_, b)) => b.clone(),
+            None => {
+                let b = std::sync::Arc::new(read(&mut zip, &s.entry, MAX_SOUND_BYTES)?);
+                total += b.len() as u64;
+                if total > MAX_SOUND_BYTES * 4 {
+                    return Err(FormatError::TooLarge("the sound files are too large".into()));
+                }
+                files.push((s.entry.clone(), b.clone()));
+                b
+            }
+        };
+        let mut clip = tooncraft_doc::Soundtrack::new(&s.name, s.offset, bytes);
+        clip.track = s.track;
+        clip.trim_start = s.trim_start;
+        clip.length = s.length;
+        clip.fade_in = s.fade_in;
+        clip.fade_out = s.fade_out;
+        clip.volume = s.volume;
+        clip.volume_keys = s.volume_keys;
+        clip.muted = s.muted;
+        p.sounds.push(clip.sanitized());
+    }
+    p.audio_tracks = m.audio_tracks.into_iter().take(tooncraft_doc::sound::MAX_AUDIO_TRACKS).map(tooncraft_doc::AudioTrack::sanitized).collect();
     Ok(p)
 }
 

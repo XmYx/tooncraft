@@ -170,11 +170,9 @@ pub fn mp4(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(
     cfg.rate = RateControl::Crf(18.0);
     cfg.writer = format!("ToonCraft {}", env!("CARGO_PKG_VERSION"));
     let mut enc = Encoder::new(cfg).map_err(enc_err)?;
-    // The soundtrack under the exported frames, as AAC in its own M4A, whose track is copied in.
-    let sound = match crate::audio::decode_project(p) {
-        Some(Ok(pcm)) => {
-            let s = p.soundtrack.as_ref().ok_or_else(|| ExportError::Encode("sound".into()))?;
-            let seg = crate::audio::segment(&pcm, s, fps, o.start, o.end);
+    // The sound mix under the exported frames, as AAC in its own M4A, whose track is copied in.
+    let sound = match crate::audio::mix_project(p, o.start, o.end) {
+        Some(Ok(seg)) => {
             let buf = craft_audio::AudioBuffer { sample_rate: seg.rate, channels: seg.channels };
             let opts = craft_audio::EncodeOptions::new(craft_audio::EncodeFormat::Aac);
             Some(craft_audio::encode(&buf, &opts).map_err(|e| ExportError::Encode(format!("sound: {e}")))?)

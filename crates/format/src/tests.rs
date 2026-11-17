@@ -25,10 +25,49 @@ fn sample() -> Project {
 #[test]
 fn round_trip() {
     let mut p = sample();
-    p.soundtrack = Some(tooncraft_doc::Soundtrack { name: "dialogue.wav".into(), offset: -3, bytes: std::sync::Arc::new(vec![1, 2, 3, 4]) });
+    let file = std::sync::Arc::new(vec![1, 2, 3, 4]);
+    p.sounds.push(tooncraft_doc::Soundtrack::new("dialogue.wav", -3, file.clone()));
+    let mut second = tooncraft_doc::Soundtrack::new("dialogue.wav", 20, file);
+    (second.track, second.trim_start, second.length, second.fade_in, second.muted) = (1, 1.5, Some(2.0), 0.25, true);
+    second.set_volume_key(4, 0.5);
+    p.sounds.push(second);
+    p.sounds.push(tooncraft_doc::Soundtrack::new("music.ogg", 0, std::sync::Arc::new(vec![9; 10])));
+    p.audio_tracks = vec![tooncraft_doc::AudioTrack { name: "Voice".into(), muted: false, solo: true, volume: 0.8 }];
     let bytes = to_bytes(&p).unwrap();
     let q = from_bytes(&bytes).unwrap();
     assert_eq!(q, p);
+    assert!(std::sync::Arc::ptr_eq(&q.sounds[0].bytes, &q.sounds[1].bytes), "clips of one file share it after loading");
+}
+
+#[test]
+fn reads_a_soundtrack_from_before_clips() {
+    let mut p = sample();
+    p.sounds.push(tooncraft_doc::Soundtrack::new("dialogue.wav", -3, std::sync::Arc::new(vec![5, 6, 7])));
+    let bytes = to_bytes(&p).unwrap();
+    // rewrite the file the way ToonCraft wrote it before sound clips: one `soundtrack`
+    let limits = craft_zip::Limits { max_entries: 1000, max_total_bytes: 1 << 30 };
+    let mut zip = craft_zip::Archive::open(&bytes, limits).unwrap();
+    let names: Vec<String> = zip.names().map(|n| n.into_owned()).collect();
+    let mut out = craft_zip::Writer::new();
+    for n in names {
+        let data = zip.read(&n, 1 << 30).unwrap().unwrap();
+        let (name, data) = match n.as_str() {
+            "project.json" => {
+                let mut v: serde_json::Value = serde_json::from_slice(&data).unwrap();
+                let obj = v.as_object_mut().unwrap();
+                obj.remove("sounds");
+                obj.insert("soundtrack".into(), serde_json::json!({"name": "dialogue.wav", "offset": -3, "entry": "audio/soundtrack"}));
+                (n.clone(), serde_json::to_vec(&v).unwrap())
+            }
+            "audio/sound-0" => ("audio/soundtrack".to_string(), data),
+            _ => (n.clone(), data),
+        };
+        let c = if name == "mimetype" { craft_zip::Compression::Stored } else { craft_zip::Compression::Deflated };
+        out.add(&name, &data, c).unwrap();
+    }
+    let old = out.finish().unwrap();
+    let q = from_bytes(&old).unwrap();
+    assert_eq!(q.sounds, p.sounds);
 }
 
 #[test]
