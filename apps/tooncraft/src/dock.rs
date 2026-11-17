@@ -8,7 +8,7 @@ use craft_ui::layout::{SplitAxis, SplitSize};
 
 use crate::app::ToonApp;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Pane {
     Canvas,
     Timeline,
@@ -22,6 +22,7 @@ pub enum Pane {
     Effects,
     Sound,
     LipSync,
+    Timing,
 }
 
 impl Pane {
@@ -39,6 +40,7 @@ impl Pane {
             Pane::Effects => tl!("Effects"),
             Pane::Sound => tl!("Sound"),
             Pane::LipSync => tl!("Lip Sync"),
+            Pane::Timing => tl!("Timing"),
         }
         .to_string()
     }
@@ -56,6 +58,7 @@ impl Pane {
             "effects" => Pane::Effects,
             "sound" => Pane::Sound,
             "lipsync" | "lip-sync" => Pane::LipSync,
+            "timing" => Pane::Timing,
             _ => Pane::Canvas,
         }
     }
@@ -92,7 +95,7 @@ impl Default for Workspace {
             axis: SplitAxis::Vertical,
             size: SplitSize::Ratio(0.5),
             first: Box::new(tabs(&[Pane::Colour, Pane::Brush, Pane::Library], 0)),
-            second: Box::new(tabs(&[Pane::Layers, Pane::Onion, Pane::Camera, Pane::Pegs, Pane::Effects, Pane::Sound, Pane::LipSync], 0)),
+            second: Box::new(tabs(&[Pane::Layers, Pane::Onion, Pane::Camera, Pane::Pegs, Pane::Effects, Pane::Sound, Pane::LipSync, Pane::Timing], 0)),
         };
         let root = Node::Split { axis: SplitAxis::Horizontal, size: SplitSize::FixedSecond(300.0), first: Box::new(centre), second: Box::new(right) };
         Self {
@@ -153,6 +156,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             Pane::Effects => crate::effects_panel::show(app, ui),
             Pane::Sound => crate::sound_panel::show(app, ui),
             Pane::LipSync => crate::lipsync_panel::show(app, ui),
+            Pane::Timing => crate::timing_panel::panel(app, ui),
         },
     );
     if let Some(e) = out.error {

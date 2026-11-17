@@ -11,10 +11,12 @@
 
 pub mod camera;
 mod exposure;
+pub mod guides;
 mod onion;
 pub mod peg;
 pub mod render;
 pub mod sound;
+pub mod timing;
 
 pub use camera::{Camera, CameraKey, Shake};
 pub use exposure::{Cell, ExposureError};
@@ -22,6 +24,7 @@ pub use onion::{LightTable, OnionMode, OnionSkin, Pin};
 pub use peg::{Ease, Peg, PegId, PegKey};
 pub use render::{RenderOptions, render_camera, render_frame, render_region};
 pub use sound::{AudioTrack, Soundtrack, VolumeKey};
+pub use timing::{Mark, TimingPreset};
 pub use tooncraft_raster::select::Affine;
 
 use std::collections::BTreeMap;
@@ -301,6 +304,8 @@ pub struct Project {
     pub tips: BTreeMap<u64, std::sync::Arc<tooncraft_brush::Tip>>,
     /// Pegs layers can hang from (see [`peg`]).
     pub pegs: Vec<Peg>,
+    /// Key, breakdown and inbetween marks of drawings (see [`timing`]).
+    pub marks: BTreeMap<DrawingId, Mark>,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -320,6 +325,7 @@ impl PartialEq for Project {
             && self.folders == o.folders
             && self.tips == o.tips
             && self.pegs == o.pegs
+            && self.marks == o.marks
     }
 }
 
@@ -352,6 +358,7 @@ impl Project {
             folders: Vec::new(),
             tips: BTreeMap::new(),
             pegs: Vec::new(),
+            marks: BTreeMap::new(),
             next_drawing: 1,
             next_layer: 1,
         };
@@ -378,6 +385,7 @@ impl Project {
             folders: Vec::new(),
             tips: BTreeMap::new(),
             pegs: Vec::new(),
+            marks: BTreeMap::new(),
             next_drawing: 1,
             next_layer: 1,
         };
@@ -468,6 +476,37 @@ impl Project {
     /// Frames in the shot.
     pub fn length(&self) -> u32 {
         self.length
+    }
+
+    /// Put the shot on a `width`×`height` canvas with everything moved by `(dx, dy)` whole
+    /// pixels (canvas resize and crop): drawings are moved, never resampled, and cut where they
+    /// leave the canvas; peg pivots and camera keys move with them.
+    pub fn reframe(&mut self, width: u32, height: u32, dx: i64, dy: i64) -> Result<()> {
+        if width == 0 || height == 0 || width > MAX_SIDE || height > MAX_SIDE {
+            return Err(RasterError::BadSize(width, height).into());
+        }
+        let limit = 4 * MAX_SIDE as i64;
+        if dx.abs() > limit || dy.abs() > limit {
+            return Err(RasterError::BadSize(width, height).into());
+        }
+        let mut drawings = BTreeMap::new();
+        for (id, s) in &self.drawings {
+            drawings.insert(*id, s.reframed(width, height, dx, dy)?);
+        }
+        self.drawings = drawings;
+        let (fx, fy) = (dx as f32, dy as f32);
+        for p in &mut self.pegs {
+            p.pivot = (p.pivot.0 + fx, p.pivot.1 + fy);
+        }
+        // the camera's neutral centre is the canvas centre: keep keyed framings where they were
+        for k in &mut self.camera.keys {
+            k.x += fx;
+            k.y += fy;
+        }
+        self.width = width;
+        self.height = height;
+        self.camera = std::mem::take(&mut self.camera).sanitized(width, height);
+        Ok(())
     }
 
     pub fn set_fps(&mut self, fps: u32) -> Result<()> {

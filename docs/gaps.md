@@ -16,10 +16,6 @@ F = request).
 | 2 | Effects, the rest: drawn mask shapes, smoothing of jagged lines, a GPU path (RFC-0022) | Effects | | 14 | target rows |
 | 3 | Lip-sync: check detection on recorded speech and tune it; microphone recording | Audio | | 12 | F1 |
 | 6 | Brush editor with curves per dynamic; textured brush grain images | Brushes | | 20 | F7 |
-| 7 | Key / breakdown / inbetween marks and a planning chart | Animation | | 10 | target rows |
-| 8 | Field guide, safe areas, canvas resize / crop | Canvas | | 10 | target rows |
-| 9 | Saved workspaces (panel layouts) | UI | | 6 | A13 |
-| 10 | Onion skin as outlines; hide only the previous step | Onion | | 6 | F2 |
 | 11 | BoardCraft animatic import as a layout | Import | | 10 | [interop.md](interop.md) |
 | 12 | GPU dab rasterisation (craft-gpu, RFC-0022) | Performance | | 30 | below |
 | 13 | Paging of drawings to disk for very long shots | Stability | | 20 | below |

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use tooncraft_brush::{Brush, Sample};
-use tooncraft_doc::{Cell, DocError, Ease, OnionSkin, PegId, PegKey, Pin, Shake};
+use tooncraft_doc::{Cell, DocError, Ease, Mark, OnionSkin, PegId, PegKey, Pin, Shake, TimingPreset};
 use tooncraft_raster::fill::FillOptions;
 
 use crate::undo::{Entry, Part};
@@ -456,6 +456,56 @@ pub enum Command {
         #[serde(default)]
         collapsed: Option<bool>,
     },
+    /// Change the canvas size; `anchor` (0…1 each way, default the centre) says which part of
+    /// the picture stays put. Drawings are moved, never resampled.
+    ResizeCanvas {
+        width: u32,
+        height: u32,
+        #[serde(default = "centre")]
+        anchor: (f32, f32),
+    },
+    /// Crop the canvas to the rectangle at (`x`, `y`) of `width`×`height` pixels.
+    CropCanvas {
+        x: i64,
+        y: i64,
+        width: u32,
+        height: u32,
+    },
+    /// Mark the drawing at the frame as a key, breakdown or inbetween (`None`: no mark).
+    SetMark {
+        layer: usize,
+        frame: u32,
+        #[serde(default)]
+        mark: Option<Mark>,
+    },
+    /// Re-time `from..=to` with a timing preset (each drawing held as the preset says).
+    ApplyTiming {
+        layer: usize,
+        from: u32,
+        to: u32,
+        preset: TimingPreset,
+    },
+    /// Re-space the drawings between keys and breakdowns in `from..=to` along a spacing chart;
+    /// the keys and breakdowns keep their frames.
+    RetimeBetweenKeys {
+        layer: usize,
+        from: u32,
+        to: u32,
+        #[serde(default)]
+        ease: Ease,
+    },
+    /// Add `count` new, empty inbetween drawings between the drawing at `frame` and the next one,
+    /// placed along the spacing chart for `ease`; with `guides`, a guide layer above shows each
+    /// one as a blend of the two drawings, weighted by where it falls.
+    AddInbetweens {
+        layer: usize,
+        frame: u32,
+        count: u32,
+        #[serde(default)]
+        ease: Ease,
+        #[serde(default = "yes")]
+        guides: bool,
+    },
     /// Clip the layer to the layer below (it shows only where that layer has paint), or not.
     SetLayerClip {
         layer: usize,
@@ -586,6 +636,14 @@ pub enum Command {
     },
 }
 
+fn centre() -> (f32, f32) {
+    (0.5, 0.5)
+}
+
+fn yes() -> bool {
+    true
+}
+
 fn unit() -> f32 {
     1.0
 }
@@ -611,6 +669,16 @@ fn edit_layers(e: &mut Engine, label: &str, edit: impl FnOnce(&mut Engine) -> Re
             Err(err)
         }
     }
+}
+
+fn reframe(e: &mut Engine, label: &str, width: u32, height: u32, dx: i64, dy: i64) -> Result<()> {
+    if e.is_stroking() {
+        return Err(EngineError::Busy);
+    }
+    let before = Box::new(e.project.clone());
+    e.project.reframe(width, height, dx, dy)?;
+    e.push(Entry { label: label.into(), parts: vec![Part::Whole(before)] });
+    Ok(())
 }
 
 fn folder_mut<'a>(p: &'a mut tooncraft_doc::Project, name: &str) -> std::result::Result<&'a mut tooncraft_doc::Folder, DocError> {
@@ -1081,6 +1149,37 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.push(Entry { label: "Folder".into(), parts: vec![before] });
             Ok(())
         }
+        Command::ResizeCanvas { width, height, anchor } => {
+            let a = |v: f32| if v.is_finite() { v.clamp(0.0, 1.0) } else { 0.5 };
+            let dx = ((width as f64 - e.project.width() as f64) * a(anchor.0) as f64).round() as i64;
+            let dy = ((height as f64 - e.project.height() as f64) * a(anchor.1) as f64).round() as i64;
+            reframe(e, "Canvas size", width, height, dx, dy)
+        }
+        Command::CropCanvas { x, y, width, height } => reframe(e, "Crop canvas", width, height, -x, -y),
+        Command::SetMark { layer, frame, mark } => {
+            frame_ok(e, frame)?;
+            let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;
+            let before = Part::Marks(e.project.marks.clone());
+            match mark {
+                Some(m) => e.project.marks.insert(d, m),
+                None => e.project.marks.remove(&d),
+            };
+            e.push(Entry { label: "Mark drawing".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::ApplyTiming { layer, from, to, preset } => edit_layers(e, "Timing preset", |e| {
+            e.check_unlocked(layer)?;
+            e.project.layer_mut(layer)?.apply_timing(from, to, &preset).map_err(DocError::from)?;
+            Ok(())
+        }),
+        Command::RetimeBetweenKeys { layer, from, to, ease } => edit_layers(e, "Re-time between keys", |e| {
+            e.check_unlocked(layer)?;
+            let marks = e.project.marks.clone();
+            let anchor = |d| marks.get(&d).is_some_and(|m: &Mark| m.is_anchor());
+            e.project.layer_mut(layer)?.retime_between_anchors(from, to, anchor, ease).map_err(DocError::from)?;
+            Ok(())
+        }),
+        Command::AddInbetweens { layer, frame, count, ease, guides } => crate::inbetween::add(e, layer, frame, count, ease, guides),
         Command::SetLayerClip { layer, clip } => edit_layers(e, "Clipping", |e| {
             e.project.layer_mut(layer)?.clip = clip;
             Ok(())
@@ -1166,7 +1265,9 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }
         Command::PurgeUnused => {
-            let mut parts = Vec::new();
+            let mut parts = vec![Part::Marks(e.project.marks.clone())];
+            let unused = e.project.unused_drawings();
+            e.project.marks.retain(|d, _| !unused.contains(d));
             for id in e.project.unused_drawings() {
                 let s = e.project.swap_drawing(id, None);
                 parts.push(Part::Drawing { id, surface: s });

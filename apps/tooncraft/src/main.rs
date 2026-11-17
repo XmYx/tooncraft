@@ -12,6 +12,7 @@ mod app;
 mod args;
 mod brush_library;
 mod canvas;
+mod canvas_tools;
 mod color;
 mod dock;
 mod effects_panel;
@@ -27,6 +28,7 @@ mod tablet;
 mod textures;
 mod theme;
 mod timeline;
+mod timing_panel;
 #[cfg(test)]
 mod ui_tests;
 mod view;

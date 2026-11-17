@@ -9,7 +9,8 @@
 //! - `progress`: RFC-0017 fragments in `docs/progress.d/` are well formed (one non-empty entry
 //!   per file, no duplicates); prints them joined, newest first.
 //! - `parity`: counts the status column of `docs/target-app-parity.md`; `--write` updates the
-//!   headline block between the `parity:` markers.
+//!   headline block between the `parity:` markers. `ci` validates the rows strictly but only warns
+//!   when that generated block is stale (feature PRs flip rows; a maintainer refreshes the block).
 //! - `licenses`: every dependency's licence expression is satisfiable from the suite allowlist
 //!   (house-rules-rust), from `cargo metadata` (the same list `deny.toml` gives cargo-deny).
 //! - `strings`: extracts every `tl!`/`tlf!` source text into `locales/tooncraft.tsv` (the English
@@ -132,41 +133,52 @@ fn progress() -> Result<(), String> {
     Ok(())
 }
 
-fn parity(write: bool) -> Result<(), String> {
-    let path = root().join("docs/target-app-parity.md");
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+/// Scores the feature tables of `docs/target-app-parity.md` and renders the headline block.
+///
+/// Strict on purpose: inside a `| Feature | Refs | Status | ... |` table every row needs all its
+/// cells and a status of D, P or M, and every row belongs to an area (`## ` heading). A row that
+/// breaks this is an error naming the line, never silently skipped.
+fn parity_block(text: &str) -> Result<String, String> {
     let (mut d, mut p, mut m) = (0u32, 0u32, 0u32);
     let mut areas: Vec<(String, u32, u32, u32)> = Vec::new();
-    for line in text.lines() {
+    let mut in_table = false;
+    for (n, line) in text.lines().enumerate() {
+        let n = n + 1;
         if let Some(h) = line.strip_prefix("## ") {
             areas.push((h.to_string(), 0, 0, 0));
+            in_table = false;
+            continue;
+        }
+        if !line.starts_with('|') {
+            in_table = false;
             continue;
         }
         let cols: Vec<&str> = line.split('|').map(str::trim).collect();
-        if cols.len() >= 5 {
-            let status = cols[3];
-            let a = areas.last_mut();
-            match status {
-                "D" => {
-                    d += 1;
-                    if let Some(a) = a {
-                        a.1 += 1;
-                    }
-                }
-                "P" => {
-                    p += 1;
-                    if let Some(a) = a {
-                        a.2 += 1;
-                    }
-                }
-                "M" => {
-                    m += 1;
-                    if let Some(a) = a {
-                        a.3 += 1;
-                    }
-                }
-                _ => {}
+        if cols.get(1) == Some(&"Feature") && cols.get(3) == Some(&"Status") {
+            in_table = true;
+            continue;
+        }
+        if !in_table || cols.get(1).is_some_and(|c| c.starts_with("---")) {
+            continue;
+        }
+        if cols.len() < 5 {
+            return Err(format!("line {n}: a feature row needs Feature, Refs, Status and Ours cells"));
+        }
+        let Some(a) = areas.last_mut() else { return Err(format!("line {n}: feature row outside an area")) };
+        match cols[3] {
+            "D" => {
+                d += 1;
+                a.1 += 1;
             }
+            "P" => {
+                p += 1;
+                a.2 += 1;
+            }
+            "M" => {
+                m += 1;
+                a.3 += 1;
+            }
+            other => return Err(format!("line {n}: status {other:?} must be D, P or M")),
         }
     }
     let rows = d + p + m;
@@ -184,6 +196,13 @@ fn parity(write: bool) -> Result<(), String> {
             block.push_str(&format!("| {name} | {:.0} % ({ad} D, {ap} P, {am} M) | measured |\n", score(*ad, *ap, *am)));
         }
     }
+    Ok(block)
+}
+
+fn parity(write: bool) -> Result<(), String> {
+    let path = root().join("docs/target-app-parity.md");
+    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let block = parity_block(&text)?;
     print!("{block}");
     if write {
         let start = "<!-- parity:start -->\n";
@@ -194,6 +213,35 @@ fn parity(write: bool) -> Result<(), String> {
         println!("wrote {}", path.display());
     } else if !text.contains(&block) {
         return Err("the parity headline is out of date: run `cargo xtask parity --write`".into());
+    }
+    Ok(())
+}
+
+/// The parity check `ci` runs. The rows are validated strictly (a malformed row, a bad status or
+/// missing markers is an error), but a stale generated block only warns: rows are flipped in many
+/// concurrent PRs, so committing the block there would make them all conflict. A maintainer
+/// refreshes it separately with `cargo xtask parity --write`.
+fn parity_ci_check(text: &str) -> Result<Option<String>, String> {
+    let block = parity_block(text)?;
+    let start = "<!-- parity:start -->\n";
+    let end = "<!-- parity:end -->";
+    let (Some(a), Some(b)) = (text.find(start), text.find(end)) else { return Err("parity markers missing".into()) };
+    if a + start.len() > b {
+        return Err("parity markers out of order".into());
+    }
+    if text[a + start.len()..b] == block {
+        return Ok(None);
+    }
+    Ok(Some(
+        "the generated parity headline is out of date (not a failure; a maintainer refreshes it with `cargo xtask parity --write` in a separate PR)".into(),
+    ))
+}
+
+fn parity_ci() -> Result<(), String> {
+    let path = root().join("docs/target-app-parity.md");
+    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    if let Some(warning) = parity_ci_check(&text)? {
+        eprintln!("xtask: warning: {warning}");
     }
     Ok(())
 }
@@ -423,7 +471,7 @@ fn ci() -> Result<(), String> {
     layers()?;
     assets()?;
     progress()?;
-    parity(false)?;
+    parity_ci()?;
     strings(false)?;
     licenses()
 }
@@ -454,5 +502,41 @@ fn main() -> ExitCode {
             eprintln!("xtask: {e}");
             ExitCode::FAILURE
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parity_block, parity_ci_check};
+
+    const ROWS: &str = "## One\n\n| Feature | Refs | Status | Ours |\n|---|---|---|---|\n| a | all | D | |\n| b | TV | P | |\n| c | TV | M | |\n";
+
+    fn doc(block: &str, rows: &str) -> String {
+        format!("# Map\n\n<!-- parity:start -->\n{block}<!-- parity:end -->\n\n{rows}")
+    }
+
+    #[test]
+    fn fresh_block_is_silent() {
+        let block = parity_block(ROWS).unwrap_or_default();
+        assert!(!block.is_empty());
+        assert_eq!(parity_ci_check(&doc(&block, ROWS)), Ok(None));
+    }
+
+    #[test]
+    fn stale_block_warns_but_does_not_fail() {
+        let stale = doc("| | Value | Kind |\n|---|---|---|\n| Feature rows | 1 | measured |\n", ROWS);
+        let checked = parity_ci_check(&stale);
+        assert!(matches!(&checked, Ok(Some(w)) if w.contains("out of date")), "{checked:?}");
+    }
+
+    #[test]
+    fn malformed_rows_and_markers_still_fail() {
+        let block = "x\n";
+        let bad_status = ROWS.replace("| b | TV | P |", "| b | TV | Q |");
+        assert!(parity_ci_check(&doc(block, &bad_status)).is_err(), "bad status");
+        let short_row = ROWS.replace("| b | TV | P | |", "| b | TV |");
+        assert!(parity_ci_check(&doc(block, &short_row)).is_err(), "row with missing cells");
+        assert!(parity_ci_check(&doc(block, "## One\n\nno table here\n")).is_err(), "no rows");
+        assert!(parity_ci_check(ROWS).is_err(), "markers missing");
     }
 }

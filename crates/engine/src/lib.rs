@@ -14,6 +14,7 @@ pub mod demo;
 mod effects;
 pub mod export;
 mod import;
+pub mod inbetween;
 mod interchange;
 pub mod library;
 pub mod lipsync;

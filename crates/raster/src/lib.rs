@@ -14,6 +14,7 @@
 pub mod fill;
 mod image;
 mod pixel;
+pub mod reframe;
 pub mod select;
 mod warp;
 
