@@ -578,7 +578,6 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let ctx = ui.ctx().clone();
     let p = &app.engine.project;
     let tex = &mut app.textures;
-    let _ = &app.blend_cache;
     if p.light_table.enabled {
         for pin in &p.light_table.pins {
             let Some(li) = p.layer_index(pin.layer) else { continue };
@@ -617,17 +616,14 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         .any(|l| (l.blend != tooncraft_doc::BlendMode::Normal || l.clip || tooncraft_fx::is_active(&l.effects) || l.matte.is_some()) && p.effective(l).0);
     if blended {
         // A blend mode needs what is below it, and effects reach past their tiles: composite the
-        // layers on the CPU (cached until the project or frame changes) and show that as tiles.
-        let key = app.engine.changes().wrapping_mul(1_000_003) ^ (app.frame as u64).wrapping_mul(7919);
-        if app.blend_cache.as_ref().is_none_or(|(k, _)| *k != key) {
-            let img = tooncraft_doc::render_frame(p, app.frame, tooncraft_doc::RenderOptions { paper: false, ..Default::default() });
-            if let Ok(mut s) = tooncraft_raster::Surface::new(img.width, img.height) {
-                let _ = s.load_image(&img);
-                app.blend_cache = Some((key, s));
-            }
-        }
-        if let Some((_, s)) = &app.blend_cache {
-            draw_surface(tex, &ctx, &c, tooncraft_doc::DrawingId(u64::MAX), s, 1.0, None, &tooncraft_doc::Affine::IDENTITY, false);
+        // layers on the CPU and show that as tiles. Frames are cached per project version, and
+        // during playback a worker renders the frames ahead (see `frame_cache.rs`).
+        let generation = app.engine.changes();
+        // keep the frames after the playhead coming, so pressing play finds them ready
+        app.blend_cache.prefetch(p, generation, app.frame);
+        if let Some(s) = app.blend_cache.get(p, generation, app.frame) {
+            // one texture set per cached frame, so a looping shot re-uploads nothing
+            draw_surface(tex, &ctx, &c, tooncraft_doc::DrawingId(u64::MAX - app.frame as u64), s, 1.0, None, &tooncraft_doc::Affine::IDENTITY, false);
         }
     } else {
         for (li, layer) in p.layers.iter().enumerate() {

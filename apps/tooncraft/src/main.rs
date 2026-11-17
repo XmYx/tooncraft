@@ -15,6 +15,7 @@ mod canvas_tools;
 mod color;
 mod dock;
 mod effects_panel;
+mod frame_cache;
 mod icons;
 mod keys;
 mod layer_tree;
