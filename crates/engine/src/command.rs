@@ -448,6 +448,23 @@ pub enum Command {
         from: usize,
         to: usize,
     },
+    /// Key the layer's opacity (0…1) at `frame`.
+    SetOpacityKey {
+        layer: usize,
+        frame: u32,
+        opacity: f32,
+    },
+    RemoveOpacityKey {
+        layer: usize,
+        frame: u32,
+    },
+    /// Make the layer a matte for the layers right below it (`inside` / `outside`), or a normal
+    /// layer again (`None`).
+    SetLayerMatte {
+        layer: usize,
+        #[serde(default)]
+        matte: Option<tooncraft_doc::Matte>,
+    },
 }
 
 fn unit() -> f32 {
@@ -914,6 +931,20 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }),
         Command::RemoveEffect { layer, index } => crate::effects::remove(e, layer, index),
         Command::MoveEffect { layer, from, to } => crate::effects::move_to(e, layer, from, to),
+        Command::SetOpacityKey { layer, frame, opacity } => edit_layers(e, "Opacity key", |e| {
+            frame_ok(e, frame)?;
+            if e.project.layer_mut(layer)?.set_opacity_key(frame, opacity) { Ok(()) } else { Err(EngineError::EffectMismatch) }
+        }),
+        Command::RemoveOpacityKey { layer, frame } => edit_layers(e, "Remove opacity key", |e| {
+            let l = e.project.layer_mut(layer)?;
+            let n = l.opacity_keys.len();
+            l.opacity_keys.retain(|k| k.frame != frame);
+            if l.opacity_keys.len() == n { Err(EngineError::NoEffect(frame as usize)) } else { Ok(()) }
+        }),
+        Command::SetLayerMatte { layer, matte } => edit_layers(e, "Matte", |e| {
+            e.project.layer_mut(layer)?.matte = matte;
+            Ok(())
+        }),
     }
 }
 

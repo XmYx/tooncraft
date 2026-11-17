@@ -499,7 +499,7 @@ pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.label(tlf!("{drawings} drawings ({unused} not exposed)", drawings = app.engine.project.drawing_count(), unused = unused));
 }
 
-fn blend_name(b: tooncraft_doc::BlendMode) -> String {
+pub fn blend_name(b: tooncraft_doc::BlendMode) -> String {
     use tooncraft_doc::BlendMode::*;
     match b {
         Normal => tl!("Normal"),

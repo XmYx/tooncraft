@@ -108,6 +108,14 @@ pub struct Layer {
     /// The layer's effect stack, run top to bottom over its drawing before it is composited.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<tooncraft_fx::Effect>,
+    /// Opacity keys, sorted by frame: with keys the opacity follows them (linear between keys,
+    /// held outside) and `opacity` is unused.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub opacity_keys: Vec<OpacityKey>,
+    /// A matte layer is not drawn: it clips the layers right below it (same folder, down to the
+    /// next matte) to its own shape, or to everything outside it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matte: Option<Matte>,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
 }
@@ -115,6 +123,26 @@ pub struct Layer {
 fn is_zero(v: &f32) -> bool {
     *v == 0.0
 }
+
+/// A layer's opacity from a frame on.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct OpacityKey {
+    pub frame: u32,
+    pub opacity: f32,
+}
+
+/// What a matte layer keeps of the layers it clips.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Matte {
+    /// Where the matte is drawn.
+    Inside,
+    /// Where the matte is not drawn.
+    Outside,
+}
+
+/// Most opacity keys on one layer.
+pub const MAX_OPACITY_KEYS: usize = 4096;
 
 fn is_normal(b: &BlendMode) -> bool {
     *b == BlendMode::Normal
@@ -136,6 +164,40 @@ impl Layer {
     /// First frame of the exposure that contains `frame` (its key), if any.
     pub fn exposure_start(&self, frame: u32) -> Option<u32> {
         exposure::key_frame(&self.cells, frame)
+    }
+
+    /// The layer's own opacity at `frame` (its keys, or `opacity` without keys).
+    pub fn opacity_at(&self, frame: u32) -> f32 {
+        let k = &self.opacity_keys;
+        let Some(first) = k.first() else { return self.opacity };
+        if frame <= first.frame {
+            return first.opacity;
+        }
+        let i = k.partition_point(|key| key.frame <= frame);
+        match (k.get(i.wrapping_sub(1)), k.get(i)) {
+            (Some(a), Some(b)) if b.frame > a.frame => a.opacity + (b.opacity - a.opacity) * (frame - a.frame) as f32 / (b.frame - a.frame) as f32,
+            (Some(a), _) => a.opacity,
+            _ => self.opacity,
+        }
+    }
+
+    /// Set (or replace) an opacity key. False when the layer has too many keys.
+    pub fn set_opacity_key(&mut self, frame: u32, opacity: f32) -> bool {
+        let opacity = if opacity.is_finite() { opacity.clamp(0.0, 1.0) } else { 1.0 };
+        match self.opacity_keys.binary_search_by_key(&frame, |k| k.frame) {
+            Ok(i) => {
+                if let Some(k) = self.opacity_keys.get_mut(i) {
+                    k.opacity = opacity;
+                }
+            }
+            Err(i) => {
+                if self.opacity_keys.len() >= MAX_OPACITY_KEYS {
+                    return false;
+                }
+                self.opacity_keys.insert(i, OpacityKey { frame, opacity });
+            }
+        }
+        true
     }
 
     /// Frames `[start, end)` of the exposure containing `frame`.
@@ -337,6 +399,13 @@ impl Project {
             layer.opacity = layer.opacity.clamp(0.0, 1.0);
             layer.name = layer.name.chars().take(200).collect();
             layer.effects = tooncraft_fx::sanitize_stack(std::mem::take(&mut layer.effects));
+            let mut keys: Vec<OpacityKey> = std::mem::take(&mut layer.opacity_keys).into_iter().take(MAX_OPACITY_KEYS).collect();
+            keys.sort_by_key(|k| k.frame);
+            keys.dedup_by_key(|k| k.frame);
+            for k in &mut keys {
+                k.opacity = if k.opacity.is_finite() { k.opacity.clamp(0.0, 1.0) } else { 1.0 };
+            }
+            layer.opacity_keys = keys;
             if !seen.insert(layer.id) {
                 layer.id = LayerId(u64::MAX); // fixed below
             }
@@ -427,6 +496,8 @@ impl Project {
                 peg: None,
                 depth: 0.0,
                 effects: Vec::new(),
+                opacity_keys: Vec::new(),
+                matte: None,
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );
@@ -520,6 +591,36 @@ impl Project {
             Some(f) => (layer.visible && f.visible, layer.opacity * f.opacity.clamp(0.0, 1.0)),
             None => (layer.visible, layer.opacity),
         }
+    }
+
+    /// As [`Project::effective`], with the layer's opacity keys at `frame`.
+    pub fn effective_at(&self, layer: &Layer, frame: u32) -> (bool, f32) {
+        let o = layer.opacity_at(frame);
+        match self.folder_of(layer) {
+            Some(f) => (layer.visible && f.visible, o * f.opacity.clamp(0.0, 1.0)),
+            None => (layer.visible, o),
+        }
+    }
+
+    /// For every layer, the matte layer that clips it, if any: a matte clips the layers right
+    /// below it in the same folder, down to the next matte layer.
+    pub fn matte_owners(&self) -> Vec<Option<usize>> {
+        let mut out = vec![None; self.layers.len()];
+        for (m, ml) in self.layers.iter().enumerate() {
+            if ml.matte.is_none() {
+                continue;
+            }
+            for j in (0..m).rev() {
+                let Some(l) = self.layers.get(j) else { break };
+                if l.matte.is_some() || l.folder != ml.folder {
+                    break;
+                }
+                if let Some(o) = out.get_mut(j) {
+                    *o = Some(m);
+                }
+            }
+        }
+        out
     }
 
     /// Bytes of pixel data held by the library (shared tiles counted in full).

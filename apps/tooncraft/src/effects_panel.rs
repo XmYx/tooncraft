@@ -26,6 +26,7 @@ pub fn effect_name(k: &EffectKind) -> String {
         EffectKind::LightWrap { .. } => tl!("Light wrap"),
         EffectKind::AlphaThreshold { .. } => tl!("Hard edges"),
         EffectKind::Mask { .. } => tl!("Soft mask"),
+        EffectKind::ColourKey { .. } => tl!("Colour key"),
     }
     .to_string()
 }
@@ -128,6 +129,11 @@ fn params(ui: &mut egui::Ui, id: usize, k: &mut EffectKind) -> bool {
             ch |= num(ui, tl!("Feather"), feather, 0.0..=4096.0, 0.5);
             ch |= check(ui, tl!("Keep the outside"), invert);
         }
+        EffectKind::ColourKey { colour: c, tolerance, softness } => {
+            ch |= colour(ui, &cid, tl!("Key colour"), c);
+            ch |= num(ui, tl!("Tolerance"), tolerance, 0.0..=1.0, 0.005);
+            ch |= num(ui, tl!("Softness"), softness, 0.0..=1.0, 0.005);
+        }
     });
     ch
 }
@@ -154,6 +160,29 @@ fn one_effect(app: &mut ToonApp, ui: &mut egui::Ui, li: usize, i: usize, fx: &Ef
     if params(ui, i, &mut k) {
         app.run(Command::EditEffect { layer: li, index: i, frame, value: k });
     }
+    // how the result lays over what the effect was given
+    let (mut blend, mut mix) = (fx.blend, fx.mix);
+    let mut changed = false;
+    egui::Grid::new(("fx-blend", i)).num_columns(2).spacing(vec2(8.0, 4.0)).show(ui, |ui| {
+        let l = ui.label(tl!("Result blend"));
+        egui::ComboBox::from_id_salt(("fx-blend-mode", i))
+            .selected_text(crate::panels::blend_name(blend))
+            .show_ui(ui, |ui| {
+                for b in tooncraft_doc::BlendMode::ALL {
+                    changed |= ui.selectable_value(&mut blend, b, crate::panels::blend_name(b)).changed();
+                }
+            })
+            .response
+            .labelled_by(l.id);
+        ui.end_row();
+        changed |= num(ui, tl!("Strength"), &mut mix, 0.0..=1.0, 0.005);
+    });
+    if changed {
+        let mut new = fx.clone();
+        new.blend = blend;
+        new.mix = mix;
+        app.run(Command::SetEffect { layer: li, index: i, effect: new });
+    }
     let key_here = fx.keys.iter().any(|key| key.frame == frame);
     ui.horizontal(|ui| {
         if ui.button(tlf!("Key {name} here", name = name)).clicked() {
@@ -168,12 +197,67 @@ fn one_effect(app: &mut ToonApp, ui: &mut egui::Ui, li: usize, i: usize, fx: &Ef
     });
 }
 
+fn matte_name(m: Option<tooncraft_doc::Matte>) -> String {
+    match m {
+        None => tl!("Not a matte"),
+        Some(tooncraft_doc::Matte::Inside) => tl!("Matte: keep inside"),
+        Some(tooncraft_doc::Matte::Outside) => tl!("Matte: keep outside"),
+    }
+    .to_string()
+}
+
+/// The layer's keyed opacity and its matte switch.
+fn layer_section(app: &mut ToonApp, ui: &mut egui::Ui, li: usize) {
+    let frame = app.frame;
+    let Some(layer) = app.engine.project.layers.get(li).cloned() else { return };
+    egui::Grid::new("fx-layer").num_columns(2).spacing(vec2(8.0, 4.0)).show(ui, |ui| {
+        let mut o = layer.opacity_at(frame);
+        if num(ui, tl!("Opacity here"), &mut o, 0.0..=1.0, 0.005) {
+            if layer.opacity_keys.is_empty() {
+                app.run(Command::SetLayer { layer: li, visible: None, locked: None, opacity: Some(o) });
+            } else {
+                app.run(Command::SetOpacityKey { layer: li, frame, opacity: o });
+            }
+        }
+        let l = ui.label(tl!("Matte"));
+        let mut m = layer.matte;
+        let mut changed = false;
+        egui::ComboBox::from_id_salt("fx-matte")
+            .selected_text(matte_name(m))
+            .show_ui(ui, |ui| {
+                for v in [None, Some(tooncraft_doc::Matte::Inside), Some(tooncraft_doc::Matte::Outside)] {
+                    changed |= ui.selectable_value(&mut m, v, matte_name(v)).changed();
+                }
+            })
+            .response
+            .labelled_by(l.id);
+        ui.end_row();
+        if changed {
+            app.run(Command::SetLayerMatte { layer: li, matte: m });
+        }
+    });
+    let key_here = layer.opacity_keys.iter().any(|k| k.frame == frame);
+    ui.horizontal(|ui| {
+        if ui.button(tl!("Key opacity here")).clicked() {
+            app.run(Command::SetOpacityKey { layer: li, frame, opacity: layer.opacity_at(frame) });
+        }
+        if ui.add_enabled(key_here, egui::Button::new(tl!("Remove opacity key"))).clicked() {
+            app.run(Command::RemoveOpacityKey { layer: li, frame });
+        }
+        if !layer.opacity_keys.is_empty() {
+            ui.weak(tlf!("{n} keys", n = layer.opacity_keys.len()));
+        }
+    });
+}
+
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let li = app.layer;
     let Some(layer) = app.engine.project.layers.get(li) else { return };
     let (lname, effects) = (layer.name.clone(), layer.effects.clone());
     let (w, h) = (app.engine.project.width(), app.engine.project.height());
     ui.label(tlf!("Effects on {layer}, frame {frame}", layer = lname, frame = app.frame + 1));
+    layer_section(app, ui, li);
+    ui.separator();
     let l = ui.label(tl!("Add effect"));
     let mut pick: Option<EffectKind> = None;
     egui::ComboBox::from_id_salt("fx-add")

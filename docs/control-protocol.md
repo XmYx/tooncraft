@@ -31,9 +31,11 @@ hand a script can do.
 | `add_camera_shake`, `remove_camera_shake` | `shake` (`from`, `to`, `amplitude` px, `rotation` degrees, `frequency` per frame, `fade` frames, `seed`); `index` |
 | `set_layer_blend`, `set_layer_color`, `set_layer_folder`, `set_folder` | blend mode; colour; folder name; folder `visible`, `opacity`, `collapsed` |
 | `add_tip`, `add_tip_from_image` | `id`, `name`, `width`, `height`, `alpha`; or `id`, `path` |
-| `add_effect` | `layer`, `effect` (`enabled`, `kind` with a `type` such as `blur`, `drop_shadow`, `levels`, `mask`, and its parameters, `keys`), optional `index` |
+| `add_effect` | `layer`, `effect` (`enabled`, `kind` with a `type` such as `blur`, `drop_shadow`, `levels`, `mask`, `colour_key`, and its parameters, `keys`, `blend`, `mix`), optional `index` |
 | `set_effect`, `edit_effect`, `set_effect_key`, `remove_effect_key` | `layer`, `index`; `effect`; `frame` and `value` (`edit_effect` keys the frame when the effect has keys); `value` optional for `set_effect_key` |
 | `enable_effect`, `remove_effect`, `move_effect` | `layer`, `index` (+ `enabled`; `from` / `to` for `move_effect`) |
+| `set_opacity_key`, `remove_opacity_key` | `layer`, `frame` (+ `opacity` 0…1) |
+| `set_layer_matte` | `layer`, `matte` (`inside` / `outside`; absent: a normal layer) |
 | `add_layer` | `name`, optional `index` |
 | `delete_layer` / `rename_layer` / `move_layer` / `set_layer` | `layer` (+ `name`, `from`/`to`, `visible`/`locked`/`opacity`) |
 | `set_length`, `set_fps`, `set_paper`, `set_onion`, `toggle_pin`, `set_light_table`, `purge_unused` | as named |

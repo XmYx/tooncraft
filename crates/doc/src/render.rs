@@ -110,39 +110,106 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
 }
 
 /// Composite the layers bottom to top; `map` gives each layer's transform (`None`: skip the
-/// layer, `Some(None)`: drawn as is).
+/// layer, `Some(None)`: drawn as is). Layers a matte clips are composited on their own and cut
+/// by the matte; the matte itself is not drawn.
 fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: RenderOptions, map: impl Fn(usize) -> Option<Option<Affine>>) {
     let only = o.only_layer;
+    let owners = p.matte_owners();
+    let (w, h) = (img.width, img.height);
+    let mut clipped: Option<RgbaImage> = None;
     for (li, layer) in p.layers.iter().enumerate() {
-        let (visible, opacity) = p.effective(layer);
-        if only.is_some_and(|only| only != li) || (!visible && only.is_none()) {
+        let (visible, opacity) = p.effective_at(layer, frame);
+        if let Some(only) = only {
+            if only != li {
+                continue;
+            }
+            let mut out = RgbaImage::transparent(w, h);
+            draw_layer(p, li, frame, &mut out, origin, o, BlendMode::Normal, opacity, &map);
+            if let Some(m) = owners.get(li).copied().flatten() {
+                apply_matte(p, m, frame, &mut out, origin, o, &map);
+            }
+            img.over_image(&out);
             continue;
         }
-        let Some(s) = layer.drawing_at(frame).and_then(|d| p.drawing(d)) else { continue };
-        let Some(t) = map(li) else { continue };
-        let mode = if only.is_some() { BlendMode::Normal } else { layer.blend };
-        if o.effects && tooncraft_fx::is_active(&layer.effects) {
-            // the whole canvas here (see the top of `render_region`)
-            let mut top = RgbaImage::transparent(img.width, img.height);
-            draw(s, &mut top, origin, t.as_ref(), 1.0, None);
-            let below = tooncraft_fx::needs_below(&layer.effects).then_some(&*img);
-            tooncraft_fx::apply_stack(&mut top, &layer.effects, frame, below);
-            img.composite(&top, mode, opacity);
-        } else if mode == BlendMode::Normal {
-            draw(s, img, origin, t.as_ref(), opacity, None);
-        } else {
-            let mut top = RgbaImage::transparent(img.width, img.height);
-            draw(s, &mut top, origin, t.as_ref(), opacity, None);
-            img.blend_image(&top, layer.blend);
+        if layer.matte.is_some() {
+            if let Some(mut c) = clipped.take() {
+                apply_matte(p, li, frame, &mut c, origin, o, &map);
+                img.over_image(&c);
+            }
+            continue;
+        }
+        if !visible {
+            continue;
+        }
+        let target = if owners.get(li).copied().flatten().is_some() { clipped.get_or_insert_with(|| RgbaImage::transparent(w, h)) } else { &mut *img };
+        draw_layer(p, li, frame, target, origin, o, layer.blend, opacity, &map);
+    }
+    if let Some(c) = clipped {
+        img.over_image(&c);
+    }
+}
+
+/// Composite layer `li`'s drawing at `frame` into `dst` through its transform and effects.
+fn draw_layer(
+    p: &Project,
+    li: usize,
+    frame: u32,
+    dst: &mut RgbaImage,
+    origin: (u32, u32),
+    o: RenderOptions,
+    mode: BlendMode,
+    opacity: f32,
+    map: &impl Fn(usize) -> Option<Option<Affine>>,
+) {
+    let Some(layer) = p.layers.get(li) else { return };
+    let Some(s) = layer.drawing_at(frame).and_then(|d| p.drawing(d)) else { return };
+    let Some(t) = map(li) else { return };
+    if o.effects && tooncraft_fx::is_active(&layer.effects) {
+        // the whole canvas here (see the top of `render_region`)
+        let mut top = RgbaImage::transparent(dst.width, dst.height);
+        draw(s, &mut top, origin, t.as_ref(), 1.0, None);
+        let below = tooncraft_fx::needs_below(&layer.effects).then_some(&*dst);
+        tooncraft_fx::apply_stack(&mut top, &layer.effects, frame, below);
+        dst.composite(&top, mode, opacity);
+    } else if mode == BlendMode::Normal {
+        draw(s, dst, origin, t.as_ref(), opacity, None);
+    } else {
+        let mut top = RgbaImage::transparent(dst.width, dst.height);
+        draw(s, &mut top, origin, t.as_ref(), opacity, None);
+        dst.blend_image(&top, mode);
+    }
+}
+
+/// Cut `img` by the matte layer `m`: keep what is inside its drawing (or outside it), scaled by
+/// its opacity. A hidden matte cuts nothing.
+fn apply_matte(p: &Project, m: usize, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: RenderOptions, map: &impl Fn(usize) -> Option<Option<Affine>>) {
+    let Some(ml) = p.layers.get(m) else { return };
+    let (visible, opacity) = p.effective_at(ml, frame);
+    let Some(mode) = ml.matte else { return };
+    if !visible {
+        return;
+    }
+    let mut shape = RgbaImage::transparent(img.width, img.height);
+    draw_layer(p, m, frame, &mut shape, origin, o, BlendMode::Normal, 1.0, map);
+    let k = opacity.clamp(0.0, 1.0);
+    for (d, s) in img.data.as_chunks_mut::<4>().0.iter_mut().zip(shape.data.as_chunks::<4>().0.iter()) {
+        let a = s[3] as f32 / 255.0;
+        let keep = match mode {
+            crate::Matte::Inside => 1.0 - k * (1.0 - a),
+            crate::Matte::Outside => 1.0 - k * a,
+        };
+        if keep < 1.0 {
+            *d = tooncraft_raster::scale_alpha(*d, (keep * 255.0).round() as u8);
         }
     }
 }
 
 /// Will compositing `frame` with these options run any effect?
 fn uses_effects(p: &Project, frame: u32, o: RenderOptions) -> bool {
+    let owner = o.only_layer.and_then(|only| p.matte_owners().get(only).copied().flatten());
     p.layers.iter().enumerate().any(|(li, l)| {
         let shown = match o.only_layer {
-            Some(only) => only == li,
+            Some(only) => only == li || owner == Some(li),
             None => p.effective(l).0,
         };
         shown && tooncraft_fx::is_active(&l.effects) && l.drawing_at(frame).is_some()
@@ -299,5 +366,43 @@ mod tests {
             e.enabled = false;
         }
         assert_eq!(render_frame(&p, 0, RenderOptions::default()), plain);
+    }
+
+    #[test]
+    fn opacity_keys_and_mattes() {
+        let mut p = Project::new("t", 8, 8, 24, 3).unwrap();
+        let red = p.add_drawing(None).unwrap();
+        for k in 0..8 {
+            p.drawing_mut(red).unwrap().tile_mut(0).unwrap().bytes_mut()[k * 4..k * 4 + 4].copy_from_slice(&[255, 0, 0, 255]);
+        }
+        p.layers[0].cells = vec![Cell::Key(red), Cell::Hold, Cell::Hold];
+        // opacity keys: 0 at frame 0, 1 at frame 2
+        assert!(p.layers[0].set_opacity_key(0, 0.0) && p.layers[0].set_opacity_key(2, 1.0));
+        let clear = RenderOptions { paper: false, ..Default::default() };
+        assert_eq!(render_frame(&p, 0, clear).pixel(0, 0)[3], 0);
+        assert_eq!(render_frame(&p, 1, clear).pixel(0, 0)[3], 128);
+        assert_eq!(render_frame(&p, 2, clear).pixel(0, 0)[3], 255);
+        p.layers[0].opacity_keys.clear();
+        // a matte above with one pixel drawn: only that pixel of the red row stays
+        p.add_layer("Matte", 1).unwrap();
+        let dot = p.add_drawing(None).unwrap();
+        p.drawing_mut(dot).unwrap().tile_mut(0).unwrap().bytes_mut()[12..16].copy_from_slice(&[0, 0, 0, 255]);
+        p.layers[1].cells = vec![Cell::Key(dot), Cell::Hold, Cell::Hold];
+        p.layers[1].matte = Some(crate::Matte::Inside);
+        assert_eq!(p.matte_owners(), vec![Some(1), None]);
+        let f = render_frame(&p, 0, clear);
+        assert_eq!((f.pixel(3, 0), f.pixel(2, 0)[3]), ([255, 0, 0, 255], 0), "the matte is not drawn; it keeps only its shape");
+        p.layers[1].matte = Some(crate::Matte::Outside);
+        let f = render_frame(&p, 0, clear);
+        assert_eq!((f.pixel(3, 0)[3], f.pixel(2, 0)), (0, [255, 0, 0, 255]));
+        // per-layer exports of a clipped layer are clipped too; a hidden matte clips nothing
+        let only = render_frame(&p, 0, RenderOptions { paper: false, only_layer: Some(0), ..Default::default() });
+        assert_eq!(only.pixel(3, 0)[3], 0);
+        p.layers[1].visible = false;
+        assert_eq!(render_frame(&p, 0, clear).pixel(3, 0), [255, 0, 0, 255]);
+        // a layer in another folder is not clipped
+        p.layers[1].visible = true;
+        p.layers[0].folder = Some("F".into());
+        assert_eq!(p.matte_owners(), vec![None, None]);
     }
 }

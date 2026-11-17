@@ -17,18 +17,18 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 <!-- parity:start -->
 | | Value | Kind |
 |---|---|---|
-| Feature rows | 140 | measured |
-| Done (D) | 104 | measured |
+| Feature rows | 144 | measured |
+| Done (D) | 108 | measured |
 | Partial (P) | 18 | measured |
 | Missing (M) | 18 | measured |
 | Parity score, (D + ½·P) / rows | 81 % | measured |
 | Brush engine and tools | 81 % (19 D, 1 P, 4 M) | measured |
 | Paper and canvas | 73 % (7 D, 2 P, 2 M) | measured |
-| Layers and timeline / exposure sheet | 82 % (15 D, 1 P, 3 M) | measured |
+| Layers and timeline / exposure sheet | 82 % (16 D, 1 P, 3 M) | measured |
 | Onion skin and light table | 80 % (7 D, 2 P, 1 M) | measured |
 | Animation tools | 80 % (8 D, 0 P, 2 M) | measured |
 | Colouring | 75 % (6 D, 3 P, 1 M) | measured |
-| Effects | 78 % (6 D, 2 P, 1 M) | measured |
+| Effects | 83 % (9 D, 2 P, 1 M) | measured |
 | Audio and lip-sync | 75 % (3 D, 0 P, 1 M) | measured |
 | Import / export | 88 % (13 D, 2 P, 1 M) | measured |
 | UI and workspace | 78 % (11 D, 3 P, 2 M) | measured |
@@ -99,6 +99,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Animation layers with their own exposures | all | D | |
 | Add, delete, rename, reorder layers | all | D | |
 | Layer visibility, lock, opacity | all | D | |
+| Layer opacity keys (fades) | TV, TB, PD | D | Linear between keys; the canvas and every export follow them |
 | Holds (a drawing exposed several frames) | all | D | |
 | Insert / delete frame | all | D | |
 | Duplicate drawing | all | D | |
@@ -173,6 +174,9 @@ features (video export, effects, audio) and understates it for small ones.
 | Masks with soft edges on a layer | TV, TB, PD | P | Rectangle and ellipse with feather and invert, keyframable; no drawn mask shapes |
 | Effects in exports, including per-layer exports | TV, TB | D | MP4, ProRes, GIF, PNG and per-layer PNG sequences go through the same compositor |
 | Film grain and light wrap | TV, TB | D | Grain fixed or new every frame; light wrap reads the layers below |
+| Matte layers that cut the layers below (keep inside / outside) | TV, TB | D | The matte is not drawn; it clips the layers right below it in its folder, with its own effects and opacity |
+| Colour key (drop a colour, e.g. scanned paper) | TV, TB | D | Tolerance and soft edge |
+| Blend mode and strength per effect | TV, TB | D | Every blend mode of the layers, 0…1 strength |
 | Effects on the GPU | — | M | **Ours:** a craft-gpu path (RFC-0022) with the CPU path as the oracle; skipped when there is no adapter |
 
 ## Audio and lip-sync
@@ -253,3 +257,4 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | major | Second pass: the top 10 gaps and interchange with other apps; 6 rows added |
 | 2026-11-17 | minor | Pegs and transform layers with easing, multiplane depth and camera shake; 1 row added |
 | 2026-11-17 | minor | Effects stack: 4 effects rows re-scored, 5 rows added (keys, masks, exports, grain / light wrap, GPU) |
+| 2026-11-17 | minor | Compositing basics: 4 rows added (opacity keys, mattes, colour key, effect blending) |
