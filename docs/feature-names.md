@@ -34,6 +34,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Camera, Set Key, Export through the camera | Generic film terms | Use (common) |
 | Blend modes: Normal, Multiply, Screen, Overlay, Darken, Lighten, Add | Standard compositing names (W3C) | Use (common) |
 | Folder, Layer colour, Thumbnails | Generic | Use (common) |
+| BoardCraft Board or Animatic | Suite app name (rule 3) | Use |
 | Field Guide, Safe Areas, Canvas Size, Crop to Camera, Workspaces, Save Workspace, Outlines only, Hide the previous step | Generic words; "field guide" and "safe area" are traditional film and animation terms | Use (common) |
 | Key, Breakdown, Inbetween, Spacing chart, Add Inbetweens, Re-time Between Keys, Timing preset, On ones / twos, Slow start / end | Traditional animation terms and our wording | Use (common) |
 | Clip to the layer below, Fold, Lock, Show layers labelled | Descriptive | Use |
@@ -42,6 +43,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Depth, Shake, Add Shake Here | Generic film words | Use |
 | Fill every drawing of the layer | Our wording | Use |
 | Tip, Tip from Image, Brush preset, My brushes | Generic | Use (common) |
+| Brushes (panel), Favourites, Recent, Basics, Add Current Brush, Import Brush, Reload Library | Generic library words | Use (common) |
 | Animated WebP (lossless or lossy), WebP Image, TGA Sequence, TIFF Sequence, Layered PSD / PSB, All Frames | Format names (rule 3: formats we support) and our wording | Use |
 | Sound, Import Sound, Start Sound Here | Generic | Use |
 | XDTS Exposure Sheet with Drawings | File format name (rule 3) | Use |

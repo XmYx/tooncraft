@@ -35,6 +35,7 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("view.pin", "Pin frame to the light table", "Shift+L"),
     ("brush.smaller", "Smaller brush", "["),
     ("brush.bigger", "Bigger brush", "]"),
+    ("library.find", "Find brush", "Ctrl+B"),
 ];
 
 pub fn label(id: &str) -> String {

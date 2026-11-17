@@ -178,6 +178,7 @@ pub struct ToonApp {
     pub clock: Instant,
     pub textures: TileTextures,
     pub workspace: Workspace,
+    pub library: crate::brush_library::State,
     pub status: String,
     pub stats: Stats,
     pub keyboard_pen: Option<KeyboardPen>,
@@ -233,7 +234,7 @@ pub struct ToonApp {
     pub thumbnails: bool,
     pub thumbs: std::collections::HashMap<tooncraft_doc::DrawingId, (u64, egui::TextureHandle)>,
     /// CPU composite used while a layer with a blend mode is visible: (key, surface).
-    pub blend_cache: Option<(u64, tooncraft_raster::Surface)>,
+    pub blend_cache: crate::frame_cache::FrameCache,
     last_frame: u32,
     /// Where the last stroke ended (canvas pixels), for Shift+click straight lines.
     pub last_stroke_end: Option<(f32, f32)>,
@@ -318,6 +319,7 @@ impl ToonApp {
             clock: Instant::now(),
             textures: TileTextures::default(),
             workspace: Workspace::default(),
+            library: crate::brush_library::State::new(crate::panels::preset_dir()),
             status,
             stats: Stats::default(),
             keyboard_pen: None,
@@ -356,7 +358,7 @@ impl ToonApp {
             fill_every_frame: false,
             thumbnails: false,
             thumbs: std::collections::HashMap::new(),
-            blend_cache: None,
+            blend_cache: Default::default(),
             selection: None,
             select_mode: SelectMode::Lasso,
             selecting: Vec::new(),
@@ -862,6 +864,16 @@ impl ToonApp {
                     self.stats.shown_total as f64 / *secs,
                     self.stats.dropped
                 );
+                if !self.blend_cache.is_empty() {
+                    println!(
+                        "frame cache: {} frames rendered ahead by the worker, {} in the UI thread ({:.1} ms each), {} cached; turning frames into tiles {:.1} ms per frame",
+                        self.blend_cache.rendered_ahead,
+                        self.blend_cache.rendered_here,
+                        self.blend_cache.render_ms / self.blend_cache.rendered_here.max(1) as f64,
+                        self.blend_cache.len(),
+                        self.blend_cache.tiles_ms / (self.blend_cache.rendered_here + self.blend_cache.rendered_ahead).max(1) as f64
+                    );
+                }
                 let mut iv = self.stats.intervals.clone();
                 iv.sort_by(|a, b| a.total_cmp(b));
                 let ip = |p: f64| iv.get(((iv.len().max(1) - 1) as f64 * p) as usize).copied().unwrap_or(0.0);
@@ -970,6 +982,7 @@ impl ToonApp {
                     {
                         self.run(Command::ImportSheet { path: f.to_string_lossy().into_owned() });
                     }
+                    crate::pipeline::import_items(self, ui);
                 });
                 if ui.button(tl!("Import Sound…")).clicked() {
                     self.import_sound();
@@ -1311,6 +1324,10 @@ impl ToonApp {
         {
             self.tool = t;
             self.set_status(tlf!("{tool} selected", tool = t.label()));
+        }
+        if hit("library.find") {
+            self.workspace.raise(Pane::Library);
+            self.library.focus_search = true;
         }
         let (layer, frame) = (self.layer, self.frame);
         let arrows = ctx.input(|i| {

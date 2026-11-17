@@ -32,11 +32,12 @@ const USAGE: &str = "usage:
   tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
   tooncraft-cli info <file.toon>
   tooncraft-cli run <file.toon> <commands.jsonl | ->
-  tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
   tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
   tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
   tooncraft-cli check <file.toon>
   tooncraft-cli bench [--json]
+  tooncraft-cli bench --effects [--size WxH] [--frames N] [--threads N] [--json]
 ";
 
 struct Args {
@@ -79,6 +80,7 @@ impl Args {
                         | "wav"
                         | "mouth-sheet"
                         | "layer"
+                        | "threads"
                 );
                 let v = if takes { it.next() } else { None };
                 flags.push((name.to_string(), v));
@@ -199,7 +201,9 @@ fn run() -> Result<(), String> {
         "demo" => {
             let (w, h) = size(rest.flag("size"), (1280, 720))?;
             let e = if rest.has("large") {
-                tooncraft_engine::demo::large(w.max(3840), h.max(2160), num(rest.flag("frames"), 240)?).map_err(|e| e.to_string())?
+                // 4K unless a size is given
+                let (w, h) = if rest.flag("size").is_some() { (w, h) } else { (3840, 2160) };
+                tooncraft_engine::demo::large(w, h, num(rest.flag("frames"), 240)?).map_err(|e| e.to_string())?
             } else {
                 tooncraft_engine::demo::demo(w, h).map_err(|e| e.to_string())?
             };
@@ -353,6 +357,20 @@ fn run() -> Result<(), String> {
             let e = load(&path)?;
             println!("loads fine: {} layers, {} drawings, {} frames", e.project.layers.len(), e.project.drawing_count(), e.project.length());
             Ok(())
+        }
+        "bench" if a.has("effects") => {
+            let (w, h) = match a.flag("size") {
+                Some(s) => {
+                    let (w, h) = s.split_once('x').ok_or("--size needs WxH")?;
+                    (w.parse::<u32>().map_err(|_| "bad width")?, h.parse::<u32>().map_err(|_| "bad height")?)
+                }
+                None => (1920, 1080),
+            };
+            if let Some(t) = a.flag("threads") {
+                tooncraft_fx::set_max_threads(t.parse::<usize>().map_err(|_| "--threads needs a number")?);
+            }
+            let file = a.positional.get(1).map(std::path::Path::new);
+            bench::effects(a.has("json"), w.clamp(16, 8192), h.clamp(16, 8192), num(a.flag("frames"), 240)?.clamp(1, 2400), file)
         }
         "bench" => bench::run(a.has("json")),
         "" | "help" => {

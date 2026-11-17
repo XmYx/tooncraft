@@ -1,15 +1,23 @@
 //! Row-parallel loops over flat RGBA buffers on scoped threads (no thread pool, no `unsafe`).
 
-/// Buffers with fewer elements than this run on the calling thread (thread start-up would cost more).
-const MIN_PARALLEL_ELEMENTS: usize = 1 << 18;
-/// Most threads one effect uses.
-const MAX_THREADS: usize = 16;
+/// Buffers with fewer elements than this (about half a megapixel of RGBA) run on the calling
+/// thread: starting threads for every pass costs more than it saves on smaller crops, and it
+/// competes with the frame worker and the UI thread.
+const MIN_PARALLEL_ELEMENTS: usize = 1 << 21;
+/// Most threads one effect uses (changed by [`set_max_threads`]).
+static MAX_THREADS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(16);
+
+/// Limit the threads every effect may use (1: single-threaded, as in benchmarks of the CPU cost).
+pub fn set_max_threads(n: usize) {
+    MAX_THREADS.store(n.clamp(1, 64), std::sync::atomic::Ordering::Relaxed);
+}
 
 fn threads_for(elements: usize) -> usize {
     if elements < MIN_PARALLEL_ELEMENTS {
         return 1;
     }
-    std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).clamp(1, MAX_THREADS)
+    let max = MAX_THREADS.load(std::sync::atomic::Ordering::Relaxed).max(1);
+    std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).clamp(1, max)
 }
 
 /// Run `f(y, row)` over every row of a buffer whose rows are `stride` elements, split over

@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use tooncraft_raster::{BlendMode, RgbaImage};
 
 pub use blur::gaussian;
+pub use par::set_max_threads;
 
 /// Most effects on one layer.
 pub const MAX_EFFECTS: usize = 32;
@@ -389,16 +390,51 @@ pub fn needs_below(effects: &[Effect]) -> bool {
 /// Run the enabled effects of a stack over `img` (premultiplied, the whole canvas), in order.
 /// `below` is the composite under the layer, for light wrap (without it light wrap does nothing).
 pub fn apply_stack(img: &mut RgbaImage, effects: &[Effect], frame: u32, below: Option<&RgbaImage>) {
+    apply_stack_at(img, (0, 0), effects, frame, below);
+}
+
+/// How far (pixels) an effect can move pixels or read its neighbours; `None`: anywhere on the
+/// canvas (zoom blur), so it must run on the whole canvas.
+pub fn reach(kind: &EffectKind) -> Option<u32> {
+    let r = |v: f32| (v.max(0.0).ceil() as u32).saturating_add(2);
+    match kind {
+        EffectKind::Blur { radius } => Some(r(radius * 3.0)),
+        EffectKind::DirectionalBlur { length, .. } => Some(r(length / 2.0)),
+        EffectKind::RadialBlur { .. } => None,
+        EffectKind::Glow { radius, .. } | EffectKind::LightWrap { radius, .. } => Some(r(radius * 3.0)),
+        EffectKind::DropShadow { dx, dy, blur, .. } => Some(r(dx.abs().max(dy.abs()) + blur * 3.0)),
+        EffectKind::Outline { width, .. } => Some(r(*width)),
+        EffectKind::Thicken { amount } => Some(r(*amount)),
+        EffectKind::Levels { .. }
+        | EffectKind::Curves { .. }
+        | EffectKind::HueSaturation { .. }
+        | EffectKind::Tint { .. }
+        | EffectKind::Grain { .. }
+        | EffectKind::AlphaThreshold { .. }
+        | EffectKind::Mask { .. }
+        | EffectKind::ColourKey { .. } => Some(0),
+    }
+}
+
+/// The reach of a whole stack at `frame` (the enabled effects' reaches add up).
+pub fn stack_reach(effects: &[Effect], frame: u32) -> Option<u32> {
+    effects.iter().take(MAX_EFFECTS).filter(|e| e.enabled).try_fold(0u32, |acc, e| reach(&e.at(frame).sanitized()).map(|r| acc.saturating_add(r)))
+}
+
+/// [`apply_stack`] on a part of the canvas: `img` (and `below`, the same size) sit at canvas
+/// position `origin`. Pixels outside `img` must be transparent and further than the stack's
+/// [`stack_reach`] from anything drawn; then the result equals running on the whole canvas.
+pub fn apply_stack_at(img: &mut RgbaImage, origin: (u32, u32), effects: &[Effect], frame: u32, below: Option<&RgbaImage>) {
     for e in effects.iter().take(MAX_EFFECTS) {
         if !e.enabled || e.mix <= 0.0 {
             continue;
         }
         let k = e.at(frame).sanitized();
         if e.blend == BlendMode::Normal && (e.mix.is_nan() || e.mix >= 1.0) {
-            apply(img, &k, frame, below);
+            apply_at(img, origin, &k, frame, below);
         } else {
             let input = img.clone();
-            apply(img, &k, frame, below);
+            apply_at(img, origin, &k, frame, below);
             combine(img, &input, e.blend, e.mix);
         }
     }
@@ -422,6 +458,10 @@ fn combine(out: &mut RgbaImage, input: &RgbaImage, mode: BlendMode, mix: f32) {
 
 /// Run one effect over `img` (premultiplied, the whole canvas). Parameters are expected sanitized.
 pub fn apply(img: &mut RgbaImage, kind: &EffectKind, frame: u32, below: Option<&RgbaImage>) {
+    apply_at(img, (0, 0), kind, frame, below);
+}
+
+fn apply_at(img: &mut RgbaImage, origin: (u32, u32), kind: &EffectKind, frame: u32, below: Option<&RgbaImage>) {
     if img.width == 0 || img.height == 0 || img.data.len() != img.width as usize * img.height as usize * 4 {
         return;
     }
@@ -439,14 +479,16 @@ pub fn apply(img: &mut RgbaImage, kind: &EffectKind, frame: u32, below: Option<&
         EffectKind::Curves { points } => colour::lut(img, &colour::curve_table(points)),
         EffectKind::HueSaturation { hue, saturation, lightness } => colour::hue_saturation(img, *hue, *saturation, *lightness),
         EffectKind::Tint { colour, amount } => colour::tint(img, *colour, *amount),
-        EffectKind::Grain { amount, size, seed, animated } => colour::grain(img, *amount, *size, *seed, if *animated { frame } else { 0 }),
+        EffectKind::Grain { amount, size, seed, animated } => colour::grain(img, origin, *amount, *size, *seed, if *animated { frame } else { 0 }),
         EffectKind::LightWrap { radius, intensity } => {
             if let Some(b) = below {
                 blur::light_wrap(img, b, *radius, *intensity)
             }
         }
         EffectKind::AlphaThreshold { threshold } => colour::alpha_threshold(img, *threshold),
-        EffectKind::Mask { shape, x, y, width, height, feather, invert } => shape::mask(img, *shape, (*x, *y, *width, *height), *feather, *invert),
+        EffectKind::Mask { shape, x, y, width, height, feather, invert } => {
+            shape::mask(img, *shape, (*x - origin.0 as f32, *y - origin.1 as f32, *width, *height), *feather, *invert)
+        }
         EffectKind::ColourKey { colour, tolerance, softness } => colour::key(img, *colour, *tolerance, *softness),
     }
 }

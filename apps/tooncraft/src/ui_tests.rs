@@ -394,7 +394,7 @@ fn shapes_layer_properties_and_thumbnails() {
     h.get(By::new().role(egui::Role::ComboBox).label("Blend"));
     h.state_mut().run(tooncraft_engine::Command::SetLayerBlend { layer: 0, blend: tooncraft_doc::BlendMode::Multiply });
     h.run();
-    assert!(h.state().blend_cache.is_some(), "a blend mode switches the canvas to the CPU composite");
+    assert!(!h.state().blend_cache.is_empty(), "a blend mode switches the canvas to the CPU composite");
     h.get_by_label("Thumbnails").click();
     h.run();
     h.run();
@@ -497,7 +497,7 @@ fn effects_panel_builds_a_keyed_stack() {
     h.run();
     let ids: Vec<&str> = h.state().engine.project.layers[li].effects.iter().map(|e| e.kind.id()).collect();
     assert_eq!(ids, ["blur", "drop_shadow"]);
-    assert!(h.state().blend_cache.is_some(), "effects switch the canvas to the CPU composite");
+    assert!(!h.state().blend_cache.is_empty(), "effects switch the canvas to the CPU composite");
     // reorder, switch off, key
     h.get_by_label("Move Drop shadow up").click();
     h.run();
@@ -542,7 +542,7 @@ fn effects_panel_keys_opacity_and_sets_a_matte() {
     h.get_by_label("Matte: keep inside").click();
     h.run();
     assert_eq!(h.state().engine.project.layers[li].matte, Some(tooncraft_doc::Matte::Inside));
-    assert!(h.state().blend_cache.is_some(), "a matte switches the canvas to the CPU composite");
+    assert!(!h.state().blend_cache.is_empty(), "a matte switches the canvas to the CPU composite");
     h.run();
     h.get(By::new().role(egui::Role::ComboBox).label("Add effect")).click();
     h.run();
@@ -665,7 +665,7 @@ fn nested_folders_fold_lock_clip_and_filter_the_timeline() {
     h.get_by_label("Clip to the layer below").click();
     h.run();
     assert!(h.state().engine.project.layers[li].clip);
-    assert!(h.state().blend_cache.is_some(), "clipping uses the CPU composite");
+    assert!(!h.state().blend_cache.is_empty(), "clipping uses the CPU composite");
     // folding hides the layer's row once another layer is current
     h.get_by_label("Fold Folder 1").click();
     h.run();
@@ -765,6 +765,27 @@ fn guides_canvas_size_onion_outlines_and_workspaces() {
     h.get_by_label("Mine").click();
     h.run();
     assert_eq!(h.state().workspace.layout, standard, "the saved workspace comes back");
+}
+
+#[test]
+fn board_import_in_the_menu_and_timeline() {
+    let mut h = harness(false);
+    h.run();
+    h.get_by_label("File").click();
+    h.run();
+    h.get_by_label("Import from Other Apps").click();
+    h.run();
+    h.get(By::new().role(egui::Role::Button).label("BoardCraft Board or Animatic…"));
+    h.key_press(Key::Escape);
+    h.run();
+    let dir = std::env::temp_dir().join(format!("tooncraft-ui-board-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("b.boardcraft");
+    std::fs::write(&path, tooncraft_interop::boards::demo().unwrap()).unwrap();
+    assert!(h.state_mut().run(tooncraft_engine::Command::ImportBoards { path: path.to_string_lossy().into_owned(), frame: 0, camera: true }));
+    h.run();
+    h.get(By::new().role(egui::Role::Cell).label_contains("Boards: Boats, frame 1: drawing"));
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]

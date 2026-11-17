@@ -63,6 +63,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Textured chalk / grain brush | TV, CSP, PD | D | |
 | Opacity vs flow without dab overlap darkening | TV, CSP | D | |
 | Brush presets | all | D | `.toonbrush` files and a preset library folder |
+| Brush library: categories, favourites, recent brushes, search | TV, CSP, PD | D | **Ours:** a Brushes panel; every list and the search work from the keyboard (Ctrl+B); built-in variants; folders are the categories |
 | Custom brush tips from images | TV, CSP, PD | D | |
 | Brush editor with curves for each dynamic | TV, CSP | M | |
 | Watercolour / wet mixing brushes | TV, CSP, PD | M | |
@@ -212,7 +213,7 @@ features (video export, effects, audio) and understates it for small ones.
 | TGA and TIFF image sequences | TV, TB, CSP | D | Run-length TGA and LZW TIFF, with alpha when the paper is off |
 | OpenRaster frame export | TV | D | Through craft-ora |
 | Image sequence import | all | D | |
-| BoardCraft animatic as a starting layout | — | M | **Ours:** suite hand-off, see roadmap |
+| BoardCraft animatic as a starting layout | — | D | **Ours:** panels become a locked reference layer with their timings, key marks and camera moves ([interop.md](interop.md)) |
 | Transparent background export | all | P | PNG and OpenRaster; no test yet |
 | ProRes MOV with alpha for compositing | TV, TB | D | ProRes 4444 with alpha or 422 HQ through craft-video |
 | Video export carries the soundtrack | all | D | AAC in the MP4 |
@@ -253,7 +254,8 @@ features (video export, effects, audio) and understates it for small ones.
 | Never panics (lint-enforced) | — | D | **Ours:** deny lints on every crate |
 | Memory bounded on huge canvases and long shots | — | P | Sparse tiles and budgets; paging to disk is planned |
 | Real-time playback at project fps | all | D | |
-| Playback cache | TV, TB | P | Tile textures cached; no frame pre-render |
+| Playback cache | TV, TB | D | Tile textures cached; with effects, blend modes or mattes, composited frames are cached per version and a worker renders ahead of the playhead |
+| Effects play back in real time | TV, TB | P | 1080p, 240 frames, 4 effects: 24.1 fps with 0 dropped (10 s, cold), 23.8 fps with 5 dropped (30 s); 4K drops frames; stalls when the machine swaps ([performance.md](performance.md)) |
 | Stroke latency measured and published | — | D | **Ours:** [performance.md](performance.md) |
 | Versioned saves (save new version) | TV, TB | D | |
 | Large shots stay real-time (4K, 240 drawings) | — | D | **Ours:** measured, 0 dropped frames |
@@ -267,6 +269,7 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | major | First map, written before the vertical slice; statuses set when the slice landed |
 | 2026-11-17 | major | Polish pass: re-measured after user research (docs/user-research.md); 4 rows added |
 | 2026-11-17 | major | Second pass: the top 10 gaps and interchange with other apps; 6 rows added |
+| 2026-11-17 | minor | BoardCraft boards as the layout |
 | 2026-11-17 | minor | Canvas tools: field guide and safe areas, canvas resize and crop, saved workspaces, onion outlines |
 | 2026-11-17 | minor | Timing: drawing marks, spacing chart, presets, re-timing between keys, inbetween guides |
 | 2026-11-17 | minor | Nested folders, folder locks, clipping layers and a label filter; 2 rows added |
@@ -275,3 +278,4 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | minor | Compositing basics: 4 rows added (opacity keys, mattes, colour key, effect blending) |
 | 2026-11-17 | minor | Sound depth: 6 audio rows added (tracks and clips, trim and fades, volume keys, mute / solo, mix export, recording) |
 | 2026-11-17 | minor | Lip-sync assist: lip-sync row re-scored (P), 2 rows added (editable keys, timing sheets) |
+| 2026-11-17 | minor | Effects performance: playback cache re-scored (D), 1 row added (effects in real time, P) |

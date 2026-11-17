@@ -1,0 +1,1 @@
+- 2026-11-17: Brush library: a Brushes panel with the built-in brushes and variants and your `.toonbrush` files by category (folders), favourites, a recent list and search, all usable from the keyboard (Ctrl+B finds a brush); add the current brush or import a file.

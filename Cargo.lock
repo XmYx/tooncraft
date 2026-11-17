@@ -4129,6 +4129,7 @@ dependencies = [
  "tooncraft-doc",
  "tooncraft-engine",
  "tooncraft-format",
+ "tooncraft-fx",
  "tooncraft-interop",
  "tooncraft-raster",
 ]
@@ -4211,6 +4212,7 @@ dependencies = [
  "craft-ora",
  "craft-psd",
  "craft-video",
+ "craft-zip",
  "proptest",
  "serde",
  "serde_json",

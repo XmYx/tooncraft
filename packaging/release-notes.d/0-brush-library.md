@@ -1,0 +1,1 @@
+- Brushes panel: built-in and saved brushes by category, with favourites, recent brushes and search; Ctrl+B jumps to the search, arrow keys move through the list, Enter uses a brush and F marks a favourite.

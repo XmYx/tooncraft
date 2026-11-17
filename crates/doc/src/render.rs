@@ -200,12 +200,20 @@ fn draw_layer(
     let Some(s) = layer.drawing_at(frame).and_then(|d| p.drawing(d)) else { return };
     let Some(t) = map(li) else { return };
     if o.effects && tooncraft_fx::is_active(&layer.effects) {
-        // the whole canvas here (see the top of `render_region`)
-        let mut top = RgbaImage::transparent(dst.width, dst.height);
+        // the whole canvas here (see the top of `render_region`); the effects run on the drawn
+        // part plus the stack's reach, which gives the same pixels for far less work
+        let (w, h) = (dst.width, dst.height);
+        let mut top = RgbaImage::transparent(w, h);
         draw(s, &mut top, origin, t.as_ref(), 1.0, None);
-        let below = tooncraft_fx::needs_below(&layer.effects).then_some(&*dst);
-        tooncraft_fx::apply_stack(&mut top, &layer.effects, frame, below);
-        dst.composite(&top, mode, opacity);
+        let Some((x0, y0, x1, y1)) = top.opaque_bounds() else { return };
+        let (cx, cy, cx1, cy1) = match tooncraft_fx::stack_reach(&layer.effects, frame) {
+            Some(r) => (x0.saturating_sub(r), y0.saturating_sub(r), x1.saturating_add(r).min(w), y1.saturating_add(r).min(h)),
+            None => (0, 0, w, h),
+        };
+        let mut part = if (cx, cy, cx1, cy1) == (0, 0, w, h) { top } else { top.crop(cx, cy, cx1 - cx, cy1 - cy) };
+        let below = tooncraft_fx::needs_below(&layer.effects).then(|| dst.crop(cx, cy, cx1 - cx, cy1 - cy));
+        tooncraft_fx::apply_stack_at(&mut part, (origin.0 + cx, origin.1 + cy), &layer.effects, frame, below.as_ref());
+        dst.composite_at(&part, cx, cy, mode, opacity);
     } else if mode == BlendMode::Normal {
         draw(s, dst, origin, t.as_ref(), opacity, None);
     } else {
