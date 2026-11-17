@@ -109,3 +109,28 @@ fn nested_folders_and_clipping_from_a_command_file() {
     let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap()]);
     assert!(!ok && out.contains("line 1"), "{out}");
 }
+
+#[test]
+fn timing_commands_from_a_command_file() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-timing-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let shot = dir.join("t.toon");
+    let shot_s = shot.to_str().unwrap();
+    assert!(cli(&["new", shot_s, "--size", "64x64", "--frames", "9"]).0);
+    let cmds = dir.join("t.jsonl");
+    std::fs::write(
+        &cmds,
+        r#"{"cmd":"new_drawing","layer":0,"frame":0}
+{"cmd":"new_drawing","layer":0,"frame":8}
+{"cmd":"set_mark","layer":0,"frame":0,"mark":"key"}
+{"cmd":"set_mark","layer":0,"frame":8,"mark":"key"}
+{"cmd":"add_inbetweens","layer":0,"frame":0,"count":3,"ease":{"kind":"linear"},"guides":false}
+{"cmd":"retime_between_keys","layer":0,"from":0,"to":8,"ease":{"kind":"in"}}
+"#,
+    )
+    .unwrap();
+    let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap()]);
+    assert!(ok, "{out}");
+    let (ok, out) = cli(&["info", shot_s]);
+    assert!(ok && out.contains("\"mark\": \"key\"") && out.contains("\"sheet\": \"##-#-#--#\""), "{out}");
+}

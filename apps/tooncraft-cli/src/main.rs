@@ -138,6 +138,7 @@ fn info(e: &Engine) -> serde_json::Value {
             "keys": g.keys.iter().map(|k| k.frame + 1).collect::<Vec<_>>(),
         })).collect::<Vec<_>>(),
         "camera_shakes": p.camera.shakes.len(),
+        "marks": p.marks.iter().map(|(d, m)| serde_json::json!({ "drawing": d, "mark": m })).collect::<Vec<_>>(),
         "folders": p.folders.iter().map(|f| serde_json::json!({
             "name": f.name, "parent": f.parent, "visible": f.visible, "locked": f.locked, "collapsed": f.collapsed, "color": f.color,
         })).collect::<Vec<_>>(),

@@ -578,3 +578,40 @@ fn nested_folders_lock_clip_and_round_trip() {
     while e.project != before && e.undo().is_ok() {}
     assert_eq!(e.project, before);
 }
+
+#[test]
+fn marks_presets_smart_retime_and_inbetween_guides() {
+    use tooncraft_doc::{Ease, Mark, TimingPreset};
+    let mut e = Engine::new(Project::new("Test", 320, 240, 12, 13).unwrap());
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: circle(60.0, 60.0, 20.0) }).unwrap();
+    e.apply(Command::Stroke { layer: 0, frame: 12, brush: ink(), samples: circle(260.0, 60.0, 20.0) }).unwrap();
+    let before = e.project.clone();
+    e.apply(Command::SetMark { layer: 0, frame: 0, mark: Some(Mark::Key) }).unwrap();
+    e.apply(Command::SetMark { layer: 0, frame: 12, mark: Some(Mark::Key) }).unwrap();
+    assert!(e.apply(Command::SetMark { layer: 0, frame: 5, mark: Some(Mark::Key) }).is_err(), "no drawing at frame 6");
+    // three inbetweens on an even chart, with guides on a new layer above
+    e.apply(Command::AddInbetweens { layer: 0, frame: 0, count: 3, ease: Ease::Linear, guides: true }).unwrap();
+    assert_eq!(sheet(&e.project.layers[0].cells), "#--#--#--#--#");
+    assert_eq!(e.project.layers.len(), 2);
+    let g = &e.project.layers[1];
+    assert!(g.locked && g.name.ends_with("guides"));
+    let mid = e.project.drawing(g.drawing_at(6).unwrap()).unwrap();
+    assert!(mid.pixel(40, 60)[3] > 0 && mid.pixel(240, 60)[3] > 0, "the guide at the middle shows both drawings");
+    assert!(mid.pixel(40, 60)[3] < 200, "each at half strength");
+    // smart re-time with a slow start keeps the keys
+    e.apply(Command::RetimeBetweenKeys { layer: 0, from: 0, to: 12, ease: Ease::In }).unwrap();
+    let s = sheet(&e.project.layers[0].cells);
+    assert!(s.starts_with('#') && s.ends_with('#') && s.matches('#').count() == 5, "{s}");
+    assert_ne!(s, "#--#--#--#--#");
+    // a preset over the whole range
+    e.apply(Command::ApplyTiming { layer: 0, from: 0, to: 12, preset: TimingPreset::Even { frames: 2 } }).unwrap();
+    assert_eq!(sheet(&e.project.layers[0].cells), "#-#-#-#-#-...");
+    let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
+    assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap(), e.project);
+    let json = serde_json::to_string(&Command::ApplyTiming { layer: 0, from: 0, to: 3, preset: TimingPreset::SlowStart }).unwrap();
+    assert!(json.contains(r#""preset":{"kind":"slow_start"}"#), "{json}");
+    for _ in 0..5 {
+        e.undo().unwrap();
+    }
+    assert_eq!(e.project, before);
+}

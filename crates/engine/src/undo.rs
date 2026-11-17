@@ -26,6 +26,7 @@ pub(crate) enum Part {
     Camera(tooncraft_doc::Camera),
     Folders(Vec<tooncraft_doc::Folder>),
     Pegs(Vec<tooncraft_doc::Peg>),
+    Marks(std::collections::BTreeMap<tooncraft_doc::DrawingId, tooncraft_doc::Mark>),
     Tip {
         id: u64,
         tip: Option<std::sync::Arc<tooncraft_brush::Tip>>,
@@ -79,6 +80,7 @@ impl Entry {
                 }
                 Part::Folders(f) => Part::Folders(std::mem::replace(&mut p.folders, f)),
                 Part::Pegs(g) => Part::Pegs(std::mem::replace(&mut p.pegs, g)),
+                Part::Marks(m) => Part::Marks(std::mem::replace(&mut p.marks, m)),
                 Part::Camera(c) => Part::Camera(std::mem::replace(&mut p.camera, c)),
                 Part::Sounds(s, t) => Part::Sounds(std::mem::replace(&mut p.sounds, s), std::mem::replace(&mut p.audio_tracks, t)),
                 Part::Fps(fps) => {
