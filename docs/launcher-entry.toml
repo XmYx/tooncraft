@@ -1,0 +1,25 @@
+# Proposed craft-launcher catalog entry (crates/core/catalog.toml), for the maintainers.
+[[apps]]
+color = [232, 96, 74]
+former_bundles = []
+former_ids = []
+former_names = []
+id = "tooncraft"
+binary = "tooncraft"
+flatpak_id = "ai.storyteller.tooncraft"
+mac_bundle_id = "ai.storyteller.tooncraft"
+mac_bundle_name = "ToonCraft"
+website = "https://github.com/storytold/tooncraft"
+deb_package = "tooncraft"
+rpm_package = "tooncraft"
+desktop_categories = ["Graphics", "2DGraphics", "RasterGraphics", "AudioVideo"]
+startup_wm_class = "ai.storyteller.tooncraft"
+kind = "official"
+name = "ToonCraft"
+publisher = "ArtCraft"
+repo = "storytold/tooncraft"
+tagline = "Hand-drawn animation"
+[apps.details]
+headline = "Frame-by-frame animation, drawn by hand."
+about = "Open-source raster animation, built in pure Rust."
+platforms = "Linux, Windows, macOS"

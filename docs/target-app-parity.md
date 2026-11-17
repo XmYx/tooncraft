@@ -1,0 +1,235 @@
+# ToonCraft vs the reference animation apps: parity map
+
+> **Last updated:** 2026-11-17 · **Change:** major · **Target:** raster frame-by-frame animation as in
+> TVPaint Animation 12, the drawing and animation side of Toon Boom Harmony 24, Clip Studio Paint 4
+> (animation features) and Procreate Dreams 1.x
+
+This is the only document that names the reference apps. Everything here was learned from their
+public manuals, tutorial videos and observed behaviour; no code, strings, icons or artwork were
+read or copied (see [AGENTS.md](../AGENTS.md), clean room). Our own names for their features are in
+[feature-names.md](feature-names.md).
+
+## Headline
+
+`cargo xtask parity` counts the status column of every table below and prints the score; the
+numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, never estimated by hand.
+
+<!-- parity:start -->
+| | Value | Kind |
+|---|---|---|
+| Feature rows | 124 | measured |
+| Done (D) | 65 | measured |
+| Partial (P) | 16 | measured |
+| Missing (M) | 43 | measured |
+| Parity score, (D + ½·P) / rows | 59 % | measured |
+| Brush engine and tools | 58 % (13 D, 2 P, 9 M) | measured |
+| Paper and canvas | 68 % (6 D, 3 P, 2 M) | measured |
+| Layers and timeline / exposure sheet | 65 % (11 D, 0 P, 6 M) | measured |
+| Onion skin and light table | 80 % (7 D, 2 P, 1 M) | measured |
+| Animation tools | 22 % (2 D, 0 P, 7 M) | measured |
+| Colouring | 65 % (5 D, 3 P, 2 M) | measured |
+| Effects | 0 % (0 D, 0 P, 4 M) | measured |
+| Audio and lip-sync | 0 % (0 D, 0 P, 4 M) | measured |
+| Import / export | 45 % (4 D, 1 P, 5 M) | measured |
+| UI and workspace | 72 % (10 D, 3 P, 3 M) | measured |
+| Stability and performance | 89 % (7 D, 2 P, 0 M) | measured |
+<!-- parity:end -->
+
+Status: **D** done and tested, **P** partial (works, but narrower than the references), **M**
+missing. **Ours** marks where the plan is to do better than all four references, and how.
+
+## How it was measured
+
+Every row is a capability an animator uses in at least two of the references (or, for rows marked
+—, a suite rule none of them meets). A row is D only when it works in the app *and* has a test (core
+test, CLI test or kittest UI test); P when it works for the common case but lacks options the
+references have; M otherwise. The rows were written before the code, so the list is not bent toward
+what exists. The score weighs every row the same, so it overstates how close we are for heavy
+features (video export, effects, audio) and understates it for small ones.
+
+## Brush engine and tools
+
+| Feature | Refs | Status | Ours |
+|---|---|---|---|
+| Pressure → size and opacity | all | D | |
+| Tilt → dab angle and flattening | TV, CSP, PD | D | |
+| Velocity → size (thin when fast) | TV, CSP | D | |
+| Stroke smoothing (moving average) | all | D | |
+| Pulled-string stabilizer | TV, CSP, PD | D | |
+| Hard pencil with paper grain | all | D | |
+| Antialiased ink pen | all | D | |
+| Soft airbrush with flow build-up | all | D | |
+| Eraser | all | D | |
+| Textured chalk / grain brush | TV, CSP, PD | D | |
+| Opacity vs flow without dab overlap darkening | TV, CSP | D | |
+| Brush presets | all | P | |
+| Custom brush tips from images | TV, CSP, PD | M | |
+| Brush editor with curves for each dynamic | TV, CSP | M | |
+| Watercolour / wet mixing brushes | TV, CSP, PD | M | |
+| Smudge / blur tool | all | M | |
+| Shape tools (line, rectangle, ellipse) | all | M | |
+| Lasso / rectangle selection | all | M | |
+| Transform selection (move, scale, rotate) | all | M | |
+| Eyedropper | all | D | |
+| Fill bucket | all | D | |
+| GPU dab rasterisation | — | M | **Ours:** dabs on the GPU through craft-gpu (RFC-0022), CPU path kept as the oracle |
+| Pen pressure and tilt from tablets on every desktop | all | P | Pressure where winit reports it (touch force); X11/macOS readers are a gap |
+| Pen eraser end switches tool | TV, CSP | M | |
+
+## Paper and canvas
+
+| Feature | Refs | Status | Ours |
+|---|---|---|---|
+| Tiled sparse canvas (empty space costs nothing) | TV, CSP | D | |
+| Pan, zoom, rotate view | all | D | |
+| Pan, zoom and rotate from the keyboard, with reset | all | P | Zoom and rotate keys work; keyboard panning is missing |
+| Flip view horizontally | all | D | |
+| Fit to window | all | D | |
+| Paper colour | all | D | |
+| Paper grain texture | TV, CSP | P | Grain shapes pencil and chalk dabs; no visible paper texture layer |
+| Canvas presets (HD, 4K, square) | all | P | |
+| Field guide / safe areas | TV, TB | M | |
+| Canvas resize / crop | all | M | |
+| Canvas up to 16384 px per side | TV | D | |
+
+## Layers and timeline / exposure sheet
+
+| Feature | Refs | Status | Ours |
+|---|---|---|---|
+| Animation layers with their own exposures | all | D | |
+| Add, delete, rename, reorder layers | all | D | |
+| Layer visibility, lock, opacity | all | D | |
+| Holds (a drawing exposed several frames) | all | D | |
+| Insert / delete frame | all | D | |
+| Duplicate drawing | all | D | |
+| New blank drawing at frame | all | D | |
+| Extend / shorten hold by keyboard | TV, TB | D | |
+| Timeline grid with keys, holds and blanks | all | D | |
+| Vertical exposure sheet view | TB, TV | M | |
+| Frame numbers and current-frame marker | all | D | |
+| Layer blending modes | all | M | |
+| Layer groups / folders | all | M | |
+| Thumbnails in timeline cells | TV, PD | M | |
+| Markers / notes on frames | TV, TB | M | |
+| Several shots in one project | TV, TB | M | |
+| Drawings kept when no longer exposed | TB | D | **Ours:** re-timing never deletes a drawing; unexposed drawings stay until purged, and the purge is undoable |
+
+## Onion skin and light table
+
+| Feature | Refs | Status | Ours |
+|---|---|---|---|
+| Onion skin on/off | all | D | |
+| Separate before / after counts | all | D | |
+| Opacity with falloff | all | D | |
+| Tint colours for before / after | all | D | |
+| Onion by drawings or by frames | TV, TB | D | |
+| Onion on current layer or all layers | TV, CSP | P | Both work; only the current-layer path has a test |
+| Light table: pin any frame of any layer | TB, CSP | D | |
+| Light table opacity | TB, CSP | D | |
+| Onion skin as outlines only | TV | M | |
+| Onion skin cached on the GPU | — | P | **Ours:** tinted onion tiles are textures cached per tile revision, so scrubbing with onion skin costs no CPU compositing |
+
+## Animation tools
+
+| Feature | Refs | Status | Ours |
+|---|---|---|---|
+| Key / breakdown / inbetween marking | TV, TB | M | |
+| Flip through drawings (scrub) | all | D | |
+| Re-time a range (on 1s, 2s, 3s) | TV, TB | D | **Ours:** non-destructive, one undo step |
+| Reverse a range | TV, TB | M | |
+| Camera pan / zoom / rotate keys | TV, TB, PD | M | |
+| Pegs (parented transforms) | TB | M | |
+| Cut / copy / paste cells | all | M | |
+| Cycles (loop a range of cells) | TV, TB | M | |
+| In-between assist | — | M | **Ours:** later, as an AI feature through craft-ai-integrations |
+
+## Colouring
+
+| Feature | Refs | Status | Ours |
+|---|---|---|---|
+| Flood fill | all | D | |
+| Close gaps (configurable size) | all | D | |
+| Fill tolerance | all | D | |
+| Fill reference: current layer or all visible layers | TV, CSP, TB | D | |
+| Fill under lines (spread into the line's antialiasing) | TV, CSP, TB | D | |
+| Separate line and paint layers (paint under ink) | TB, CSP | P | Paint on a layer below the ink with reference = all visible; no linked line/paint pair yet |
+| Fill every frame of a layer at once | TV, TB | M | |
+| Colour swatches | all | P | |
+| Colour models and palette files | TB | M | |
+| Colour picker (hue, saturation, value) | all | P | Works with keyboard fields; no behaviour test yet |
+
+## Effects
+
+| Feature | Refs | Status | Ours |
+|---|---|---|---|
+| Blur, glow, shadow on layers | TV, TB, PD | M | |
+| Colour adjust (levels, hue) | all | M | |
+| Line smoothing / thickening of drawn lines | TV | M | |
+| Non-destructive effect stack | TV, TB | M | **Ours:** planned through EffectCraft's shared effects |
+
+## Audio and lip-sync
+
+| Feature | Refs | Status | Ours |
+|---|---|---|---|
+| Import audio track | all | M | |
+| Waveform in timeline | all | M | |
+| Scrub audio | all | M | |
+| Mouth-chart lip-sync detection | TB | M | |
+
+## Import / export
+
+| Feature | Refs | Status | Ours |
+|---|---|---|---|
+| Native project save / open | all | D | |
+| PNG sequence export | all | D | |
+| GIF export | TV, CSP, PD | D | |
+| APNG / WebP export | TV, CSP | M | |
+| Video export (MP4 / MOV) | all | M | Through FilmCraft / craft-libs codecs |
+| PSD layers export | TV, CSP | M | Through craft-psd |
+| OpenRaster frame export | TV | D | Through craft-ora |
+| Image sequence import | all | M | |
+| BoardCraft animatic as a starting layout | — | M | **Ours:** suite hand-off, see roadmap |
+| Transparent background export | all | P | PNG and OpenRaster; no test yet |
+
+## UI and workspace
+
+| Feature | Refs | Status | Ours |
+|---|---|---|---|
+| Dense dark theme | all | D | |
+| Dockable panels (move, tab, float) | TV, TB, CSP | P | Through craft-ui docking; moving panels is not tested here |
+| Tool bar | all | D | |
+| Tool options bar | all | D | |
+| Brush settings panel | all | D | |
+| Colour panel | all | D | |
+| Layers panel | all | D | |
+| Timeline docked at the bottom | all | D | |
+| Keyboard shortcuts for every tool | all | D | |
+| Customisable shortcuts | all | M | Through craft-keymap |
+| Every action reachable by keyboard | — | P | **Ours:** accessibility rule, kittest-tested |
+| Screen reader names for canvas and timeline | — | D | **Ours:** AccessKit nodes for the canvas and every visible timeline cell |
+| Saved workspaces | TV, TB, CSP | M | |
+| Localised UI | all | P | craft-i18n ready, English only today |
+| Command-line control | TV | D | **Ours:** every action is an engine command; `tooncraft-cli run` applies JSON-lines command files |
+| MCP / control channel for agents | — | M | **Ours:** planned on craft-control |
+
+## Stability and performance
+
+| Feature | Refs | Status | Ours |
+|---|---|---|---|
+| Unlimited undo / redo | all | D | Bounded by a memory budget, never by a step count |
+| Atomic saves (never a half-written file) | — | D | **Ours:** craft-atomic plus a save journal |
+| Autosave and crash recovery | TV, CSP, PD | D | **Ours:** written on a background thread from a copy-on-write snapshot, no UI stall |
+| Hostile-file safety (property-tested loader) | — | D | **Ours:** property tests of the loader and the fill |
+| Never panics (lint-enforced) | — | D | **Ours:** deny lints on every crate |
+| Memory bounded on huge canvases and long shots | — | P | Sparse tiles and budgets; paging to disk is planned |
+| Real-time playback at project fps | all | D | |
+| Playback cache | TV, TB | P | Tile textures cached; no frame pre-render |
+| Stroke latency measured and published | — | D | **Ours:** [performance.md](performance.md) |
+
+Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, PD = Procreate Dreams.
+
+## Revision history
+
+| Date | Change | Summary |
+|---|---|---|
+| 2026-11-17 | major | First map, written before the vertical slice; statuses set when the slice landed |

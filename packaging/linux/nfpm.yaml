@@ -1,0 +1,36 @@
+# .deb and .rpm packages (nfpm). Run from a package script that sources packaging/env.sh,
+# stages the tree into ${STAGE} and exports VERSION and NFPM_ARCH.
+# Output: tooncraft-<version>-linux-<arch>.deb / .rpm
+name: tooncraft
+arch: ${NFPM_ARCH}
+platform: linux
+version: ${VERSION}
+version_schema: semver
+release: 1
+section: graphics
+priority: optional
+maintainer: ${TOONCRAFT_MAINTAINER}
+vendor: Learning Machines LLC
+homepage: https://github.com/storytold/tooncraft
+license: MIT OR Apache-2.0
+description: |-
+  Open-source hand-drawn, frame-by-frame animation in pure Rust: pressure-sensitive
+  brushes, exposure sheet, onion skin, light table, gap-closing fill, real-time
+  playback, PNG / GIF / OpenRaster export. Includes tooncraft-cli.
+overrides:
+  deb:
+    depends: [libc6 (>= 2.35), libgcc-s1, libxkbcommon0, libvulkan1 | libegl1]
+    recommends: [libwayland-client0, libx11-6, libxcursor1, libxi6, libxrandr2, xdg-desktop-portal]
+  rpm:
+    depends: [libxkbcommon, (vulkan-loader or libglvnd-egl)]
+contents:
+  - src: ${STAGE}/usr/bin/tooncraft
+    dst: /usr/bin/tooncraft
+  - src: ${STAGE}/usr/bin/tooncraft-cli
+    dst: /usr/bin/tooncraft-cli
+  - src: ${STAGE}/usr/share/applications/ai.storyteller.tooncraft.desktop
+    dst: /usr/share/applications/ai.storyteller.tooncraft.desktop
+  - src: ${STAGE}/usr/share/metainfo/ai.storyteller.tooncraft.metainfo.xml
+    dst: /usr/share/metainfo/ai.storyteller.tooncraft.metainfo.xml
+  - src: ${STAGE}/usr/share/icons/hicolor/scalable/apps/ai.storyteller.tooncraft.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/ai.storyteller.tooncraft.svg

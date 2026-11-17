@@ -1,0 +1,27 @@
+# Commands (CLI and agents)
+
+Every change to a project is an engine `Command`, serialised as one JSON object per line with a
+`cmd` tag. `tooncraft-cli run shot.toon commands.jsonl` applies a file (or `-` for stdin) and saves;
+`#` lines are comments. The desktop app runs the same commands, so anything an animator does by
+hand a script can do.
+
+| `cmd` | Fields |
+|---|---|
+| `stroke` | `layer`, `frame`, `brush` (`kind`: pencil / ink / airbrush / chalk / eraser, `size`, `opacity`, `flow`, `hardness`, `spacing`, `grain`, `dynamics`, `smoothing`, `color`), `samples` (`x`, `y`, `pressure`, `tilt_x`, `tilt_y`, `time`) |
+| `fill` | `layer`, `frame`, `x`, `y`, `color`, `options` (`tolerance`, `gap`, `spread`), `reference` (`layer` / `all_layers`) |
+| `new_drawing`, `duplicate_drawing`, `extend_hold`, `shorten_hold`, `clear_cell`, `clear_drawing` | `layer`, `frame` |
+| `insert_frame`, `delete_frame` | `frame`, optional `layer` (all layers when absent) |
+| `retime` | `layer`, `from`, `to`, `step` |
+| `add_layer` | `name`, optional `index` |
+| `delete_layer` / `rename_layer` / `move_layer` / `set_layer` | `layer` (+ `name`, `from`/`to`, `visible`/`locked`/`opacity`) |
+| `set_length`, `set_fps`, `set_paper`, `set_onion`, `toggle_pin`, `set_light_table`, `purge_unused` | as named |
+
+Example:
+
+```json
+{"cmd":"stroke","layer":0,"frame":0,"brush":{"kind":"ink","size":5},"samples":[{"x":100,"y":60},{"x":160,"y":80,"pressure":1}]}
+{"cmd":"extend_hold","layer":0,"frame":0}
+{"cmd":"fill","layer":0,"frame":0,"x":125,"y":120,"color":[230,90,70,255]}
+```
+
+An MCP server on craft-control is planned (see [roadmap.md](roadmap.md)).

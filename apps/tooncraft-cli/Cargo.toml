@@ -1,0 +1,23 @@
+[package]
+name = "tooncraft-cli"
+description = "ToonCraft from the command line: create, script, check, export and benchmark projects"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "tooncraft-cli"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+tooncraft-raster = { workspace = true }
+tooncraft-brush = { workspace = true }
+tooncraft-doc = { workspace = true }
+tooncraft-format = { workspace = true }
+tooncraft-engine = { workspace = true }
+serde_json = { workspace = true }

@@ -1,0 +1,1 @@
+- 2026-11-17: ToonCraft vertical slice: tiled GPU canvas, brush engine, exposure sheet, onion skin and light table, fill with gap closing, playback, undo, journaled saves and autosave, PNG/GIF/ORA export, CLI.

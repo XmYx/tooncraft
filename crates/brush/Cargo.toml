@@ -1,0 +1,18 @@
+[package]
+name = "tooncraft-brush"
+description = "ToonCraft brush engine: pressure, tilt and velocity dynamics, stroke smoothing, paper grain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tooncraft-raster = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

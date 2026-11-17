@@ -1,0 +1,26 @@
+[package]
+name = "tooncraft-engine"
+description = "ToonCraft engine: every action as a command, memory-bounded undo, live strokes, fill, playback, export"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tooncraft-raster = { workspace = true }
+tooncraft-brush = { workspace = true }
+tooncraft-doc = { workspace = true }
+tooncraft-format = { workspace = true }
+craft-gif = { workspace = true }
+craft-ora = { workspace = true }
+craft-atomic = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

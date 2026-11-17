@@ -1,0 +1,16 @@
+ToonCraft
+Copyright (c) 2026 ArtCraft Team and the ToonCraft contributors.
+Licensed under the MIT License or the Apache License, Version 2.0, at your option
+(LICENSE-MIT, LICENSE-APACHE).
+
+ToonCraft is an independent, clean-room project. It is not affiliated with, endorsed by or
+sponsored by TVPaint Développement, Toon Boom Animation, Celsys or Savage Interactive, and it
+contains none of their code, assets or documentation.
+
+The ArtCraft name and logos are trademarks of the ArtCraft Team. They are not open source and are
+not covered by the license above. This repository does not include them yet.
+
+Third-party material
+
+This product bundles no third-party assets. Rust dependencies are listed in Cargo.lock under their
+own permissive licenses. The per-file asset list (author, source, license) is in ATTRIBUTION.md.
