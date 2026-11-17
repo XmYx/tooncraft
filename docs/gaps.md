@@ -12,11 +12,11 @@ here (the progress log records what landed).
 
 | | Value | Kind |
 |---|---|---|
-| Weighted parity today | 36.5 % | counted by `cargo xtask parity` |
-| Row parity today | 49.3 % of 267 in-scope rows | counted |
-| Weighted parity once the open PRs #7, #10 and #17 merge as described | about 39.2 % | counted from the rows they say they flip, not yet merged |
-| Hours to 90 % weighted parity, in the order below | ≈ 1,020 | estimated from row sizes |
-| Hours to 100 % | ≈ 1,390 | estimated from row sizes |
+| Weighted parity today | 36.7 % | counted by `cargo xtask parity` |
+| Row parity today | 49.4 % of 267 in-scope rows | counted |
+| Weighted parity once the open PRs #7 and #10 merge as described | about 38.9 % | counted from the rows they say they flip, not yet merged |
+| Hours to 90 % weighted parity, in the order below | ≈ 1,015 | estimated from row sizes |
+| Hours to 100 % | ≈ 1,385 | estimated from row sizes |
 
 **How the numbers are made.** *Hours* come from the row sizes in the map (S ≈ 3 h, M ≈ 8 h,
 L ≈ 25 h, XL ≈ 60 h of agent time; a partial row counts half). *Gain* is the rise in weighted
@@ -25,7 +25,7 @@ formula `cargo xtask parity` uses, not guessed. The plan orders items by gain pe
 item only once the items it needs are done; *Parity after* and *Hours so far* are cumulative along
 that order. Every P and M row of the map is in exactly one item.
 
-**What it means.** 90 % is reached after 45 of the 52 items (≈ 1,020 hours). The seven that can
+**What it means.** 90 % is reached after 44 of the 51 items (≈ 1,015 hours). The seven that can
 stay undone at 90 % are A1 generated inbetweens, B4 GPU brushes, E3 lighting and particles, A3
 deformers, D4 vector stroke layers, D5 3D reference models and E4 the node compositing graph
 (≈ 370 hours together): large features with a small share of their area's weight. The cheapest
@@ -36,7 +36,7 @@ calendar time; the workstreams are independent enough to run in parallel.
 
 ## Open pull requests and the items they cover
 
-Checked with `gh pr list -R XmYx/tooncraft` on 2026-11-18. Each of them was written against the
+Checked with `gh pr list -R XmYx/tooncraft` on 2026-11-18 (#17, paging to disk, merged while this map was written; its row is D here). Each of them was written against the
 previous map, so after this map lands it needs a `git merge origin/main` and its row flips redone
 against the new rows.
 
@@ -44,14 +44,13 @@ against the new rows.
 |---|---|---|
 | #7 Brush editor | most of **B1**, part of **B2** and **B6** | Response curves, jitter, tip shape, brush editor panel → D; wet paint and smudge → P (no edge darkening, no blur brush); paper and grain library → D. Colour jitter stays M |
 | #10 Export breadth | most of **F1** | Animated PNG and WebP → D; multi-frame PSD / PSB → D; TGA, TIFF and JPEG sequences → P (no JPEG) |
-| #17 Long shots | **P1** | Memory bounded on very long shots → D |
 | #1 Dependency bump | none | — |
 
 ## By workstream
 
 | Workstream | Items | Rows | Hours | Gain (points) | Gain per 100 h |
 |---|---|---|---|---|---|
-| [Timeline and animation](#timeline-and-animation) | 11 | 28 | 368 | 15.7 | 4.3 |
+| [Timeline and animation](#timeline-and-animation) | 10 | 27 | 364 | 15.5 | 4.3 |
 | [Drawing tools](#drawing-tools) | 7 | 24 | 245 | 10.1 | 4.1 |
 | [Colour and layers](#colour-and-layers) | 6 | 20 | 142.5 | 8.8 | 6.2 |
 | [Pipeline](#pipeline) | 9 | 24 | 195 | 8.7 | 4.4 |
@@ -78,82 +77,80 @@ against the new rows.
 
 | # | Item | Workstream | Rows | Hours | Gain (points) | Gain per 100 h | Needs | Parity after | Hours so far |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | **I3** Input-to-screen latency measured | UI and input | 1 | 1.5 | 0.20 | 13.3 | — | 36.7 % | 1.5 |
-| 2 | **I2** Touch: tap gestures and palm rejection | UI and input | 2 | 4.5 | 0.60 | 13.3 | — | 37.3 % | 6 |
-| 3 | **L1** Layer operations: duplicate, merge and flatten, the full blend-mode set, copy properties, reference layers | Colour and layers | 5 | 13.5 | 1.80 | 13.3 | — | 39.1 % | 19.5 |
-| 4 | **I1** Pen everywhere: Windows tilt, Wayland-native pen, side buttons, barrel rotation, pressure curve | UI and input | 5 | 18.5 | 1.98 | 10.7 | — | 41.1 % | 38 |
-| 5 | **L2** Painted layer masks and adjustment layers | Colour and layers | 2 | 16 | 1.60 | 10.0 | — | 42.7 % | 54 |
-| 6 | **O1** Onion depth: all-layer test, per-layer settings, exact frames, shift and trace, rolling flipping | Timeline and animation | 5 | 18.5 | 1.70 | 9.2 | — | 44.4 % | 72.5 |
-| 7 | **T1** Timeline polish: substitution by name, frame markers, ping-pong, timecode, timeline zoom | Timeline and animation | 5 | 9 | 0.82 | 9.1 | — | 45.2 % | 81.5 |
-| 8 | **S1** Selection depth: ellipse, magic wand, add/subtract/intersect, invert/grow/feather, quick mask, resampling choice | Drawing tools | 6 | 21.5 | 1.81 | 8.4 | — | 47.0 % | 103 |
-| 9 | **X1** UI polish: command search, tool palettes and radial menus, undo history panel, preferences dialog, docking tests, keyboard reach | UI and input | 6 | 18.5 | 1.53 | 8.3 | — | 48.5 % | 121.5 |
-| 10 | **B6** Paper: visible paper, grain library and images, grain controls, texture overlay, canvas presets | Brushes | 5 | 17 | 1.36 | 8.0 | — | 49.9 % | 138.5 |
-| 11 | **C2** Lock transparency and paint behind | Colour and layers | 2 | 6 | 0.47 | 7.8 | — | 50.3 % | 144.5 |
-| 12 | **C1** Palettes: named palettes in the shot, palette files, colour wheel and sliders, recent colours, picker test | Colour and layers | 5 | 12 | 0.93 | 7.8 | — | 51.3 % | 156.5 |
-| 13 | **S2** Transform depth: free distort and perspective, mesh warp, liquify, transform many drawings at once | Drawing tools | 4 | 27 | 1.94 | 7.2 | — | 53.2 % | 183.5 |
-| 14 | **X3** Shipped translations | UI and input | 1 | 4 | 0.28 | 6.9 | — | 53.5 % | 187.5 |
-| 15 | **X2** Second view of the shot and a navigator | UI and input | 1 | 8 | 0.56 | 6.9 | — | 54.1 % | 195.5 |
-| 16 | **R1** Review: drawn review notes, frame comments, review movie with burn-ins | Pipeline | 3 | 14 | 0.89 | 6.3 | — | 54.9 % | 209.5 |
-| 17 | **P1** Paging drawings to disk on very long shots | Timeline and animation | 1 | 4 | 0.25 | 6.2 | — | 55.2 % | 213.5 |
-| 18 | **G1** Control channel over a socket and an MCP server | Pipeline | 1 | 8 | 0.50 | 6.2 | — | 55.7 % | 221.5 |
-| 19 | **D1** Shape tools II: polyline and curve, filled shapes and lasso fill, gradient, hold-to-snap, clone stamp, reference viewer, grid snapping | Drawing tools | 7 | 19.5 | 1.20 | 6.1 | — | 56.9 % | 241 |
-| 20 | **U1** Audio: split and duplicate clips, microphone recording | Effects and sound | 2 | 11 | 0.67 | 6.1 | — | 57.6 % | 252 |
-| 21 | **E1** Effects finishing: drawn masks, line smoothing, gradient map and posterise, lens looks, transitions, presets | Effects and sound | 6 | 13.5 | 0.81 | 6.0 | — | 58.4 % | 265.5 |
-| 22 | **F1** Export breadth: WebP, multi-frame PSD/PSB, TGA/TIFF/JPEG sequences, transparent-background test, output scaling | Pipeline | 5 | 10.5 | 0.61 | 5.8 | — | 59.0 % | 276 |
-| 23 | **U2** Lip-sync: tune on recorded speech, lip-sync from the typed line | Effects and sound | 2 | 12 | 0.67 | 5.6 | — | 59.6 % | 288 |
-| 24 | **K1** Camera depth: path editing, depth of field, several cameras and cuts, free 3D camera | Timeline and animation | 4 | 44 | 2.40 | 5.5 | — | 62.0 % | 332 |
-| 25 | **B1** Brush editor: response curves, jitter, colour jitter, tip roundness and angle, editor panel with live preview | Brushes | 5 | 23.5 | 1.17 | 5.0 | — | 63.2 % | 355.5 |
-| 26 | **T4** Graph editor for keyed values and live transform recording | Timeline and animation | 2 | 33 | 1.64 | 5.0 | — | 64.8 % | 388.5 |
-| 27 | **G2** Embedded scripting with an object API, macro recording, batch runs, script tool buttons | Pipeline | 4 | 33.5 | 1.62 | 4.9 | — | 66.5 % | 422 |
-| 28 | **D3** Text tool | Drawing tools | 1 | 8 | 0.37 | 4.6 | — | 66.8 % | 430 |
-| 29 | **D2** Drawing guides: symmetry, stroke rulers, perspective rulers | Drawing tools | 3 | 24 | 1.11 | 4.6 | — | 67.9 % | 454 |
-| 30 | **B5** ABR brush import | Brushes | 1 | 8 | 0.36 | 4.5 | — | 68.3 % | 462 |
-| 31 | **E2** Motion effects: motion blur, distortions, time effects | Effects and sound | 3 | 24 | 1.08 | 4.5 | — | 69.4 % | 486 |
-| 32 | **F2** Pro formats: OpenEXR, more video codecs, video file import, scene export for compositing | Pipeline | 4 | 32 | 1.40 | 4.4 | — | 70.8 % | 518 |
-| 33 | **T2** Vertical exposure sheet view | Timeline and animation | 1 | 25 | 1.09 | 4.4 | — | 71.9 % | 543 |
-| 34 | **T3** Several shots per project and nested sequences | Timeline and animation | 2 | 50 | 2.18 | 4.4 | — | 74.1 % | 593 |
-| 35 | **F4** Production paperwork: printed exposure sheets, EDL or OTIO shot lists | Pipeline | 2 | 6 | 0.35 | 5.8 | T3 | 74.4 % | 599 |
-| 36 | **E5** GPU effects and real-time effects at 4K | Effects and sound | 2 | 29 | 1.25 | 4.3 | — | 75.7 % | 628 |
-| 37 | **C4** Colour management and 16-bit drawings | Colour and layers | 2 | 33 | 1.40 | 4.2 | — | 77.1 % | 661 |
-| 38 | **C3** Ink and paint: linked line and paint layers, auto-paint across drawings, linked colour styles, recolour line art | Colour and layers | 4 | 62 | 2.57 | 4.1 | — | 79.6 % | 723 |
-| 39 | **G3** Plugin interface for effects and tools | Pipeline | 1 | 25 | 1.00 | 4.0 | G2 | 80.6 % | 748 |
-| 40 | **B3** Brush depth: impasto, dual tips, scatter, pattern and ribbon, animated tips, brush blend modes | Brushes | 6 | 60 | 2.34 | 3.9 | — | 83.0 % | 808 |
-| 41 | **R2** Multi-artist: check-out and check-in, asset library shared between shots | Pipeline | 2 | 33 | 1.24 | 3.8 | T3 | 84.2 % | 841 |
-| 42 | **B2** Wet media: colour pickup and mixing, watercolour edges, smudge, blur brush | Brushes | 4 | 44 | 1.62 | 3.7 | — | 85.8 % | 885 |
-| 43 | **A4** Rotoscoping on video layers and point tracking | Timeline and animation | 2 | 29 | 0.98 | 3.4 | F2 | 86.8 % | 914 |
-| 44 | **A2** Cut-out rigs: drawing-swap library and rig templates, inverse kinematics, master controllers, pose library | Timeline and animation | 4 | 70.5 | 2.35 | 3.3 | — | 89.1 % | 984.5 |
-| 45 | **F3** Paper pipeline: scanning with peg-hole registration, camera capture | Pipeline | 2 | 33 | 1.05 | 3.2 | — | 90.2 % ← 90 % | 1017.5 |
-| 46 | **A1** Generated inbetween drawings (morphing between keys) | Timeline and animation | 1 | 25 | 0.78 | 3.1 | — | 91.0 % | 1042.5 |
-| 47 | **B4** GPU brushes, measured real time at 500–1000 px | Brushes | 2 | 29 | 0.90 | 3.1 | — | 91.9 % | 1071.5 |
-| 48 | **E3** Tone and highlight lighting, particles | Effects and sound | 2 | 50 | 1.44 | 2.9 | — | 93.3 % | 1121.5 |
-| 49 | **A3** Deformers: bone, curve and envelope | Timeline and animation | 1 | 60 | 1.57 | 2.6 | A2 | 94.9 % | 1181.5 |
-| 50 | **D4** Vector stroke layers with reshape, width and intersection erase | Drawing tools | 2 | 85 | 2.21 | 2.6 | — | 97.1 % | 1266.5 |
-| 51 | **D5** 3D reference models and posable figures | Drawing tools | 1 | 60 | 1.47 | 2.5 | — | 98.6 % | 1326.5 |
-| 52 | **E4** Node compositing graph | Effects and sound | 1 | 60 | 1.44 | 2.4 | E1 | 100.0 % | 1386.5 |
+| 1 | **I3** Input-to-screen latency measured | UI and input | 1 | 1.5 | 0.20 | 13.3 | — | 36.9 % | 1.5 |
+| 2 | **I2** Touch: tap gestures and palm rejection | UI and input | 2 | 4.5 | 0.60 | 13.3 | — | 37.5 % | 6 |
+| 3 | **L1** Layer operations: duplicate, merge and flatten, the full blend-mode set, copy properties, reference layers | Colour and layers | 5 | 13.5 | 1.80 | 13.3 | — | 39.3 % | 19.5 |
+| 4 | **I1** Pen everywhere: Windows tilt, Wayland-native pen, side buttons, barrel rotation, pressure curve | UI and input | 5 | 18.5 | 1.98 | 10.7 | — | 41.3 % | 38 |
+| 5 | **L2** Painted layer masks and adjustment layers | Colour and layers | 2 | 16 | 1.60 | 10.0 | — | 42.9 % | 54 |
+| 6 | **O1** Onion depth: all-layer test, per-layer settings, exact frames, shift and trace, rolling flipping | Timeline and animation | 5 | 18.5 | 1.70 | 9.2 | — | 44.6 % | 72.5 |
+| 7 | **T1** Timeline polish: substitution by name, frame markers, ping-pong, timecode, timeline zoom | Timeline and animation | 5 | 9 | 0.82 | 9.1 | — | 45.4 % | 81.5 |
+| 8 | **S1** Selection depth: ellipse, magic wand, add/subtract/intersect, invert/grow/feather, quick mask, resampling choice | Drawing tools | 6 | 21.5 | 1.81 | 8.4 | — | 47.2 % | 103 |
+| 9 | **X1** UI polish: command search, tool palettes and radial menus, undo history panel, preferences dialog, docking tests, keyboard reach | UI and input | 6 | 18.5 | 1.53 | 8.3 | — | 48.8 % | 121.5 |
+| 10 | **B6** Paper: visible paper, grain library and images, grain controls, texture overlay, canvas presets | Brushes | 5 | 17 | 1.36 | 8.0 | — | 50.1 % | 138.5 |
+| 11 | **C2** Lock transparency and paint behind | Colour and layers | 2 | 6 | 0.47 | 7.8 | — | 50.6 % | 144.5 |
+| 12 | **C1** Palettes: named palettes in the shot, palette files, colour wheel and sliders, recent colours, picker test | Colour and layers | 5 | 12 | 0.93 | 7.8 | — | 51.5 % | 156.5 |
+| 13 | **S2** Transform depth: free distort and perspective, mesh warp, liquify, transform many drawings at once | Drawing tools | 4 | 27 | 1.94 | 7.2 | — | 53.5 % | 183.5 |
+| 14 | **X3** Shipped translations | UI and input | 1 | 4 | 0.28 | 6.9 | — | 53.7 % | 187.5 |
+| 15 | **X2** Second view of the shot and a navigator | UI and input | 1 | 8 | 0.56 | 6.9 | — | 54.3 % | 195.5 |
+| 16 | **R1** Review: drawn review notes, frame comments, review movie with burn-ins | Pipeline | 3 | 14 | 0.89 | 6.3 | — | 55.2 % | 209.5 |
+| 17 | **G1** Control channel over a socket and an MCP server | Pipeline | 1 | 8 | 0.50 | 6.2 | — | 55.7 % | 217.5 |
+| 18 | **D1** Shape tools II: polyline and curve, filled shapes and lasso fill, gradient, hold-to-snap, clone stamp, reference viewer, grid snapping | Drawing tools | 7 | 19.5 | 1.20 | 6.1 | — | 56.9 % | 237 |
+| 19 | **U1** Audio: split and duplicate clips, microphone recording | Effects and sound | 2 | 11 | 0.67 | 6.1 | — | 57.6 % | 248 |
+| 20 | **E1** Effects finishing: drawn masks, line smoothing, gradient map and posterise, lens looks, transitions, presets | Effects and sound | 6 | 13.5 | 0.81 | 6.0 | — | 58.4 % | 261.5 |
+| 21 | **F1** Export breadth: WebP, multi-frame PSD/PSB, TGA/TIFF/JPEG sequences, transparent-background test, output scaling | Pipeline | 5 | 10.5 | 0.61 | 5.8 | — | 59.0 % | 272 |
+| 22 | **U2** Lip-sync: tune on recorded speech, lip-sync from the typed line | Effects and sound | 2 | 12 | 0.67 | 5.6 | — | 59.6 % | 284 |
+| 23 | **K1** Camera depth: path editing, depth of field, several cameras and cuts, free 3D camera | Timeline and animation | 4 | 44 | 2.40 | 5.5 | — | 62.0 % | 328 |
+| 24 | **B1** Brush editor: response curves, jitter, colour jitter, tip roundness and angle, editor panel with live preview | Brushes | 5 | 23.5 | 1.17 | 5.0 | — | 63.2 % | 351.5 |
+| 25 | **T4** Graph editor for keyed values and live transform recording | Timeline and animation | 2 | 33 | 1.64 | 5.0 | — | 64.8 % | 384.5 |
+| 26 | **G2** Embedded scripting with an object API, macro recording, batch runs, script tool buttons | Pipeline | 4 | 33.5 | 1.62 | 4.9 | — | 66.5 % | 418 |
+| 27 | **D3** Text tool | Drawing tools | 1 | 8 | 0.37 | 4.6 | — | 66.8 % | 426 |
+| 28 | **D2** Drawing guides: symmetry, stroke rulers, perspective rulers | Drawing tools | 3 | 24 | 1.11 | 4.6 | — | 67.9 % | 450 |
+| 29 | **B5** ABR brush import | Brushes | 1 | 8 | 0.36 | 4.5 | — | 68.3 % | 458 |
+| 30 | **E2** Motion effects: motion blur, distortions, time effects | Effects and sound | 3 | 24 | 1.08 | 4.5 | — | 69.4 % | 482 |
+| 31 | **F2** Pro formats: OpenEXR, more video codecs, video file import, scene export for compositing | Pipeline | 4 | 32 | 1.40 | 4.4 | — | 70.8 % | 514 |
+| 32 | **T2** Vertical exposure sheet view | Timeline and animation | 1 | 25 | 1.09 | 4.4 | — | 71.9 % | 539 |
+| 33 | **T3** Several shots per project and nested sequences | Timeline and animation | 2 | 50 | 2.18 | 4.4 | — | 74.1 % | 589 |
+| 34 | **F4** Production paperwork: printed exposure sheets, EDL or OTIO shot lists | Pipeline | 2 | 6 | 0.35 | 5.8 | T3 | 74.4 % | 595 |
+| 35 | **E5** GPU effects and real-time effects at 4K | Effects and sound | 2 | 29 | 1.25 | 4.3 | — | 75.7 % | 624 |
+| 36 | **C4** Colour management and 16-bit drawings | Colour and layers | 2 | 33 | 1.40 | 4.2 | — | 77.1 % | 657 |
+| 37 | **C3** Ink and paint: linked line and paint layers, auto-paint across drawings, linked colour styles, recolour line art | Colour and layers | 4 | 62 | 2.57 | 4.1 | — | 79.6 % | 719 |
+| 38 | **G3** Plugin interface for effects and tools | Pipeline | 1 | 25 | 1.00 | 4.0 | G2 | 80.6 % | 744 |
+| 39 | **B3** Brush depth: impasto, dual tips, scatter, pattern and ribbon, animated tips, brush blend modes | Brushes | 6 | 60 | 2.34 | 3.9 | — | 83.0 % | 804 |
+| 40 | **R2** Multi-artist: check-out and check-in, asset library shared between shots | Pipeline | 2 | 33 | 1.24 | 3.8 | T3 | 84.2 % | 837 |
+| 41 | **B2** Wet media: colour pickup and mixing, watercolour edges, smudge, blur brush | Brushes | 4 | 44 | 1.62 | 3.7 | — | 85.8 % | 881 |
+| 42 | **A4** Rotoscoping on video layers and point tracking | Timeline and animation | 2 | 29 | 0.98 | 3.4 | F2 | 86.8 % | 910 |
+| 43 | **A2** Cut-out rigs: drawing-swap library and rig templates, inverse kinematics, master controllers, pose library | Timeline and animation | 4 | 70.5 | 2.35 | 3.3 | — | 89.1 % | 980.5 |
+| 44 | **F3** Paper pipeline: scanning with peg-hole registration, camera capture | Pipeline | 2 | 33 | 1.05 | 3.2 | — | 90.2 % ← 90 % | 1013.5 |
+| 45 | **A1** Generated inbetween drawings (morphing between keys) | Timeline and animation | 1 | 25 | 0.78 | 3.1 | — | 91.0 % | 1038.5 |
+| 46 | **B4** GPU brushes, measured real time at 500–1000 px | Brushes | 2 | 29 | 0.90 | 3.1 | — | 91.9 % | 1067.5 |
+| 47 | **E3** Tone and highlight lighting, particles | Effects and sound | 2 | 50 | 1.44 | 2.9 | — | 93.3 % | 1117.5 |
+| 48 | **A3** Deformers: bone, curve and envelope | Timeline and animation | 1 | 60 | 1.57 | 2.6 | A2 | 94.9 % | 1177.5 |
+| 49 | **D4** Vector stroke layers with reshape, width and intersection erase | Drawing tools | 2 | 85 | 2.21 | 2.6 | — | 97.1 % | 1262.5 |
+| 50 | **D5** 3D reference models and posable figures | Drawing tools | 1 | 60 | 1.47 | 2.5 | — | 98.6 % | 1322.5 |
+| 51 | **E4** Node compositing graph | Effects and sound | 1 | 60 | 1.44 | 2.4 | E1 | 100.0 % | 1382.5 |
 
 ## Timeline and animation
 
 - **O1** (rank 6, 18.5 h, +1.70 points) Onion depth: all-layer test, per-layer settings, exact frames, shift and trace, rolling flipping. Rows: Onion on the current layer or on all layers; Onion settings per layer; Pick the exact relative frames shown; Shift and trace: move or turn a pinned frame without changing it; Rolling and flipping between chosen drawings from the keyboard.
 - **T1** (rank 7, 9 h, +0.82 points) Timeline polish: substitution by name, frame markers, ping-pong, timecode, timeline zoom. Rows: Drawing substitution: expose any existing drawing by name; Frame markers and notes; Play range, loop and ping-pong; Frame rate change and timecode display; Timeline zoom and scroll.
-- **P1** (rank 17, 4 h, +0.25 points) Paging drawings to disk on very long shots. Open PR: #17. Rows: Memory bounded on very long shots.
-- **K1** (rank 24, 44 h, +2.40 points) Camera depth: path editing, depth of field, several cameras and cuts, free 3D camera. Rows: Camera path editing on the canvas; Depth of field by layer depth; Several cameras and camera cuts in a shot; Free 3D camera over a layered scene.
-- **T4** (rank 26, 33 h, +1.64 points) Graph editor for keyed values and live transform recording. Rows: Graph editor for keyed values; Record transforms live while playing.
-- **T2** (rank 33, 25 h, +1.09 points) Vertical exposure sheet view. Rows: Vertical exposure sheet view.
-- **T3** (rank 34, 50 h, +2.18 points) Several shots per project and nested sequences. Rows: Several shots or scenes in one project; Nested sequences (a shot or symbol inside a shot).
-- **A4** (rank 43, 29 h, +0.98 points, needs F2) Rotoscoping on video layers and point tracking. Rows: Rotoscoping on a video layer; Motion tracking of a point in footage.
-- **A2** (rank 44, 70.5 h, +2.35 points) Cut-out rigs: drawing-swap library and rig templates, inverse kinematics, master controllers, pose library. Rows: Cut-out puppets: parts on pegs with drawing swaps; Inverse kinematics on peg chains; Master controllers driving poses; Pose and template library.
-- **A1** (rank 46, 25 h, +0.78 points) Generated inbetween drawings (morphing between keys). Rows: Generated inbetween drawings (morphing between keys).
-- **A3** (rank 49, 60 h, +1.57 points, needs A2) Deformers: bone, curve and envelope. Rows: Deformers: bone, curve and envelope on drawings.
+- **K1** (rank 23, 44 h, +2.40 points) Camera depth: path editing, depth of field, several cameras and cuts, free 3D camera. Rows: Camera path editing on the canvas; Depth of field by layer depth; Several cameras and camera cuts in a shot; Free 3D camera over a layered scene.
+- **T4** (rank 25, 33 h, +1.64 points) Graph editor for keyed values and live transform recording. Rows: Graph editor for keyed values; Record transforms live while playing.
+- **T2** (rank 32, 25 h, +1.09 points) Vertical exposure sheet view. Rows: Vertical exposure sheet view.
+- **T3** (rank 33, 50 h, +2.18 points) Several shots per project and nested sequences. Rows: Several shots or scenes in one project; Nested sequences (a shot or symbol inside a shot).
+- **A4** (rank 42, 29 h, +0.98 points, needs F2) Rotoscoping on video layers and point tracking. Rows: Rotoscoping on a video layer; Motion tracking of a point in footage.
+- **A2** (rank 43, 70.5 h, +2.35 points) Cut-out rigs: drawing-swap library and rig templates, inverse kinematics, master controllers, pose library. Rows: Cut-out puppets: parts on pegs with drawing swaps; Inverse kinematics on peg chains; Master controllers driving poses; Pose and template library.
+- **A1** (rank 45, 25 h, +0.78 points) Generated inbetween drawings (morphing between keys). Rows: Generated inbetween drawings (morphing between keys).
+- **A3** (rank 48, 60 h, +1.57 points, needs A2) Deformers: bone, curve and envelope. Rows: Deformers: bone, curve and envelope on drawings.
 
 ## Drawing tools
 
 - **S1** (rank 8, 21.5 h, +1.81 points) Selection depth: ellipse, magic wand, add/subtract/intersect, invert/grow/feather, quick mask, resampling choice. Rows: Ellipse selection; Select by colour with tolerance (magic wand); Add, subtract and intersect selections; Invert, grow, shrink and feather a selection; Painted selection masks (quick mask); Resampling choice (nearest, bilinear, bicubic).
 - **S2** (rank 13, 27 h, +1.94 points) Transform depth: free distort and perspective, mesh warp, liquify, transform many drawings at once. Rows: Free distort, perspective and skew; Mesh warp; Liquify (push, twirl, pinch); Transform across several drawings or layers at once.
-- **D1** (rank 19, 19.5 h, +1.20 points) Shape tools II: polyline and curve, filled shapes and lasso fill, gradient, hold-to-snap, clone stamp, reference viewer, grid snapping. Rows: Polyline, polygon and curve tools; Filled shapes and lasso fill; Gradient tool (linear, radial); Snap the end of a stroke to a clean line or ellipse when held; Clone stamp; Reference image viewer with eyedropper; Grid display and snapping strokes to it.
-- **D3** (rank 28, 8 h, +0.37 points) Text tool. Rows: Text tool.
-- **D2** (rank 29, 24 h, +1.11 points) Drawing guides: symmetry, stroke rulers, perspective rulers. Rows: Symmetry and mirror drawing (axes, radial); Stroke rulers: straight, curve, ellipse, concentric; Perspective rulers with vanishing points.
-- **D4** (rank 50, 85 h, +2.21 points) Vector stroke layers with reshape, width and intersection erase. Rows: Vector stroke layers (strokes kept as editable curves); Vector line editing: reshape, width, erase to the intersection.
-- **D5** (rank 51, 60 h, +1.47 points) 3D reference models and posable figures. Rows: 3D reference models and posable figures.
+- **D1** (rank 18, 19.5 h, +1.20 points) Shape tools II: polyline and curve, filled shapes and lasso fill, gradient, hold-to-snap, clone stamp, reference viewer, grid snapping. Rows: Polyline, polygon and curve tools; Filled shapes and lasso fill; Gradient tool (linear, radial); Snap the end of a stroke to a clean line or ellipse when held; Clone stamp; Reference image viewer with eyedropper; Grid display and snapping strokes to it.
+- **D3** (rank 27, 8 h, +0.37 points) Text tool. Rows: Text tool.
+- **D2** (rank 28, 24 h, +1.11 points) Drawing guides: symmetry, stroke rulers, perspective rulers. Rows: Symmetry and mirror drawing (axes, radial); Stroke rulers: straight, curve, ellipse, concentric; Perspective rulers with vanishing points.
+- **D4** (rank 49, 85 h, +2.21 points) Vector stroke layers with reshape, width and intersection erase. Rows: Vector stroke layers (strokes kept as editable curves); Vector line editing: reshape, width, erase to the intersection.
+- **D5** (rank 50, 60 h, +1.47 points) 3D reference models and posable figures. Rows: 3D reference models and posable figures.
 
 ## Colour and layers
 
@@ -161,39 +158,39 @@ against the new rows.
 - **L2** (rank 5, 16 h, +1.60 points) Painted layer masks and adjustment layers. Rows: Painted layer masks; Adjustment layers acting on everything below.
 - **C2** (rank 11, 6 h, +0.47 points) Lock transparency and paint behind. Rows: Lock transparency (paint only where there is paint); Paint behind existing paint.
 - **C1** (rank 12, 12 h, +0.93 points) Palettes: named palettes in the shot, palette files, colour wheel and sliders, recent colours, picker test. Rows: Colour swatches; Palette files: save, load, import common formats; HSV picker with keyboard fields; Colour wheel, sliders and harmony modes; Recent colours.
-- **C4** (rank 37, 33 h, +1.40 points) Colour management and 16-bit drawings. Rows: Colour management: working space, profiles, soft proof; 16-bit colour drawings.
-- **C3** (rank 38, 62 h, +2.57 points) Ink and paint: linked line and paint layers, auto-paint across drawings, linked colour styles, recolour line art. Rows: Linked line and paint layers; Paint the same regions across drawings automatically; Linked colour styles (change a swatch, every fill using it updates); Recolour line art across drawings.
+- **C4** (rank 36, 33 h, +1.40 points) Colour management and 16-bit drawings. Rows: Colour management: working space, profiles, soft proof; 16-bit colour drawings.
+- **C3** (rank 37, 62 h, +2.57 points) Ink and paint: linked line and paint layers, auto-paint across drawings, linked colour styles, recolour line art. Rows: Linked line and paint layers; Paint the same regions across drawings automatically; Linked colour styles (change a swatch, every fill using it updates); Recolour line art across drawings.
 
 ## Pipeline
 
 - **R1** (rank 16, 14 h, +0.89 points) Review: drawn review notes, frame comments, review movie with burn-ins. Rows: Review notes drawn over frames, kept out of exports; Comments on frames; Review movie with burn-ins (shot, frame, timecode).
-- **G1** (rank 18, 8 h, +0.50 points) Control channel over a socket and an MCP server. Rows: Control from other programs over a socket.
-- **F1** (rank 22, 10.5 h, +0.61 points) Export breadth: WebP, multi-frame PSD/PSB, TGA/TIFF/JPEG sequences, transparent-background test, output scaling. Open PR: #10 (WebP, multi-frame PSD / PSB, TGA and TIFF; no JPEG or output scaling). Rows: Animated PNG and WebP export; Multi-frame layered PSD and PSB; TGA, TIFF and JPEG sequences; Transparent-background export; Export frame range and output size.
-- **G2** (rank 27, 33.5 h, +1.62 points) Embedded scripting with an object API, macro recording, batch runs, script tool buttons. Rows: Embedded scripting language with an object API; Replay recorded actions (macros); Batch processing of many shots; Custom tool buttons that run scripts.
-- **F2** (rank 32, 32 h, +1.40 points) Pro formats: OpenEXR, more video codecs, video file import, scene export for compositing. Rows: OpenEXR sequences, with layers; More video codecs: H.265, VP9 or AV1, MOV H.264; Video file import; Scene export for compositing apps (layers, camera, timing).
-- **F4** (rank 35, 6 h, +0.35 points, needs T3) Production paperwork: printed exposure sheets, EDL or OTIO shot lists. Rows: Printed exposure sheets and frames (PDF); Shot list and edit decisions out (EDL or OTIO).
-- **G3** (rank 39, 25 h, +1.00 points, needs G2) Plugin interface for effects and tools. Rows: Plugin interface for effects and tools.
-- **R2** (rank 41, 33 h, +1.24 points, needs T3) Multi-artist: check-out and check-in, asset library shared between shots. Rows: Check-out and check-in of shots for several artists; Asset library shared between shots.
-- **F3** (rank 45, 33 h, +1.05 points) Paper pipeline: scanning with peg-hole registration, camera capture. Rows: Scanned paper: peg-hole registration and clean-up; Camera capture for stop motion and pencil tests.
+- **G1** (rank 17, 8 h, +0.50 points) Control channel over a socket and an MCP server. Rows: Control from other programs over a socket.
+- **F1** (rank 21, 10.5 h, +0.61 points) Export breadth: WebP, multi-frame PSD/PSB, TGA/TIFF/JPEG sequences, transparent-background test, output scaling. Open PR: #10 (WebP, multi-frame PSD / PSB, TGA and TIFF; no JPEG or output scaling). Rows: Animated PNG and WebP export; Multi-frame layered PSD and PSB; TGA, TIFF and JPEG sequences; Transparent-background export; Export frame range and output size.
+- **G2** (rank 26, 33.5 h, +1.62 points) Embedded scripting with an object API, macro recording, batch runs, script tool buttons. Rows: Embedded scripting language with an object API; Replay recorded actions (macros); Batch processing of many shots; Custom tool buttons that run scripts.
+- **F2** (rank 31, 32 h, +1.40 points) Pro formats: OpenEXR, more video codecs, video file import, scene export for compositing. Rows: OpenEXR sequences, with layers; More video codecs: H.265, VP9 or AV1, MOV H.264; Video file import; Scene export for compositing apps (layers, camera, timing).
+- **F4** (rank 34, 6 h, +0.35 points, needs T3) Production paperwork: printed exposure sheets, EDL or OTIO shot lists. Rows: Printed exposure sheets and frames (PDF); Shot list and edit decisions out (EDL or OTIO).
+- **G3** (rank 38, 25 h, +1.00 points, needs G2) Plugin interface for effects and tools. Rows: Plugin interface for effects and tools.
+- **R2** (rank 40, 33 h, +1.24 points, needs T3) Multi-artist: check-out and check-in, asset library shared between shots. Rows: Check-out and check-in of shots for several artists; Asset library shared between shots.
+- **F3** (rank 44, 33 h, +1.05 points) Paper pipeline: scanning with peg-hole registration, camera capture. Rows: Scanned paper: peg-hole registration and clean-up; Camera capture for stop motion and pencil tests.
 
 ## Brushes
 
 - **B6** (rank 10, 17 h, +1.36 points) Paper: visible paper, grain library and images, grain controls, texture overlay, canvas presets. Open PR: #7 (grain library and grain images). Rows: Visible paper texture under the drawing; Paper and grain library, grain images from files; Grain scale, rotation and contrast; Texture overlay on a layer or a fill; Canvas size presets.
-- **B1** (rank 25, 23.5 h, +1.17 points) Brush editor: response curves, jitter, colour jitter, tip roundness and angle, editor panel with live preview. Open PR: #7 (4 of 5 rows; no colour jitter). Rows: Response curves for every input and dab property; Random jitter of size, opacity, angle and scatter; Colour jitter per dab and per stroke (hue, saturation, value); Tip shape: hardness, spacing, roundness and angle; Brush editor panel with a live stroke preview.
-- **B5** (rank 30, 8 h, +0.36 points) ABR brush import. Rows: Import of Photoshop ABR brushes.
-- **B3** (rank 40, 60 h, +2.34 points) Brush depth: impasto, dual tips, scatter, pattern and ribbon, animated tips, brush blend modes. Rows: Thick paint with depth and lighting (impasto); Dual tips (a second tip or texture masking the first); Scatter and spray brushes (many dabs per step); Pattern and ribbon brushes (an image repeated along the stroke); Animated brushes (a tip that changes per dab or per frame); Brush blend modes (paint as multiply, behind, and so on).
-- **B2** (rank 42, 44 h, +1.62 points) Wet media: colour pickup and mixing, watercolour edges, smudge, blur brush. Open PR: #7 (wet pickup, watercolour, smudge; no edge darkening or blur brush). Rows: Wet paint: colour pickup, mixing and dilution; Watercolour edges: darkening and bleeding; Smudge brush; Blur and soften brush.
-- **B4** (rank 47, 29 h, +0.90 points) GPU brushes, measured real time at 500–1000 px. Rows: Brush rendering on the GPU; Brushes at large sizes stay real time.
+- **B1** (rank 24, 23.5 h, +1.17 points) Brush editor: response curves, jitter, colour jitter, tip roundness and angle, editor panel with live preview. Open PR: #7 (4 of 5 rows; no colour jitter). Rows: Response curves for every input and dab property; Random jitter of size, opacity, angle and scatter; Colour jitter per dab and per stroke (hue, saturation, value); Tip shape: hardness, spacing, roundness and angle; Brush editor panel with a live stroke preview.
+- **B5** (rank 29, 8 h, +0.36 points) ABR brush import. Rows: Import of Photoshop ABR brushes.
+- **B3** (rank 39, 60 h, +2.34 points) Brush depth: impasto, dual tips, scatter, pattern and ribbon, animated tips, brush blend modes. Rows: Thick paint with depth and lighting (impasto); Dual tips (a second tip or texture masking the first); Scatter and spray brushes (many dabs per step); Pattern and ribbon brushes (an image repeated along the stroke); Animated brushes (a tip that changes per dab or per frame); Brush blend modes (paint as multiply, behind, and so on).
+- **B2** (rank 41, 44 h, +1.62 points) Wet media: colour pickup and mixing, watercolour edges, smudge, blur brush. Open PR: #7 (wet pickup, watercolour, smudge; no edge darkening or blur brush). Rows: Wet paint: colour pickup, mixing and dilution; Watercolour edges: darkening and bleeding; Smudge brush; Blur and soften brush.
+- **B4** (rank 46, 29 h, +0.90 points) GPU brushes, measured real time at 500–1000 px. Rows: Brush rendering on the GPU; Brushes at large sizes stay real time.
 
 ## Effects and sound
 
-- **U1** (rank 20, 11 h, +0.67 points) Audio: split and duplicate clips, microphone recording. Rows: Split and duplicate clips; Record a voice track from the microphone.
-- **E1** (rank 21, 13.5 h, +0.81 points) Effects finishing: drawn masks, line smoothing, gradient map and posterise, lens looks, transitions, presets. Rows: Soft masks from shapes; Line thickening and smoothing; Gradient map, posterise and threshold; Lens looks: vignette, chromatic aberration, flares; Transitions between cuts; Effect presets and saved stacks.
-- **U2** (rank 23, 12 h, +0.67 points) Lip-sync: tune on recorded speech, lip-sync from the typed line. Rows: Mouth-chart lip-sync detection; Lip-sync from the typed line of dialogue.
-- **E2** (rank 31, 24 h, +1.08 points) Motion effects: motion blur, distortions, time effects. Rows: Motion blur from movement; Distortions: ripple, wave, turbulence, displacement; Time effects: trails, frame blending, time remap.
-- **E5** (rank 36, 29 h, +1.25 points) GPU effects and real-time effects at 4K. Rows: Effects rendered on the GPU; Effects play back in real time.
-- **E3** (rank 48, 50 h, +1.44 points) Tone and highlight lighting, particles. Rows: Tone and highlight from mattes, lighting from normals; Particles (rain, snow, sparks).
-- **E4** (rank 52, 60 h, +1.44 points, needs E1) Node compositing graph. Rows: Node compositing graph.
+- **U1** (rank 19, 11 h, +0.67 points) Audio: split and duplicate clips, microphone recording. Rows: Split and duplicate clips; Record a voice track from the microphone.
+- **E1** (rank 20, 13.5 h, +0.81 points) Effects finishing: drawn masks, line smoothing, gradient map and posterise, lens looks, transitions, presets. Rows: Soft masks from shapes; Line thickening and smoothing; Gradient map, posterise and threshold; Lens looks: vignette, chromatic aberration, flares; Transitions between cuts; Effect presets and saved stacks.
+- **U2** (rank 22, 12 h, +0.67 points) Lip-sync: tune on recorded speech, lip-sync from the typed line. Rows: Mouth-chart lip-sync detection; Lip-sync from the typed line of dialogue.
+- **E2** (rank 30, 24 h, +1.08 points) Motion effects: motion blur, distortions, time effects. Rows: Motion blur from movement; Distortions: ripple, wave, turbulence, displacement; Time effects: trails, frame blending, time remap.
+- **E5** (rank 35, 29 h, +1.25 points) GPU effects and real-time effects at 4K. Rows: Effects rendered on the GPU; Effects play back in real time.
+- **E3** (rank 47, 50 h, +1.44 points) Tone and highlight lighting, particles. Rows: Tone and highlight from mattes, lighting from normals; Particles (rain, snow, sparks).
+- **E4** (rank 51, 60 h, +1.44 points, needs E1) Node compositing graph. Rows: Node compositing graph.
 
 ## UI and input
 

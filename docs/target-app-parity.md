@@ -24,11 +24,11 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 | | Value | Kind |
 |---|---|---|
 | In-scope feature rows | 267 | counted |
-| Done / exceeds / partial / missing | 111 / 3 / 35 / 118 | counted |
+| Done / exceeds / partial / missing | 112 / 3 / 34 / 118 | counted |
 | Out of scope (not in any denominator) | 4 | counted |
-| **Row parity**, (D + X + ½·P) / rows | **49.3 %** | counted |
-| **Weighted parity**, area weights × size-weighted rows | **36.5 %** | counted |
-| Size-weighted parity over all rows, no area weights | 35.3 % | counted |
+| **Row parity**, (D + X + ½·P) / rows | **49.4 %** | counted |
+| **Weighted parity**, area weights × size-weighted rows | **36.7 %** | counted |
+| Size-weighted parity over all rows, no area weights | 35.5 % | counted |
 
 | Area | Weight | Rows | D | X | P | M | Out | Row parity | Effort parity |
 |---|---|---|---|---|---|---|---|---|---|
@@ -49,12 +49,12 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 | UI and workspace | 5 (5 %) | 14 | 5 | 1 | 4 | 4 | 0 | 57 % | 53 % |
 | Tablet and input | 4 (4 %) | 9 | 2 | 0 | 3 | 4 | 1 | 39 % | 35 % |
 | Collaboration and review | 2 (2 %) | 5 | 1 | 0 | 0 | 4 | 1 | 20 % | 11 % |
-| Stability and performance | 4 (4 %) | 10 | 6 | 1 | 2 | 1 | 0 | 80 % | 62 % |
+| Stability and performance | 4 (4 %) | 10 | 7 | 1 | 1 | 1 | 0 | 85 % | 69 % |
 <!-- parity:end -->
 
 ## How to read the map
 
-**Status** per row, checked against the code on `main` (2026-11-18, commit `85110d7`):
+**Status** per row, checked against the code on `main` (2026-11-18, commit `a4ed418`):
 
 | Code | Meaning | Credit |
 |---|---|---|
@@ -519,7 +519,7 @@ Weight: 4
 | Effects play back in real time | TV TB | P | M | 1080p, 4 effects: 24 fps; 4K drops frames ([performance.md](performance.md)) |
 | Large shots stay real time (4K, 240 drawings) | TV TB | D | S | Measured: 24.1 fps, 0 dropped |
 | Fast open and save of large shots | all | D | S | 4K 240-drawing shot loads in 0.12 s |
-| Memory bounded on very long shots | TV TB | P | M | Sparse tiles and budgets; no paging to disk |
+| Memory bounded on very long shots | TV TB | D | M | Drawings page to disk past a memory budget (1 GB by default); 2000-frame 4K shot scrubs at 317 MB peak ([performance.md](performance.md)) |
 | Effects rendered on the GPU | TV TB PD | M | L | **Ours:** craft-gpu (RFC-0022) with the CPU path as the oracle |
 
 ## Revision history
@@ -529,4 +529,4 @@ Weight: 4
 | 2026-11-17 | major | First map, written before the vertical slice; statuses set when the slice landed |
 | 2026-11-17 | major | Polish pass and second pass; rows added for the top gaps and interchange |
 | 2026-11-17 | minor | Rows flipped by the slices merged on 2026-11-17 (pegs, effects, compositing, sound, lip-sync, folders, timing, canvas tools, BoardCraft layout, brush library, effects performance) |
-| 2026-11-18 | major | Full-product map: 18 areas with weights, S/M/L/XL sizes, X and O statuses; every status re-checked against `main` at `85110d7`; weighted parity becomes the headline |
+| 2026-11-18 | major | Full-product map: 18 areas with weights, S/M/L/XL sizes, X and O statuses; every status re-checked against `main` at `a4ed418`; weighted parity becomes the headline |

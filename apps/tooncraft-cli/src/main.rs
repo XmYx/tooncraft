@@ -32,6 +32,7 @@ const USAGE: &str = "usage:
   tooncraft-cli run <file.toon> <commands.jsonl | ->
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
   tooncraft-cli check <file.toon>
+  tooncraft-cli scrub <file.toon>          step through every frame; time and memory (TOONCRAFT_PAGE_BUDGET_MB)
   tooncraft-cli bench [--json]
   tooncraft-cli bench --effects [--size WxH] [--frames N] [--threads N] [--json]
 ";
@@ -117,7 +118,12 @@ fn load(path: &Path) -> Result<Engine, String> {
             None => format!("the last save of {} was interrupted and there is no backup", path.display()),
         });
     }
-    tooncraft_format::load(path).map(Engine::new).map_err(|e| format!("{}: {e}", path.display()))
+    let budget = std::env::var("TOONCRAFT_PAGE_BUDGET_MB")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .map(|mb| mb << 20)
+        .unwrap_or(tooncraft_engine::paging::DEFAULT_PAGE_BUDGET);
+    Engine::open_paged(path, budget).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 fn info(e: &Engine) -> serde_json::Value {
@@ -190,6 +196,40 @@ fn run() -> Result<(), String> {
                 tooncraft_engine::demo::demo(w, h).map_err(|e| e.to_string())?
             };
             save(&rest.file(0)?, &e)
+        }
+        "scrub" => {
+            // step through every frame as playback does (read the drawings shown, page the rest)
+            // and report time and memory: the long-shot measurement in docs/performance.md
+            let t0 = std::time::Instant::now();
+            let mut e = load(&rest.file(0)?)?;
+            let load_s = t0.elapsed().as_secs_f64();
+            let len = e.project.length();
+            let t1 = std::time::Instant::now();
+            let mut worst = 0f64;
+            for f in 0..len {
+                let tf = std::time::Instant::now();
+                for li in 0..e.project.layers.len() {
+                    if let Some(d) = e.project.drawing_at(li, f) {
+                        let _ = e.project.drawing(d).map(|s| s.tile_count());
+                    }
+                }
+                e.page(f).map_err(|e| e.to_string())?;
+                worst = worst.max(tf.elapsed().as_secs_f64());
+            }
+            let scrub_s = t1.elapsed().as_secs_f64();
+            let peak = std::fs::read_to_string("/proc/self/status").ok().and_then(|s| {
+                s.lines().find(|l| l.starts_with("VmHWM")).map(|l| l.split_whitespace().nth(1).unwrap_or("0").parse::<u64>().unwrap_or(0) / 1024)
+            });
+            println!(
+                "{}",
+                serde_json::json!({
+                    "frames": len, "drawings": e.project.drawing_count(), "load_s": load_s,
+                    "scrub_ms_per_frame": scrub_s * 1000.0 / len.max(1) as f64, "scrub_worst_ms": worst * 1000.0,
+                    "resident_mb": e.project.memory_bytes() >> 20, "paged_drawings": e.project.paged_count(),
+                    "page_file_mb": e.paged_bytes() >> 20, "page_budget_mb": e.page_budget >> 20, "peak_rss_mb": peak,
+                })
+            );
+            Ok(())
         }
         "info" => {
             let e = load(&rest.file(0)?)?;
