@@ -25,6 +25,8 @@ pub enum Filter {
 /// The panel's state, kept in the app.
 pub struct State {
     pub library: Library,
+    /// The brush folder is read when the panel is first shown, not at startup.
+    pub scanned: bool,
     pub text: String,
     pub filter: Filter,
     /// The id of the highlighted brush.
@@ -40,7 +42,8 @@ pub struct State {
 impl State {
     pub fn new(dir: Option<std::path::PathBuf>) -> Self {
         State {
-            library: Library::new(dir),
+            library: Library::unscanned(dir),
+            scanned: false,
             text: String::new(),
             filter: Filter::All,
             selected: None,
@@ -64,7 +67,7 @@ impl State {
                     category: if let Filter::Category(c) = f { Some(c.clone()) } else { None },
                     favourites_only: *f == Filter::Favourites,
                 };
-                self.library.search(&q).into_iter().map(|e| e.id.clone()).collect()
+                self.library.search_by(&q, shown_name).into_iter().map(|e| e.id.clone()).collect()
             }
         }
     }
@@ -122,6 +125,11 @@ fn builtin_name(n: &str) -> String {
     }
 }
 
+/// The name a brush is shown under: built-in names are translated.
+fn shown_name(e: &tooncraft_engine::library::Entry) -> String {
+    if matches!(e.source, tooncraft_engine::library::Source::Builtin(_)) { builtin_name(&e.name) } else { e.name.clone() }
+}
+
 /// Use a library brush: it replaces the current brush of its kind, and the tool switches to it.
 /// A built-in brush keeps the current colour; a file brush brings its own.
 pub fn use_brush(app: &mut ToonApp, id: &str) {
@@ -162,7 +170,7 @@ fn toggle_favourite(app: &mut ToonApp, id: &str) {
     let on = !app.library.library.is_favourite(id);
     match app.library.library.set_favourite(id, on) {
         Ok(()) => {
-            let name = app.library.library.get(id).map(|e| e.name.clone()).unwrap_or_default();
+            let name = app.library.library.get(id).map(shown_name).unwrap_or_default();
             app.set_status(if on { tlf!("{name} is a favourite", name = name) } else { tlf!("{name} is no longer a favourite", name = name) });
         }
         Err(e) => app.set_status(e),
@@ -182,6 +190,10 @@ fn kind_label(k: BrushKind) -> String {
 }
 
 pub fn panel(app: &mut ToonApp, ui: &mut Ui) {
+    if !app.library.scanned {
+        app.library.scanned = true;
+        app.library.library.rescan();
+    }
     // search field: its keys are taken before the text field sees them (it would give up focus on
     // Enter and Escape itself)
     let mut surrender = false;
@@ -417,21 +429,26 @@ mod tests {
     }
 
     fn harness(dir: &std::path::Path) -> Harness<'static, ToonApp> {
+        let mut h = harness_closed(dir);
+        h.state_mut().workspace.raise(Pane::Library);
+        h.run();
+        h.run();
+        h
+    }
+
+    /// The window with the library panel still behind another tab.
+    fn harness_closed(dir: &std::path::Path) -> Harness<'static, ToonApp> {
         let ctx = egui::Context::default();
         let mut app = ToonApp::with_context(&ctx, Cli::default()).without_autosave();
         app.library = State::new(Some(dir.to_path_buf()));
-        let mut h = Harness::builder().with_size(egui::vec2(1500.0, 2000.0)).with_accessibility_check(true).build_ui_state(
+        Harness::builder().with_size(egui::vec2(1500.0, 2000.0)).with_accessibility_check(true).build_ui_state(
             |ui, app: &mut ToonApp| {
                 let ctx = ui.ctx().clone();
                 app.tick(&ctx);
                 app.draw(ui);
             },
             app,
-        );
-        h.state_mut().workspace.raise(Pane::Library);
-        h.run();
-        h.run();
-        h
+        )
     }
 
     fn names(h: &Harness<'static, ToonApp>) -> Vec<String> {
@@ -453,6 +470,21 @@ mod tests {
         h.get_by_label("Show Inks brushes");
         h.get(By::new().role(egui::Role::Button).label("Fine liner, Inks"));
         h.get(By::new().role(egui::Role::CheckBox).label("Add Fine liner to favourites"));
+    }
+
+    #[test]
+    fn the_brush_folder_is_read_when_the_panel_first_opens() {
+        let dir = temp("lazy");
+        Library::new(Some(dir.clone())).add("Mine", "Cat", &tooncraft_brush::Brush::default(), None).unwrap();
+        let mut h = harness_closed(&dir);
+        h.run();
+        assert!(!h.state().library.scanned);
+        assert!(h.state().library.library.get("file:Cat/Mine.toonbrush").is_none(), "startup does not read the folder");
+        h.state_mut().workspace.raise(Pane::Library);
+        h.run();
+        h.run();
+        assert!(h.state().library.scanned);
+        h.get(By::new().role(egui::Role::Button).label("Mine, Cat"));
     }
 
     #[test]

@@ -331,6 +331,29 @@ pub enum Command {
         index: usize,
         frame: u32,
     },
+    /// Use `drawing` for `mouth` in the layer's mouth chart (`None`: forget that mouth).
+    SetMouth {
+        layer: usize,
+        mouth: tooncraft_lipsync::Mouth,
+        #[serde(default)]
+        drawing: Option<tooncraft_doc::DrawingId>,
+    },
+    /// Detect mouths from the shot's sound and key the chart's drawings on the layer from
+    /// `from` (one undo step; edit the keys afterwards as usual).
+    LipSync {
+        layer: usize,
+        #[serde(default)]
+        from: u32,
+        #[serde(default)]
+        settings: tooncraft_lipsync::Settings,
+    },
+    /// Key a mouth timing sheet (ToonCraft mouth sheet or switch data) on the layer from `from`.
+    ImportMouthSheet {
+        layer: usize,
+        path: String,
+        #[serde(default)]
+        from: u32,
+    },
     /// An audio track's name, mute, solo and volume.
     SetAudioTrack {
         track: u32,
@@ -432,6 +455,42 @@ pub enum Command {
         opacity: Option<f32>,
         #[serde(default)]
         collapsed: Option<bool>,
+    },
+    /// Clip the layer to the layer below (it shows only where that layer has paint), or not.
+    SetLayerClip {
+        layer: usize,
+        clip: bool,
+    },
+    /// Lock a folder (and everything in it) against drawing and re-timing.
+    SetFolderLock {
+        name: String,
+        locked: bool,
+    },
+    /// Put a folder in another folder, or at the top (`None`). Loops are refused.
+    SetFolderParent {
+        name: String,
+        #[serde(default)]
+        parent: Option<String>,
+    },
+    /// A folder's label colour (`None`: no colour).
+    SetFolderColor {
+        name: String,
+        #[serde(default)]
+        color: Option<[u8; 3]>,
+    },
+    /// Rename a folder (its layers and folders follow).
+    RenameFolder {
+        name: String,
+        to: String,
+    },
+    /// A new folder (empty folders are kept until a layer leaves the last one in it), optionally
+    /// inside `parent`, holding `layers`.
+    AddFolder {
+        name: String,
+        #[serde(default)]
+        parent: Option<String>,
+        #[serde(default)]
+        layers: Vec<usize>,
     },
     SetLength {
         frames: u32,
@@ -554,6 +613,25 @@ fn edit_layers(e: &mut Engine, label: &str, edit: impl FnOnce(&mut Engine) -> Re
     }
 }
 
+fn folder_mut<'a>(p: &'a mut tooncraft_doc::Project, name: &str) -> std::result::Result<&'a mut tooncraft_doc::Folder, DocError> {
+    p.folders.iter_mut().find(|f| f.name == name).ok_or_else(|| DocError::NoFolder(name.to_string()))
+}
+
+/// Run `edit` on the project's folders as one undo step; on error they are restored.
+fn folders(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Project) -> std::result::Result<(), DocError>) -> Result<()> {
+    let before = e.project.folders.clone();
+    match edit(&mut e.project) {
+        Ok(()) => {
+            e.push(Entry { label: label.into(), parts: vec![Part::Folders(before)] });
+            Ok(())
+        }
+        Err(err) => {
+            e.project.folders = before;
+            Err(err.into())
+        }
+    }
+}
+
 /// Run `edit` on the project's pegs as one undo step; on error the pegs are restored.
 fn pegs(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Project) -> std::result::Result<(), DocError>) -> Result<()> {
     let before = e.project.pegs.clone();
@@ -637,8 +715,9 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }
         Command::InsertFrame { layer, frame } => edit_layers(e, "Insert frame", |e| {
             frame_ok(e, frame)?;
+            let locked: Vec<bool> = e.project.layers.iter().map(|l| e.project.is_locked(l)).collect();
             for (i, l) in e.project.layers.iter_mut().enumerate() {
-                if layer.is_none_or(|t| t == i) && !l.locked {
+                if layer.is_none_or(|t| t == i) && !locked.get(i).copied().unwrap_or(true) {
                     l.insert_frame(frame);
                 }
             }
@@ -646,8 +725,9 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }),
         Command::DeleteFrame { layer, frame } => edit_layers(e, "Delete frame", |e| {
             frame_ok(e, frame)?;
+            let locked: Vec<bool> = e.project.layers.iter().map(|l| e.project.is_locked(l)).collect();
             for (i, l) in e.project.layers.iter_mut().enumerate() {
-                if layer.is_none_or(|t| t == i) && !l.locked {
+                if layer.is_none_or(|t| t == i) && !locked.get(i).copied().unwrap_or(true) {
                     l.delete_frame(frame);
                 }
             }
@@ -884,6 +964,25 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             c.volume_keys.retain(|k| k.frame != frame);
             c.volume_keys.len() != n
         }),
+        Command::SetMouth { layer, mouth, drawing } => edit_layers(e, "Mouth chart", |e| {
+            if let Some(d) = drawing
+                && e.project.drawing(d).is_none()
+            {
+                return Err(EngineError::Import(format!("there is no drawing {}", d.0)));
+            }
+            let l = e.project.layer_mut(layer)?;
+            match drawing {
+                Some(d) => {
+                    l.mouth_chart.insert(mouth, d);
+                }
+                None => {
+                    l.mouth_chart.remove(&mouth);
+                }
+            }
+            Ok(())
+        }),
+        Command::LipSync { layer, from, settings } => crate::lipsync::detect(e, layer, from, settings).map(|_| ()),
+        Command::ImportMouthSheet { layer, path, from } => crate::lipsync::import(e, layer, &path, from).map(|_| ()),
         Command::SetAudioTrack { track, name, muted, solo, volume } => crate::audio::set_track(e, track, |t| {
             if let Some(v) = name {
                 t.name = v;
@@ -960,17 +1059,16 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
                 if e.project.folders.len() >= 512 {
                     return Err(DocError::TooManyLayers.into());
                 }
-                e.project.folders.push(tooncraft_doc::Folder { name, visible: true, opacity: 1.0, collapsed: false });
+                e.project.folders.push(tooncraft_doc::Folder::new(&name));
             }
-            // drop folders nobody is in
-            let used: Vec<String> = e.project.layers.iter().filter_map(|l| l.folder.clone()).collect();
-            e.project.folders.retain(|f| used.contains(&f.name));
+            // drop folders nobody is in (directly or through folders in them)
+            e.project.prune_folders();
             e.push(Entry { label: "Layer folder".into(), parts });
             Ok(())
         }
         Command::SetFolder { name, visible, opacity, collapsed } => {
             let before = Part::Folders(e.project.folders.clone());
-            let f = e.project.folders.iter_mut().find(|f| f.name == name).ok_or(DocError::NoLayer(usize::MAX))?;
+            let f = folder_mut(&mut e.project, &name)?;
             if let Some(v) = visible {
                 f.visible = v;
             }
@@ -981,6 +1079,78 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
                 f.collapsed = c;
             }
             e.push(Entry { label: "Folder".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::SetLayerClip { layer, clip } => edit_layers(e, "Clipping", |e| {
+            e.project.layer_mut(layer)?.clip = clip;
+            Ok(())
+        }),
+        Command::SetFolderLock { name, locked } => folders(e, "Lock folder", |p| {
+            folder_mut(p, &name)?.locked = locked;
+            Ok(())
+        }),
+        Command::SetFolderColor { name, color } => folders(e, "Folder colour", |p| {
+            folder_mut(p, &name)?.color = color;
+            Ok(())
+        }),
+        Command::SetFolderParent { name, parent } => folders(e, "Folder parent", |p| {
+            folder_mut(p, &name)?;
+            if let Some(q) = &parent {
+                if p.folder(q).is_none() {
+                    return Err(DocError::NoFolder(q.clone()));
+                }
+                if p.folder_would_loop(&name, q) {
+                    return Err(DocError::FolderLoop);
+                }
+            }
+            folder_mut(p, &name)?.parent = parent;
+            Ok(())
+        }),
+        Command::RenameFolder { name, to } => {
+            let to: String = to.chars().take(200).collect();
+            if to.trim().is_empty() || e.project.folder(&to).is_some() {
+                return Err(DocError::FolderName(to).into());
+            }
+            let parts = vec![Part::Folders(e.project.folders.clone()), Part::Layers(e.project.layers.clone())];
+            folder_mut(&mut e.project, &name)?.name = to.clone();
+            for f in &mut e.project.folders {
+                if f.parent.as_deref() == Some(name.as_str()) {
+                    f.parent = Some(to.clone());
+                }
+            }
+            for l in &mut e.project.layers {
+                if l.folder.as_deref() == Some(name.as_str()) {
+                    l.folder = Some(to.clone());
+                }
+            }
+            e.push(Entry { label: "Rename folder".into(), parts });
+            Ok(())
+        }
+        Command::AddFolder { name, parent, layers } => {
+            let name: String = name.chars().take(200).collect();
+            if name.trim().is_empty() || e.project.folder(&name).is_some() {
+                return Err(DocError::FolderName(name).into());
+            }
+            if e.project.folders.len() >= tooncraft_doc::MAX_FOLDERS {
+                return Err(EngineError::Limit("folders"));
+            }
+            if let Some(q) = &parent {
+                if e.project.folder(q).is_none() {
+                    return Err(DocError::NoFolder(q.clone()).into());
+                }
+                if e.project.folder_depth(q) + 1 >= tooncraft_doc::MAX_FOLDER_DEPTH {
+                    return Err(DocError::FolderLoop.into());
+                }
+            }
+            for &l in &layers {
+                e.project.layer(l)?;
+            }
+            let parts = vec![Part::Folders(e.project.folders.clone()), Part::Layers(e.project.layers.clone())];
+            e.project.folders.push(tooncraft_doc::Folder { parent, ..tooncraft_doc::Folder::new(&name) });
+            for l in layers {
+                e.project.layer_mut(l)?.folder = Some(name.clone());
+            }
+            e.push(Entry { label: "New folder".into(), parts });
             Ok(())
         }
         Command::SetLength { frames } => {

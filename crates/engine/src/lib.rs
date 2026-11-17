@@ -16,6 +16,7 @@ pub mod export;
 mod import;
 mod interchange;
 pub mod library;
+pub mod lipsync;
 pub mod playback;
 pub mod preset;
 pub mod select;
@@ -177,7 +178,7 @@ impl Engine {
 
     pub(crate) fn check_unlocked(&self, layer: usize) -> Result<()> {
         let l = self.project.layer(layer)?;
-        if l.locked {
+        if self.project.is_locked(l) {
             return Err(EngineError::Locked(l.name.clone()));
         }
         Ok(())

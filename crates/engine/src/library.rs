@@ -22,6 +22,8 @@ pub const MY_BRUSHES: &str = "My brushes";
 /// Most recent brushes kept.
 pub const MAX_RECENT: usize = 16;
 const MAX_FILES: usize = 2000;
+/// Paths collected before the list is sorted and cut to `MAX_FILES`.
+const MAX_COLLECT: usize = MAX_FILES * 3;
 const INDEX: &str = "library.json";
 
 /// Where a library brush comes from.
@@ -34,7 +36,9 @@ pub enum Source {
 /// One brush of the library.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Entry {
-    /// Stable id: `builtin:<name>` or `file:<category>/<file name>`.
+    /// Stable id: `builtin:<name>`, `file:<category>/<file name>`, or `file:<file name>` for a file
+    /// directly in the library folder (so a folder that is called "My brushes" cannot clash with
+    /// the loose files).
     pub id: String,
     pub name: String,
     pub category: String,
@@ -77,9 +81,21 @@ pub fn builtin() -> Vec<(String, &'static str, Brush)> {
     ]
 }
 
+/// Names Windows cannot create as a file or folder, whatever the extension.
+fn is_reserved(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or("").trim_end().to_ascii_uppercase();
+    matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || (stem.len() == 4 && (stem.starts_with("COM") || stem.starts_with("LPT")) && stem.chars().nth(3).is_some_and(|c| ('1'..='9').contains(&c)))
+}
+
+/// A name that is safe as a file or folder name everywhere: separators, characters Windows
+/// refuses, control characters, leading dots and trailing dots or spaces are removed, the length
+/// is capped, and a name Windows reserves (`NUL`, `COM1`, …) gets an underscore in front.
 fn clean_name(name: &str, max: usize) -> String {
     let s: String = name.chars().filter(|c| !c.is_control() && !matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|')).collect();
-    s.trim().trim_start_matches('.').trim().chars().take(max).collect()
+    let s: String = s.trim().trim_start_matches('.').trim().chars().take(max).collect();
+    let s = s.trim_end_matches(['.', ' ']).to_string();
+    if is_reserved(&s) { format!("_{s}") } else { s }
 }
 
 /// A category name that is safe as a folder name: path separators, dots at the start, control
@@ -114,9 +130,17 @@ pub struct Library {
 impl Library {
     /// The built-in brushes plus the brushes found in `dir` (if any).
     pub fn new(dir: Option<PathBuf>) -> Self {
+        let mut l = Library::unscanned(dir);
+        l.rescan();
+        l
+    }
+
+    /// The built-in brushes and the saved favourites and recents, without reading the brush files
+    /// yet (that is [`Library::rescan`]): opening the app does not touch the folder.
+    pub fn unscanned(dir: Option<PathBuf>) -> Self {
         let mut l = Library { dir, ..Default::default() };
         l.load_index();
-        l.rescan();
+        l.entries = Library::builtin_entries();
         l
     }
 
@@ -132,9 +156,8 @@ impl Library {
         self.entries.iter().find(|e| e.id == id)
     }
 
-    /// Read the library folder again.
-    pub fn rescan(&mut self) {
-        let mut entries: Vec<Entry> = builtin()
+    fn builtin_entries() -> Vec<Entry> {
+        builtin()
             .into_iter()
             .map(|(name, category, brush)| Entry {
                 id: format!("builtin:{name}"),
@@ -143,7 +166,12 @@ impl Library {
                 kind: brush.kind,
                 source: Source::Builtin(brush),
             })
-            .collect();
+            .collect()
+    }
+
+    /// Read the library folder again.
+    pub fn rescan(&mut self) {
+        let mut entries = Library::builtin_entries();
         if let Some(dir) = &self.dir {
             let mut files = Vec::new();
             collect(dir, 0, &mut files);
@@ -152,12 +180,12 @@ impl Library {
                 let Ok((name, kind)) = preset::peek(&f) else { continue };
                 let rel = f.strip_prefix(dir).unwrap_or(&f);
                 let parts: Vec<String> = rel.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect();
-                let (category, file) = match parts.as_slice() {
-                    [file] => (MY_BRUSHES.to_string(), file.clone()),
-                    [cat, file] => (cat.clone(), file.clone()),
+                let (category, id) = match parts.as_slice() {
+                    [file] => (MY_BRUSHES.to_string(), format!("file:{file}")),
+                    [cat, file] => (cat.clone(), format!("file:{cat}/{file}")),
                     _ => continue,
                 };
-                entries.push(Entry { id: format!("file:{category}/{file}"), name, category, kind, source: Source::File(f) });
+                entries.push(Entry { id, name, category, kind, source: Source::File(f) });
             }
         }
         self.entries = entries;
@@ -181,20 +209,28 @@ impl Library {
     /// The brushes matching `q`, best matches first: a name with a word that starts with the text,
     /// then a name that contains it, then the rest in library order.
     pub fn search(&self, q: &Query) -> Vec<&Entry> {
+        self.search_by(q, |e| e.name.clone())
+    }
+
+    /// [`Library::search`] with the name each brush is shown under (the translated one): the text
+    /// matches that name, the stored name, the category and the kind.
+    pub fn search_by(&self, q: &Query, display: impl Fn(&Entry) -> String) -> Vec<&Entry> {
         let words: Vec<String> = q.text.to_lowercase().split_whitespace().map(str::to_string).collect();
         let mut hits: Vec<(u8, usize, &Entry)> = Vec::new();
         for (i, e) in self.entries.iter().enumerate() {
             if q.category.as_deref().is_some_and(|c| c != e.category) || q.favourites_only && !self.favourites.contains(&e.id) {
                 continue;
             }
+            let shown = display(e).to_lowercase();
             let name = e.name.to_lowercase();
-            let hay = format!("{name} {} {:?}", e.category.to_lowercase(), e.kind).to_lowercase();
+            let hay = format!("{shown} {name} {} {:?}", e.category.to_lowercase(), e.kind).to_lowercase();
             if !words.iter().all(|w| hay.contains(w.as_str())) {
                 continue;
             }
-            let rank = if words.iter().all(|w| name.split_whitespace().any(|n| n.starts_with(w.as_str()))) {
+            let starts = |n: &str, w: &String| n.split_whitespace().any(|x| x.starts_with(w.as_str()));
+            let rank = if words.iter().all(|w| starts(&name, w) || starts(&shown, w)) {
                 0
-            } else if words.iter().all(|w| name.contains(w.as_str())) {
+            } else if words.iter().all(|w| name.contains(w.as_str()) || shown.contains(w.as_str())) {
                 1
             } else {
                 2
@@ -271,7 +307,7 @@ impl Library {
         preset::save(&path, name, brush, tip)?;
         self.rescan();
         let file = path.file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
-        Ok(format!("file:{category}/{file}"))
+        Ok(if category == MY_BRUSHES { format!("file:{file}") } else { format!("file:{category}/{file}") })
     }
 
     /// Copy a `.toonbrush` file into the library under `category`; returns its id.
@@ -308,10 +344,14 @@ impl Library {
     }
 }
 
-/// Preset files in `dir` and one level of folders below it.
+/// Preset files in `dir` and one level of folders below it; collecting stops at `MAX_COLLECT`
+/// paths, so a crafted folder cannot make the scan list millions of entries.
 fn collect(dir: &Path, depth: u32, out: &mut Vec<PathBuf>) {
     let Ok(read) = std::fs::read_dir(dir) else { return };
     for entry in read.flatten().take(5000) {
+        if out.len() >= MAX_COLLECT {
+            return;
+        }
         let path = entry.path();
         let Ok(meta) = std::fs::symlink_metadata(&path) else { continue };
         if meta.is_dir() && depth == 0 {
@@ -434,7 +474,7 @@ mod tests {
         let id = l.add("Dusty", "Textures", &brush, None).unwrap();
         assert_eq!(id, "file:Textures/Dusty.toonbrush");
         let loose = l.add("Loose", "", &brush, None).unwrap();
-        assert_eq!(loose, "file:My brushes/Loose.toonbrush");
+        assert_eq!(loose, "file:Loose.toonbrush");
         assert!(d.join("Textures/Dusty.toonbrush").is_file() && d.join("Loose.toonbrush").is_file());
         // a second brush of the same name gets a number instead of overwriting
         let second = l.add("Dusty", "Textures", &Brush { size: 9.0, ..brush }, None).unwrap();
@@ -477,6 +517,95 @@ mod tests {
         assert!(l.add("x", "y", &brush, None).is_ok());
         // no folder, no files
         assert!(Library::new(None).add("x", "y", &brush, None).is_err());
+    }
+
+    #[test]
+    fn windows_reserved_names_and_trailing_dots_are_made_safe() {
+        for (name, want) in [
+            ("nul", "_nul"),
+            ("CON", "_CON"),
+            ("com1", "_com1"),
+            ("Lpt9.txt", "_Lpt9.txt"),
+            ("aux ", "_aux"),
+            ("COM0", "COM0"),
+            ("console", "console"),
+            ("name. . ", "name"),
+            ("...", ""),
+        ] {
+            assert_eq!(clean_name(name, 40), want, "{name:?}");
+        }
+        assert_eq!(clean_category("nul"), "_nul");
+        assert_eq!(clean_category("\u{0}nul"), "_nul");
+        let d = dir("reserved");
+        let mut l = Library::new(Some(d.clone()));
+        let id = l.add("PRN", "AUX", &Brush::default(), None).unwrap();
+        assert_eq!(id, "file:_AUX/_PRN.toonbrush");
+        assert!(d.join("_AUX/_PRN.toonbrush").is_file());
+    }
+
+    #[test]
+    fn a_folder_called_my_brushes_does_not_clash_with_loose_files() {
+        let d = dir("clash");
+        let mut l = Library::new(Some(d.clone()));
+        let loose = l.add("Same", "", &Brush { size: 11.0, ..Brush::default() }, None).unwrap();
+        std::fs::create_dir_all(d.join("My brushes")).unwrap();
+        std::fs::copy(d.join("Same.toonbrush"), d.join("My brushes/Same.toonbrush")).unwrap();
+        l.rescan();
+        let same: Vec<&Entry> = l.entries().iter().filter(|e| e.name == "Same").collect();
+        assert_eq!(same.len(), 2);
+        assert_ne!(same[0].id, same[1].id);
+        assert!(same.iter().all(|e| e.category == MY_BRUSHES));
+        assert_eq!(loose, "file:Same.toonbrush");
+        assert!(l.get("file:My brushes/Same.toonbrush").is_some() && l.get("file:Same.toonbrush").is_some());
+    }
+
+    #[test]
+    fn search_matches_the_shown_name_as_well() {
+        let l = Library::new(None);
+        let q = Query { text: "bleistift".into(), ..Default::default() };
+        assert!(l.search(&q).is_empty());
+        let shown = |e: &Entry| match e.name.as_str() {
+            "Pencil" => "Bleistift".to_string(),
+            "Soft pencil" => "Weicher Bleistift".to_string(),
+            n => n.to_string(),
+        };
+        let hits: Vec<String> = l.search_by(&q, shown).into_iter().map(|e| e.name.clone()).collect();
+        assert_eq!(hits, vec!["Pencil", "Soft pencil"], "the translated word matches, the shorter name leads");
+        // the stored name still matches
+        assert!(!l.search_by(&Query { text: "soft pen".into(), ..Default::default() }, shown).is_empty());
+    }
+
+    #[test]
+    fn opening_does_not_read_brush_files_until_asked() {
+        let d = dir("lazy");
+        let mut l = Library::new(Some(d.clone()));
+        l.add("Mine", "Cat", &Brush::default(), None).unwrap();
+        let fresh = Library::unscanned(Some(d));
+        assert!(fresh.entries().iter().all(|e| e.id.starts_with("builtin:")), "only the built-ins before a scan");
+        let mut fresh = fresh;
+        fresh.rescan();
+        assert!(fresh.get("file:Cat/Mine.toonbrush").is_some());
+        // a large file is not listed
+        let big = dir("big");
+        let p = big.join("huge.toonbrush");
+        std::fs::write(&p, vec![0u8; (preset::MAX_PEEK_BYTES + 1) as usize]).unwrap();
+        assert!(preset::peek(&p).unwrap_err().contains("too large"));
+    }
+
+    #[test]
+    fn collecting_stops_at_a_bound() {
+        let d = dir("collect");
+        for f in 0..4 {
+            let sub = d.join(format!("c{f}"));
+            std::fs::create_dir_all(&sub).unwrap();
+            for i in 0..(MAX_COLLECT / 3 + 100) {
+                std::fs::write(sub.join(format!("{i}.toonbrush")), b"").unwrap();
+            }
+        }
+        let mut out = Vec::new();
+        collect(&d, 0, &mut out);
+        assert!(out.len() <= MAX_COLLECT + 1, "{}", out.len());
+        assert!(out.len() >= MAX_COLLECT);
     }
 
     #[test]

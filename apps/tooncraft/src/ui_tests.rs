@@ -598,3 +598,88 @@ fn sound_panel_mixes_tracks_and_dragging_the_playhead_scrubs() {
     assert!(h.state().frame > 0, "the playhead followed the drag");
     assert!(h.state().sound.is_playing(), "dragging the playhead scrubs the sound");
 }
+
+#[test]
+fn lip_sync_panel_builds_a_chart_and_keys_mouths_from_sound() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-ui-lips-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let rate = 22_050u32;
+    let gain = |f: f32| 1.0 / (1.0 + ((f - 800.0) / 90.0).powi(2)) + 0.7 / (1.0 + ((f - 1250.0) / 110.0).powi(2));
+    let mut voice = vec![0.0f32; rate as usize / 4];
+    voice.extend(
+        (0..rate as usize / 2)
+            .map(|i| (1..34).map(|k| gain(k as f32 * 120.0) * (std::f32::consts::TAU * k as f32 * 120.0 * i as f32 / rate as f32).sin()).sum::<f32>() * 0.05),
+    );
+    voice.extend(vec![0.0; rate as usize / 2]);
+    let wav = craft_audio::encode(
+        &craft_audio::AudioBuffer { sample_rate: rate, channels: vec![voice] },
+        &craft_audio::EncodeOptions::new(craft_audio::EncodeFormat::Wav),
+    )
+    .unwrap();
+    let path = dir.join("hello.wav");
+    std::fs::write(&path, wav).unwrap();
+    let mut h = harness_sized(false, egui::vec2(1500.0, 2200.0));
+    h.state_mut().run(tooncraft_engine::Command::AddSound { path: path.to_string_lossy().into_owned(), offset: 0, track: 0 });
+    for frame in [0, 1] {
+        h.state_mut().run(tooncraft_engine::Command::NewDrawing { layer: 0, frame });
+    }
+    h.state_mut().workspace.raise(crate::dock::Pane::LipSync);
+    h.run();
+    h.get_by_label("Use for Rest").click();
+    h.run();
+    h.state_mut().frame = 1;
+    h.run();
+    h.get_by_label("Use for Open (A I)").click();
+    h.run();
+    assert_eq!(h.state().engine.project.layers[0].mouth_chart.len(), 2);
+    h.get_by_label("Detect Mouths from Sound").click();
+    h.run();
+    assert_eq!(h.state().engine.undo_label(), Some("Lip sync"));
+    let p = &h.state().engine.project;
+    let open = p.layers[0].mouth_chart[&tooncraft_lipsync::Mouth::Open];
+    assert_eq!(p.drawing_at(0, 12), Some(open), "the vowel opens the mouth");
+}
+
+#[test]
+fn nested_folders_fold_lock_clip_and_filter_the_timeline() {
+    let mut h = harness(true);
+    h.state_mut().workspace.raise(crate::dock::Pane::Layers);
+    h.run();
+    // the demo's current layer is the top one ("Ink"); put it in a folder, then a folder in that
+    h.get_by_label("New Folder").click();
+    h.run();
+    h.get_by_label("New Folder").click();
+    h.run();
+    let p = &h.state().engine.project;
+    assert_eq!(p.folders.len(), 2);
+    assert_eq!(p.folder_depth("Folder 2"), 1, "the second folder is inside the first");
+    h.get(By::new().role(egui::Role::Button).label_contains("Folder 1 › Folder 2 › Ink"));
+    // lock the outer folder: drawing on the layer is refused
+    h.get_by_label("Lock Folder 1").click();
+    h.run();
+    let li = h.state().layer;
+    assert!(h.state().engine.project.is_locked(&h.state().engine.project.layers[li]));
+    h.get_by_label("Lock Folder 1").click();
+    h.run();
+    // clip to the layer below
+    h.get_by_label("Clip to the layer below").click();
+    h.run();
+    assert!(h.state().engine.project.layers[li].clip);
+    assert!(h.state().blend_cache.is_some(), "clipping uses the CPU composite");
+    // folding hides the layer's row once another layer is current
+    h.get_by_label("Fold Folder 1").click();
+    h.run();
+    assert!(h.state().engine.project.folder("Folder 1").is_some_and(|f| f.collapsed), "{:?} {}", h.state().engine.project.folders, h.state().status);
+    h.state_mut().layer = 0;
+    h.run();
+    h.run();
+    let names: Vec<String> = h.query_all_by_label_contains("Ink, frame 1:").map(|n| format!("{:?}", n)).collect();
+    assert!(names.is_empty(), "folded rows leave the timeline: {names:?} rows {:?} layer {li}", crate::layer_tree::rows(h.state()));
+    assert!(!crate::layer_tree::rows(h.state()).contains(&li));
+    // the label filter
+    h.get(By::new().role(egui::Role::ComboBox).label("Show layers labelled"));
+    h.state_mut().run(tooncraft_engine::Command::SetLayerColor { layer: 0, color: Some([10, 200, 10]) });
+    h.state_mut().layer_ui.filter = Some([10, 200, 10]);
+    h.run();
+    assert_eq!(crate::layer_tree::rows(h.state()), vec![0]);
+}

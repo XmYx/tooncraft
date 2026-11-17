@@ -1,0 +1,1 @@
+- 2026-11-17: Layers: nested folders with show, lock, fold, opacity and label colours; the timeline follows folders (path, colour stripes, folded rows hidden); clipping layers; a label-colour filter for the layer list and timeline.

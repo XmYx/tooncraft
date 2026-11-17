@@ -1,0 +1,17 @@
+[package]
+name = "tooncraft-lipsync"
+description = "ToonCraft lip-sync assist: mouth shapes from a voice recording (loudness, noise and formant rules, no model, no network) and mouth timing sheets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

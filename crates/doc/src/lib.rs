@@ -78,6 +78,12 @@ pub enum DocError {
     NoPeg(u64),
     #[error("a peg cannot hang from itself or from a peg below it")]
     PegLoop,
+    #[error("there is no folder “{0}”")]
+    NoFolder(String),
+    #[error("a folder cannot go inside itself or a folder inside it, or nest deeper than {MAX_FOLDER_DEPTH}")]
+    FolderLoop,
+    #[error("“{0}” cannot be used as a folder name (empty or taken)")]
+    FolderName(String),
 }
 
 pub type Result<T> = std::result::Result<T, DocError>;
@@ -118,6 +124,13 @@ pub struct Layer {
     /// next matte) to its own shape, or to everything outside it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub matte: Option<Matte>,
+    /// The layer's mouth chart for lip sync: which drawing shows each mouth.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub mouth_chart: BTreeMap<tooncraft_lipsync::Mouth, DrawingId>,
+    /// Clipped to the layer below: shows only where that layer (the base of its clipping group)
+    /// has paint.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub clip: bool,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
 }
@@ -224,6 +237,26 @@ pub struct Folder {
     /// Its layers are hidden in the timeline and layer list (not in the picture).
     #[serde(default)]
     pub collapsed: bool,
+    /// Its layers (and the folders in it) cannot be drawn on or re-timed.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub locked: bool,
+    /// The folder it is in (folders nest).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+    /// Label colour (straight RGB).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<[u8; 3]>,
+}
+
+/// Deepest nesting of folders.
+pub const MAX_FOLDER_DEPTH: usize = 16;
+/// Most folders in a project.
+pub const MAX_FOLDERS: usize = 512;
+
+impl Folder {
+    pub fn new(name: &str) -> Self {
+        Self { name: name.chars().take(200).collect(), visible: true, opacity: 1.0, collapsed: false, locked: false, parent: None, color: None }
+    }
 }
 
 /// Paper (background) settings.
@@ -403,6 +436,7 @@ impl Project {
                 k.opacity = if k.opacity.is_finite() { k.opacity.clamp(0.0, 1.0) } else { 1.0 };
             }
             layer.opacity_keys = keys;
+            layer.mouth_chart.retain(|_, d| p.drawings.contains_key(d));
             if !seen.insert(layer.id) {
                 layer.id = LayerId(u64::MAX); // fixed below
             }
@@ -495,6 +529,8 @@ impl Project {
                 effects: Vec::new(),
                 opacity_keys: Vec::new(),
                 matte: None,
+                mouth_chart: BTreeMap::new(),
+                clip: false,
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );
@@ -579,15 +615,100 @@ impl Project {
 
     /// The folder a layer is in.
     pub fn folder_of(&self, layer: &Layer) -> Option<&Folder> {
-        layer.folder.as_ref().and_then(|n| self.folders.iter().find(|f| &f.name == n))
+        layer.folder.as_ref().and_then(|n| self.folder(n))
     }
 
-    /// Visible after its folder's visibility, and its opacity times the folder's.
-    pub fn effective(&self, layer: &Layer) -> (bool, f32) {
-        match self.folder_of(layer) {
-            Some(f) => (layer.visible && f.visible, layer.opacity * f.opacity.clamp(0.0, 1.0)),
-            None => (layer.visible, layer.opacity),
+    pub fn folder(&self, name: &str) -> Option<&Folder> {
+        self.folders.iter().find(|f| f.name == name)
+    }
+
+    /// A folder and the folders it is in, innermost first (stops at loops and
+    /// [`MAX_FOLDER_DEPTH`]).
+    pub fn folder_chain(&self, name: Option<&str>) -> Vec<&Folder> {
+        let mut out: Vec<&Folder> = Vec::new();
+        let mut next = name;
+        while let Some(n) = next {
+            if out.len() >= MAX_FOLDER_DEPTH || out.iter().any(|f| f.name == n) {
+                break;
+            }
+            let Some(f) = self.folder(n) else { break };
+            out.push(f);
+            next = f.parent.as_deref();
         }
+        out
+    }
+
+    /// Whether putting folder `name` in `parent` would make a loop or nest too deep.
+    pub fn folder_would_loop(&self, name: &str, parent: &str) -> bool {
+        let chain = self.folder_chain(Some(parent));
+        chain.iter().any(|f| f.name == name) || chain.len() >= MAX_FOLDER_DEPTH
+    }
+
+    /// How deep a folder is nested (0: at the top).
+    pub fn folder_depth(&self, name: &str) -> usize {
+        self.folder_chain(Some(name)).len().saturating_sub(1)
+    }
+
+    /// Visible after its folders' visibility, and its opacity times theirs.
+    pub fn effective(&self, layer: &Layer) -> (bool, f32) {
+        let mut visible = layer.visible;
+        let mut opacity = layer.opacity;
+        for f in self.folder_chain(layer.folder.as_deref()) {
+            visible &= f.visible;
+            opacity *= f.opacity.clamp(0.0, 1.0);
+        }
+        (visible, opacity)
+    }
+
+    /// Locked itself or through one of its folders.
+    pub fn is_locked(&self, layer: &Layer) -> bool {
+        layer.locked || self.folder_chain(layer.folder.as_deref()).iter().any(|f| f.locked)
+    }
+
+    /// Hidden in the timeline and layer list because a folder it is in is collapsed.
+    pub fn is_collapsed(&self, layer: &Layer) -> bool {
+        self.folder_chain(layer.folder.as_deref()).iter().any(|f| f.collapsed)
+    }
+
+    /// Repair folders read from a file: unique names, bounded count, no loops, no missing
+    /// parents; layers in missing folders come out.
+    pub fn set_folders(&mut self, folders: Vec<Folder>) {
+        let mut seen = std::collections::BTreeSet::new();
+        let mut list: Vec<Folder> = folders.into_iter().filter(|f| seen.insert(f.name.clone())).take(MAX_FOLDERS).collect();
+        for f in &mut list {
+            f.opacity = if f.opacity.is_finite() { f.opacity.clamp(0.0, 1.0) } else { 1.0 };
+            if f.parent.as_ref().is_some_and(|p| !seen.contains(p) || *p == f.name) {
+                f.parent = None;
+            }
+        }
+        self.folders = list;
+        // break loops: each link is kept only if the chain above it does not lead back
+        for i in 0..self.folders.len() {
+            if let Some(p) = self.folders[i].parent.clone() {
+                let name = self.folders[i].name.clone();
+                self.folders[i].parent = None;
+                if !self.folder_would_loop(&name, &p) {
+                    self.folders[i].parent = Some(p);
+                }
+            }
+        }
+        let names: Vec<String> = self.folders.iter().map(|f| f.name.clone()).collect();
+        for l in &mut self.layers {
+            if l.folder.as_ref().is_some_and(|n| !names.contains(n)) {
+                l.folder = None;
+            }
+        }
+    }
+
+    /// Drop folders that hold no layer, directly or through folders in them.
+    pub fn prune_folders(&mut self) {
+        let mut used = std::collections::BTreeSet::new();
+        for l in &self.layers {
+            for f in self.folder_chain(l.folder.as_deref()) {
+                used.insert(f.name.clone());
+            }
+        }
+        self.folders.retain(|f| used.contains(&f.name));
     }
 
     /// As [`Project::effective`], with the layer's opacity keys at `frame`.

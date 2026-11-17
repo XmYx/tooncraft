@@ -64,11 +64,15 @@ pub fn save(path: &Path, name: &str, brush: &Brush, tip: Option<&Tip>) -> Result
     craft_atomic::atomic_write(path, &zip.finish().map_err(z)?).map_err(|e| e.to_string())
 }
 
+/// Largest preset file the library lists (a preset with a few images is far smaller; bigger ones
+/// can still be loaded directly).
+pub const MAX_PEEK_BYTES: u64 = 16 << 20;
+
 /// A preset's name and brush kind without decoding its images (the library lists many files).
 pub fn peek(path: &Path) -> Result<(String, tooncraft_brush::BrushKind), String> {
     let meta = std::fs::metadata(path).map_err(|e| e.to_string())?;
-    if meta.len() > 64 << 20 {
-        return Err("the preset file is too large".into());
+    if meta.len() > MAX_PEEK_BYTES {
+        return Err("the preset file is too large to list".into());
     }
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
     if craft_zip::stored_mimetype(&bytes) != Some(MIMETYPE.as_bytes()) {

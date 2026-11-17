@@ -17,6 +17,7 @@ tooncraft-raster = { workspace = true }
 tooncraft-brush = { workspace = true }
 tooncraft-doc = { workspace = true }
 tooncraft-fx = { workspace = true }
+tooncraft-lipsync = { workspace = true }
 tooncraft-format = { workspace = true }
 tooncraft-engine = { workspace = true }
 tooncraft-interop = { workspace = true }

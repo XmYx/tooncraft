@@ -100,6 +100,38 @@ impl RgbaImage {
         out
     }
 
+    /// Composite `top` (same size) onto this image only where it already has paint, keeping
+    /// this image's coverage ("atop": clipping layers on their base).
+    pub fn atop_image(&mut self, top: &RgbaImage, mode: BlendMode) {
+        if top.width != self.width || top.height != self.height {
+            return;
+        }
+        for (d, s) in self.data.as_chunks_mut::<4>().0.iter_mut().zip(top.data.as_chunks::<4>().0.iter()) {
+            if s[3] == 0 || d[3] == 0 {
+                continue;
+            }
+            let src = crate::scale_alpha(*s, d[3]);
+            let mut b = blend(*d, src, mode);
+            b[3] = d[3];
+            for k in 0..3 {
+                b[k] = b[k].min(b[3]);
+            }
+            *d = b;
+        }
+    }
+
+    /// A copy with every pixel's coverage scaled by `opacity` (0…1).
+    pub fn scaled(&self, opacity: f32) -> RgbaImage {
+        let o = (opacity.clamp(0.0, 1.0) * 255.0).round() as u8;
+        let mut out = self.clone();
+        if o < 255 {
+            for d in out.data.as_chunks_mut::<4>().0.iter_mut() {
+                *d = crate::scale_alpha(*d, o);
+            }
+        }
+        out
+    }
+
     /// Straight (non-premultiplied) RGBA bytes, for encoders.
     pub fn to_straight(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(self.data.len());

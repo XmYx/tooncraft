@@ -310,16 +310,17 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Project> {
     let mut p = Project::from_parts(pj.name, (pj.width, pj.height), pj.fps, pj.length, pj.paper, pj.layers, drawings, pj.onion, pj.light_table)?;
     p.camera = pj.camera.sanitized(p.width(), p.height());
     p.set_pegs(pj.pegs);
-    p.folders = pj
-        .folders
-        .into_iter()
-        .take(512)
-        .map(|mut f| {
-            f.name = f.name.chars().take(200).collect();
-            f.opacity = if f.opacity.is_finite() { f.opacity.clamp(0.0, 1.0) } else { 1.0 };
-            f
-        })
-        .collect();
+    p.set_folders(
+        pj.folders
+            .into_iter()
+            .take(tooncraft_doc::MAX_FOLDERS)
+            .map(|mut f| {
+                f.name = f.name.chars().take(200).collect();
+                f.parent = f.parent.map(|p| p.chars().take(200).collect());
+                f
+            })
+            .collect(),
+    );
     if m.tips.len() > 256 {
         return Err(FormatError::TooLarge(format!("{} brush tips", m.tips.len())));
     }

@@ -169,6 +169,8 @@ mod tests {
             effects: Vec::new(),
             opacity_keys: Vec::new(),
             matte: None,
+            mouth_chart: Default::default(),
+            clip: false,
             cells,
         }
     }
