@@ -787,3 +787,21 @@ fn board_import_in_the_menu_and_timeline() {
     h.get(By::new().role(egui::Role::Cell).label_contains("Boards: Boats, frame 1: drawing"));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn long_shots_page_drawings_out_while_playing() {
+    let mut h = harness(true);
+    h.run();
+    let before = tooncraft_doc::render_frame(&h.state().engine.project, 5, tooncraft_doc::RenderOptions::default());
+    // a budget far below the demo's drawings: at the last frame the tick pages out the drawings
+    // more than 12 frames back
+    h.state_mut().frame = 23;
+    h.state_mut().engine.page_budget = 1;
+    h.run();
+    assert!(h.state().engine.project.paged_count() > 0);
+    h.state_mut().frame = 5;
+    h.run();
+    h.get(By::new().role(egui::Role::Canvas).label_contains("frame 6"));
+    let after = tooncraft_doc::render_frame(&h.state().engine.project, 5, tooncraft_doc::RenderOptions::default());
+    assert_eq!(before, after, "paged drawings read back unchanged");
+}

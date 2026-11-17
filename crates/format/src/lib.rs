@@ -203,7 +203,7 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             pegs: p.pegs.clone(),
             marks: p.marks.iter().map(|(d, m)| MarkEntry { drawing: *d, mark: *m }).collect(),
         },
-        drawings: p.drawings().map(|(id, s)| DrawingEntry { id, tiles: s.tile_count() as u32 }).collect(),
+        drawings: Vec::new(),
         soundtrack: None,
         sounds: p
             .sounds
@@ -229,12 +229,16 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
         audio_tracks: p.audio_tracks.clone(),
         tips: p.tips.iter().map(|(id, t)| TipEntry { id: *id, name: t.name.clone(), width: t.width, height: t.height }).collect(),
     };
-    let json = serde_json::to_vec_pretty(&manifest).map_err(|e| FormatError::Damaged(e.to_string()))?;
+    let mut manifest = manifest;
     let mut zip = craft_zip::Writer::new();
     let z = |e: craft_zip::Error| FormatError::Damaged(e.to_string());
     zip.add("mimetype", MIMETYPE.as_bytes(), craft_zip::Compression::Stored).map_err(z)?;
-    zip.add("project.json", &json, craft_zip::Compression::Deflated).map_err(z)?;
-    for (id, s) in p.drawings() {
+    // Drawings one at a time: a paged drawing is read back for its entry and dropped again, so
+    // saving a long shot does not load it all.
+    let mut entries = Vec::with_capacity(p.drawing_count());
+    for id in p.drawing_ids() {
+        let Some(s) = p.drawing_owned(id)? else { continue };
+        entries.push(DrawingEntry { id, tiles: s.tile_count() as u32 });
         let mut blob = Vec::with_capacity(8 + s.tile_count() * (4 + TILE_BYTES));
         blob.extend_from_slice(TILE_MAGIC);
         blob.extend_from_slice(&(s.tile_count() as u32).to_le_bytes());
@@ -244,6 +248,9 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
         }
         zip.add(&entry_name(id), &blob, craft_zip::Compression::Level(1)).map_err(z)?;
     }
+    manifest.drawings = entries;
+    let json = serde_json::to_vec_pretty(&manifest).map_err(|e| FormatError::Damaged(e.to_string()))?;
+    zip.add("project.json", &json, craft_zip::Compression::Deflated).map_err(z)?;
     for (id, t) in &p.tips {
         zip.add(&tip_entry_name(*id), &t.alpha, craft_zip::Compression::Deflated).map_err(z)?;
     }
@@ -270,6 +277,23 @@ pub fn encode_png(img: &tooncraft_raster::RgbaImage) -> Result<Vec<u8>> {
 
 /// Decode `.toon` bytes. Hostile input gives an error, never a panic.
 pub fn from_bytes(bytes: &[u8]) -> Result<Project> {
+    from_bytes_with(bytes, None)
+}
+
+/// Decode `.toon` bytes, paging drawings out to `paging.0` whenever the drawings in memory pass
+/// `paging.1` bytes (long shots).
+pub fn from_bytes_with(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::PageFile>, u64)>) -> Result<Project> {
+    decode(bytes, paging, false)
+}
+
+/// Whether `.toon` bytes load, decoding every drawing but keeping none (memory stays at one
+/// drawing however long the shot is). Saving uses it to decide whether the old file is worth
+/// keeping as the backup.
+pub fn validate(bytes: &[u8]) -> Result<()> {
+    decode(bytes, None, true).map(|_| ())
+}
+
+fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::PageFile>, u64)>, discard: bool) -> Result<Project> {
     if craft_zip::stored_mimetype(bytes) != Some(MIMETYPE.as_bytes()) {
         return Err(FormatError::NotToon("no ToonCraft mimetype entry".into()));
     }
@@ -304,19 +328,34 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Project> {
         return Err(FormatError::TooLarge("too many layers or frames".into()));
     }
     let max_tiles = blank.cols() as u64 * blank.rows() as u64;
-    let mut drawings = BTreeMap::new();
+    // Check the list first, then build the project around empty stand-ins and read the drawings
+    // in one at a time, so a paged load never holds more than its budget.
+    let mut placeholders = BTreeMap::new();
     for d in &m.drawings {
-        if drawings.contains_key(&d.id) {
+        if placeholders.contains_key(&d.id) {
             return Err(FormatError::Damaged(format!("drawing {} is listed twice", d.id.0)));
         }
         if d.tiles as u64 > max_tiles {
             return Err(FormatError::Damaged(format!("drawing {} has more tiles than the canvas", d.id.0)));
         }
+        placeholders.insert(d.id, blank.clone());
+    }
+    let mut p = Project::from_parts(pj.name, (pj.width, pj.height), pj.fps, pj.length, pj.paper, pj.layers, placeholders, pj.onion, pj.light_table)?;
+    let none = std::collections::BTreeSet::new();
+    for d in &m.drawings {
         let want = 8 + d.tiles as u64 * (4 + TILE_BYTES as u64);
         let blob = read(&mut zip, &entry_name(d.id), want)?;
-        drawings.insert(d.id, decode_tiles(&blob, d.tiles, blank.clone()).map_err(|e| FormatError::Damaged(format!("drawing {}: {e}", d.id.0)))?);
+        let s = decode_tiles(&blob, d.tiles, blank.clone()).map_err(|e| FormatError::Damaged(format!("drawing {}: {e}", d.id.0)))?;
+        if discard {
+            continue;
+        }
+        p.swap_drawing(d.id, Some(s));
+        if let Some((file, budget)) = paging
+            && p.memory_bytes() > budget
+        {
+            p.page_out(file, &none, budget / 2)?;
+        }
     }
-    let mut p = Project::from_parts(pj.name, (pj.width, pj.height), pj.fps, pj.length, pj.paper, pj.layers, drawings, pj.onion, pj.light_table)?;
     p.camera = pj.camera.sanitized(p.width(), p.height());
     p.set_pegs(pj.pegs);
     p.marks = pj.marks.into_iter().filter(|m| p.drawing(m.drawing).is_some()).map(|m| (m.drawing, m.mark)).collect();
@@ -455,7 +494,7 @@ pub fn save_bytes(path: &Path, bytes: &[u8]) -> Result<SaveReport> {
     if path.is_file() {
         let old = std::fs::read(path)?;
         // Only a file that loads is worth keeping as the backup.
-        if from_bytes(&old).is_ok() {
+        if validate(&old).is_ok() {
             let b = backup_path(path);
             craft_atomic::atomic_write(&b, &old)?;
             backup = Some(b);
@@ -496,6 +535,15 @@ pub fn load(path: &Path) -> Result<Project> {
         return Err(FormatError::TooLarge(format!("{} bytes", meta.len())));
     }
     from_bytes(&std::fs::read(path)?)
+}
+
+/// [`load`] with paging (see [`from_bytes_with`]).
+pub fn load_with(path: &Path, paging: Option<(&std::sync::Arc<tooncraft_doc::paging::PageFile>, u64)>) -> Result<Project> {
+    let meta = std::fs::metadata(path)?;
+    if meta.len() > MAX_PROJECT_BYTES {
+        return Err(FormatError::TooLarge(format!("{} bytes", meta.len())));
+    }
+    from_bytes_with(&std::fs::read(path)?, paging)
 }
 
 /// The state of a project file after a possible crash.

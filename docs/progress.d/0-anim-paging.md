@@ -1,0 +1,1 @@
+- 2026-11-17: Long shots: drawings away from the playhead are paged to a scratch file past a memory budget, also while loading and saving; a 2000-frame 4K shot plays from 317 MB instead of 1.2 GB.

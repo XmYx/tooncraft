@@ -13,6 +13,7 @@ pub mod camera;
 mod exposure;
 pub mod guides;
 mod onion;
+pub mod paging;
 pub mod peg;
 pub mod render;
 pub mod sound;
@@ -79,6 +80,10 @@ pub enum DocError {
     TooManyPegs,
     #[error("there is no peg {0}")]
     NoPeg(u64),
+    #[error("a drawing could not be read back from the page file")]
+    PageRead,
+    #[error("a drawing could not be written to the page file (is the disk full?)")]
+    PageWrite,
     #[error("a peg cannot hang from itself or from a peg below it")]
     PegLoop,
     #[error("there is no folder “{0}”")]
@@ -291,7 +296,7 @@ pub struct Project {
     length: u32,
     pub paper: Paper,
     pub layers: Vec<Layer>,
-    drawings: BTreeMap<DrawingId, Surface>,
+    drawings: BTreeMap<DrawingId, paging::Slot>,
     pub onion: OnionSkin,
     pub light_table: LightTable,
     /// Sound clips, in the order they were added.
@@ -316,7 +321,8 @@ impl PartialEq for Project {
             && (self.width, self.height, self.fps, self.length) == (o.width, o.height, o.fps, o.length)
             && self.paper == o.paper
             && self.layers == o.layers
-            && self.drawings == o.drawings
+            && self.drawings.len() == o.drawings.len()
+            && self.drawings.keys().all(|k| self.drawing(*k) == o.drawing(*k))
             && self.onion == o.onion
             && self.light_table == o.light_table
             && self.sounds == o.sounds
@@ -420,7 +426,7 @@ impl Project {
             }
         }
         p.paper = paper;
-        p.drawings = drawings;
+        p.drawings = drawings.into_iter().map(|(k, v)| (k, paging::Slot::Resident(v))).collect();
         p.onion = onion.sanitized();
         p.light_table = light_table.sanitized();
         if !layers.is_empty() {
@@ -490,8 +496,9 @@ impl Project {
             return Err(RasterError::BadSize(width, height).into());
         }
         let mut drawings = BTreeMap::new();
-        for (id, s) in &self.drawings {
-            drawings.insert(*id, s.reframed(width, height, dx, dy)?);
+        for (id, slot) in &self.drawings {
+            let Some(s) = slot.get(self.width, self.height) else { return Err(DocError::PageRead) };
+            drawings.insert(*id, paging::Slot::Resident(s.reframed(width, height, dx, dy)?));
         }
         self.drawings = drawings;
         let (fx, fy) = (dx as f32, dy as f32);
@@ -598,16 +605,59 @@ impl Project {
         Ok(())
     }
 
+    /// A drawing (a paged one is read back and cached until the next [`Project::page_out`]).
     pub fn drawing(&self, id: DrawingId) -> Option<&Surface> {
-        self.drawings.get(&id)
+        self.drawings.get(&id)?.get(self.width, self.height)
     }
 
+    /// A drawing to edit (a paged one becomes resident).
     pub fn drawing_mut(&mut self, id: DrawingId) -> Option<&mut Surface> {
-        self.drawings.get_mut(&id)
+        let (w, h) = (self.width, self.height);
+        self.drawings.get_mut(&id)?.make_resident(w, h)
     }
 
+    /// Every drawing (paged ones are read back and cached; prefer [`Project::drawing_ids`] with
+    /// [`Project::drawing_owned`] to walk a long shot without loading it all).
     pub fn drawings(&self) -> impl Iterator<Item = (DrawingId, &Surface)> {
-        self.drawings.iter().map(|(k, v)| (*k, v))
+        self.drawings.iter().filter_map(|(k, v)| v.get(self.width, self.height).map(|s| (*k, s)))
+    }
+
+    pub fn drawing_ids(&self) -> impl Iterator<Item = DrawingId> + '_ {
+        self.drawings.keys().copied()
+    }
+
+    /// A drawing by value without caching a paged one (tiles are shared, so a resident drawing
+    /// costs a pointer copy). `Err` when a paged drawing cannot be read back.
+    pub fn drawing_owned(&self, id: DrawingId) -> Result<Option<Surface>> {
+        match self.drawings.get(&id) {
+            None => Ok(None),
+            Some(slot) => slot.clone().take(self.width, self.height).map(Some).ok_or(DocError::PageRead),
+        }
+    }
+
+    /// Page drawings out to `file` until the drawings in memory take at most `budget` bytes,
+    /// leaving those in `keep` (the frames around the playhead) in memory. Returns the bytes
+    /// freed.
+    pub fn page_out(&mut self, file: &std::sync::Arc<paging::PageFile>, keep: &std::collections::BTreeSet<DrawingId>, budget: u64) -> Result<u64> {
+        let mut used = self.memory_bytes();
+        let mut freed = 0;
+        for (id, slot) in self.drawings.iter_mut() {
+            if used <= budget {
+                break;
+            }
+            if keep.contains(id) || slot.memory_bytes() == 0 {
+                continue;
+            }
+            let f = slot.page_out(file).map_err(|_| DocError::PageWrite)?;
+            used = used.saturating_sub(f);
+            freed += f;
+        }
+        Ok(freed)
+    }
+
+    /// Drawings whose tiles live in a page file.
+    pub fn paged_count(&self) -> usize {
+        self.drawings.values().filter(|s| s.is_paged()).count()
     }
 
     pub fn drawing_count(&self) -> usize {
@@ -626,7 +676,7 @@ impl Project {
         };
         let id = DrawingId(self.next_drawing);
         self.next_drawing += 1;
-        self.drawings.insert(id, s);
+        self.drawings.insert(id, paging::Slot::Resident(s));
         Ok(id)
     }
 
@@ -635,9 +685,9 @@ impl Project {
         match surface {
             Some(s) => {
                 self.next_drawing = self.next_drawing.max(id.0.saturating_add(1));
-                self.drawings.insert(id, s)
+                self.drawings.insert(id, paging::Slot::Resident(s)).and_then(|old| old.take(self.width, self.height))
             }
-            None => self.drawings.remove(&id),
+            None => self.drawings.remove(&id).and_then(|old| old.take(self.width, self.height)),
         }
     }
 
@@ -782,7 +832,7 @@ impl Project {
 
     /// Bytes of pixel data held by the library (shared tiles counted in full).
     pub fn memory_bytes(&self) -> u64 {
-        self.drawings.values().map(Surface::memory_bytes).sum()
+        self.drawings.values().map(paging::Slot::memory_bytes).sum()
     }
 
     /// Replace the pegs with repaired ones (file loading); layers on pegs that do not exist are

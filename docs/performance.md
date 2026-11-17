@@ -72,6 +72,41 @@ background and a different ink drawing on every frame (241 drawings).
 | App playback: UI frame CPU time mean / 99th percentile | 0.73 ms / 3.13 ms |
 | MP4 export, 48 frames at 4K (H.264, CRF 18) | 8.0 s (6 frames per second), 131 KB |
 
+## Long shots: paging to disk
+
+`tooncraft-cli demo long.toon --large --frames 2000` builds a 3840×2160, 24 fps, 2000-frame shot
+(a held background and a different ink drawing on every frame: 2001 drawings, 1.16 GB of tiles in
+memory when all are loaded). `tooncraft-cli scrub long.toon` loads it and steps through every frame
+as playback does: it reads the drawings shown and pages out the rest past the budget
+(`TOONCRAFT_PAGE_BUDGET_MB`). Peak memory comes from `/usr/bin/time -v`. Three runs each, release
+build, on the machine described above. Other workstreams were building on the same machine at the
+time, so timings are noisy.
+
+| Measure | Page budget 256 MB | No paging (budget above the shot) |
+|---|---|---|
+| Build the shot through commands and save it | 11.6 s, 1.30 GB peak (undo history included) | — |
+| File size | 52 MB | 52 MB |
+| Load | 1.09 / 1.39 / 1.14 s | 1.44 / 1.61 / 1.25 s |
+| Peak memory, load and scrub all 2000 frames | 317 / 317 / 317 MB | 1232 / 1233 / 1232 MB |
+| Scrub, mean per frame (read the drawings shown, page the rest) | 0.22 / 0.39 / 0.34 ms | 0.003 / 0.005 / 0.005 ms |
+| Scrub, slowest frame | 0.93 / 1.45 / 1.38 ms | 0.02 / 0.04 / 0.06 ms |
+| Drawings in memory at the end | 195 MB, 1777 drawings paged | 1164 MB |
+| Page file on disk | 1028 MB (removed on exit) | — |
+| Open, run one command, save (journal, backup check, verify) | 3.6 / 4.9 / 5.1 s, 375 MB peak | 2.6 s, 1.32 GB peak |
+
+App playback of the same shot, `tooncraft --bench-playback 8 long.toon` (8 s from frame 1, GPU
+tile textures; peak memory of the whole app process, textures included):
+
+| Measure | `TOONCRAFT_PAGE_BUDGET_MB=256` (3 runs) | Default budget, 1 GB (2 runs) |
+|---|---|---|
+| Animation frames shown per second (target 24) | 24.1 / 24.1 / 24.1, 0 dropped | 24.1 / 24.1, 0 dropped |
+| UI frame CPU time, mean / 99th percentile | 1.33 / 4.59, 1.14 / 2.95, 1.55 / 5.40 ms | 1.09 / 1.84, 1.01 / 2.20 ms |
+| Peak memory of the app | 557 / 557 / 557 MB | 1345 / 1346 MB |
+
+The slowest paged frame (1.45 ms) is far inside the 41.7 ms a frame has at 24 fps. Saving reads
+paged drawings back one at a time, and the save no longer decodes the whole old file to check it
+before keeping it as the backup (`tooncraft_format::validate` drops each drawing after reading it).
+
 ## Engine (CPU)
 
 | Measure | Value |

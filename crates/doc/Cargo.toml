@@ -16,6 +16,7 @@ tooncraft-brush = { workspace = true }
 tooncraft-fx = { workspace = true }
 tooncraft-lipsync = { workspace = true }
 serde = { workspace = true }
+log = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
