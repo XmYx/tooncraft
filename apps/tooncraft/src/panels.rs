@@ -429,7 +429,7 @@ pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical().id_salt("layers-scroll").show(ui, |ui| {
         for li in (0..n).rev() {
             let Some(layer) = app.engine.project.layers.get(li) else { continue };
-            if app.engine.project.folder_of(layer).is_some_and(|f| f.collapsed) && li != app.layer {
+            if !crate::layer_tree::listed(app, li) {
                 continue;
             }
             let (mut visible, mut locked, mut opacity) = (layer.visible, layer.locked, layer.opacity);
@@ -449,16 +449,7 @@ pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
                         cmds.push(Command::RenameLayer { layer: li, name: name.clone() });
                         app.renaming = None;
                     }
-                } else if ui
-                    .selectable_label(
-                        li == app.layer,
-                        match &layer.folder {
-                            Some(f) => format!("{f} › {}", layer.name),
-                            None => layer.name.clone(),
-                        },
-                    )
-                    .clicked()
-                {
+                } else if ui.selectable_label(li == app.layer, crate::layer_tree::path_name(&app.engine.project, layer)).clicked() {
                     select = Some(li);
                 }
                 let l = ui.label(tl!("Opacity"));
@@ -543,24 +534,7 @@ fn layer_properties(app: &mut ToonApp, ui: &mut egui::Ui) {
         }
         ui.end_row();
     });
-    let folders = app.engine.project.folders.clone();
-    for f in folders {
-        ui.horizontal(|ui| {
-            let mut vis = f.visible;
-            if ui.checkbox(&mut vis, tlf!("Folder {name}", name = f.name)).changed() {
-                app.run(Command::SetFolder { name: f.name.clone(), visible: Some(vis), opacity: None, collapsed: None });
-            }
-            let mut col = f.collapsed;
-            if ui.checkbox(&mut col, tl!("Collapsed")).changed() {
-                app.run(Command::SetFolder { name: f.name.clone(), visible: None, opacity: None, collapsed: Some(col) });
-            }
-            let mut o = f.opacity;
-            let l = ui.label(tl!("Opacity"));
-            if ui.add(egui::DragValue::new(&mut o).range(0.0..=1.0).speed(0.01).max_decimals(2)).labelled_by(l.id).changed() {
-                app.run(Command::SetFolder { name: f.name.clone(), visible: None, opacity: Some(o), collapsed: None });
-            }
-        });
-    }
+    crate::layer_tree::folders(app, ui);
 }
 
 /// The Layer menu (menu bar).

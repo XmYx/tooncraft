@@ -70,6 +70,8 @@ impl Args {
                         | "prores"
                         | "prores-layers"
                         | "wav"
+                        | "mouth-sheet"
+                        | "layer"
                 );
                 let v = if takes { it.next() } else { None };
                 flags.push((name.to_string(), v));
@@ -132,12 +134,17 @@ fn info(e: &Engine) -> serde_json::Value {
         "layers": p.layers.iter().rev().map(|l| serde_json::json!({
             "name": l.name, "visible": l.visible, "locked": l.locked, "opacity": l.opacity, "sheet": sheet(&l.cells),
             "peg": l.peg.and_then(|id| p.peg(id)).map(|g| g.name.clone()), "depth": l.depth,
+            "folder": l.folder, "clip": l.clip, "effectively_locked": p.is_locked(l),
         })).collect::<Vec<_>>(),
         "pegs": p.pegs.iter().map(|g| serde_json::json!({
             "id": g.id, "name": g.name, "parent": g.parent, "pivot": [g.pivot.0, g.pivot.1],
             "keys": g.keys.iter().map(|k| k.frame + 1).collect::<Vec<_>>(),
         })).collect::<Vec<_>>(),
         "camera_shakes": p.camera.shakes.len(),
+        "marks": p.marks.iter().map(|(d, m)| serde_json::json!({ "drawing": d, "mark": m })).collect::<Vec<_>>(),
+        "folders": p.folders.iter().map(|f| serde_json::json!({
+            "name": f.name, "parent": f.parent, "visible": f.visible, "locked": f.locked, "collapsed": f.collapsed, "color": f.color,
+        })).collect::<Vec<_>>(),
     })
 }
 
@@ -247,6 +254,11 @@ fn run() -> Result<(), String> {
                 let files = tooncraft_interop::layer_sequences::export(&e.project, Path::new(dir), o.start, o.end, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {} PNG files to {dir}", files.len());
+            } else if let Some(file) = rest.flag("mouth-sheet") {
+                let layer = num(rest.flag("layer"), 1)?.max(1) as usize - 1;
+                let text = tooncraft_engine::lipsync::sheet_text(&e.project, layer, file.ends_with(".dat"))?;
+                std::fs::write(file, text).map_err(|e| format!("{file}: {e}"))?;
+                println!("wrote the mouth timing of layer {} to {file}", layer + 1);
             } else if let Some(file) = rest.flag("wav") {
                 tooncraft_engine::audio::export_wav(&e.project, Path::new(file), o.start, o.end)?;
                 println!("wrote the sound mix to {file}");
@@ -262,7 +274,7 @@ fn run() -> Result<(), String> {
                 println!("wrote {file}");
             } else {
                 return Err(format!(
-                    "export needs --png, --gif, --mp4, --apng, --prores, --prores-layers, --wav, --psd, --layers, --levels or --ora\n\n{USAGE}"
+                    "export needs --png, --gif, --mp4, --apng, --prores, --prores-layers, --wav, --mouth-sheet, --psd, --layers, --levels or --ora\n\n{USAGE}"
                 ));
             }
             Ok(())

@@ -185,11 +185,13 @@ fn grid_keys(app: &mut ToonApp, ui: &egui::Ui) {
     if k[1] {
         app.go_to(frame as i64 + 1);
     }
-    if k[2] {
-        app.layer = (layer + 1).min(app.engine.project.layers.len().saturating_sub(1));
-    }
-    if k[3] {
-        app.layer = layer.saturating_sub(1);
+    // up / down step through the listed rows (folded folders and the label filter skip layers)
+    if k[2] || k[3] {
+        let rows = crate::layer_tree::rows(app);
+        if let Some(i) = rows.iter().position(|&l| l == layer) {
+            let j = if k[2] { i.saturating_sub(1) } else { (i + 1).min(rows.len().saturating_sub(1)) };
+            app.layer = rows.get(j).copied().unwrap_or(layer);
+        }
     }
 }
 
@@ -204,7 +206,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     let pal = crate::theme::palette(app.light_theme);
     let len = app.engine.project.length();
-    let n_layers = app.engine.project.layers.len();
+    let rows = crate::layer_tree::rows(app);
+    let n_layers = rows.len();
     let frames_area = Rect::from_min_max(pos2(area.left() + NAME_W, area.top()), area.max);
     let visible_cols = ((frames_area.width() / CELL_W).floor() as u32).max(1);
     let sound_h = if app.sound.pcm.is_some() || !app.engine.project.sounds.is_empty() { ROW_H * 1.6 } else { 0.0 };
@@ -217,7 +220,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         first = app.frame + 1 - visible_cols;
     }
     first = first.min(len.saturating_sub(visible_cols.min(len)));
-    let top_row = n_layers.saturating_sub(1).saturating_sub(app.layer); // rows are drawn top layer first
+    let top_row = rows.iter().position(|&l| l == app.layer).unwrap_or(0); // rows are drawn top layer first
     let mut row0 = app.timeline_scroll.y.max(0.0) as usize;
     if top_row < row0 {
         row0 = top_row;
@@ -289,7 +292,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let mut toggles: Vec<(usize, bool)> = Vec::new();
     let mut drag: Option<(usize, u32, u32)> = None;
     for row in 0..visible_rows.min(n_layers.saturating_sub(row0)) {
-        let li = n_layers - 1 - (row0 + row);
+        let Some(&li) = rows.get(row0 + row) else { continue };
         let Some(layer) = app.engine.project.layers.get(li) else { continue };
         let y = area.top() + RULER_H + row as f32 * ROW_H;
         let row_rect = Rect::from_min_max(pos2(area.left(), y), pos2(area.right(), y + ROW_H));
@@ -318,11 +321,17 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         if name_resp.clicked() {
             clicked = Some((li, app.frame));
         }
-        let mut name = match &layer.folder {
-            Some(f) => format!("{f} › {}", layer.name),
-            None => layer.name.clone(),
-        };
-        if layer.locked {
+        // folders: a label-coloured stripe per level, and the folder path before the name
+        for (depth, f) in app.engine.project.folder_chain(layer.folder.as_deref()).iter().rev().enumerate() {
+            let c = f.color.map(|c| Color32::from_rgb(c[0], c[1], c[2])).unwrap_or(pal.weak);
+            let x = area.left() + 1.0 + depth as f32 * 3.0;
+            painter.line_segment([pos2(x, y + 2.0), pos2(x, y + ROW_H - 2.0)], Stroke::new(2.0, c));
+        }
+        let mut name = crate::layer_tree::path_name(&app.engine.project, layer);
+        if layer.clip {
+            name = format!("{name} · {}", tl!("clipped"));
+        }
+        if app.engine.project.is_locked(layer) {
             name.push_str(&format!(" · {}", tl!("locked")));
         }
         painter.text(name_rect.left_center(), Align2::LEFT_CENTER, name, FontId::proportional(12.5), if li == app.layer { pal.text } else { pal.weak });
@@ -343,6 +352,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
                         painter.image(t.id(), inner, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
                     } else {
                         painter.circle_filled(pos2(r.left() + 6.0, r.center().y), 2.6, pal.bg);
+                    }
+                    if let Some(m) = app.engine.project.marks.get(&d) {
+                        painter.text(r.right_top() + vec2(-2.0, 1.0), Align2::RIGHT_TOP, m.letter(), FontId::proportional(9.5), pal.bg);
                     }
                 }
                 Cell::Hold => {
@@ -367,7 +379,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
                 drag = Some((li, start, end - start));
             }
             let selected = li == app.layer && f == app.frame;
-            let label = tlf!("{layer}, frame {frame}: {cell}", layer = layer.name, frame = f + 1, cell = cell_text(cell));
+            let mut label = tlf!("{layer}, frame {frame}: {cell}", layer = layer.name, frame = f + 1, cell = cell_text(cell));
+            if let Some(m) = cell.key().and_then(|d| app.engine.project.marks.get(&d)) {
+                label = format!("{label}, {}", crate::timing_panel::mark_label(Some(*m)).to_lowercase());
+            }
             resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Cell, true, selected, label.clone()));
             if resp.clicked() {
                 clicked = Some((li, f));
@@ -434,9 +449,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         let (l0, l1, f0, f1) = app.selection();
         let fx0 = f0.max(first);
         let fx1 = f1.min(first + visible_cols.saturating_sub(1));
-        let r0 = n_layers - 1 - l1;
-        let r1 = n_layers - 1 - l0;
-        if fx0 <= fx1 && r1 >= row0 && r0 < row0 + visible_rows {
+        let in_range: Vec<usize> = rows.iter().enumerate().filter(|(_, l)| (l0..=l1).contains(*l)).map(|(i, _)| i).collect();
+        let (r0, r1) = (in_range.first().copied().unwrap_or(0), in_range.last().copied().unwrap_or(0));
+        if !in_range.is_empty() && fx0 <= fx1 && r1 >= row0 && r0 < row0 + visible_rows {
             let top = area.top() + RULER_H + (r0.max(row0) - row0) as f32 * ROW_H;
             let bottom = area.top() + RULER_H + ((r1 + 1).min(row0 + visible_rows) - row0) as f32 * ROW_H;
             let rect = Rect::from_min_max(
@@ -469,7 +484,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         let len = (target - start as i64 + 1).max(1) as u32;
         if down {
             let x0 = frames_area.left() + (start as f32 - first as f32) * CELL_W;
-            let row = n_layers - 1 - li;
+            let row = rows.iter().position(|&l| l == li).unwrap_or(usize::MAX);
             if row >= row0 && row < row0 + visible_rows {
                 let y = area.top() + RULER_H + (row - row0) as f32 * ROW_H;
                 let r = Rect::from_min_size(pos2(x0, y + 1.0), vec2(len as f32 * CELL_W, ROW_H - 2.0));

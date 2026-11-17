@@ -610,8 +610,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
     }
-    let blended =
-        p.layers.iter().any(|l| (l.blend != tooncraft_doc::BlendMode::Normal || tooncraft_fx::is_active(&l.effects) || l.matte.is_some()) && p.effective(l).0);
+    let blended = p
+        .layers
+        .iter()
+        .any(|l| (l.blend != tooncraft_doc::BlendMode::Normal || l.clip || tooncraft_fx::is_active(&l.effects) || l.matte.is_some()) && p.effective(l).0);
     if blended {
         // A blend mode needs what is below it, and effects reach past their tiles: composite the
         // layers on the CPU (cached until the project or frame changes) and show that as tiles.
@@ -686,7 +688,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     if resp.has_focus() {
         painter.rect_stroke(rect.shrink(1.0), 0.0, Stroke::new(2.0, pal.playhead), egui::StrokeKind::Inside);
     }
-    if app.engine.project.layers.get(app.layer).is_some_and(|l| l.locked) {
+    if app.engine.project.layers.get(app.layer).is_some_and(|l| app.engine.project.is_locked(l)) {
         painter.text(rect.left_top() + vec2(10.0, 8.0), egui::Align2::LEFT_TOP, tl!("Layer locked"), egui::FontId::proportional(13.0), pal.accent);
     }
 }

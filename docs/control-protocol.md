@@ -23,12 +23,21 @@ hand a script can do.
 | `add_sound`, `remove_sound`, `move_sound` | `path`, `offset`, `track`; `index`; `offset` and `index` (default 0) |
 | `set_sound_clip` | `index`, optional `track`, `offset`, `trim_start`, `length` (seconds), `to_end`, `fade_in`, `fade_out`, `volume` (0…4), `muted` |
 | `set_volume_key`, `remove_volume_key` | `index`, `frame` (+ `gain` 0…4) |
+| `set_mouth` | `layer`, `mouth` (`rest`, `closed`, `open`, `wide`, `round`, `pucker`, `teeth`, `tongue`, `consonant`), `drawing` (absent: forget it) |
+| `lip_sync` | `layer`, `from`, `settings` (`silence` 0…1, `min_hold` frames) |
+| `import_mouth_sheet` | `layer`, `path`, `from` |
 | `set_audio_track` | `track`, optional `name`, `muted`, `solo`, `volume` |
 | `transform_selection` | `layer`, `frame`, `polygon`, `dx`, `dy`, `scale_x`, `scale_y`, `angle` (radians) |
 | `clear_selection`, `paste_pixels` | `polygon`; or `x`, `y`, `width`, `height`, `rgba` |
 | `shape` | `layer`, `frame`, `brush`, `shape` (line / rectangle / ellipse), `from`, `to`, `constrain` |
 | `fill_all_frames` | as `fill`, without `frame` |
 | `set_camera_key`, `remove_camera_key`, `set_camera` | `frame`, `x`, `y`, `zoom`, `angle` (degrees); `enabled` |
+| `set_mark` | `layer`, `frame`, `mark` (`key` / `breakdown` / `inbetween`; absent removes it) |
+| `apply_timing` | `layer`, `from`, `to`, `preset` (`{"kind":"even","frames":2}`, `slow_start`, `slow_end`, `slow_both`, `{"kind":"holds","holds":[…]}`) |
+| `retime_between_keys` | `layer`, `from`, `to`, `ease` (keys and breakdowns keep their frames) |
+| `add_inbetweens` | `layer`, `frame`, `count` (1–32), `ease`, `guides` (default true) |
+| `add_folder`, `rename_folder`, `set_folder_parent`, `set_folder_lock`, `set_folder_color` | `name` (+ `parent`, `layers`; `to`; `parent`; `locked`; `color`) |
+| `set_layer_clip` | `layer`, `clip` (show only where the layer below has paint) |
 | `add_peg`, `delete_peg`, `rename_peg`, `set_peg_parent`, `set_peg_pivot` | `name`, optional `parent`; `peg` (+ `name`, `parent`, `x`/`y`) |
 | `set_peg_key`, `remove_peg_key` | `peg`, `frame`, `x`, `y`, `angle` (degrees), `scale_x`, `scale_y`, `skew` (degrees), `ease` (`{"kind":"linear"}`, `in`, `out`, `in_out`, `hold`, or `{"kind":"curve","x1","y1","x2","y2"}`) |
 | `set_layer_peg`, `set_layer_depth` | `layer`, `peg` (absent: off the peg); `depth` (0 the drawing plane, above 0 further away) |
@@ -53,7 +62,7 @@ Example:
 ```
 
 `tooncraft-cli export` writes `--png <dir>`, `--gif`, `--mp4` (with the soundtrack), `--apng`,
-`--prores <file.mov> [--alpha]`, `--prores-layers <dir>` (ProRes 4444 with alpha per layer), `--wav <file>` (the sound mix), `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
+`--prores <file.mov> [--alpha]`, `--prores-layers <dir>` (ProRes 4444 with alpha per layer), `--wav <file>` (the sound mix), `--mouth-sheet <file> [--layer N]` (a mouth sheet; `.dat` writes switch data), `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
 `--layers <dir>` (PNG sequence per layer) or `--levels <dir>` (XDTS sheet and drawing folders).
 `tooncraft-cli import`, `import-layers`, `import-gif`, `import-sheet` and `set-sound` bring work in.
 

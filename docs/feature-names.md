@@ -34,6 +34,8 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Camera, Set Key, Export through the camera | Generic film terms | Use (common) |
 | Blend modes: Normal, Multiply, Screen, Overlay, Darken, Lighten, Add | Standard compositing names (W3C) | Use (common) |
 | Folder, Layer colour, Thumbnails | Generic | Use (common) |
+| Key, Breakdown, Inbetween, Spacing chart, Add Inbetweens, Re-time Between Keys, Timing preset, On ones / twos, Slow start / end | Traditional animation terms and our wording | Use (common) |
+| Clip to the layer below, Fold, Lock, Show layers labelled | Descriptive | Use |
 | Peg, Hangs from, Pivot, Motion path | Traditional animation terms (the peg bar) and generic motion words | Use (common) |
 | Ease in, Ease out, Ease in and out, Hold, Custom curve | Generic animation timing words | Use (common) |
 | Depth, Shake, Add Shake Here | Generic film words | Use |
@@ -50,3 +52,5 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Hard edges (alpha threshold), Soft mask, Keep the outside | Our wording | Use |
 | Matte, Keep inside / Keep outside, Colour key, Result blend, Strength, Key opacity here | Generic compositing terms and our wording | Use (common) |
 | Audio track, Clip, Trim start, Fade in / out, Mute, Solo, Export Sound Mix | Generic audio-editing terms | Use (common) |
+| Lip Sync, Mouth chart, Detect Mouths from Sound, Mouth sheet | Generic animation terms and our wording | Use (common) |
+| Rest, Closed, Open, Wide, Round, Pucker, Teeth on lip, Tongue, Other consonants | Our names for the mouth shapes; phoneme letters are generic | Use |

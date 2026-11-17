@@ -1,0 +1,1 @@
+- 2026-11-17: Lip-sync assist: mouth detection from the sound mix (loudness, noise and formant rules, no model, no network) keyed through a per-layer mouth chart as editable exposure keys; mouth timing sheets in and out; new `tooncraft-lipsync` crate.
