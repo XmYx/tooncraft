@@ -83,6 +83,43 @@ impl RgbaImage {
         }
     }
 
+    /// Composite `top` with its top-left corner at (`x`, `y`) of this image (clipped).
+    pub fn composite_at(&mut self, top: &RgbaImage, x: u32, y: u32, mode: BlendMode, opacity: f32) {
+        let o = (if opacity.is_finite() { opacity.clamp(0.0, 1.0) } else { 1.0 } * 255.0).round() as u8;
+        if o == 0 || x >= self.width || y >= self.height {
+            return;
+        }
+        let w = top.width.min(self.width - x) as usize;
+        let (sw, tw) = (self.width as usize * 4, top.width as usize * 4);
+        for row in 0..top.height.min(self.height - y) as usize {
+            let d0 = (y as usize + row) * sw + x as usize * 4;
+            let (Some(dst), Some(src)) = (self.data.get_mut(d0..d0 + w * 4), top.data.get(row * tw..row * tw + w * 4)) else { continue };
+            for (d, s) in dst.as_chunks_mut::<4>().0.iter_mut().zip(src.as_chunks::<4>().0.iter()) {
+                if s[3] != 0 {
+                    let s = if o == 255 { *s } else { crate::pixel::scale_alpha(*s, o) };
+                    *d = blend(*d, s, mode);
+                }
+            }
+        }
+    }
+
+    /// The smallest rectangle `(x0, y0, x1, y1)` (end exclusive) holding every pixel that is not
+    /// fully transparent, or `None` for a transparent image.
+    pub fn opaque_bounds(&self) -> Option<(u32, u32, u32, u32)> {
+        let w = self.width as usize;
+        let mut b: Option<(usize, usize, usize, usize)> = None;
+        for (y, row) in self.data.chunks_exact(w.max(1) * 4).enumerate() {
+            let px = row.as_chunks::<4>().0;
+            let Some(first) = px.iter().position(|p| p[3] != 0) else { continue };
+            let last = px.iter().rposition(|p| p[3] != 0).unwrap_or(first);
+            b = Some(match b {
+                None => (first, y, last + 1, y + 1),
+                Some((x0, y0, x1, _)) => (x0.min(first), y0, x1.max(last + 1), y + 1),
+            });
+        }
+        b.map(|(x0, y0, x1, y1)| (x0 as u32, y0 as u32, x1 as u32, y1 as u32))
+    }
+
     /// The `w`×`h` rectangle at (`x`, `y`), clipped to the image.
     pub fn crop(&self, x: u32, y: u32, w: u32, h: u32) -> RgbaImage {
         let x = x.min(self.width);

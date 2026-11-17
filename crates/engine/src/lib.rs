@@ -17,6 +17,7 @@ pub mod export;
 mod import;
 pub mod inbetween;
 mod interchange;
+pub mod library;
 pub mod lipsync;
 pub mod playback;
 pub mod preset;

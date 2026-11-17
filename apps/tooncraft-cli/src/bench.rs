@@ -134,3 +134,74 @@ pub fn run(json: bool) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// The effect stack used for the effects numbers: a typical "finished look" on the ink layer.
+pub fn effect_stack() -> Vec<tooncraft_fx::Effect> {
+    use tooncraft_fx::{Effect, EffectKind};
+    vec![
+        Effect::new(EffectKind::Outline { width: 3.0, colour: [255, 255, 255] }),
+        Effect::new(EffectKind::DropShadow { dx: 12.0, dy: 12.0, blur: 8.0, colour: [0, 0, 0], opacity: 0.5 }),
+        Effect::new(EffectKind::Glow { radius: 10.0, intensity: 0.8, colour: [255, 220, 160] }),
+        Effect::new(EffectKind::Levels { in_black: 0.05, in_white: 0.95, gamma: 1.1, out_black: 0.0, out_white: 1.0 }),
+    ]
+}
+
+/// `tooncraft-cli bench --effects`: the large shot (a held background and a drawing on every
+/// frame) at `w`×`h` and `frames` long, with [`effect_stack`] on the ink layer; the CPU time to
+/// composite each frame (what the app's frame worker and every export spend), and one 1080p
+/// frame per effect.
+pub fn effects(json: bool, w: u32, h: u32, frames: u32, file: Option<&std::path::Path>) -> Result<(), String> {
+    let mut rows: Vec<(String, f64, &str)> = Vec::new();
+    let e = match file {
+        Some(f) => Engine::new(tooncraft_format::load(f).map_err(|e| e.to_string())?),
+        None => {
+            let mut e = tooncraft_engine::demo::large(w, h, frames).map_err(|e| e.to_string())?;
+            for fx in effect_stack() {
+                e.apply(Command::AddEffect { layer: 1, effect: fx, index: None }).map_err(|e| e.to_string())?;
+            }
+            e
+        }
+    };
+    let (w, h, frames) = (e.project.width(), e.project.height(), e.project.length());
+    let p = &e.project;
+    let o = RenderOptions { paper: false, ..Default::default() };
+    let mut times = Vec::with_capacity(frames as usize);
+    let t_all = Instant::now();
+    for f in 0..p.length() {
+        let t0 = Instant::now();
+        let _ = tooncraft_doc::render_frame(p, f, o);
+        times.push(t0.elapsed().as_secs_f64() * 1000.0);
+    }
+    let total = t_all.elapsed().as_secs_f64();
+    let mean = times.iter().sum::<f64>() / times.len().max(1) as f64;
+    rows.push((format!("{w}×{h}, {frames} frames, 4-effect stack: composite per frame, mean"), mean, "ms"));
+    rows.push(("composite per frame, median".into(), percentile(&mut times.clone(), 0.5), "ms"));
+    rows.push(("composite per frame, 99th percentile".into(), percentile(&mut times, 0.99), "ms"));
+    rows.push(("frames composited per second (one worker)".into(), p.length() as f64 / total.max(1e-9), "fps"));
+    let plain = Instant::now();
+    for f in 0..p.length().min(48) {
+        let _ = tooncraft_doc::render_frame(p, f, RenderOptions { effects: false, ..o });
+    }
+    rows.push(("the same frames without effects, per frame".into(), plain.elapsed().as_secs_f64() * 1000.0 / p.length().min(48) as f64, "ms"));
+    // one effect at a time on one frame
+    let one = tooncraft_doc::render_frame(p, 0, RenderOptions { effects: false, ..o });
+    let (w0, h0) = (one.width, one.height);
+    for k in tooncraft_fx::EffectKind::catalogue(w0, h0) {
+        let below = tooncraft_raster::RgbaImage::filled(w0, h0, [200, 190, 180, 255]);
+        let mut img = one.clone();
+        let t0 = Instant::now();
+        tooncraft_fx::apply(&mut img, &k, 0, Some(&below));
+        rows.push((format!("effect {} on one {w0}×{h0} layer", k.id()), t0.elapsed().as_secs_f64() * 1000.0, "ms"));
+    }
+    if json {
+        let v: Vec<serde_json::Value> =
+            rows.iter().map(|(n, v, u)| serde_json::json!({"measure": n, "value": (v * 1000.0).round() / 1000.0, "unit": u})).collect();
+        println!("{}", serde_json::to_string_pretty(&v).map_err(|e| e.to_string())?);
+    } else {
+        println!("| Measure | Value |\n|---|---|");
+        for (n, v, u) in rows {
+            println!("| {n} | {v:.2} {u} |");
+        }
+    }
+    Ok(())
+}

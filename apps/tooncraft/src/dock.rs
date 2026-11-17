@@ -18,6 +18,7 @@ pub enum Pane {
     Onion,
     Camera,
     Pegs,
+    Library,
     Effects,
     Sound,
     LipSync,
@@ -35,6 +36,7 @@ impl Pane {
             Pane::Onion => tl!("Onion Skin"),
             Pane::Camera => tl!("Camera"),
             Pane::Pegs => tl!("Pegs"),
+            Pane::Library => tl!("Brushes"),
             Pane::Effects => tl!("Effects"),
             Pane::Sound => tl!("Sound"),
             Pane::LipSync => tl!("Lip Sync"),
@@ -52,6 +54,7 @@ impl Pane {
             "layers" => Pane::Layers,
             "camera" => Pane::Camera,
             "pegs" => Pane::Pegs,
+            "library" | "brushes" => Pane::Library,
             "effects" => Pane::Effects,
             "sound" => Pane::Sound,
             "lipsync" | "lip-sync" => Pane::LipSync,
@@ -91,7 +94,7 @@ impl Default for Workspace {
         let right = Node::Split {
             axis: SplitAxis::Vertical,
             size: SplitSize::Ratio(0.5),
-            first: Box::new(tabs(&[Pane::Colour, Pane::Brush], 0)),
+            first: Box::new(tabs(&[Pane::Colour, Pane::Brush, Pane::Library], 0)),
             second: Box::new(tabs(&[Pane::Layers, Pane::Onion, Pane::Camera, Pane::Pegs, Pane::Effects, Pane::Sound, Pane::LipSync, Pane::Timing], 0)),
         };
         let root = Node::Split { axis: SplitAxis::Horizontal, size: SplitSize::FixedSecond(300.0), first: Box::new(centre), second: Box::new(right) };
@@ -149,6 +152,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             Pane::Onion => crate::panels::onion(app, ui),
             Pane::Camera => crate::panels::camera(app, ui),
             Pane::Pegs => crate::pegs::panel(app, ui),
+            Pane::Library => crate::brush_library::panel(app, ui),
             Pane::Effects => crate::effects_panel::show(app, ui),
             Pane::Sound => crate::sound_panel::show(app, ui),
             Pane::LipSync => crate::lipsync_panel::show(app, ui),

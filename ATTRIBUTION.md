@@ -27,12 +27,12 @@ Celsys, Savage Interactive or any other vendor.
 | `docs/images/tooncraft-timeline.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --select 9..14 --light-table --thumbnails --panel camera --frame 14 --screenshot`) of the built-in demo shot | MIT OR Apache-2.0 | README |
 
 Code-drawn content (the demo shot *Bouncing ball*, the tool icons in `apps/tooncraft/src/icons.rs`
-and the built-in grain textures Paper, Canvas weave, Speckle and Clouds in `crates/brush/src/grain.rs`)
-is original work under the project licence. The grain textures are computed from an integer hash at
-stroke time: there are no grain image files, and no third-party texture, noise table or brush file was
-used. Grain images a user adds (`Grain from Image…`) stay in the user's shot or `.toonbrush` file and
-are not part of ToonCraft; a grain texture offered with the app must be original or CC0 and listed in the
-table above in the same change.
+the built-in brush settings in `crates/engine/src/library.rs` and the built-in grain textures Paper,
+Canvas weave, Speckle and Clouds in `crates/brush/src/grain.rs`) is original work under the project licence.
+The grain textures are computed from an integer hash at stroke time: there are no grain image files, and
+no third-party texture, noise table or brush file was used. Grain images a user adds (`Grain from Image…`)
+stay in the user's shot or `.toonbrush` file and are not part of ToonCraft; a grain texture offered with
+the app must be original or CC0 and listed in the table above in the same change.
 
 ## Bundled through dependencies
 

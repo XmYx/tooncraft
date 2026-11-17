@@ -1,6 +1,6 @@
 # Performance
 
-> **Last updated:** 2026-11-17 · **Change:** major
+> **Last updated:** 2026-11-17 · **Change:** minor
 
 Measured on one development workstation (12-core / 24-thread desktop CPU, 64 GB RAM, discrete
 GPU, Linux Wayland, 60 Hz display), release build. Re-run them with the commands shown; numbers on
@@ -82,6 +82,52 @@ background and a different ink drawing on every frame (241 drawings).
 | Load the demo shot | 7 ms |
 | Autosave snapshot (copy-on-write clone) | 0.02 ms |
 | Demo shot pixel memory (25 drawings, sparse tiles) | 12.3 MB |
+
+## Effects
+
+The shot: `tooncraft-cli demo shot.toon --large --size 1920x1080 --frames 240` (a held background
+and a different ink drawing on every frame), then `tooncraft-cli run shot.toon fx.jsonl` adding an
+outline (3 px), a drop shadow (12 px offset, softness 8), a glow (radius 10) and levels to the ink
+layer — the same stack `tooncraft-cli bench --effects` builds in memory. The machine was shared
+with other builds while measuring (load average 20–32 on 24 hardware threads, noted per run);
+numbers on a quiet machine will be better, and they vary from run to run.
+
+CPU cost, `tooncraft-cli bench --effects [shot.toon]` (load ≈ 26):
+
+| Measure | 1920×1080, 240 frames | 3840×2160, 240 frames |
+|---|---|---|
+| Composite one frame with the 4-effect stack, mean / median / 99th percentile | 18.4 / 19.4 / 24.0 ms | 42.2 / 41.1 / 52.3 ms |
+| Frames composited per second by one thread | 54 | 24 |
+| The same frames without effects | 0.31 ms | 1.26 ms |
+
+Effects run on the drawn part of the layer plus how far the stack reaches (a property test checks
+that this gives exactly the pixels of the whole canvas); before that change the same 1080p frame
+took 176 ms. One effect on a whole 1920×1080 layer (the worst case: everything drawn): soft blur
+10 ms, motion blur 12 ms, glow 15 ms, drop shadow 27 ms, light wrap 34 ms, outline 56 ms, thicken
+56 ms, zoom blur 116 ms (it always covers the whole canvas); levels, curves, tint, grain, hard
+edges, soft mask and colour key 0.4–0.8 ms. Large layers are split over threads; crops under
+about half a megapixel run on one thread, which measured faster on the shared machine (one
+thread: 18.5 ms per frame; all threads under load ≈ 50: 74–81 ms).
+
+App playback, `tooncraft shot.toon --bench-playback S` with the window visible. While effects are
+on, the canvas shows CPU-composited frames: they are cached per project version (1.5 GB budget)
+and a worker thread renders the frames after the playhead, so playback shows finished frames.
+
+| Run (240 frames, 24 fps, 4-effect stack) | Load / I/O wait | Frames shown per second | Dropped | Rendered by the worker / in the UI thread | UI frame CPU time, median / 99th percentile |
+|---|---|---|---|---|---|
+| 1920×1080, 10 s from a cold start | 17 / 0 % | 24.1 | 0 | 239 / 1 | 0.95 / 5.2 ms |
+| 1920×1080, 15 s from a cold start | 21 / — | 24.1 | 0 | 239 / 1 | 0.73 / 4.7 ms |
+| 1920×1080, 30 s (the first loop cold, then cached) | 16 / 1 % | 23.8 | 5 | 423 / 10 | 0.67 / 9.2 ms |
+| 3840×2160, 30 s | 13 / 15 % | 23.3 | 21 | 211 / 29 | 0.82 / 60 ms |
+
+Runs on this shared machine are not always this clean: while other builds filled the swap and
+the disk (I/O wait near 30 %), the same 1080p shot played at 5–8 frames per second with a few
+redraws a second. The plain demo shot (no effects, so no frames to upload) still redrew at 58
+per second then; we have not separated swapping from texture uploads as the cause. In the 30 s
+1080p run the worker rendered 423 frames for 240: the cache was refilled once during the run, and
+we have not found why yet. At 4K the stack costs 42 ms a frame on one thread,
+more than a 24 fps frame lasts, so a cold first loop drops frames until the worker is ahead. Turning a
+composited frame into tiles for the GPU takes 2.2–2.6 ms at 1080p and about 8 ms at 4K.
 
 ## Memory bounds
 

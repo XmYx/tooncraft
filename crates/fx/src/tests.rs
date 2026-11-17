@@ -235,6 +235,31 @@ fn any_kind() -> impl Strategy<Value = EffectKind> {
 }
 
 proptest! {
+    #![proptest_config(ProptestConfig::with_cases(48))]
+    /// Running a stack on the drawn area plus its reach gives the same pixels as the whole canvas.
+    #[test]
+    fn a_crop_with_the_reach_equals_the_whole_canvas(kinds in proptest::collection::vec(any_kind(), 1..4), x0 in 0u32..40, y0 in 0u32..40) {
+        let (w, h) = (96u32, 80u32);
+        let mut full = RgbaImage::transparent(w, h);
+        for y in y0..y0 + 12 {
+            for x in x0..x0 + 9 {
+                full.set_pixel(x, y, [30, 60, 90, 200]);
+            }
+        }
+        let below = RgbaImage::filled(w, h, [200, 100, 50, 255]);
+        let stack: Vec<Effect> = kinds.into_iter().map(Effect::new).collect();
+        let Some(r) = stack_reach(&stack, 0) else { return Ok(()) };
+        let (cx, cy) = (x0.saturating_sub(r), y0.saturating_sub(r));
+        let (cw, ch) = ((x0 + 9 + r).min(w) - cx, (y0 + 12 + r).min(h) - cy);
+        let mut part = full.crop(cx, cy, cw, ch);
+        let below_part = below.crop(cx, cy, cw, ch);
+        apply_stack_at(&mut part, (cx, cy), &stack, 3, Some(&below_part));
+        apply_stack(&mut full, &stack, 3, Some(&below));
+        prop_assert_eq!(part, full.crop(cx, cy, cw, ch));
+    }
+}
+
+proptest! {
     #![proptest_config(ProptestConfig::with_cases(160))]
     /// Any parameters, any image: no panic, same size, still premultiplied.
     #[test]

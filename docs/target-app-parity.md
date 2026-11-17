@@ -63,6 +63,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Textured chalk / grain brush | TV, CSP, PD | D | |
 | Opacity vs flow without dab overlap darkening | TV, CSP | D | |
 | Brush presets | all | D | `.toonbrush` files and a preset library folder |
+| Brush library: categories, favourites, recent brushes, search | TV, CSP, PD | D | **Ours:** a Brushes panel; every list and the search work from the keyboard (Ctrl+B); built-in variants; folders are the categories |
 | Custom brush tips from images | TV, CSP, PD | D | Tip shape (roundness, angle), tileable grain images and four built-in grains too |
 | Brush editor with curves for each dynamic | TV, CSP | D | **Ours:** a response curve for each of five inputs (pressure, tilt, speed, direction, chance) on each of five dab properties (size, opacity, flow, scatter, angle), tip shape, jitter, grain textures, live preview; every control works from the keyboard; [format](toonbrush-format.md) |
 | Watercolour / wet mixing brushes | TV, CSP, PD | P | Watercolour brush and colour pickup on any brush: the paint mixes with the colour already on the layer, with a clouds grain; no edge darkening, bleeding or drying |
@@ -251,7 +252,8 @@ features (video export, effects, audio) and understates it for small ones.
 | Never panics (lint-enforced) | — | D | **Ours:** deny lints on every crate |
 | Memory bounded on huge canvases and long shots | — | P | Sparse tiles and budgets; paging to disk is planned |
 | Real-time playback at project fps | all | D | |
-| Playback cache | TV, TB | P | Tile textures cached; no frame pre-render |
+| Playback cache | TV, TB | D | Tile textures cached; with effects, blend modes or mattes, composited frames are cached per version and a worker renders ahead of the playhead |
+| Effects play back in real time | TV, TB | P | 1080p, 240 frames, 4 effects: 24.1 fps with 0 dropped (10 s, cold), 23.8 fps with 5 dropped (30 s); 4K drops frames; stalls when the machine swaps ([performance.md](performance.md)) |
 | Stroke latency measured and published | — | D | **Ours:** [performance.md](performance.md) |
 | Versioned saves (save new version) | TV, TB | D | |
 | Large shots stay real-time (4K, 240 drawings) | — | D | **Ours:** measured, 0 dropped frames |
@@ -274,3 +276,4 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | minor | Compositing basics: 4 rows added (opacity keys, mattes, colour key, effect blending) |
 | 2026-11-17 | minor | Sound depth: 6 audio rows added (tracks and clips, trim and fades, volume keys, mute / solo, mix export, recording) |
 | 2026-11-17 | minor | Lip-sync assist: lip-sync row re-scored (P), 2 rows added (editable keys, timing sheets) |
+| 2026-11-17 | minor | Effects performance: playback cache re-scored (D), 1 row added (effects in real time, P) |

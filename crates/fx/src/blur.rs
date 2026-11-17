@@ -25,66 +25,66 @@ fn boxes(sigma: f32) -> [usize; 3] {
     [0i64, 1, 2].map(|i| (((if i < m { wl } else { wu }) - 1) / 2).max(0) as usize)
 }
 
-/// One box pass over a row of `w` RGBA pixels: `dst[x]` is the mean of `src[x−r ..= x+r]`.
-fn box_row(src: &[u8], dst: &mut [u8], w: usize, r: usize) {
+/// One box pass over a row of `w` pixels of `C` channels: `dst[x]` is the mean of
+/// `src[x−r ..= x+r]`.
+fn box_row<const C: usize>(src: &[u8], dst: &mut [u8], w: usize, r: usize) {
     let d = (2 * r + 1) as u32;
     let half = d / 2;
-    let mut acc = [0u32; 4];
-    let px = |i: usize| -> [u8; 4] {
-        match src.get(i * 4..i * 4 + 4) {
-            Some(p) => [p[0], p[1], p[2], p[3]],
-            None => [0; 4],
+    let mut acc = [0u32; C];
+    let px = |i: usize| -> [u8; C] {
+        let mut p = [0u8; C];
+        if let Some(s) = src.get(i * C..i * C + C) {
+            p.copy_from_slice(s);
         }
+        p
     };
     for i in 0..=r.min(w.saturating_sub(1)) {
         let p = px(i);
-        for c in 0..4 {
+        for c in 0..C {
             acc[c] += p[c] as u32;
         }
     }
-    for (x, out) in dst.as_chunks_mut::<4>().0.iter_mut().enumerate().take(w) {
-        for c in 0..4 {
+    for (x, out) in dst.as_chunks_mut::<C>().0.iter_mut().enumerate().take(w) {
+        for c in 0..C {
             out[c] = ((acc[c] + half) / d).min(255) as u8;
         }
         if x + r + 1 < w {
             let p = px(x + r + 1);
-            for c in 0..4 {
+            for c in 0..C {
                 acc[c] += p[c] as u32;
             }
         }
         if x >= r {
             let p = px(x - r);
-            for c in 0..4 {
+            for c in 0..C {
                 acc[c] = acc[c].saturating_sub(p[c] as u32);
             }
         }
     }
 }
 
-/// The three box passes along rows of a `w`×`h` buffer.
-fn blur_rows(data: &mut [u8], w: usize, radii: &[usize; 3]) {
-    let stride = w * 4;
-    for &r in radii {
-        if r == 0 {
-            continue;
+/// The three box passes along every row of a buffer `w` pixels wide, each row on its own
+/// (two row-sized scratch buffers, no copy of the image).
+fn blur_rows<const C: usize>(data: &mut [u8], w: usize, radii: &[usize; 3]) {
+    par::rows(data, w * C, |_, row| {
+        let mut a = row.to_vec();
+        let mut b = vec![0u8; row.len()];
+        for &r in radii.iter().filter(|r| **r > 0) {
+            box_row::<C>(&a, &mut b, w, r);
+            std::mem::swap(&mut a, &mut b);
         }
-        let src = data.to_vec();
-        par::rows(data, stride, |y, row| {
-            if let Some(s) = src.get(y * stride..(y + 1) * stride) {
-                box_row(s, row, w, r);
-            }
-        });
-    }
+        row.copy_from_slice(&a);
+    });
 }
 
-/// Transpose a `w`×`h` RGBA buffer into `h`×`w`.
-pub(crate) fn transpose(src: &[u8], w: usize, h: usize) -> Vec<u8> {
+/// Transpose a `w`×`h` buffer of `C`-channel pixels into `h`×`w`.
+fn transpose_c<const C: usize>(src: &[u8], w: usize, h: usize) -> Vec<u8> {
     let mut out = vec![0u8; src.len()];
     // output row `x` holds column `x` of the source
-    par::rows(&mut out, h * 4, |x, row| {
-        for (y, p) in row.as_chunks_mut::<4>().0.iter_mut().enumerate() {
-            let i = (y * w + x) * 4;
-            if let Some(s) = src.get(i..i + 4) {
+    par::rows(&mut out, h * C, |x, row| {
+        for (y, p) in row.as_chunks_mut::<C>().0.iter_mut().enumerate() {
+            let i = (y * w + x) * C;
+            if let Some(s) = src.get(i..i + C) {
                 p.copy_from_slice(s);
             }
         }
@@ -92,18 +92,31 @@ pub(crate) fn transpose(src: &[u8], w: usize, h: usize) -> Vec<u8> {
     out
 }
 
-/// Gaussian blur with standard deviation `sigma` pixels, in place.
-pub fn gaussian(img: &mut RgbaImage, sigma: f32) {
-    if sigma.is_nan() || sigma < 0.3 {
+/// Transpose a `w`×`h` RGBA buffer into `h`×`w`.
+pub(crate) fn transpose(src: &[u8], w: usize, h: usize) -> Vec<u8> {
+    transpose_c::<4>(src, w, h)
+}
+
+fn gaussian_c<const C: usize>(data: &mut Vec<u8>, w: usize, h: usize, sigma: f32) {
+    if sigma.is_nan() || sigma < 0.3 || data.len() != w * h * C {
         return;
     }
-    let (w, h) = (img.width as usize, img.height as usize);
     let radii = boxes(sigma.min(crate::MAX_RADIUS));
-    let mut data = std::mem::take(&mut img.data);
-    blur_rows(&mut data, w, &radii);
-    let mut t = transpose(&data, w, h);
-    blur_rows(&mut t, h, &radii);
-    img.data = transpose(&t, h, w);
+    blur_rows::<C>(data, w, &radii);
+    let mut t = transpose_c::<C>(data, w, h);
+    blur_rows::<C>(&mut t, h, &radii);
+    *data = transpose_c::<C>(&t, h, w);
+}
+
+/// Gaussian blur with standard deviation `sigma` pixels, in place.
+pub fn gaussian(img: &mut RgbaImage, sigma: f32) {
+    let (w, h) = (img.width as usize, img.height as usize);
+    gaussian_c::<4>(&mut img.data, w, h, sigma);
+}
+
+/// The alpha channel of an image as a plane.
+fn alpha_plane(img: &RgbaImage) -> Vec<u8> {
+    img.data.as_chunks::<4>().0.iter().map(|p| p[3]).collect()
 }
 
 fn at(src: &[u8], w: usize, h: usize, x: i64, y: i64) -> [u8; 4] {
@@ -211,25 +224,23 @@ pub(crate) fn drop_shadow(img: &mut RgbaImage, offset: (f32, f32), blur: f32, co
     let (w, h) = (img.width as usize, img.height as usize);
     let (dx, dy) = (offset.0.round() as i64, offset.1.round() as i64);
     let o = opacity.clamp(0.0, 1.0);
-    let mut sh = RgbaImage::transparent(img.width, img.height);
+    let mut sh = vec![0u8; w * h];
     {
         let src = &img.data;
-        par::rows(&mut sh.data, w * 4, |y, row| {
-            for (x, out) in row.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+        par::rows(&mut sh, w, |y, row| {
+            for (x, out) in row.iter_mut().enumerate() {
                 let a = at(src, w, h, x as i64 - dx, y as i64 - dy)[3];
-                if a != 0 {
-                    out.copy_from_slice(&premultiply([colour[0], colour[1], colour[2], (a as f32 * o).round() as u8]));
-                }
+                *out = (a as f32 * o).round() as u8;
             }
         });
     }
-    gaussian(&mut sh, blur);
-    for (d, s) in img.data.as_chunks_mut::<4>().0.iter_mut().zip(sh.data.as_chunks::<4>().0.iter()) {
-        if s[3] == 0 {
+    gaussian_c::<1>(&mut sh, w, h, blur);
+    for (d, a) in img.data.as_chunks_mut::<4>().0.iter_mut().zip(sh.iter()) {
+        if *a == 0 {
             continue;
         }
-        let out = over([s[0], s[1], s[2], s[3]], [d[0], d[1], d[2], d[3]]);
-        d.copy_from_slice(&out);
+        let s = premultiply([colour[0], colour[1], colour[2], *a]);
+        *d = over(s, *d);
     }
 }
 
@@ -240,13 +251,13 @@ pub(crate) fn light_wrap(img: &mut RgbaImage, below: &RgbaImage, radius: f32, in
     }
     let mut bg = below.clone();
     gaussian(&mut bg, radius);
-    let mut fa = img.clone();
-    gaussian(&mut fa, radius);
-    for ((d, b), f) in img.data.as_chunks_mut::<4>().0.iter_mut().zip(bg.data.as_chunks::<4>().0.iter()).zip(fa.data.as_chunks::<4>().0.iter()) {
+    let mut fa = alpha_plane(img);
+    gaussian_c::<1>(&mut fa, img.width as usize, img.height as usize, radius);
+    for ((d, b), f) in img.data.as_chunks_mut::<4>().0.iter_mut().zip(bg.data.as_chunks::<4>().0.iter()).zip(fa.iter()) {
         if d[3] == 0 {
             continue;
         }
-        let edge = (d[3] as f32 / 255.0) * (1.0 - f[3] as f32 / 255.0);
+        let edge = (d[3] as f32 / 255.0) * (1.0 - *f as f32 / 255.0);
         let k = (edge * 2.0 * intensity).clamp(0.0, 1.0);
         if k <= 0.0 {
             continue;
@@ -281,7 +292,7 @@ mod tests {
     fn box_row_is_a_mean_with_transparent_edges() {
         let src: Vec<u8> = [0u8, 0, 0, 0, 90, 90, 90, 90, 0, 0, 0, 0].to_vec();
         let mut dst = vec![0u8; 12];
-        box_row(&src, &mut dst, 3, 1);
+        box_row::<4>(&src, &mut dst, 3, 1);
         assert_eq!(&dst[0..4], &[30, 30, 30, 30]);
         assert_eq!(&dst[4..8], &[30, 30, 30, 30]);
         assert_eq!(&dst[8..12], &[30, 30, 30, 30]);
