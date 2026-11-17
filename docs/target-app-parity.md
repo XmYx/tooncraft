@@ -18,10 +18,10 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 | | Value | Kind |
 |---|---|---|
 | Feature rows | 154 | measured |
-| Done (D) | 124 | measured |
+| Done (D) | 123 | measured |
 | Partial (P) | 19 | measured |
-| Missing (M) | 11 | measured |
-| Parity score, (D + ½·P) / rows | 87 % | measured |
+| Missing (M) | 12 | measured |
+| Parity score, (D + ½·P) / rows | 86 % | measured |
 | Brush engine and tools | 81 % (19 D, 1 P, 4 M) | measured |
 | Paper and canvas | 91 % (9 D, 2 P, 0 M) | measured |
 | Layers and timeline / exposure sheet | 86 % (19 D, 0 P, 3 M) | measured |
@@ -30,7 +30,7 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 | Colouring | 75 % (6 D, 3 P, 1 M) | measured |
 | Effects | 83 % (9 D, 2 P, 1 M) | measured |
 | Audio and lip-sync | 88 % (10 D, 1 P, 1 M) | measured |
-| Import / export | 94 % (14 D, 2 P, 0 M) | measured |
+| Import / export | 88 % (13 D, 2 P, 1 M) | measured |
 | UI and workspace | 84 % (12 D, 3 P, 1 M) | measured |
 | Stability and performance | 91 % (9 D, 2 P, 0 M) | measured |
 <!-- parity:end -->
