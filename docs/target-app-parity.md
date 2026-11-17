@@ -64,10 +64,10 @@ features (video export, effects, audio) and understates it for small ones.
 | Opacity vs flow without dab overlap darkening | TV, CSP | D | |
 | Brush presets | all | D | `.toonbrush` files and a preset library folder |
 | Brush library: categories, favourites, recent brushes, search | TV, CSP, PD | D | **Ours:** a Brushes panel; every list and the search work from the keyboard (Ctrl+B); built-in variants; folders are the categories |
-| Custom brush tips from images | TV, CSP, PD | D | |
-| Brush editor with curves for each dynamic | TV, CSP | M | |
-| Watercolour / wet mixing brushes | TV, CSP, PD | M | |
-| Smudge / blur tool | all | M | |
+| Custom brush tips from images | TV, CSP, PD | D | Tip shape (roundness, angle), tileable grain images and four built-in grains too |
+| Brush editor with curves for each dynamic | TV, CSP | D | **Ours:** a response curve for each of five inputs (pressure, tilt, speed, direction, chance) on each of five dab properties (size, opacity, flow, scatter, angle), tip shape, jitter, grain textures, live preview; every control works from the keyboard; [format](toonbrush-format.md) |
+| Watercolour / wet mixing brushes | TV, CSP, PD | P | Watercolour brush and colour pickup on any brush: the paint mixes with the colour already on the layer, with a clouds grain; no edge darkening, bleeding or drying |
+| Smudge / blur tool | all | P | Smudge brush drags the layer's colour along the stroke; no blur brush yet |
 | Shape tools (line, rectangle, ellipse) | all | D | Shift: 15° lines, squares, circles |
 | Lasso / rectangle selection | all | D | |
 | Transform selection (move, scale, rotate) | all | D | Live preview, one undo step; flips and 90° turns |

@@ -11,6 +11,7 @@ tooncraft	Add Peg
 tooncraft	Add Shake Here	
 tooncraft	Add Sound…	
 tooncraft	Add effect	
+tooncraft	Add point	
 tooncraft	Add {name} to favourites	
 tooncraft	After	
 tooncraft	Airbrush	
@@ -19,6 +20,7 @@ tooncraft	All
 tooncraft	All visible layers	
 tooncraft	Amount	
 tooncraft	Angle	
+tooncraft	Angle jitter	
 tooncraft	Animated GIF…	
 tooncraft	Animated PNG…	
 tooncraft	Any colour	
@@ -36,6 +38,7 @@ tooncraft	Brush
 tooncraft	Brush imported	
 tooncraft	Brush pen	
 tooncraft	Brush preset	
+tooncraft	Brush preview: a stroke drawn with the current settings	
 tooncraft	Brush {name} loaded	
 tooncraft	Brushes	
 tooncraft	Camera	
@@ -43,6 +46,7 @@ tooncraft	Cancel
 tooncraft	Canvas	
 tooncraft	Canvas Size	
 tooncraft	Canvas Size…	
+tooncraft	Canvas weave	
 tooncraft	Canvas: {layer}, frame {frame}	
 tooncraft	Category	
 tooncraft	Centre X	
@@ -66,10 +70,12 @@ tooncraft	Clip volume here
 tooncraft	Clip {n}: {name}	
 tooncraft	Close gaps	
 tooncraft	Closed (M B P)	
+tooncraft	Clouds	
 tooncraft	Colour	
 tooncraft	Colour #{hex}	
 tooncraft	Colour key	
 tooncraft	Colour picker	
+tooncraft	Colour pickup	
 tooncraft	Copied	
 tooncraft	Copied {frames} frames from {layers} layers	
 tooncraft	Copy / cut / paste frames	
@@ -80,6 +86,8 @@ tooncraft	Create
 tooncraft	Crop to Camera	
 tooncraft	Crop to the camera frame at the current frame (no rotation)	
 tooncraft	Current colour: open the Colour panel	
+tooncraft	Curve	
+tooncraft	Curve: {source} to {target}	
 tooncraft	Custom curve	
 tooncraft	Cut	
 tooncraft	Cut Frames	
@@ -95,6 +103,7 @@ tooncraft	Delete {name}
 tooncraft	Depth	
 tooncraft	Deselect	
 tooncraft	Detect Mouths from Sound	
+tooncraft	Direction	
 tooncraft	Discard	
 tooncraft	Distance from the drawing plane for the camera: above 0 is further away, below 0 nearer	
 tooncraft	Done	
@@ -109,10 +118,13 @@ tooncraft	Drawings
 tooncraft	Drawings are moved, never resampled; paint outside the new canvas is cut (undo brings it back).	
 tooncraft	Drop shadow	
 tooncraft	Dry chalk	
+tooncraft	Dry wash	
 tooncraft	Duplicate	
 tooncraft	Duplicate Drawing	
 tooncraft	Duplicate drawing	
 tooncraft	Duplicate drawing (Shift+D)	
+tooncraft	Dynamics	
+tooncraft	Dynamics for {target}	
 tooncraft	Each drawing on {n}s	
 tooncraft	Ease curve	
 tooncraft	Ease in	
@@ -120,6 +132,7 @@ tooncraft	Ease in and out
 tooncraft	Ease out	
 tooncraft	Ease to next key	
 tooncraft	Edit	
+tooncraft	Edit the curve of {source}	
 tooncraft	Effects	
 tooncraft	Effects on {layer}, frame {frame}	
 tooncraft	Ellipse	
@@ -157,6 +170,7 @@ tooncraft	Flip Vertically
 tooncraft	Flip horizontally	
 tooncraft	Flip vertically	
 tooncraft	Flow	
+tooncraft	Flow jitter	
 tooncraft	Focus Exposure Sheet	
 tooncraft	Fold {name}	
 tooncraft	Folder	
@@ -178,7 +192,11 @@ tooncraft	Give the workspace a name
 tooncraft	Glow	
 tooncraft	Glow colour	
 tooncraft	Grain	
+tooncraft	Grain from Image…	
+tooncraft	Grain image	
 tooncraft	Grain size	
+tooncraft	Grain strength	
+tooncraft	Grain texture	
 tooncraft	Green	
 tooncraft	Guides on a layer above	
 tooncraft	Hand	
@@ -191,6 +209,7 @@ tooncraft	Hangs from
 tooncraft	Hard edges	
 tooncraft	Hard eraser	
 tooncraft	Hard pencil	
+tooncraft	Hard smudge	
 tooncraft	Hardness	
 tooncraft	Has a drawing. Arrow keys move the keyboard pen, Enter puts it down or lifts it.	
 tooncraft	Height	
@@ -206,8 +225,11 @@ tooncraft	Hold One Frame Shorter
 tooncraft	Hold each mouth at least	
 tooncraft	Hold one frame longer / shorter	
 tooncraft	Hold −	
+tooncraft	How much the colour already on the layer mixes into the paint; 0 keeps the paint pure	
+tooncraft	How quickly the smear lets go of the colour it carries: low values drag long smears	
 tooncraft	Hue	
 tooncraft	Hue and saturation	
+tooncraft	Image	
 tooncraft	Images	
 tooncraft	Import Brush…	
 tooncraft	Import Image Sequence…	
@@ -223,6 +245,7 @@ tooncraft	Inbetween
 tooncraft	Inbetweens	
 tooncraft	Ink pen	
 tooncraft	Inks	
+tooncraft	Input	
 tooncraft	Input black	
 tooncraft	Input white	
 tooncraft	Insert	
@@ -231,6 +254,7 @@ tooncraft	Insert Frame in All Layers
 tooncraft	Insert frame	
 tooncraft	Insert frame (Insert)	
 tooncraft	Intensity	
+tooncraft	Jitter	
 tooncraft	Keep in place	
 tooncraft	Keep the bottom in place	
 tooncraft	Keep the bottom left in place	
@@ -351,8 +375,8 @@ tooncraft	Onion skin on
 tooncraft	Onion skin on / off	
 tooncraft	Onion skin on every visible layer	
 tooncraft	Opacity	
-tooncraft	Opacity from pressure	
 tooncraft	Opacity here	
+tooncraft	Opacity jitter	
 tooncraft	Open (A I)	
 tooncraft	OpenRaster, Current Frame…	
 tooncraft	Opened {file}	
@@ -361,6 +385,7 @@ tooncraft	Other consonants
 tooncraft	Outline	
 tooncraft	Outline colour	
 tooncraft	Outlines only	
+tooncraft	Output	
 tooncraft	Output black	
 tooncraft	Output white	
 tooncraft	Overlay	
@@ -397,7 +422,9 @@ tooncraft	Play / stop
 tooncraft	Play the soundtrack	
 tooncraft	Point {n} in	
 tooncraft	Point {n} out	
+tooncraft	Position jitter	
 tooncraft	Press a key…	
+tooncraft	Pressure	
 tooncraft	Pressure used when drawing with a mouse	
 tooncraft	Previous / next frame	
 tooncraft	Previous / next frame (timeline: move)	
@@ -410,6 +437,7 @@ tooncraft	Purge Unused Drawings
 tooncraft	Put the current layer in a new folder inside its folder	
 tooncraft	Quit	
 tooncraft	Radius	
+tooncraft	Random	
 tooncraft	Re-time Between Keys	
 tooncraft	Re-time Layer	
 tooncraft	Re-time the selected frames (or the whole layer)	
@@ -430,6 +458,7 @@ tooncraft	Remove Sound
 tooncraft	Remove clip {n}	
 tooncraft	Remove clip {n} volume key	
 tooncraft	Remove opacity key	
+tooncraft	Remove point	
 tooncraft	Remove this shake	
 tooncraft	Remove {name}	
 tooncraft	Remove {name} from favourites	
@@ -446,6 +475,7 @@ tooncraft	Reset {what}
 tooncraft	Resize	
 tooncraft	Rest	
 tooncraft	Result blend	
+tooncraft	Reverse	
 tooncraft	Reverse Selected Frames	
 tooncraft	Rotate 90°	
 tooncraft	Rotate 90° Clockwise	
@@ -456,6 +486,8 @@ tooncraft	Rotate view
 tooncraft	Rotation	
 tooncraft	Round	
 tooncraft	Round (O)	
+tooncraft	Roundness	
+tooncraft	S-curve	
 tooncraft	Safe Areas	
 tooncraft	Saturation	
 tooncraft	Saturation and brightness	
@@ -475,6 +507,7 @@ tooncraft	Scale 200 %
 tooncraft	Scale 50 %	
 tooncraft	Scale X	
 tooncraft	Scale Y	
+tooncraft	Scatter	
 tooncraft	Screen	
 tooncraft	Search brushes	
 tooncraft	Select	
@@ -505,20 +538,23 @@ tooncraft	Show {category} brushes
 tooncraft	Show {layer}	
 tooncraft	Silence below	
 tooncraft	Size	
-tooncraft	Size from pressure	
-tooncraft	Size from speed	
+tooncraft	Size jitter	
 tooncraft	Skew	
 tooncraft	Slow at both ends	
 tooncraft	Slow end (1s to 3s)	
 tooncraft	Slow start (3s to 1s)	
 tooncraft	Smaller / bigger brush	
 tooncraft	Smallest size	
+tooncraft	Smear fade	
 tooncraft	Smoothing	
+tooncraft	Smudge	
+tooncraft	Smudges	
 tooncraft	Soft airbrush	
 tooncraft	Soft blur	
 tooncraft	Soft eraser	
 tooncraft	Soft mask	
 tooncraft	Soft pencil	
+tooncraft	Soft smudge	
 tooncraft	Softness	
 tooncraft	Solo {track}	
 tooncraft	Sound	
@@ -527,6 +563,8 @@ tooncraft	Sound {name}, starts at frame {frame}
 tooncraft	Spacing	
 tooncraft	Spacing chart: no next drawing	
 tooncraft	Spacing chart: {n} drawings between frames {a} and {b}	
+tooncraft	Speckle	
+tooncraft	Speed	
 tooncraft	Spray	
 tooncraft	Spread under lines	
 tooncraft	Start Sound Here	
@@ -541,6 +579,7 @@ tooncraft	Stroke cancelled
 tooncraft	Swatch #{hex}	
 tooncraft	Swatches	
 tooncraft	Teeth on lip (F V)	
+tooncraft	Texture	
 tooncraft	The brush follows the pen only when it is further than this: very steady lines	
 tooncraft	The last save of this shot was interrupted and there is no backup.	
 tooncraft	The last save was interrupted and the backup does not open: {error}	
@@ -548,6 +587,7 @@ tooncraft	Thicken lines
 tooncraft	This layer	
 tooncraft	Threshold	
 tooncraft	Thumbnails	
+tooncraft	Tilt	
 tooncraft	Timeline	
 tooncraft	Timing	
 tooncraft	Timing preset	
@@ -556,7 +596,9 @@ tooncraft	Tint after
 tooncraft	Tint before	
 tooncraft	Tint colour	
 tooncraft	Tip	
+tooncraft	Tip angle	
 tooncraft	Tip from Image…	
+tooncraft	Tip shape	
 tooncraft	Tolerance	
 tooncraft	Tone curve	
 tooncraft	Tongue (L TH)	
@@ -581,6 +623,10 @@ tooncraft	Use for {mouth}
 tooncraft	Video (MP4, H.264)…	
 tooncraft	View	
 tooncraft	Volume	
+tooncraft	Watercolour	
+tooncraft	Watercolours	
+tooncraft	Wet mixing	
+tooncraft	Wet wash	
 tooncraft	Wide (E)	
 tooncraft	Wide chalk	
 tooncraft	Width	

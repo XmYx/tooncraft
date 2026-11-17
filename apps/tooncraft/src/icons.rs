@@ -46,6 +46,20 @@ pub fn tool(p: &Painter, rect: Rect, tool: Tool, color: Color32) {
             p.add(Shape::convex_polygon(body, Color32::TRANSPARENT, st));
             p.line_segment([at(-0.6, -0.15), at(0.6, 0.85)], st);
         }
+        Tool::Watercolour => {
+            // a drop over a wash
+            let drop = vec![at(0.0, -1.0), at(0.55, 0.0), at(0.4, 0.55), at(0.0, 0.85), at(-0.4, 0.55), at(-0.55, 0.0)];
+            p.add(Shape::convex_polygon(drop, Color32::TRANSPARENT, st));
+            p.line_segment([at(-1.0, 1.0), at(1.0, 1.0)], Stroke::new(2.0, color));
+        }
+        Tool::Smudge => {
+            // a fingertip dragging a smear
+            p.circle_stroke(at(0.45, -0.3), s * 0.45, st);
+            for k in 0..3 {
+                let y = -0.1 + k as f32 * 0.35;
+                p.line_segment([at(0.2 - k as f32 * 0.15, y + 0.2), at(-1.0, y + 0.55)], Stroke::new(1.4 - k as f32 * 0.3, color));
+            }
+        }
         Tool::Fill => {
             // a tipped bucket with a drop
             let bucket = vec![at(-0.8, -0.3), at(0.1, -1.0), at(0.8, -0.1), at(-0.1, 0.6)];
