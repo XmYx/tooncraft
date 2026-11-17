@@ -23,7 +23,6 @@ use std::process::ExitCode;
 use tooncraft_doc::Project;
 use tooncraft_engine::export::{self, ExportOptions};
 use tooncraft_engine::{Command, Engine, sheet};
-use tooncraft_interop::sequences::Still;
 
 const USAGE: &str = "usage:
   tooncraft-cli new <file.toon> [--size WxH] [--fps N] [--frames N] [--name NAME]
@@ -31,7 +30,7 @@ const USAGE: &str = "usage:
   tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
   tooncraft-cli info <file.toon>
   tooncraft-cli run <file.toon> <commands.jsonl | ->
-  tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --webp <file> | --tga <dir> | --tiff <dir> | --webp-seq <dir> | --psd-frames <file> [--psb] | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
   tooncraft-cli check <file.toon>
   tooncraft-cli bench [--json]
 ";
@@ -70,11 +69,6 @@ impl Args {
                         | "wav"
                         | "mouth-sheet"
                         | "layer"
-                        | "webp"
-                        | "webp-seq"
-                        | "tga"
-                        | "tiff"
-                        | "psd-frames"
                 );
                 let v = if takes { it.next() } else { None };
                 flags.push((name.to_string(), v));
@@ -271,26 +265,13 @@ fn run() -> Result<(), String> {
             } else if let Some(file) = rest.flag("prores") {
                 tooncraft_interop::prores::export_mov(&e.project, Path::new(file), o.start, o.end, rest.has("alpha")).map_err(|e| e.to_string())?;
                 println!("wrote {file}");
-            } else if let Some(file) = rest.flag("webp") {
-                let bytes = tooncraft_interop::sequences::animated_webp(&e.project, o.start, o.end, o.paper).map_err(|e| e.to_string())?;
-                std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
-                println!("wrote {file}");
-            } else if let Some((dir, format)) =
-                [("webp-seq", Still::WebP), ("tga", Still::Tga), ("tiff", Still::Tiff)].into_iter().find_map(|(f, s)| rest.flag(f).map(|d| (d, s)))
-            {
-                let n = tooncraft_interop::sequences::write_sequence(&e.project, Path::new(dir), o.start, o.end, o.paper, format).map_err(|e| e.to_string())?;
-                println!("wrote {n} {} files to {dir}", format.extension().to_uppercase());
-            } else if let Some(file) = rest.flag("psd-frames") {
-                let bytes = tooncraft_interop::sequences::frames_psd(&e.project, o.start, o.end, o.paper, rest.has("psb")).map_err(|e| e.to_string())?;
-                std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
-                println!("wrote {file}");
             } else if let Some(file) = rest.flag("ora") {
                 let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
                 export::ora_frame(&e.project, frame, Path::new(file)).map_err(|e| e.to_string())?;
                 println!("wrote {file}");
             } else {
                 return Err(format!(
-                    "export needs --png, --gif, --mp4, --apng, --webp, --webp-seq, --tga, --tiff, --prores, --prores-layers, --wav, --mouth-sheet, --psd, --psd-frames [--psb], --layers, --levels or --ora\n\n{USAGE}"
+                    "export needs --png, --gif, --mp4, --apng, --prores, --prores-layers, --wav, --mouth-sheet, --psd, --layers, --levels or --ora\n\n{USAGE}"
                 ));
             }
             Ok(())

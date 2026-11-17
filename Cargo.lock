@@ -1019,14 +1019,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "craft-webp"
-version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=0649a07aa11834fa5bd7052c8b97a861db532a22#0649a07aa11834fa5bd7052c8b97a861db532a22"
-dependencies = [
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "craft-xml"
 version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=0649a07aa11834fa5bd7052c8b97a861db532a22#0649a07aa11834fa5bd7052c8b97a861db532a22"
@@ -4200,7 +4192,6 @@ dependencies = [
  "craft-ora",
  "craft-psd",
  "craft-video",
- "craft-webp",
  "craft-zip",
  "proptest",
  "serde",

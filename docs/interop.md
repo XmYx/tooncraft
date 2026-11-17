@@ -12,9 +12,8 @@ external tools) and tested by round trips in `crates/engine/src/tests.rs` and `c
 | Compositing | ProRes 4444 with alpha (MOV), ProRes 422 HQ | Export | Through camera, transparent background with 4444 |
 | Compositing | PNG sequence per layer, transparent | Export | `<Layer>/<Layer>_0001.png`, one per frame |
 | Editing, review | MP4 (H.264 + AAC soundtrack) | Export | |
-| Web, chat | GIF, animated PNG, animated WebP | Export; GIF import (timed by its delays) | WebP is lossless; a held frame is stored once with a longer duration |
-| Any | PNG / JPEG / WebP / TIFF / TGA image sequences | Import as drawings; PNG, WebP, TGA and TIFF sequence export | Through the camera; transparent when the paper is not exported |
-| Paint and compositing apps | PSD / PSB with one layer per frame | Export | `Frame 1` … bottom to top, only the first visible; PSB for large canvases or on request |
+| Web, chat | GIF, animated PNG | Export; GIF import (timed by its delays) | |
+| Any | PNG / JPEG / WebP / TIFF image sequences | Import as drawings; PNG sequence export | |
 | Sound | WAV, AIFF, MP3, AAC / M4A, FLAC, Ogg Vorbis, Opus | Soundtrack import | Stored as the original file in the shot |
 | BoardCraft | `.boardcraft` board or animatic | Import as the layout | See below |
 

@@ -65,8 +65,7 @@ Example:
 ```
 
 `tooncraft-cli export` writes `--png <dir>`, `--gif`, `--mp4` (with the soundtrack), `--apng`,
-`--prores <file.mov> [--alpha]`, `--prores-layers <dir>` (ProRes 4444 with alpha per layer), `--wav <file>` (the sound mix), `--mouth-sheet <file> [--layer N]` (a mouth sheet; `.dat` writes switch data), `--webp <file>` (animated),
-`--webp-seq` / `--tga` / `--tiff <dir>`, `--psd-frames <file> [--psb]` (a layer per frame), `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
+`--prores <file.mov> [--alpha]`, `--prores-layers <dir>` (ProRes 4444 with alpha per layer), `--wav <file>` (the sound mix), `--mouth-sheet <file> [--layer N]` (a mouth sheet; `.dat` writes switch data), `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
 `--layers <dir>` (PNG sequence per layer) or `--levels <dir>` (XDTS sheet and drawing folders).
 `tooncraft-cli import`, `import-layers`, `import-gif`, `import-sheet` and `set-sound` bring work in.
 

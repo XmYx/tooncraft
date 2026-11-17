@@ -768,16 +768,14 @@ fn guides_canvas_size_onion_outlines_and_workspaces() {
 }
 
 #[test]
-fn board_import_and_new_export_formats_in_the_menus() {
+fn board_import_in_the_menu_and_timeline() {
     let mut h = harness(false);
     h.run();
     h.get_by_label("File").click();
     h.run();
-    h.get_by_label("Export").click();
+    h.get_by_label("Import from Other Apps").click();
     h.run();
-    for label in ["Animated WebP…", "TGA Sequence…", "TIFF Sequence…", "WebP Sequence…", "PSD with a Layer per Frame…"] {
-        h.get(By::new().role(egui::Role::Button).label(label));
-    }
+    h.get(By::new().role(egui::Role::Button).label("BoardCraft Board or Animatic…"));
     h.key_press(Key::Escape);
     h.run();
     let dir = std::env::temp_dir().join(format!("tooncraft-ui-board-{}", std::process::id()));

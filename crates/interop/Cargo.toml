@@ -15,7 +15,6 @@ tooncraft-raster = { workspace = true }
 tooncraft-doc = { workspace = true }
 tooncraft-format = { workspace = true }
 craft-psd = { workspace = true }
-craft-webp = { workspace = true }
 craft-zip = { workspace = true }
 craft-ora = { workspace = true }
 craft-gif = { workspace = true, features = ["frames"] }

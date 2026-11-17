@@ -1,1 +1,1 @@
-- 2026-11-17: Pipeline: BoardCraft boards and animatics import as the layout (panels on a locked reference layer with timings, key marks and camera keys); animated WebP; WebP, TGA and TIFF sequences; PSD / PSB with a layer per frame.
+- 2026-11-17: BoardCraft boards and animatics import as the layout: panels on a locked reference layer with their timings, key marks and camera keys.

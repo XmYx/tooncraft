@@ -138,7 +138,7 @@ fn timing_commands_from_a_command_file() {
 }
 
 #[test]
-fn boards_in_and_new_formats_out() {
+fn boardcraft_board_imports_as_layout() {
     let dir = std::env::temp_dir().join(format!("tooncraft-cli-pipe-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let board = dir.join("boats.boardcraft");
@@ -152,11 +152,7 @@ fn boards_in_and_new_formats_out() {
     assert!(ok, "{out}");
     let (ok, out) = cli(&["info", shot_s]);
     assert!(ok && out.contains("\"frames\": 12") && out.contains("Boards: Boats"), "{out}");
-    for (flag, target) in [("--webp", "a.webp"), ("--psd-frames", "a.psd"), ("--tga", "tga"), ("--tiff", "tiff"), ("--webp-seq", "webp")] {
-        let t = dir.join(target);
-        let (ok, out) = cli(&["export", shot_s, flag, t.to_str().unwrap(), "--range", "1..3"]);
-        assert!(ok, "{flag}: {out}");
-        assert!(t.exists(), "{flag}");
-    }
-    assert!(dir.join("tga/frame_0003.tga").is_file() && dir.join("tiff/frame_0001.tif").is_file());
+    let png = dir.join("png");
+    let (ok, out) = cli(&["export", shot_s, "--png", png.to_str().unwrap(), "--range", "1..2"]);
+    assert!(ok && png.join("frame_0002.png").is_file(), "{out}");
 }

@@ -980,7 +980,6 @@ impl ToonApp {
                     if ui.button(tl!("OpenRaster, Current Frame…")).clicked() {
                         self.export("ora");
                     }
-                    crate::pipeline::export_items(self, ui);
                 });
                 ui.separator();
                 if ui.button(tl!("Quit")).clicked() {
