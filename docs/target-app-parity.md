@@ -251,7 +251,8 @@ features (video export, effects, audio) and understates it for small ones.
 | Never panics (lint-enforced) | — | D | **Ours:** deny lints on every crate |
 | Memory bounded on huge canvases and long shots | — | P | Sparse tiles and budgets; paging to disk is planned |
 | Real-time playback at project fps | all | D | |
-| Playback cache | TV, TB | P | Tile textures cached; no frame pre-render |
+| Playback cache | TV, TB | D | Tile textures cached; with effects, blend modes or mattes, composited frames are cached per version and a worker renders ahead of the playhead |
+| Effects play back in real time | TV, TB | P | 1080p, 240 frames, 4 effects: 24.1 fps with 0 dropped (10 s, cold), 23.8 fps with 5 dropped (30 s); 4K drops frames; stalls when the machine swaps ([performance.md](performance.md)) |
 | Stroke latency measured and published | — | D | **Ours:** [performance.md](performance.md) |
 | Versioned saves (save new version) | TV, TB | D | |
 | Large shots stay real-time (4K, 240 drawings) | — | D | **Ours:** measured, 0 dropped frames |
@@ -274,3 +275,4 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | minor | Compositing basics: 4 rows added (opacity keys, mattes, colour key, effect blending) |
 | 2026-11-17 | minor | Sound depth: 6 audio rows added (tracks and clips, trim and fades, volume keys, mute / solo, mix export, recording) |
 | 2026-11-17 | minor | Lip-sync assist: lip-sync row re-scored (P), 2 rows added (editable keys, timing sheets) |
+| 2026-11-17 | minor | Effects performance: playback cache re-scored (D), 1 row added (effects in real time, P) |

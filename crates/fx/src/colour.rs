@@ -156,13 +156,13 @@ fn hash(x: u32, y: u32, seed: u32, frame: u32) -> u32 {
 }
 
 /// Luminance grain: every `size`×`size` cell gets one random brightness change of up to ±`amount`.
-pub(crate) fn grain(img: &mut RgbaImage, amount: f32, size: f32, seed: u32, frame: u32) {
+pub(crate) fn grain(img: &mut RgbaImage, origin: (u32, u32), amount: f32, size: f32, seed: u32, frame: u32) {
     if amount <= 0.0 {
         return;
     }
     let cell = size.round().clamp(1.0, 16.0) as usize;
     each(img, |x, y, s| {
-        let n = hash((x / cell) as u32, (y / cell) as u32, seed, frame) as f32 / u32::MAX as f32 * 2.0 - 1.0;
+        let n = hash(((x + origin.0 as usize) / cell) as u32, ((y + origin.1 as usize) / cell) as u32, seed, frame) as f32 / u32::MAX as f32 * 2.0 - 1.0;
         let v = n * amount * 128.0;
         let a = |c: u8| (c as f32 + v).round().clamp(0.0, 255.0) as u8;
         [a(s[0]), a(s[1]), a(s[2]), s[3]]

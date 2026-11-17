@@ -1,0 +1,1 @@
+- 2026-11-17: Effects performance: effects run on the drawn area plus their reach (a 1080p frame with four effects went from 176 ms to 18 ms), composited frames are cached and rendered ahead by a worker, and a 1080p 240-frame shot with effects plays at 24 fps; numbers in docs/performance.md.

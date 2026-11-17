@@ -4112,6 +4112,7 @@ dependencies = [
  "tooncraft-doc",
  "tooncraft-engine",
  "tooncraft-format",
+ "tooncraft-fx",
  "tooncraft-interop",
  "tooncraft-raster",
 ]
