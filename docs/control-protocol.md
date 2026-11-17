@@ -32,6 +32,7 @@ hand a script can do.
 | `shape` | `layer`, `frame`, `brush`, `shape` (line / rectangle / ellipse), `from`, `to`, `constrain` |
 | `fill_all_frames` | as `fill`, without `frame` |
 | `set_camera_key`, `remove_camera_key`, `set_camera` | `frame`, `x`, `y`, `zoom`, `angle` (degrees); `enabled` |
+| `import_boards` | `path` (a `.boardcraft` file), `frame` (start, default 0), `camera` (default true) |
 | `resize_canvas` | `width`, `height`, `anchor` ([x, y] in 0…1, default centre); drawings move, never resample |
 | `crop_canvas` | `x`, `y`, `width`, `height` |
 | `set_mark` | `layer`, `frame`, `mark` (`key` / `breakdown` / `inbetween`; absent removes it) |

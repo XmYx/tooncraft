@@ -22,6 +22,7 @@ mod layer_tree;
 mod lipsync_panel;
 mod panels;
 mod pegs;
+mod pipeline;
 mod sound;
 mod sound_panel;
 mod tablet;

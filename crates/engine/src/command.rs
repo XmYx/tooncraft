@@ -285,6 +285,17 @@ pub enum Command {
     ImportSheet {
         path: String,
     },
+    /// A BoardCraft board or animatic (`.boardcraft`) as the layout, from `frame`: every panel a
+    /// drawing on a locked reference layer at the bottom, held for its duration and marked as a
+    /// key, scaled to fit the canvas; with `camera`, the panels' camera keys become camera keys.
+    /// The shot grows to fit the board.
+    ImportBoards {
+        path: String,
+        #[serde(default)]
+        frame: u32,
+        #[serde(default = "yes")]
+        camera: bool,
+    },
     /// Move a sound clip (the first by default) to start at `offset` frames.
     MoveSound {
         offset: i32,
@@ -998,6 +1009,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::ImportLayers { path, frame } => crate::interchange::layers(e, &path, frame),
         Command::ImportGif { path, frame } => crate::interchange::gif(e, &path, frame),
         Command::ImportSheet { path } => crate::interchange::sheet(e, &path),
+        Command::ImportBoards { path, frame, camera } => crate::boards::import(e, &path, frame, camera),
         Command::MoveSound { offset, index } => crate::audio::edit(e, index, "Move sound", |c| {
             c.offset = offset;
             true

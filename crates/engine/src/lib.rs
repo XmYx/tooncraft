@@ -9,6 +9,7 @@
 #![forbid(unsafe_code)]
 
 pub mod audio;
+mod boards;
 mod command;
 pub mod demo;
 mod effects;

@@ -26,6 +26,7 @@ tooncraft	Before
 tooncraft	Blank frame: drawing here starts a new drawing.	
 tooncraft	Blend	
 tooncraft	Blue	
+tooncraft	BoardCraft Board or Animatic…	
 tooncraft	Breakdown	
 tooncraft	Brightness	
 tooncraft	Brush	
@@ -217,6 +218,7 @@ tooncraft	Import Sound…
 tooncraft	Import from Other Apps	
 tooncraft	Imported	
 tooncraft	Imported layers from {file}	
+tooncraft	Imported the board {file}	
 tooncraft	Imported {count} images	
 tooncraft	In	
 tooncraft	Inbetween	
@@ -369,6 +371,7 @@ tooncraft	PNG Sequence per Layer…
 tooncraft	PNG Sequence…	
 tooncraft	Paint bucket	
 tooncraft	Pan	
+tooncraft	Panels become a locked reference layer with their timings and camera moves	
 tooncraft	Paper	
 tooncraft	Paper colour	
 tooncraft	Paper grain	

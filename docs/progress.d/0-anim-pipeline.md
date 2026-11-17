@@ -1,0 +1,1 @@
+- 2026-11-17: BoardCraft boards and animatics import as the layout: panels on a locked reference layer with their timings, key marks and camera keys.

@@ -25,7 +25,9 @@ thread_local! {
 
 /// Pick the interface language: `None` follows the system.
 pub fn set_language(code: Option<&str>) {
-    let lang = code.and_then(|c| I18N.from_code(c)).unwrap_or_else(|| I18N.system_lang());
+    // Tests run in English whatever the machine's language is; one that wants another language names it.
+    let fallback = if cfg!(test) { craft_i18n::Lang::EN } else { I18N.system_lang() };
+    let lang = code.and_then(|c| I18N.from_code(c)).unwrap_or(fallback);
     CURRENT.set(lang);
 }
 
@@ -70,4 +72,19 @@ pub fn install_fonts(ctx: &egui::Context) {
         }
     }
     ctx.set_fonts(fonts);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tests_run_in_english_whatever_the_machine_speaks() {
+        set_language(None);
+        assert_eq!(current(), craft_i18n::Lang::EN);
+        set_language(Some("xx"));
+        assert_eq!(current(), craft_i18n::Lang::EN, "an unknown language falls back");
+        assert_eq!(I18N.t(craft_i18n::Lang::EN, "Save"), "Save");
+        assert_eq!(craft_i18n::fmt(I18N.t(craft_i18n::Lang::EN, "Layer {name}"), &[("name", "Ink")]), "Layer Ink");
+    }
 }
