@@ -27,7 +27,7 @@ Celsys, Savage Interactive or any other vendor.
 | `docs/images/tooncraft-timeline.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --select 9..14 --light-table --thumbnails --panel camera --frame 14 --screenshot`) of the built-in demo shot | MIT OR Apache-2.0 | README |
 
 Code-drawn content (the demo shot *Bouncing ball*, the tool icons in `apps/tooncraft/src/icons.rs`
-and the paper grain in `crates/brush/src/grain.rs`) is original work under the project licence.
+the paper grain in `crates/brush/src/grain.rs` and the built-in brush settings in `crates/engine/src/library.rs`) is original work under the project licence.
 
 ## Bundled through dependencies
 

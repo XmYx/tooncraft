@@ -15,6 +15,7 @@ mod effects;
 pub mod export;
 mod import;
 mod interchange;
+pub mod library;
 pub mod playback;
 pub mod preset;
 pub mod select;

@@ -17,12 +17,12 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 <!-- parity:start -->
 | | Value | Kind |
 |---|---|---|
-| Feature rows | 150 | measured |
-| Done (D) | 113 | measured |
+| Feature rows | 151 | measured |
+| Done (D) | 114 | measured |
 | Partial (P) | 18 | measured |
 | Missing (M) | 19 | measured |
 | Parity score, (D + ½·P) / rows | 81 % | measured |
-| Brush engine and tools | 81 % (19 D, 1 P, 4 M) | measured |
+| Brush engine and tools | 82 % (20 D, 1 P, 4 M) | measured |
 | Paper and canvas | 73 % (7 D, 2 P, 2 M) | measured |
 | Layers and timeline / exposure sheet | 82 % (16 D, 1 P, 3 M) | measured |
 | Onion skin and light table | 80 % (7 D, 2 P, 1 M) | measured |
@@ -63,6 +63,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Textured chalk / grain brush | TV, CSP, PD | D | |
 | Opacity vs flow without dab overlap darkening | TV, CSP | D | |
 | Brush presets | all | D | `.toonbrush` files and a preset library folder |
+| Brush library: categories, favourites, recent brushes, search | TV, CSP, PD | D | **Ours:** a Brushes panel; every list and the search work from the keyboard (Ctrl+B); built-in variants; folders are the categories |
 | Custom brush tips from images | TV, CSP, PD | D | |
 | Brush editor with curves for each dynamic | TV, CSP | M | |
 | Watercolour / wet mixing brushes | TV, CSP, PD | M | |
