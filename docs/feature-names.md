@@ -46,3 +46,4 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Levels, Tone curve, Hue and saturation, Tint, Grain, Light wrap | Generic image-editing and compositing terms | Use (common) |
 | Hard edges (alpha threshold), Soft mask, Keep the outside | Our wording | Use |
 | Matte, Keep inside / Keep outside, Colour key, Result blend, Strength, Key opacity here | Generic compositing terms and our wording | Use (common) |
+| Audio track, Clip, Trim start, Fade in / out, Mute, Solo, Export Sound Mix | Generic audio-editing terms | Use (common) |

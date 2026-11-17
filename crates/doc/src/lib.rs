@@ -14,12 +14,14 @@ mod exposure;
 mod onion;
 pub mod peg;
 pub mod render;
+pub mod sound;
 
 pub use camera::{Camera, CameraKey, Shake};
 pub use exposure::{Cell, ExposureError};
 pub use onion::{LightTable, OnionMode, OnionSkin, Pin};
 pub use peg::{Ease, Peg, PegId, PegKey};
 pub use render::{RenderOptions, render_camera, render_frame, render_region};
+pub use sound::{AudioTrack, Soundtrack, VolumeKey};
 pub use tooncraft_raster::select::Affine;
 
 use std::collections::BTreeMap;
@@ -240,17 +242,6 @@ impl Default for Paper {
     }
 }
 
-/// The shot's sound: the original file's bytes (any format craft-audio decodes) and where it
-/// starts. Kept as the user's file so nothing is re-encoded until export.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Soundtrack {
-    /// File name it was imported from (shown in the timeline; its extension hints the decoder).
-    pub name: String,
-    /// Frame at which the sound starts (negative: the sound starts before the shot).
-    pub offset: i32,
-    pub bytes: std::sync::Arc<Vec<u8>>,
-}
-
 /// A shot: canvas, timing, layers and the drawing library.
 ///
 /// Equality compares what the project *is* (content and settings), not the id counters: ids are
@@ -267,7 +258,10 @@ pub struct Project {
     drawings: BTreeMap<DrawingId, Surface>,
     pub onion: OnionSkin,
     pub light_table: LightTable,
-    pub soundtrack: Option<Soundtrack>,
+    /// Sound clips, in the order they were added.
+    pub sounds: Vec<Soundtrack>,
+    /// Audio track switches by track index (tracks past the end have defaults).
+    pub audio_tracks: Vec<AudioTrack>,
     pub camera: Camera,
     pub folders: Vec<Folder>,
     /// Image brush tips used by this shot's brushes, by id.
@@ -287,7 +281,8 @@ impl PartialEq for Project {
             && self.drawings == o.drawings
             && self.onion == o.onion
             && self.light_table == o.light_table
-            && self.soundtrack == o.soundtrack
+            && self.sounds == o.sounds
+            && self.audio_tracks == o.audio_tracks
             && self.camera == o.camera
             && self.folders == o.folders
             && self.tips == o.tips
@@ -318,7 +313,8 @@ impl Project {
             drawings: BTreeMap::new(),
             onion: OnionSkin::default(),
             light_table: LightTable::default(),
-            soundtrack: None,
+            sounds: Vec::new(),
+            audio_tracks: Vec::new(),
             camera: Camera::default(),
             folders: Vec::new(),
             tips: BTreeMap::new(),
@@ -343,7 +339,8 @@ impl Project {
             drawings: BTreeMap::new(),
             onion: OnionSkin::default(),
             light_table: LightTable::default(),
-            soundtrack: None,
+            sounds: Vec::new(),
+            audio_tracks: Vec::new(),
             camera: Camera::default(),
             folders: Vec::new(),
             tips: BTreeMap::new(),

@@ -56,6 +56,8 @@ pub enum EngineError {
     Import(String),
     #[error("too many {0}")]
     Limit(&'static str),
+    #[error("there is no sound clip {0}")]
+    NoSound(usize),
     #[error("there is no effect {0} on this layer")]
     NoEffect(usize),
     #[error("a layer can have at most {max} effects", max = tooncraft_fx::MAX_EFFECTS)]

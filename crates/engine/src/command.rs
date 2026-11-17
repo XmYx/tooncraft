@@ -279,9 +279,69 @@ pub enum Command {
     ImportSheet {
         path: String,
     },
-    /// Move the soundtrack to start at `offset` frames.
+    /// Move a sound clip (the first by default) to start at `offset` frames.
     MoveSound {
         offset: i32,
+        #[serde(default)]
+        index: usize,
+    },
+    /// Add a sound file as a new clip on audio track `track` (0 is the first), starting at
+    /// frame `offset`.
+    AddSound {
+        path: String,
+        #[serde(default)]
+        offset: i32,
+        #[serde(default)]
+        track: u32,
+    },
+    RemoveSound {
+        index: usize,
+    },
+    /// Change a sound clip: its track, start frame, the seconds skipped at the start of the file
+    /// (`trim_start`), the seconds played (`length`; `to_end` plays to the end of the file),
+    /// fades in seconds, volume (gain 0…4) and mute.
+    SetSoundClip {
+        index: usize,
+        #[serde(default)]
+        track: Option<u32>,
+        #[serde(default)]
+        offset: Option<i32>,
+        #[serde(default)]
+        trim_start: Option<f64>,
+        #[serde(default)]
+        length: Option<f64>,
+        #[serde(default)]
+        to_end: bool,
+        #[serde(default)]
+        fade_in: Option<f64>,
+        #[serde(default)]
+        fade_out: Option<f64>,
+        #[serde(default)]
+        volume: Option<f32>,
+        #[serde(default)]
+        muted: Option<bool>,
+    },
+    /// Key a clip's volume (gain 0…4) at a shot frame.
+    SetVolumeKey {
+        index: usize,
+        frame: u32,
+        gain: f32,
+    },
+    RemoveVolumeKey {
+        index: usize,
+        frame: u32,
+    },
+    /// An audio track's name, mute, solo and volume.
+    SetAudioTrack {
+        track: u32,
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default)]
+        muted: Option<bool>,
+        #[serde(default)]
+        solo: Option<bool>,
+        #[serde(default)]
+        volume: Option<f32>,
     },
     /// Move / scale / rotate (radians) / flip (negative scale) the pixels inside `polygon`, about
     /// the centre of its bounding box.
@@ -780,7 +840,64 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::ImportLayers { path, frame } => crate::interchange::layers(e, &path, frame),
         Command::ImportGif { path, frame } => crate::interchange::gif(e, &path, frame),
         Command::ImportSheet { path } => crate::interchange::sheet(e, &path),
-        Command::MoveSound { offset } => crate::audio::shift(e, offset),
+        Command::MoveSound { offset, index } => crate::audio::edit(e, index, "Move sound", |c| {
+            c.offset = offset;
+            true
+        }),
+        Command::AddSound { path, offset, track } => crate::audio::add(e, &path, offset, track),
+        Command::RemoveSound { index } => crate::audio::remove(e, index),
+        Command::SetSoundClip { index, track, offset, trim_start, length, to_end, fade_in, fade_out, volume, muted } => {
+            crate::audio::edit(e, index, "Sound clip", |c| {
+                if let Some(v) = track {
+                    c.track = v;
+                }
+                if let Some(v) = offset {
+                    c.offset = v;
+                }
+                if let Some(v) = trim_start {
+                    c.trim_start = v;
+                }
+                if let Some(v) = length {
+                    c.length = Some(v);
+                }
+                if to_end {
+                    c.length = None;
+                }
+                if let Some(v) = fade_in {
+                    c.fade_in = v;
+                }
+                if let Some(v) = fade_out {
+                    c.fade_out = v;
+                }
+                if let Some(v) = volume {
+                    c.volume = v;
+                }
+                if let Some(v) = muted {
+                    c.muted = v;
+                }
+                true
+            })
+        }
+        Command::SetVolumeKey { index, frame, gain } => crate::audio::edit(e, index, "Volume key", |c| c.set_volume_key(frame, gain)),
+        Command::RemoveVolumeKey { index, frame } => crate::audio::edit(e, index, "Remove volume key", |c| {
+            let n = c.volume_keys.len();
+            c.volume_keys.retain(|k| k.frame != frame);
+            c.volume_keys.len() != n
+        }),
+        Command::SetAudioTrack { track, name, muted, solo, volume } => crate::audio::set_track(e, track, |t| {
+            if let Some(v) = name {
+                t.name = v;
+            }
+            if let Some(v) = muted {
+                t.muted = v;
+            }
+            if let Some(v) = solo {
+                t.solo = v;
+            }
+            if let Some(v) = volume {
+                t.volume = v;
+            }
+        }),
         Command::ClearDrawing { layer, frame } => {
             e.check_unlocked(layer)?;
             let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;

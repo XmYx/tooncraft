@@ -555,3 +555,46 @@ fn effects_panel_keys_opacity_and_sets_a_matte() {
     h.run();
     assert_eq!(h.state().engine.project.layers[li].effects[0].blend, tooncraft_doc::BlendMode::Multiply);
 }
+
+#[test]
+fn sound_panel_mixes_tracks_and_dragging_the_playhead_scrubs() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-ui-mix-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let rate = 22_050u32;
+    let tone: Vec<f32> = (0..rate * 2).map(|i| (i as f32 * 0.05).sin() * 0.6).collect();
+    let wav = craft_audio::encode(
+        &craft_audio::AudioBuffer { sample_rate: rate, channels: vec![tone] },
+        &craft_audio::EncodeOptions::new(craft_audio::EncodeFormat::Wav),
+    )
+    .unwrap();
+    let path = dir.join("line.wav").to_string_lossy().into_owned();
+    std::fs::write(&path, wav).unwrap();
+    let mut h = harness_sized(false, egui::vec2(1500.0, 2200.0));
+    h.state_mut().run(tooncraft_engine::Command::AddSound { path: path.clone(), offset: 0, track: 0 });
+    h.state_mut().run(tooncraft_engine::Command::AddSound { path, offset: 4, track: 1 });
+    h.state_mut().workspace.raise(crate::dock::Pane::Sound);
+    h.run();
+    h.get(By::new().role(egui::Role::Slider).label("Sound line.wav and 1 more, starts at frame 1"));
+    h.get(By::new().role(egui::Role::CheckBox).label("Solo Track 2")).click();
+    h.run();
+    assert!(h.state().engine.project.audio_tracks[1].solo);
+    h.get(By::new().role(egui::Role::CheckBox).label("Mute clip 1")).click();
+    h.run();
+    assert!(h.state().engine.project.sounds[0].muted);
+    h.get_by_label("Key clip 2 volume here").click();
+    h.run();
+    assert_eq!(h.state().engine.project.sounds[1].volume_keys.len(), 1);
+    h.get_all(By::new().label("Fade in")).next().unwrap().focus();
+    h.run();
+    h.key_press(Key::ArrowUp);
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    assert!(h.state().engine.project.sounds[0].fade_in > 0.0);
+    assert!(h.state().sound.peaks.is_some(), "the mix has a waveform");
+    // drag along the frame ruler: the playhead moves and each frame plays its sound
+    let ruler = h.get(By::new().role(egui::Role::Slider).label("Frame ruler")).rect();
+    drag_line(&mut h, ruler.left_center() + egui::vec2(30.0, 0.0), ruler.left_center() + egui::vec2(160.0, 0.0));
+    assert!(h.state().frame > 0, "the playhead followed the drag");
+    assert!(h.state().sound.is_playing(), "dragging the playhead scrubs the sound");
+}
