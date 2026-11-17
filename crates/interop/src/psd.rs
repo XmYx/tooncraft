@@ -7,6 +7,12 @@
 //! carrying its name, opacity and visibility. The merged composite is the frame as ToonCraft
 //! renders it, paper included, so viewers that only read the composite show the right picture.
 //!
+//! **Export of many frames** ([`export_frames`]): the same, but one layer group per frame ("Frame
+//! 0001", …), each holding that frame's layers. Only the first group is visible, so the merged
+//! composite and a viewer that ignores visibility show the first frame; switching groups on and
+//! off steps through the animation. A shot too wide for a PSD (30000 px) or asked for as a PSB is
+//! written as a PSB.
+//!
 //! **Import** ([`import`]): pixel layers of any colour mode and depth craft-psd decodes (RGB,
 //! grayscale, CMYK, Lab at 8/16/32 bits) become premultiplied RGBA8 layers on the full canvas,
 //! placed at their offsets. Group folders are flattened (their visibility and opacity carry
@@ -14,7 +20,7 @@
 //! Not carried over: blend modes, masks, clipping, layer effects and text (text layers import
 //! as their stored pixels).
 
-use craft_psd::{LayerSpec, PixelData, PsdBuilder, PsdFile, SectionType};
+use craft_psd::{GroupSpec, LayerSpec, PixelData, PsdBuilder, PsdFile, SectionType, Version};
 use tooncraft_doc::{Project, RenderOptions, render_frame};
 use tooncraft_raster::{RgbaImage, premultiply};
 
@@ -80,6 +86,66 @@ pub fn export_frame(p: &Project, frame: u32) -> Result<Vec<u8>> {
         b.push_layer(spec);
     }
     let merged = render_frame(p, frame, RenderOptions { paper: true, ..Default::default() });
+    b.composite(PixelData::Rgba8(merged.to_straight()));
+    b.to_bytes().map_err(encode_err)
+}
+
+/// Most frames one multi-frame file holds (each frame is a group of layers).
+pub const MAX_FRAMES_PER_FILE: u32 = 2000;
+/// Most layer records one multi-frame file holds.
+pub const MAX_RECORDS: usize = 20_000;
+/// Most pixel bytes the layers of one multi-frame file hold while it is assembled.
+const MAX_PIXEL_BYTES: u64 = 2 << 30;
+
+/// Encode the frames `start..end` of the shot as one layered file with a layer group per frame.
+/// `large` writes a PSB (64-bit lengths); a canvas over 30000 px does it anyway.
+pub fn export_frames(p: &Project, start: u32, end: u32, large: bool) -> Result<Vec<u8>> {
+    if start >= end || end > p.length() {
+        return Err(InteropError::Range(start, end));
+    }
+    if end - start > MAX_FRAMES_PER_FILE {
+        return Err(InteropError::Limit(format!("{} frames in one file (at most {MAX_FRAMES_PER_FILE}): export a shorter range", end - start)));
+    }
+    let records = (end - start) as usize * (p.layers.len() + 2) + 2;
+    if records > MAX_RECORDS {
+        return Err(InteropError::Limit(format!("{records} layer records (at most {MAX_RECORDS}): export a shorter range")));
+    }
+    let (w, h) = (p.width(), p.height());
+    let mut b = PsdBuilder::new(w, h).resolution(72.0);
+    if large || w > 30_000 || h > 30_000 {
+        b = b.version(Version::Psb);
+    }
+    if p.paper.export {
+        let c = p.paper.color;
+        let paper = RgbaImage::filled(w, h, premultiply([c[0], c[1], c[2], 255]));
+        b.push_layer(LayerSpec::new("Paper", 0, 0, w, h, PixelData::Rgba8(paper.to_straight())));
+    }
+    let mut bytes = 0u64;
+    for f in start..end {
+        let mut group = GroupSpec::new(format!("Frame {:04}", f + 1));
+        group.visible = f == start;
+        group.open = false;
+        b.begin_group(group);
+        for (i, layer) in p.layers.iter().enumerate() {
+            let img = drawing_image(p, i, f);
+            let rect = img.as_ref().and_then(bounds);
+            let mut spec = match (img, rect) {
+                (Some(img), Some(r)) => {
+                    bytes += r.2 as u64 * r.3 as u64 * 4;
+                    LayerSpec::new(layer.name.clone(), r.0 as i32, r.1 as i32, r.2, r.3, PixelData::Rgba8(crop_straight(&img, r)))
+                }
+                _ => LayerSpec::new(layer.name.clone(), 0, 0, 0, 0, PixelData::Rgba8(Vec::new())),
+            };
+            if bytes > MAX_PIXEL_BYTES {
+                return Err(InteropError::Limit("more pixel data than one file can be assembled from: export a shorter range".into()));
+            }
+            spec.opacity = (layer.opacity.clamp(0.0, 1.0) * 255.0).round() as u8;
+            spec.visible = layer.visible;
+            b.push_layer(spec);
+        }
+        b.end_group().map_err(encode_err)?;
+    }
+    let merged = render_frame(p, start, RenderOptions { paper: true, ..Default::default() });
     b.composite(PixelData::Rgba8(merged.to_straight()));
     b.to_bytes().map_err(encode_err)
 }
@@ -171,6 +237,47 @@ mod tests {
         let expect = render_frame(&p, 2, RenderOptions::default());
         assert_eq!(merged.data, expect.to_straight());
         assert!(matches!(export_frame(&p, 6), Err(InteropError::Range(6, 7))));
+    }
+
+    #[test]
+    fn many_frames_make_one_group_per_frame() {
+        let p = shot();
+        let bytes = export_frames(&p, 0, 6, false).unwrap();
+        assert_eq!(&bytes[4..6], &[0, 1], "a PSD");
+        let file = PsdFile::from_bytes(&bytes).unwrap();
+        let folders: Vec<_> = file.layers().iter().filter(|r| matches!(r.section_type(), SectionType::OpenFolder | SectionType::ClosedFolder)).collect();
+        assert_eq!(folders.len(), 6, "one group per frame");
+        let visible: Vec<bool> = folders.iter().map(|r| r.is_visible()).collect();
+        assert_eq!(visible, [true, false, false, false, false, false], "only the first frame shows");
+        // the merged composite is the first frame
+        assert_eq!(file.composite_rgba8().unwrap().data, render_frame(&p, 0, RenderOptions::default()).to_straight());
+        // the layers import frame by frame: Paper, then per frame the layers that have pixels
+        let layers = import(&bytes, 1000).unwrap();
+        assert_eq!(layers.len(), 1 + 5 + 6, "the blank Ink cell of frame 6 is skipped");
+        let names: Vec<&str> = layers.iter().map(|l| l.name.as_str()).collect();
+        assert_eq!(&names[..4], ["Paper", "Ink", "Colour", "Ink"]);
+        assert!(layers[1].visible && !layers[3].visible, "later frames are hidden through their group");
+        // frame 3 holds drawing B
+        assert_eq!(layers[5].image, p.drawing(p.drawing_at(0, 2).unwrap()).unwrap().to_image());
+        // a sub-range keeps its own numbering
+        let some = export_frames(&p, 2, 4, false).unwrap();
+        let file = PsdFile::from_bytes(&some).unwrap();
+        assert_eq!(file.layers().iter().filter(|r| matches!(r.section_type(), SectionType::OpenFolder | SectionType::ClosedFolder)).count(), 2);
+        let first = file.layers().iter().find(|r| matches!(r.section_type(), SectionType::OpenFolder | SectionType::ClosedFolder)).unwrap();
+        assert_eq!(first.name(), "Frame 0003");
+    }
+
+    #[test]
+    fn a_psb_and_the_limits() {
+        let p = shot();
+        let bytes = export_frames(&p, 0, 2, true).unwrap();
+        assert_eq!(&bytes[4..6], &[0, 2], "a PSB");
+        assert_eq!(import(&bytes, 1000).unwrap().len(), 1 + 4);
+        assert!(matches!(export_frames(&p, 3, 3, false), Err(InteropError::Range(3, 3))));
+        assert!(matches!(export_frames(&p, 0, 7, false), Err(InteropError::Range(0, 7))));
+        let mut long = Project::new("long", 8, 8, 12, MAX_FRAMES_PER_FILE + 1).unwrap();
+        long.add_layer("L", 1).unwrap();
+        assert!(matches!(export_frames(&long, 0, MAX_FRAMES_PER_FILE + 1, false), Err(InteropError::Limit(_))));
     }
 
     #[test]

@@ -22,6 +22,8 @@ craft-ora = { workspace = true }
 craft-atomic = { workspace = true }
 craft-image-codecs = { workspace = true }
 craft-video = { workspace = true }
+craft-webp = { workspace = true }
+craft-tga = { workspace = true }
 craft-media = { workspace = true }
 craft-audio = { workspace = true }
 craft-zip = { workspace = true }

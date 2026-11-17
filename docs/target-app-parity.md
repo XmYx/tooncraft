@@ -17,9 +17,9 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 <!-- parity:start -->
 | | Value | Kind |
 |---|---|---|
-| Feature rows | 152 | measured |
-| Done (D) | 115 | measured |
-| Partial (P) | 19 | measured |
+| Feature rows | 154 | measured |
+| Done (D) | 118 | measured |
+| Partial (P) | 18 | measured |
 | Missing (M) | 18 | measured |
 | Parity score, (D + ½·P) / rows | 82 % | measured |
 | Brush engine and tools | 81 % (19 D, 1 P, 4 M) | measured |
@@ -30,7 +30,7 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 | Colouring | 75 % (6 D, 3 P, 1 M) | measured |
 | Effects | 83 % (9 D, 2 P, 1 M) | measured |
 | Audio and lip-sync | 88 % (10 D, 1 P, 1 M) | measured |
-| Import / export | 88 % (13 D, 2 P, 1 M) | measured |
+| Import / export | 92 % (16 D, 1 P, 1 M) | measured |
 | UI and workspace | 78 % (11 D, 3 P, 2 M) | measured |
 | Stability and performance | 91 % (9 D, 2 P, 0 M) | measured |
 <!-- parity:end -->
@@ -203,9 +203,11 @@ features (video export, effects, audio) and understates it for small ones.
 | Native project save / open | all | D | |
 | PNG sequence export | all | D | |
 | GIF export | TV, CSP, PD | D | |
-| APNG / WebP export | TV, CSP | P | Animated PNG; WebP missing |
+| APNG / WebP export | TV, CSP | D | Animated PNG; animated WebP, lossless or lossy, with alpha, held frames merged; still WebP |
 | Video export (MP4 / MOV) | all | D | H.264 MP4 through craft-video and craft-media, no external tools |
 | PSD layers export | TV, CSP | D | Layered PSD of a frame through craft-psd; PSD / PSB layers import too |
+| Multi-frame layered PSD / PSB (a layer group per frame) | TV, TB, CSP | D | **Ours:** the whole shot or a range in one file; the first frame shows, the other groups are hidden |
+| TGA and TIFF image sequences | TV, TB, CSP | D | Run-length TGA and LZW TIFF, with alpha when the paper is off |
 | OpenRaster frame export | TV | D | Through craft-ora |
 | Image sequence import | all | D | |
 | BoardCraft animatic as a starting layout | — | M | **Ours:** suite hand-off, see roadmap |

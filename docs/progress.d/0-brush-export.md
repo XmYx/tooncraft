@@ -1,0 +1,1 @@
+- 2026-11-17: Export breadth: animated WebP (lossless or lossy, with alpha, held frames merged) and still WebP through craft-webp and craft-image-codecs, a multi-frame layered PSD / PSB with a layer group per frame, and TGA and TIFF sequences, from the File menu and `tooncraft-cli export --webp | --webp-frame | --tga | --tiff | --psd-frames`.
