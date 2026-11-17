@@ -4138,6 +4138,7 @@ dependencies = [
 name = "tooncraft-doc"
 version = "0.1.0"
 dependencies = [
+ "log",
  "proptest",
  "serde",
  "thiserror 2.0.21",

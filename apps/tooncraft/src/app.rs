@@ -801,6 +801,12 @@ impl ToonApp {
 
     /// Per-frame logic outside drawing: playback clock, autosave.
     pub fn tick(&mut self, ctx: &egui::Context) {
+        // long shots: drawings far from the playhead go to the page file
+        if !self.engine.is_stroking()
+            && let Err(e) = self.engine.page(self.frame)
+        {
+            self.set_status(e.to_string());
+        }
         if self.playback.playing {
             let now = self.now();
             if let Some(l) = self.stats.last_frame_at {
@@ -1664,7 +1670,10 @@ fn open_checked(p: &Path) -> Result<Engine, String> {
         }
         _ => {}
     }
-    tooncraft_format::load(p).map(Engine::new).map_err(|e| tlf!("Could not open {file}: {error}", file = p.display(), error = e))
+    // TOONCRAFT_PAGE_BUDGET_MB overrides the default page budget (measurements, small machines)
+    let budget = std::env::var("TOONCRAFT_PAGE_BUDGET_MB").ok().and_then(|v| v.parse::<u64>().ok()).map(|mb| mb << 20);
+    let budget = budget.unwrap_or(tooncraft_engine::paging::DEFAULT_PAGE_BUDGET);
+    Engine::open_paged(p, budget).map_err(|e| tlf!("Could not open {file}: {error}", file = p.display(), error = e))
 }
 
 pub fn shortcut_table() -> Vec<(String, String)> {

@@ -29,6 +29,16 @@ Each entry is a list of self-inverse swaps (tile snapshots, the layer stack, a l
 length, fps). Undo swaps them in and pushes the swapped-out state as the redo entry. Tiles are
 `Arc`-shared, so a snapshot costs only the tiles that changed.
 
+## Long shots
+
+`tooncraft_doc::paging`: a drawing in the library is resident or paged. A paged drawing's tiles
+are in the process's scratch page file, and reading it caches it until the next page-out.
+`Engine::page(frame)` pages out drawings outside the working set (12 frames back, 48 ahead, light
+table pins, the stroke in progress) whenever the drawings in memory pass `Engine::page_budget`.
+The app calls it every UI tick; `tooncraft_format::load_with` pages while it loads. Saving walks
+the drawings one at a time (`Project::drawing_owned`), so a `.toon` file always holds every
+drawing and nothing exists only in the page file.
+
 ## Saving
 
 `save`: write a journal → back up the previous file (if it loads) → atomic replace → read back and
