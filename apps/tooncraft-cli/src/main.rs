@@ -2,7 +2,8 @@
 //!
 //! ```text
 //! tooncraft-cli new <file.toon> [--size 1920x1080] [--fps 24] [--frames 48] [--name NAME]
-//! tooncraft-cli demo <file.toon> [--size 1280x720]
+//! tooncraft-cli demo <file.toon> [--size 1280x720] [--large [--frames N]]
+//! tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
 //! tooncraft-cli info <file.toon>
 //! tooncraft-cli run <file.toon> <commands.jsonl | ->      apply JSON-lines commands, then save
 //! tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
@@ -25,7 +26,8 @@ use tooncraft_engine::{Command, Engine, sheet};
 
 const USAGE: &str = "usage:
   tooncraft-cli new <file.toon> [--size WxH] [--fps N] [--frames N] [--name NAME]
-  tooncraft-cli demo <file.toon> [--size WxH]
+  tooncraft-cli demo <file.toon> [--size WxH] [--large [--frames N]]
+  tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
   tooncraft-cli info <file.toon>
   tooncraft-cli run <file.toon> <commands.jsonl | ->
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
@@ -45,7 +47,7 @@ impl Args {
         let mut it = raw.peekable();
         while let Some(a) = it.next() {
             if let Some(name) = a.strip_prefix("--") {
-                let takes = matches!(name, "size" | "fps" | "frames" | "name" | "png" | "gif" | "ora" | "frame" | "range");
+                let takes = matches!(name, "size" | "fps" | "frames" | "name" | "png" | "gif" | "ora" | "mp4" | "apng" | "frame" | "range" | "hold");
                 let v = if takes { it.next() } else { None };
                 flags.push((name.to_string(), v));
             } else {
@@ -145,7 +147,11 @@ fn run() -> Result<(), String> {
         }
         "demo" => {
             let (w, h) = size(rest.flag("size"), (1280, 720))?;
-            let e = tooncraft_engine::demo::demo(w, h).map_err(|e| e.to_string())?;
+            let e = if rest.has("large") {
+                tooncraft_engine::demo::large(w.max(3840), h.max(2160), num(rest.flag("frames"), 240)?).map_err(|e| e.to_string())?
+            } else {
+                tooncraft_engine::demo::demo(w, h).map_err(|e| e.to_string())?
+            };
             save(&rest.file(0)?, &e)
         }
         "info" => {
@@ -192,14 +198,35 @@ fn run() -> Result<(), String> {
                 export::gif(&e.project, Path::new(file), o, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {file}");
+            } else if let Some(file) = rest.flag("mp4") {
+                export::mp4(&e.project, Path::new(file), o, progress).map_err(|e| e.to_string())?;
+                eprintln!();
+                println!("wrote {file}");
+            } else if let Some(file) = rest.flag("apng") {
+                export::apng(&e.project, Path::new(file), o, progress).map_err(|e| e.to_string())?;
+                eprintln!();
+                println!("wrote {file}");
             } else if let Some(file) = rest.flag("ora") {
                 let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
                 export::ora_frame(&e.project, frame, Path::new(file)).map_err(|e| e.to_string())?;
                 println!("wrote {file}");
             } else {
-                return Err(format!("export needs --png, --gif or --ora\n\n{USAGE}"));
+                return Err(format!("export needs --png, --gif, --mp4, --apng or --ora\n\n{USAGE}"));
             }
             Ok(())
+        }
+        "import" => {
+            let path = rest.file(0)?;
+            let mut e = load(&path)?;
+            let images: Vec<String> = rest.positional.iter().skip(1).cloned().collect();
+            if images.is_empty() {
+                return Err(format!("import needs image files\n\n{USAGE}"));
+            }
+            let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
+            let hold = num(rest.flag("hold"), 1)?;
+            let name = rest.flag("name").unwrap_or("Imported").to_string();
+            e.apply(Command::ImportImages { paths: images, frame, hold, name }).map_err(|e| e.to_string())?;
+            save(&path, &e)
         }
         "check" => {
             let path = rest.file(0)?;

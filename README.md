@@ -32,15 +32,19 @@ Apps, next to AniCraft (vector animation), BoardCraft (storyboards) and FilmCraf
   dynamics; smoothing and a "steady line" pulled-string stabilizer; strokes never darken where dabs
   overlap.
 - **Exposure sheet:** layers with keys, holds and blanks; new / duplicate drawing, insert / delete
-  frame, hold longer / shorter, re-time on 1s–4s without losing drawings; scrubbing.
+  frame, drag a drawing's cells to change its hold, re-time on 1s–4s without losing drawings; select
+  ranges across layers, copy / cut / paste them (linked or as new drawings), reverse and repeat them.
 - **Onion skin and light table:** before / after counts, tints, falloff, by drawings or by frames,
   every layer or one; pin any frame of any layer under the drawing.
 - **Colour:** paint bucket with gap closing and spread under lines, on the line layer or a paint
   layer underneath; HSV picker, swatches, eyedropper.
 - **Playback** at the shot's frame rate, looping, clock-driven.
-- **Safety:** unlimited undo (memory-bounded), journaled atomic saves with a backup, background
-  autosave with crash recovery, a property-tested loader.
-- **Export:** PNG sequence, animated GIF, OpenRaster (one frame's layers).
+- **Safety:** unlimited undo (memory-bounded), journaled atomic saves with a backup, Save New
+  Version, background autosave with crash recovery, a property-tested loader.
+- **Export and import:** MP4 (H.264), animated GIF, animated PNG, PNG sequence, OpenRaster, all
+  built in with no external tools; image sequences import as drawings.
+- **Yours to keep:** open source, offline, no account, no tiers, no watermark; a 4K, 240-drawing shot
+  plays in real time and loads in a tenth of a second.
 - **Accessibility:** every control named for screen readers, the canvas and exposure-sheet cells
   included; everything works from the keyboard, including drawing (the keyboard pen).
 
@@ -64,7 +68,7 @@ licences).
 ```bash
 cargo run -p tooncraft-cli -- demo shot.toon
 cargo run -p tooncraft-cli -- run shot.toon commands.jsonl
-cargo run -p tooncraft-cli -- export shot.toon --gif shot.gif
+cargo run -p tooncraft-cli -- export shot.toon --mp4 shot.mp4
 cargo run --release -p tooncraft-cli -- bench
 ```
 

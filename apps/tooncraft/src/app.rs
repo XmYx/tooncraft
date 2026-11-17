@@ -169,6 +169,13 @@ pub struct ToonApp {
     pub canvas_focus_request: bool,
     /// Timeline scroll offset (frames, layers).
     pub timeline_scroll: egui::Vec2,
+    /// The other corner of the exposure-sheet selection (layer, frame); the current cell is the
+    /// first corner. `None`: just the current cell.
+    pub sel_anchor: Option<(usize, u32)>,
+    /// Copied cells, one row per layer (bottom first).
+    pub cell_clipboard: Option<Vec<Vec<tooncraft_doc::Cell>>>,
+    /// Where the last stroke ended (canvas pixels), for Shift+click straight lines.
+    pub last_stroke_end: Option<(f32, f32)>,
 }
 
 /// Where recovery copies go: `TOONCRAFT_AUTOSAVE_DIR`, else the platform's per-user state folder.
@@ -273,6 +280,9 @@ impl ToonApp {
             bench_done: false,
             canvas_focus_request: false,
             timeline_scroll: egui::Vec2::ZERO,
+            sel_anchor: None,
+            cell_clipboard: None,
+            last_stroke_end: None,
         };
         if let Some(name) = &cli.panel {
             app.workspace.raise(Pane::from_name(name));
@@ -280,6 +290,11 @@ impl ToonApp {
         if cli.demo && cli.screenshot.is_some() {
             app.engine.project.onion.before = 2;
             app.engine.project.onion.after = 2;
+        }
+        if let Some((a, b)) = cli.select {
+            let last = app.engine.project.length().saturating_sub(1);
+            app.sel_anchor = Some((app.layer, a.min(last)));
+            app.frame = b.min(last);
         }
         if cli.light_table {
             let layer = app.layer;
@@ -362,6 +377,80 @@ impl ToonApp {
             Err(e) => self.set_status(e.to_string()),
         }
         self.clamp_selection();
+    }
+
+    /// The selected block: (first layer, last layer, first frame, last frame).
+    pub fn selection(&self) -> (usize, usize, u32, u32) {
+        let (al, af) = self.sel_anchor.unwrap_or((self.layer, self.frame));
+        (al.min(self.layer), al.max(self.layer), af.min(self.frame), af.max(self.frame))
+    }
+
+    pub fn has_range(&self) -> bool {
+        self.sel_anchor.is_some_and(|a| a != (self.layer, self.frame))
+    }
+
+    pub fn copy_cells(&mut self) {
+        let (l0, l1, f0, f1) = self.selection();
+        let block: Vec<Vec<tooncraft_doc::Cell>> = (l0..=l1).filter_map(|l| self.engine.project.layers.get(l)).map(|l| l.copy_cells(f0, f1)).collect();
+        let n = f1 - f0 + 1;
+        self.cell_clipboard = Some(block);
+        self.set_status(tlf!("Copied {frames} frames from {layers} layers", frames = n, layers = l1 - l0 + 1));
+    }
+
+    pub fn cut_cells(&mut self) {
+        self.copy_cells();
+        let (l0, l1, f0, f1) = self.selection();
+        self.run(Command::ClearRange { layers: (l0..=l1).collect(), from: f0, to: f1, shift: false });
+    }
+
+    pub fn paste_cells(&mut self, insert: bool, duplicate: bool) {
+        let Some(block) = self.cell_clipboard.clone() else {
+            self.set_status(tl!("Nothing copied yet"));
+            return;
+        };
+        let (l0, _, f0, _) = self.selection();
+        let n = block.first().map(|r| r.len()).unwrap_or(0) as u32;
+        if self.run(Command::PasteCells { layer: l0, frame: f0, block, insert, duplicate }) {
+            self.sel_anchor = Some((l0, f0));
+            self.layer = l0;
+            self.frame = (f0 + n.saturating_sub(1)).min(self.engine.project.length().saturating_sub(1));
+            self.set_status(tl!("Pasted"));
+        }
+    }
+
+    pub fn delete_selection(&mut self, shift: bool) {
+        let (l0, l1, f0, f1) = self.selection();
+        self.run(Command::ClearRange { layers: (l0..=l1).collect(), from: f0, to: f1, shift });
+        if shift {
+            self.sel_anchor = None;
+            self.frame = f0;
+        }
+    }
+
+    pub fn save_new_version(&mut self) {
+        match self.path.clone() {
+            Some(p) => {
+                let next = tooncraft_format::next_version_path(&p);
+                self.save_to(&next);
+            }
+            None => {
+                self.save_as();
+            }
+        }
+    }
+
+    pub fn import_images(&mut self) {
+        let Some(files) = rfd::FileDialog::new().add_filter(tl!("Images"), &["png", "jpg", "jpeg", "webp", "tif", "tiff", "bmp", "gif"]).pick_files() else {
+            return;
+        };
+        let mut paths: Vec<String> = files.iter().map(|f| f.to_string_lossy().into_owned()).collect();
+        paths.sort();
+        let n = paths.len();
+        let frame = self.frame;
+        if self.run(Command::ImportImages { paths, frame, hold: 1, name: tl!("Imported").to_string() }) {
+            self.layer = self.engine.project.layers.len().saturating_sub(1);
+            self.set_status(tlf!("Imported {count} images", count = n));
+        }
     }
 
     pub fn go_to(&mut self, frame: i64) {
@@ -456,6 +545,16 @@ impl ToonApp {
                     .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
                     .map_err(|e| e.to_string())
             }),
+            "mp4" => rfd::FileDialog::new()
+                .add_filter("MP4", &["mp4"])
+                .set_file_name(format!("{name}.mp4"))
+                .save_file()
+                .map(|f| export::mp4(&self.engine.project, &f, o, |_| {}).map(|_| tlf!("Exported {file}", file = f.display())).map_err(|e| e.to_string())),
+            "apng" => rfd::FileDialog::new()
+                .add_filter("PNG", &["png"])
+                .set_file_name(format!("{name}.png"))
+                .save_file()
+                .map(|f| export::apng(&self.engine.project, &f, o, |_| {}).map(|_| tlf!("Exported {file}", file = f.display())).map_err(|e| e.to_string())),
             "gif" => rfd::FileDialog::new()
                 .add_filter("GIF", &["gif"])
                 .set_file_name(format!("{name}.gif"))
@@ -637,8 +736,20 @@ impl ToonApp {
                 if ui.button(tl!("Save As…")).clicked() {
                     self.save_as();
                 }
+                if ui.button(tl!("Save New Version")).on_hover_text(tl!("Save as shot_v002, shot_v003 … next to the current file (Ctrl+Alt+S)")).clicked() {
+                    self.save_new_version();
+                }
                 ui.separator();
+                if ui.button(tl!("Import Image Sequence…")).clicked() {
+                    self.import_images();
+                }
                 ui.menu_button(tl!("Export"), |ui| {
+                    if ui.button(tl!("Video (MP4, H.264)…")).clicked() {
+                        self.export("mp4");
+                    }
+                    if ui.button(tl!("Animated PNG…")).clicked() {
+                        self.export("apng");
+                    }
                     if ui.button(tl!("PNG Sequence…")).clicked() {
                         self.export("png");
                     }
@@ -736,6 +847,10 @@ impl ToonApp {
         let cmd = |k| KeyboardShortcut::new(Modifiers::COMMAND, k);
         let cmd_shift = |k| KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, k);
         // Shift variants first: egui matches Ctrl+S logically, so it would also eat Ctrl+Shift+S.
+        let save_version = ctx.input_mut(|i| i.consume_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::ALT, Key::S)));
+        if save_version {
+            self.save_new_version();
+        }
         let (save_as, save, open, redo, undo, new) = ctx.input_mut(|i| {
             let save_as = i.consume_shortcut(&cmd_shift(Key::S));
             let save = i.consume_shortcut(&cmd(Key::S));
@@ -799,6 +914,48 @@ impl ToonApp {
         // Single keys only when no text field or focused grid/canvas takes the keyboard.
         let focus = ctx.memory(|m| m.focused());
         let own_focus = focus.is_some_and(|f| f == crate::canvas::canvas_id() || f == crate::timeline::grid_id());
+        // Copy / cut / paste of exposure-sheet cells (egui turns Ctrl+C/X/V into these events).
+        if focus == Some(crate::timeline::grid_id()) || (focus.is_none() && !ctx.egui_wants_keyboard_input()) {
+            let (copy, cut, paste, shift) = ctx.input(|i| {
+                let mut r = (false, false, false, i.modifiers.shift);
+                for e in &i.events {
+                    match e {
+                        egui::Event::Copy => r.0 = true,
+                        egui::Event::Cut => r.1 = true,
+                        egui::Event::Paste(_) => r.2 = true,
+                        _ => {}
+                    }
+                }
+                r
+            });
+            if copy {
+                self.copy_cells();
+            }
+            if cut {
+                self.cut_cells();
+            }
+            if paste {
+                self.paste_cells(shift, false);
+            }
+        }
+        // Alt+arrows pan the canvas from the keyboard.
+        if focus.is_none() || focus == Some(crate::canvas::canvas_id()) {
+            let d = ctx.input_mut(|i| {
+                let mut d = egui::Vec2::ZERO;
+                for (k, v) in [
+                    (Key::ArrowLeft, egui::vec2(60.0, 0.0)),
+                    (Key::ArrowRight, egui::vec2(-60.0, 0.0)),
+                    (Key::ArrowUp, egui::vec2(0.0, 60.0)),
+                    (Key::ArrowDown, egui::vec2(0.0, -60.0)),
+                ] {
+                    if i.consume_key(Modifiers::ALT, k) {
+                        d += v;
+                    }
+                }
+                d
+            });
+            self.view.pan += d;
+        }
         if (ctx.egui_wants_keyboard_input() && !own_focus) || (focus.is_some() && !own_focus) || self.new_shot.is_some() || self.renaming.is_some() {
             return;
         }
@@ -874,7 +1031,11 @@ impl ToonApp {
             self.run(Command::InsertFrame { layer: Some(layer), frame });
         }
         if del {
-            self.run(Command::DeleteFrame { layer: Some(layer), frame });
+            if self.has_range() {
+                self.delete_selection(true);
+            } else {
+                self.run(Command::DeleteFrame { layer: Some(layer), frame });
+            }
         }
         if plus {
             self.run(Command::ExtendHold { layer, frame });
@@ -883,7 +1044,11 @@ impl ToonApp {
             self.run(Command::ShortenHold { layer, frame });
         }
         if clear && !own_focus_is_canvas_pen(self) {
-            self.run(Command::ClearCell { layer, frame });
+            if self.has_range() {
+                self.delete_selection(false);
+            } else {
+                self.run(Command::ClearCell { layer, frame });
+            }
         }
         if let Some(kind) = self.tool.brush() {
             let b = self.brush_mut(kind);
@@ -1131,7 +1296,12 @@ pub fn shortcut_table() -> Vec<(String, String)> {
         ("Ctrl+[ / Ctrl+]", tl!("Rotate view")),
         ("Ctrl+0 / Ctrl+1", tl!("Fit / actual size")),
         ("Ctrl+= / Ctrl+-", tl!("Zoom in / out")),
-        ("Space + drag", tl!("Pan")),
+        ("Space + drag, Alt+arrows", tl!("Pan")),
+        ("Shift+click", tl!("Straight line from the last stroke")),
+        ("Shift+arrows, Shift+click (sheet)", tl!("Select frames")),
+        ("Ctrl+C / Ctrl+X / Ctrl+V", tl!("Copy / cut / paste frames")),
+        ("Ctrl+Shift+V", tl!("Paste frames, moving later frames right")),
+        ("Ctrl+Alt+S", tl!("Save new version")),
         ("Alt + click", tl!("Pick colour")),
         ("Canvas focused: arrows, Enter", tl!("Keyboard pen: move, put down / lift")),
         ("Ctrl+Z / Ctrl+Shift+Z", tl!("Undo / redo")),

@@ -108,6 +108,142 @@ pub fn ora_frame(p: &Project, frame: u32, path: &Path) -> Result<()> {
     craft_atomic::atomic_write(path, &bytes).map_err(|e| ExportError::Io(path.display().to_string(), e))
 }
 
+/// BT.709 limited-range 4:2:0 planes of a premultiplied image composited over its paper (the
+/// caller renders with paper on). Width and height must be even.
+fn to_yuv420(img: &tooncraft_raster::RgbaImage, w: u32, h: u32) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+    let (w, h) = (w as usize, h as usize);
+    let mut y = vec![16u8; w * h];
+    let mut u = vec![128u8; (w / 2) * (h / 2)];
+    let mut v = vec![128u8; (w / 2) * (h / 2)];
+    let rgb = |x: usize, yy: usize| {
+        let p = img.pixel(x as u32, yy as u32);
+        // over black for any transparency left (paper is normally opaque)
+        (p[0] as f32 / 255.0, p[1] as f32 / 255.0, p[2] as f32 / 255.0)
+    };
+    for yy in 0..h {
+        for x in 0..w {
+            let (r, g, b) = rgb(x, yy);
+            let l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            y[yy * w + x] = (16.0 + l * 219.0).round().clamp(0.0, 255.0) as u8;
+        }
+    }
+    for cy in 0..h / 2 {
+        for cx in 0..w / 2 {
+            let (mut r, mut g, mut b) = (0.0, 0.0, 0.0);
+            for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+                let c = rgb(cx * 2 + dx, cy * 2 + dy);
+                r += c.0 / 4.0;
+                g += c.1 / 4.0;
+                b += c.2 / 4.0;
+            }
+            let l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            u[cy * (w / 2) + cx] = (128.0 + (b - l) / 1.8556 * 224.0).round().clamp(0.0, 255.0) as u8;
+            v[cy * (w / 2) + cx] = (128.0 + (r - l) / 1.5748 * 224.0).round().clamp(0.0, 255.0) as u8;
+        }
+    }
+    (y, u, v)
+}
+
+/// Write an H.264 MP4 (craft-video encoder, craft-media muxer), one sample per shot frame at the
+/// shot's frame rate. Odd canvas sizes lose their last column or row (4:2:0 needs even sizes).
+pub fn mp4(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(u32)) -> Result<()> {
+    use craft_media::isobmff::{AvcConfig, Brand, Mp4Writer, SampleEntry, TrackConfig, WriteSample, WriterOptions};
+    use craft_video::h264::{Encoder, EncoderConfig, PacketFormat, RateControl, YuvFrame};
+    o.check(p)?;
+    let (w, h) = (p.width() & !1, p.height() & !1);
+    if w < 16 || h < 16 {
+        return Err(ExportError::Encode("video needs a canvas of at least 16×16".into()));
+    }
+    let fps = p.fps().max(1);
+    let enc_err = |e: craft_video::h264::Error| ExportError::Encode(e.to_string());
+    let mux_err = |e: craft_media::isobmff::Error| ExportError::Encode(e.to_string());
+    let mut cfg = EncoderConfig::new(w, h, fps, 1);
+    cfg.format = PacketFormat::LengthPrefixed;
+    cfg.bframes = 0;
+    cfg.keyint = fps * 2;
+    cfg.rate = RateControl::Crf(18.0);
+    cfg.writer = format!("ToonCraft {}", env!("CARGO_PKG_VERSION"));
+    let mut enc = Encoder::new(cfg).map_err(enc_err)?;
+    let entry = |enc: &Encoder| -> Result<SampleEntry> { Ok(SampleEntry::avc(AvcConfig::parse(&enc.avcc()).map_err(mux_err)?, w as u16, h as u16)) };
+    let result = craft_atomic::atomic_write_with(path, |file| {
+        let io = |e: ExportError| std::io::Error::other(e.to_string());
+        let mut mux = Mp4Writer::new(file, WriterOptions::new(Brand::Mp4)).map_err(|e| io(mux_err(e)))?;
+        let track = mux.add_track(TrackConfig::new(entry(&enc).map_err(io)?, fps)).map_err(|e| io(mux_err(e)))?;
+        let write = |mux: &mut Mp4Writer<&mut std::fs::File>, packets: Vec<craft_video::h264::Packet>| -> std::io::Result<()> {
+            for pk in packets {
+                let s = WriteSample {
+                    data: &pk.data,
+                    duration: 1,
+                    composition_offset: (pk.pts - pk.dts).clamp(i32::MIN as i64, i32::MAX as i64) as i32,
+                    is_sync: pk.keyframe,
+                };
+                mux.write_sample(track, s).map_err(|e| io(mux_err(e)))?;
+            }
+            Ok(())
+        };
+        for (i, f) in (o.start..o.end).enumerate() {
+            let img = render_frame(p, f, RenderOptions { paper: true, ..Default::default() });
+            let (y, u, v) = to_yuv420(&img, w, h);
+            let frame = YuvFrame { y: &y, u: &u, v: &v, y_stride: w as usize, uv_stride: w as usize / 2 };
+            let packets = enc.encode(&frame, i as i64).map_err(|e| io(enc_err(e)))?;
+            write(&mut mux, packets)?;
+            progress(f);
+        }
+        let packets = enc.flush();
+        write(&mut mux, packets)?;
+        mux.set_sample_entry(track, entry(&enc).map_err(io)?).map_err(|e| io(mux_err(e)))?;
+        mux.finish().map_err(|e| io(mux_err(e)))?;
+        Ok(())
+    });
+    result.map_err(|e| ExportError::Io(path.display().to_string(), e))
+}
+
+/// Concatenated IDAT payload of a PNG (APNG frames carry it).
+fn idat(png: &[u8]) -> Option<Vec<u8>> {
+    let mut out = Vec::new();
+    let mut at = 8usize;
+    while at + 12 <= png.len() {
+        let len = u32::from_be_bytes([png[at], png[at + 1], png[at + 2], png[at + 3]]) as usize;
+        let kind = png.get(at + 4..at + 8)?;
+        let data = png.get(at + 8..at + 8 + len)?;
+        if kind == b"IDAT" {
+            out.extend_from_slice(data);
+        }
+        at += 12 + len;
+    }
+    (!out.is_empty()).then_some(out)
+}
+
+/// Write an animated PNG (lossless, transparent background possible). Frames are held in memory
+/// compressed; capped at 500 MB of output.
+pub fn apng(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(u32)) -> Result<()> {
+    o.check(p)?;
+    let delays = gif_delays(p.fps(), o.end - o.start);
+    let mut payloads = Vec::new();
+    for f in o.start..o.end {
+        let img = render_frame(p, f, RenderOptions { paper: o.paper, ..Default::default() });
+        let png = tooncraft_format::encode_png(&img).map_err(|e| ExportError::Encode(e.to_string()))?;
+        payloads.push(idat(&png).ok_or_else(|| ExportError::Encode("PNG without image data".into()))?);
+        progress(f);
+    }
+    let frames: Vec<craft_image_codecs::apng::Frame<'_>> = payloads
+        .iter()
+        .enumerate()
+        .map(|(i, d)| craft_image_codecs::apng::Frame {
+            width: p.width(),
+            height: p.height(),
+            x: 0,
+            y: 0,
+            delay_num: delays.get(i).copied().unwrap_or(4),
+            delay_den: 100,
+            over: false,
+            data: d,
+        })
+        .collect();
+    let bytes = craft_image_codecs::apng::encode(p.width(), p.height(), 0, &frames, 500 << 20).map_err(|e| ExportError::Encode(e.to_string()))?;
+    craft_atomic::atomic_write(path, &bytes).map_err(|e| ExportError::Io(path.display().to_string(), e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

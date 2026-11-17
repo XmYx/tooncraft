@@ -1,5 +1,5 @@
 use super::*;
-use crate::export::{ExportOptions, gif, ora_frame, png_sequence};
+use crate::export::{ExportOptions, apng, gif, mp4, ora_frame, png_sequence};
 use tooncraft_brush::BrushKind;
 
 fn engine() -> Engine {
@@ -168,6 +168,14 @@ fn exports_write_files() {
     ora_frame(&e.project, 1, &dir.join("frame.ora")).unwrap();
     assert!(craft_ora::is_ora(&std::fs::read(dir.join("frame.ora")).unwrap()));
     assert!(png_sequence(&e.project, &dir, "x", ExportOptions { start: 3, end: 2, paper: true }, |_| {}).is_err());
+    mp4(&e.project, &dir.join("shot.mp4"), o, |_| {}).unwrap();
+    let bytes = std::fs::read(dir.join("shot.mp4")).unwrap();
+    let file = craft_media::isobmff::open(&bytes[..]).unwrap();
+    assert_eq!(file.tracks.len(), 1);
+    assert_eq!(file.tracks[0].samples.len(), 4, "one H.264 sample per frame");
+    apng(&e.project, &dir.join("shot.png"), ExportOptions { paper: false, ..o }, |_| {}).unwrap();
+    let a = std::fs::read(dir.join("shot.png")).unwrap();
+    assert!(a.windows(4).any(|w| w == b"acTL"), "animated PNG");
 }
 
 #[test]
@@ -214,4 +222,85 @@ proptest::proptest! {
             proptest::prop_assert_eq!(tooncraft_doc::render_frame(&e.project, f, RenderOptions::default()), tooncraft_doc::render_frame(&start, f, RenderOptions::default()));
         }
     }
+}
+
+#[test]
+fn paste_clear_reverse_cycle_commands() {
+    use tooncraft_doc::Cell;
+    let mut e = engine();
+    e.apply(Command::NewDrawing { layer: 0, frame: 0 }).unwrap();
+    e.apply(Command::NewDrawing { layer: 0, frame: 1 }).unwrap();
+    e.apply(Command::ExtendHold { layer: 0, frame: 1 }).unwrap();
+    let block = vec![e.project.layers[0].copy_cells(0, 2)];
+    e.apply(Command::PasteCells { layer: 0, frame: 4, block: block.clone(), insert: false, duplicate: false }).unwrap();
+    assert_eq!(sheet(&e.project.layers[0].cells), "##-.##-.");
+    assert_eq!(e.project.drawing_count(), 2, "linked paste shares drawings");
+    e.apply(Command::PasteCells { layer: 0, frame: 4, block, insert: false, duplicate: true }).unwrap();
+    assert_eq!(e.project.drawing_count(), 4, "duplicate paste copies drawings");
+    e.undo().unwrap();
+    assert_eq!(e.project.drawing_count(), 2);
+    e.apply(Command::Reverse { layer: 0, from: 0, to: 2 }).unwrap();
+    assert_eq!(e.project.layers[0].cells[0], Cell::Key(tooncraft_doc::DrawingId(2)));
+    e.apply(Command::ClearRange { layers: vec![0], from: 4, to: 7, shift: false }).unwrap();
+    e.apply(Command::Cycle { layer: 0, from: 0, to: 2, times: 1 }).unwrap();
+    assert_eq!(sheet(&e.project.layers[0].cells), "#-##-#..");
+    e.apply(Command::ClearRange { layers: vec![0], from: 0, to: 2, shift: true }).unwrap();
+    assert_eq!(sheet(&e.project.layers[0].cells), "#-#.....");
+    for _ in 0..4 {
+        e.undo().unwrap();
+    }
+    assert_eq!(sheet(&e.project.layers[0].cells), "##-.##-.");
+}
+
+#[test]
+fn import_image_sequence() {
+    let dir = scratch("import");
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut paths = Vec::new();
+    for i in 0..3u32 {
+        let mut img = tooncraft_raster::RgbaImage::transparent(640, 100);
+        for x in 0..640 {
+            for y in 46..54 {
+                img.set_pixel(x, y, [0, 0, 0, 255]);
+            }
+        }
+        img.set_pixel(i, 0, [255, 0, 0, 255]);
+        let p = dir.join(format!("rough_{i}.png"));
+        std::fs::write(&p, tooncraft_format::encode_png(&img).unwrap()).unwrap();
+        paths.push(p.to_string_lossy().into_owned());
+    }
+    let mut e = engine();
+    e.apply(Command::ImportImages { paths: paths.clone(), frame: 1, hold: 2, name: "Roughs".into() }).unwrap();
+    let l = e.project.layers.last().unwrap();
+    assert_eq!(l.name, "Roughs");
+    assert_eq!(sheet(&l.cells), ".#-#-#-.");
+    // 640 wide on a 320-wide canvas: scaled to fit, centred
+    assert_eq!(e.pick_color(1, 160, 120), [0, 0, 0, 255], "the band lands mid-canvas");
+    assert_ne!(e.pick_color(1, 160, 60), [0, 0, 0, 255]);
+    paths.push(dir.join("missing.png").to_string_lossy().into_owned());
+    let before = e.project.clone();
+    assert!(matches!(e.apply(Command::ImportImages { paths, frame: 0, hold: 1, name: "x".into() }), Err(EngineError::Import(_))));
+    assert_eq!(e.project, before, "a failed import changes nothing");
+    e.undo().unwrap();
+    assert_eq!(e.project.layers.len(), 1);
+}
+
+#[test]
+fn set_exposure_is_one_undo_step() {
+    let mut e = engine();
+    e.apply(Command::NewDrawing { layer: 0, frame: 0 }).unwrap();
+    e.apply(Command::NewDrawing { layer: 0, frame: 1 }).unwrap();
+    e.apply(Command::SetExposure { layer: 0, frame: 0, length: 4 }).unwrap();
+    assert_eq!(sheet(&e.project.layers[0].cells), "#---#...");
+    e.undo().unwrap();
+    assert_eq!(sheet(&e.project.layers[0].cells), "##......");
+}
+
+#[test]
+fn large_demo_is_sparse() {
+    let e = crate::demo::large(1920, 1080, 12).unwrap();
+    assert_eq!(e.project.drawing_count(), 13);
+    // a line drawing on a 1080p canvas uses a fraction of a full frame's memory
+    let full = 1920u64 * 1080 * 4;
+    assert!(e.project.memory_bytes() / 13 < full / 4, "{} bytes per drawing", e.project.memory_bytes() / 13);
 }

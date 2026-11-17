@@ -154,10 +154,22 @@ fn cell_text(cell: Cell) -> String {
 
 fn grid_keys(app: &mut ToonApp, ui: &egui::Ui) {
     let (layer, frame) = (app.layer, app.frame);
-    let k = ui.input(|i| {
-        let plain = |k| i.modifiers.is_none() && i.key_pressed(k);
-        [plain(Key::ArrowLeft), plain(Key::ArrowRight), plain(Key::ArrowUp), plain(Key::ArrowDown)]
+    let (k, shift) = ui.input(|i| {
+        let arrow = |k| (i.modifiers.is_none() || i.modifiers.shift_only()) && i.key_pressed(k);
+        ([arrow(Key::ArrowLeft), arrow(Key::ArrowRight), arrow(Key::ArrowUp), arrow(Key::ArrowDown)], i.modifiers.shift)
     });
+    if k.iter().any(|v| *v) {
+        if shift {
+            if app.sel_anchor.is_none() {
+                app.sel_anchor = Some((layer, frame));
+            }
+        } else {
+            app.sel_anchor = None;
+        }
+    }
+    if ui.input(|i| i.key_pressed(Key::Escape)) {
+        app.sel_anchor = None;
+    }
     if k[0] {
         app.go_to(frame as i64 - 1);
     }
@@ -252,6 +264,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let pins: Vec<Pin> = app.engine.project.light_table.pins.clone();
     let mut clicked: Option<(usize, u32)> = None;
     let mut toggles: Vec<(usize, bool)> = Vec::new();
+    let mut drag: Option<(usize, u32, u32)> = None;
     for row in 0..visible_rows.min(n_layers.saturating_sub(row0)) {
         let li = n_layers - 1 - (row0 + row);
         let Some(layer) = app.engine.project.layers.get(li) else { continue };
@@ -313,7 +326,12 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             if pins.iter().any(|p| p.layer == layer.id && p.frame == f) {
                 painter.rect_filled(Rect::from_center_size(r.center_bottom() - vec2(0.0, 3.0), vec2(5.0, 5.0)), 0.0, pal.playhead);
             }
-            let resp = ui.interact(r, grid_id().with((layer.id, f)), Sense::click());
+            let resp = ui.interact(r, grid_id().with((layer.id, f)), Sense::click_and_drag());
+            if resp.drag_started()
+                && let Some((start, end)) = layer.exposure_range(f)
+            {
+                drag = Some((li, start, end - start));
+            }
             let selected = li == app.layer && f == app.frame;
             let label = tlf!("{layer}, frame {frame}: {cell}", layer = layer.name, frame = f + 1, cell = cell_text(cell));
             resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Cell, true, selected, label.clone()));
@@ -323,6 +341,24 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             f += 1;
         }
         painter.line_segment([row_rect.left_bottom(), row_rect.right_bottom()], Stroke::new(1.0, pal.grid));
+    }
+    // selection
+    if app.has_range() {
+        let (l0, l1, f0, f1) = app.selection();
+        let fx0 = f0.max(first);
+        let fx1 = f1.min(first + visible_cols.saturating_sub(1));
+        let r0 = n_layers - 1 - l1;
+        let r1 = n_layers - 1 - l0;
+        if fx0 <= fx1 && r1 >= row0 && r0 < row0 + visible_rows {
+            let top = area.top() + RULER_H + (r0.max(row0) - row0) as f32 * ROW_H;
+            let bottom = area.top() + RULER_H + ((r1 + 1).min(row0 + visible_rows) - row0) as f32 * ROW_H;
+            let rect = Rect::from_min_max(
+                pos2(frames_area.left() + (fx0 - first) as f32 * CELL_W, top),
+                pos2(frames_area.left() + (fx1 + 1 - first) as f32 * CELL_W, bottom),
+            );
+            painter.rect_filled(rect, 0.0, pal.playhead.gamma_multiply(0.18));
+            painter.rect_stroke(rect, 0.0, Stroke::new(1.0, pal.playhead), egui::StrokeKind::Inside);
+        }
     }
     // playhead
     if app.frame >= first && app.frame < first + visible_cols {
@@ -335,10 +371,42 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     if grid.has_focus() {
         painter.rect_stroke(area.shrink(1.0), 0.0, Stroke::new(2.0, pal.playhead), egui::StrokeKind::Inside);
     }
+    // Dragging a drawing's cells sideways changes how long it is held (+ / − do it from the keyboard).
+    let key = egui::Id::unique("tooncraft-hold-drag");
+    if let Some(d) = drag {
+        ui.data_mut(|m| m.insert_temp(key, d));
+    }
+    if let Some((li, start, len0)) = ui.data(|m| m.get_temp::<(usize, u32, u32)>(key)) {
+        let (down, pos) = ui.input(|i| (i.pointer.primary_down(), i.pointer.interact_pos()));
+        let target = pos.map(|p| ((p.x - frames_area.left()) / CELL_W).floor() as i64 + first as i64).unwrap_or(0);
+        let len = (target - start as i64 + 1).max(1) as u32;
+        if down {
+            let x0 = frames_area.left() + (start as f32 - first as f32) * CELL_W;
+            let row = n_layers - 1 - li;
+            if row >= row0 && row < row0 + visible_rows {
+                let y = area.top() + RULER_H + (row - row0) as f32 * ROW_H;
+                let r = Rect::from_min_size(pos2(x0, y + 1.0), vec2(len as f32 * CELL_W, ROW_H - 2.0));
+                painter.rect_stroke(r, 2.0, Stroke::new(2.0, pal.accent), egui::StrokeKind::Inside);
+            }
+        } else {
+            ui.data_mut(|m| m.remove::<(usize, u32, u32)>(key));
+            if len != len0 {
+                app.run(Command::SetExposure { layer: li, frame: start, length: len });
+                app.set_status(tlf!("Held for {n} frames", n = len));
+            }
+        }
+    }
     for (li, v) in toggles {
         app.run(Command::SetLayer { layer: li, visible: Some(v), locked: None, opacity: None });
     }
     if let Some((li, f)) = clicked {
+        if ui.input(|i| i.modifiers.shift) {
+            if app.sel_anchor.is_none() {
+                app.sel_anchor = Some((app.layer, app.frame));
+            }
+        } else {
+            app.sel_anchor = None;
+        }
         app.layer = li;
         app.frame = f;
         app.playback.stop();
@@ -374,6 +442,29 @@ pub fn frame_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
         if ui.button(label).clicked() {
             app.run(cmd);
         }
+    }
+    ui.separator();
+    if ui.button(tl!("Copy Frames")).clicked() {
+        app.copy_cells();
+    }
+    if ui.button(tl!("Cut Frames")).clicked() {
+        app.cut_cells();
+    }
+    if ui.add_enabled(app.cell_clipboard.is_some(), egui::Button::new(tl!("Paste Frames"))).clicked() {
+        app.paste_cells(false, false);
+    }
+    if ui.add_enabled(app.cell_clipboard.is_some(), egui::Button::new(tl!("Paste Frames, Moving Later Frames"))).clicked() {
+        app.paste_cells(true, false);
+    }
+    if ui.add_enabled(app.cell_clipboard.is_some(), egui::Button::new(tl!("Paste as New Drawings"))).clicked() {
+        app.paste_cells(false, true);
+    }
+    let (l0, _, f0, f1) = app.selection();
+    if ui.add_enabled(f1 > f0, egui::Button::new(tl!("Reverse Selected Frames"))).clicked() {
+        app.run(Command::Reverse { layer: l0, from: f0, to: f1 });
+    }
+    if ui.add_enabled(f1 > f0, egui::Button::new(tl!("Repeat Selected Frames"))).clicked() {
+        app.run(Command::Cycle { layer: l0, from: f0, to: f1, times: 1 });
     }
     ui.separator();
     ui.menu_button(tl!("Re-time Layer"), |ui| {

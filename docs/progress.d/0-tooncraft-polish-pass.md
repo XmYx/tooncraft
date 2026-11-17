@@ -1,0 +1,1 @@
+- 2026-11-17: Polish pass: user research; exposure-sheet ranges (select, copy / cut / paste, reverse, repeat), drag-to-hold; image-sequence import; MP4 and animated PNG export; Save New Version; keyboard panning; straight lines; large-shot performance measured.

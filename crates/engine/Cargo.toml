@@ -18,6 +18,9 @@ tooncraft-format = { workspace = true }
 craft-gif = { workspace = true }
 craft-ora = { workspace = true }
 craft-atomic = { workspace = true }
+craft-image-codecs = { workspace = true }
+craft-video = { workspace = true }
+craft-media = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

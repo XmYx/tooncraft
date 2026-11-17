@@ -11,6 +11,7 @@
 mod command;
 pub mod demo;
 pub mod export;
+mod import;
 pub mod playback;
 mod undo;
 
@@ -45,11 +46,14 @@ pub enum EngineError {
     NothingToUndo,
     #[error("nothing to redo")]
     NothingToRedo,
+    #[error("could not import {0}")]
+    Import(String),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
 
 struct LiveStroke {
+    last: Option<Sample>,
     drawing: DrawingId,
     created: Vec<Part>,
     engine: StrokeEngine,
@@ -140,7 +144,7 @@ impl Engine {
         Ok(())
     }
 
-    fn push(&mut self, entry: Entry) {
+    pub(crate) fn push(&mut self, entry: Entry) {
         if entry.parts.is_empty() {
             return;
         }
@@ -154,7 +158,7 @@ impl Engine {
         }
     }
 
-    fn check_unlocked(&self, layer: usize) -> Result<()> {
+    pub(crate) fn check_unlocked(&self, layer: usize) -> Result<()> {
         let l = self.project.layer(layer)?;
         if l.locked {
             return Err(EngineError::Locked(l.name.clone()));
@@ -188,7 +192,7 @@ impl Engine {
         let (drawing, created) = self.ensure_drawing(layer, frame)?;
         let surface = self.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
         let stroke = Stroke::begin(surface, brush);
-        self.live = Some(LiveStroke { drawing, created, engine: StrokeEngine::new(brush), stroke });
+        self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke });
         Ok(())
     }
 
@@ -199,6 +203,9 @@ impl Engine {
     /// Add one input sample to the live stroke; returns the number of dabs painted.
     pub fn stroke_to(&mut self, sample: Sample) -> Result<usize> {
         let live = self.live.as_mut().ok_or(EngineError::NotStroking)?;
+        if let Some(s) = sample.sanitized() {
+            live.last = Some(s);
+        }
         let dabs = live.engine.feed(sample);
         let surface = self.project.drawing_mut(live.drawing).ok_or(EngineError::NotStroking)?;
         live.stroke.add(surface, &dabs);
@@ -228,6 +235,11 @@ impl Engine {
             let entry = Entry { label: String::new(), parts: live.created };
             entry.swap(&mut self.project);
         }
+    }
+
+    /// The last input sample of the live stroke.
+    pub fn live_last_sample(&self) -> Option<Sample> {
+        self.live.as_ref().and_then(|l| l.last)
     }
 
     /// The drawing the live stroke paints on.

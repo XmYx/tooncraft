@@ -17,22 +17,22 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 <!-- parity:start -->
 | | Value | Kind |
 |---|---|---|
-| Feature rows | 124 | measured |
-| Done (D) | 65 | measured |
-| Partial (P) | 16 | measured |
-| Missing (M) | 43 | measured |
-| Parity score, (D + ½·P) / rows | 59 % | measured |
-| Brush engine and tools | 58 % (13 D, 2 P, 9 M) | measured |
-| Paper and canvas | 68 % (6 D, 3 P, 2 M) | measured |
-| Layers and timeline / exposure sheet | 65 % (11 D, 0 P, 6 M) | measured |
+| Feature rows | 128 | measured |
+| Done (D) | 75 | measured |
+| Partial (P) | 17 | measured |
+| Missing (M) | 36 | measured |
+| Parity score, (D + ½·P) / rows | 65 % | measured |
+| Brush engine and tools | 60 % (13 D, 3 P, 8 M) | measured |
+| Paper and canvas | 73 % (7 D, 2 P, 2 M) | measured |
+| Layers and timeline / exposure sheet | 68 % (13 D, 0 P, 6 M) | measured |
 | Onion skin and light table | 80 % (7 D, 2 P, 1 M) | measured |
-| Animation tools | 22 % (2 D, 0 P, 7 M) | measured |
+| Animation tools | 56 % (5 D, 0 P, 4 M) | measured |
 | Colouring | 65 % (5 D, 3 P, 2 M) | measured |
 | Effects | 0 % (0 D, 0 P, 4 M) | measured |
 | Audio and lip-sync | 0 % (0 D, 0 P, 4 M) | measured |
-| Import / export | 45 % (4 D, 1 P, 5 M) | measured |
+| Import / export | 70 % (6 D, 2 P, 2 M) | measured |
 | UI and workspace | 72 % (10 D, 3 P, 3 M) | measured |
-| Stability and performance | 89 % (7 D, 2 P, 0 M) | measured |
+| Stability and performance | 91 % (9 D, 2 P, 0 M) | measured |
 <!-- parity:end -->
 
 Status: **D** done and tested, **P** partial (works, but narrower than the references), **M**
@@ -67,7 +67,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Brush editor with curves for each dynamic | TV, CSP | M | |
 | Watercolour / wet mixing brushes | TV, CSP, PD | M | |
 | Smudge / blur tool | all | M | |
-| Shape tools (line, rectangle, ellipse) | all | M | |
+| Shape tools (line, rectangle, ellipse) | all | P | Shift+click straight lines; shapes missing |
 | Lasso / rectangle selection | all | M | |
 | Transform selection (move, scale, rotate) | all | M | |
 | Eyedropper | all | D | |
@@ -82,7 +82,7 @@ features (video export, effects, audio) and understates it for small ones.
 |---|---|---|---|
 | Tiled sparse canvas (empty space costs nothing) | TV, CSP | D | |
 | Pan, zoom, rotate view | all | D | |
-| Pan, zoom and rotate from the keyboard, with reset | all | P | Zoom and rotate keys work; keyboard panning is missing |
+| Pan, zoom and rotate from the keyboard, with reset | all | D | Alt+arrows pan |
 | Flip view horizontally | all | D | |
 | Fit to window | all | D | |
 | Paper colour | all | D | |
@@ -107,6 +107,8 @@ features (video export, effects, audio) and understates it for small ones.
 | Timeline grid with keys, holds and blanks | all | D | |
 | Vertical exposure sheet view | TB, TV | M | |
 | Frame numbers and current-frame marker | all | D | |
+| Change a hold by dragging its cells | TB, CSP, PD | D | Keyboard: + / − |
+| Select a range of cells across layers | all | D | |
 | Layer blending modes | all | M | |
 | Layer groups / folders | all | M | |
 | Thumbnails in timeline cells | TV, PD | M | |
@@ -136,11 +138,11 @@ features (video export, effects, audio) and understates it for small ones.
 | Key / breakdown / inbetween marking | TV, TB | M | |
 | Flip through drawings (scrub) | all | D | |
 | Re-time a range (on 1s, 2s, 3s) | TV, TB | D | **Ours:** non-destructive, one undo step |
-| Reverse a range | TV, TB | M | |
+| Reverse a range | TV, TB | D | |
 | Camera pan / zoom / rotate keys | TV, TB, PD | M | |
 | Pegs (parented transforms) | TB | M | |
-| Cut / copy / paste cells | all | M | |
-| Cycles (loop a range of cells) | TV, TB | M | |
+| Cut / copy / paste cells | all | D | **Ours:** paste linked or as new drawings, in place or inserting |
+| Cycles (loop a range of cells) | TV, TB | D | |
 | In-between assist | — | M | **Ours:** later, as an AI feature through craft-ai-integrations |
 
 ## Colouring
@@ -183,11 +185,11 @@ features (video export, effects, audio) and understates it for small ones.
 | Native project save / open | all | D | |
 | PNG sequence export | all | D | |
 | GIF export | TV, CSP, PD | D | |
-| APNG / WebP export | TV, CSP | M | |
-| Video export (MP4 / MOV) | all | M | Through FilmCraft / craft-libs codecs |
+| APNG / WebP export | TV, CSP | P | Animated PNG; WebP missing |
+| Video export (MP4 / MOV) | all | D | H.264 MP4 through craft-video and craft-media, no external tools |
 | PSD layers export | TV, CSP | M | Through craft-psd |
 | OpenRaster frame export | TV | D | Through craft-ora |
-| Image sequence import | all | M | |
+| Image sequence import | all | D | |
 | BoardCraft animatic as a starting layout | — | M | **Ours:** suite hand-off, see roadmap |
 | Transparent background export | all | P | PNG and OpenRaster; no test yet |
 
@@ -225,6 +227,8 @@ features (video export, effects, audio) and understates it for small ones.
 | Real-time playback at project fps | all | D | |
 | Playback cache | TV, TB | P | Tile textures cached; no frame pre-render |
 | Stroke latency measured and published | — | D | **Ours:** [performance.md](performance.md) |
+| Versioned saves (save new version) | TV, TB | D | |
+| Large shots stay real-time (4K, 240 drawings) | — | D | **Ours:** measured, 0 dropped frames |
 
 Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, PD = Procreate Dreams.
 
@@ -233,3 +237,4 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | Date | Change | Summary |
 |---|---|---|
 | 2026-11-17 | major | First map, written before the vertical slice; statuses set when the slice landed |
+| 2026-11-17 | major | Polish pass: re-measured after user research (docs/user-research.md); 4 rows added |

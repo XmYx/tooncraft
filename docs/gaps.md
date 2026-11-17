@@ -7,23 +7,30 @@ estimates, not measurements. When a gap closes, delete its entry and update the 
 
 ## Ranked: the top 15
 
-| # | Gap | Category | Beta | Hours | Doc |
+Ranked by impact for a working animator, using [user-research.md](user-research.md) (A = annoyance,
+F = request).
+
+| # | Gap | Category | Beta | Hours | Evidence |
 |---|---|---|---|---|---|
-| 1 | Pen pressure and tilt on Linux X11, Wayland and macOS (winit drops them) | Input | B | 16 | below |
-| 2 | Selection, transform (move, scale, rotate) and cut / copy / paste of pixels | Drawing | B | 30 | |
-| 3 | Copy / paste / move of timeline cells and ranges | Timeline | B | 12 | |
-| 4 | Video export (MP4 / MOV) through FilmCraft or craft-libs codecs | Export | B | 16 | |
-| 5 | Audio track with waveform and scrubbing | Audio | B | 30 | |
-| 6 | Camera keys (pan, zoom, rotate) per shot | Animation | B | 24 | |
-| 7 | Image-sequence import and BoardCraft animatic import as a layout | Import | B | 14 | [interop.md](interop.md) |
-| 8 | GPU dab rasterisation (RFC-0022 craft-gpu once on craft-libs main) | Performance | | 30 | below |
-| 9 | Shape tools (line, rectangle, ellipse) and a ruler / perspective guide | Drawing | | 14 | |
-| 10 | Layer blending modes and folders | Layers | | 12 | |
-| 11 | Customisable shortcuts (craft-keymap) and saved workspaces | UI | | 10 | |
-| 12 | Brush tips from images, brush editor with curves, preset library files | Brushes | | 24 | |
+| 1 | Pen pressure and tilt on Linux X11, Wayland and macOS (winit drops them) | Input | B | 16 | A5 (~10 sources) |
+| 2 | Audio track with waveform and scrubbing for lip sync | Audio | B | 30 | A8, F1 (~7 each) |
+| 3 | Selection, transform (move, scale, rotate) of drawings and selections | Drawing | B | 30 | A11, F3 (~5 each) |
+| 4 | Camera keys (pan, zoom, rotate) and transform layers over drawings | Animation | B | 24 | F16 |
+| 5 | Remappable shortcuts (craft-keymap) and saved workspaces | UI | B | 10 | A17, F11 |
+| 6 | Shape tools (rectangle, ellipse, curve) and angle snapping for lines | Drawing | | 10 | F4 |
+| 7 | Drawing thumbnails in timeline cells | Timeline | | 8 | F12 |
+| 8 | Layer blend modes, clipping and folders; layer colours | Layers | | 12 | F15, F18 |
+| 9 | Fill every frame of a layer at once | Colouring | | 6 | F8 |
+| 10 | Image brush tips, brush preset files | Brushes | | 20 | F7 |
+| 11 | BoardCraft animatic import as a layout | Import | | 10 | [interop.md](interop.md) |
+| 12 | GPU dab rasterisation (craft-gpu, RFC-0022) | Performance | | 30 | below |
 | 13 | Paging of drawings to disk for very long shots | Stability | | 20 | below |
-| 14 | APNG, WebP and PSD-layers export (craft-libs codecs) | Export | | 8 | |
+| 14 | PSD-layers and WebP export; per-layer sequences | Export | | 8 | F17 |
 | 15 | Translations (craft-i18n catalogs) | Languages | | 6 | [localization-parity.md](localization-parity.md) |
+
+Closed in the polish pass: cell copy / cut / paste, range selection, drag-to-hold, reverse, cycles,
+image-sequence import, MP4 and animated PNG export, versioned saves, keyboard panning, Shift+click
+straight lines.
 
 ## Input
 

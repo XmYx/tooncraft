@@ -292,6 +292,24 @@ pub fn save_bytes(path: &Path, bytes: &[u8]) -> Result<SaveReport> {
     Ok(SaveReport { bytes: bytes.len() as u64, backup })
 }
 
+/// The next free versioned name next to `path`: `shot.toon` → `shot_v002.toon`,
+/// `shot_v002.toon` → `shot_v003.toon` (skipping names that exist).
+pub fn next_version_path(path: &Path) -> PathBuf {
+    let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "shot".into());
+    let (base, mut n) = match stem.rsplit_once("_v") {
+        Some((b, v)) if !b.is_empty() && v.len() >= 2 && v.chars().all(|c| c.is_ascii_digit()) => (b.to_string(), v.parse::<u32>().unwrap_or(1)),
+        _ => (stem.clone(), 1),
+    };
+    let dir = path.parent().map(Path::to_path_buf).unwrap_or_default();
+    loop {
+        n = n.saturating_add(1);
+        let candidate = dir.join(format!("{base}_v{n:03}.{EXTENSION}"));
+        if !candidate.exists() || n == u32::MAX {
+            return candidate;
+        }
+    }
+}
+
 /// Open a project file.
 pub fn load(path: &Path) -> Result<Project> {
     let meta = std::fs::metadata(path)?;

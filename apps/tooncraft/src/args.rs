@@ -10,6 +10,7 @@ Options:
   --screenshot <PNG>         render the window once to PNG and quit
   --panel <NAME>             with --screenshot: bring a panel to the front (timeline, layers, brush, colour, onion)
   --bench-playback <SECONDS> play the shot for SECONDS, print frame timing and quit
+  --select <A..B>            start with frames A to B (1-based) of the top layer selected
   --light-table              pin frame 1 of the top layer to the light table and show it
   --light                    light theme
   -h, --help                 print this help
@@ -25,6 +26,7 @@ pub struct Cli {
     pub bench_playback: Option<f64>,
     pub light: bool,
     pub light_table: bool,
+    pub select: Option<(u32, u32)>,
     pub file: Option<PathBuf>,
 }
 
@@ -57,6 +59,13 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             "--demo" => cli.demo = true,
             "--light" => cli.light = true,
             "--light-table" => cli.light_table = true,
+            "--select" => {
+                let v = it.next().ok_or("--select needs A..B")?;
+                let (a, b) = v.split_once("..").ok_or("--select needs A..B")?;
+                let a: u32 = a.parse().map_err(|_| "--select: bad start")?;
+                let b: u32 = b.parse().map_err(|_| "--select: bad end")?;
+                cli.select = Some((a.max(1) - 1, b.max(1) - 1));
+            }
             "--frame" => {
                 let v = it.next().ok_or("--frame needs a number")?;
                 let n: u32 = v.parse().map_err(|_| format!("--frame: not a number: {v}"))?;

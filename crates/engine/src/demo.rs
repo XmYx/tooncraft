@@ -107,6 +107,37 @@ pub fn demo(width: u32, height: u32) -> Result<Engine> {
     Ok(e)
 }
 
+/// A big stress shot: `frames` drawings on ones at `width`×`height` (4K by default from the CLI),
+/// an ink layer with a different drawing every frame and a held background. For the
+/// large-document benchmarks.
+pub fn large(width: u32, height: u32, frames: u32) -> Result<Engine> {
+    let mut e = Engine::new(Project::new("Large shot", width, height, 24, frames.max(1))?);
+    let s = width as f32 / 1280.0;
+    let pencil = Brush { size: 3.0 * s, color: [70, 66, 90, 255], ..Brush::preset(BrushKind::Pencil) };
+    let ink = Brush { size: 4.0 * s, color: [28, 26, 40, 255], ..Brush::preset(BrushKind::Ink) };
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: pencil, samples: line(&[(40.0 * s, 650.0 * s), (1240.0 * s, 650.0 * s)], 0.7) })?;
+    if let Ok(l) = e.project.layer_mut(0) {
+        for c in l.cells.iter_mut().skip(1) {
+            *c = tooncraft_doc::Cell::Hold;
+        }
+    }
+    e.apply(Command::AddLayer { name: "Ink".into(), index: None })?;
+    for f in 0..frames.max(1) {
+        let t = f as f32 / frames.max(1) as f32;
+        let x = (100.0 + t * 1080.0) * s;
+        let y = (360.0 + (t * 12.0).sin() * 160.0) * s;
+        e.apply(Command::Stroke { layer: 1, frame: f, brush: ink, samples: ellipse(x, y, 60.0 * s, 60.0 * s, t * 6.0, 1.05, 0.02) })?;
+        e.apply(Command::Stroke {
+            layer: 1,
+            frame: f,
+            brush: ink,
+            samples: line(&[(x, y + 60.0 * s), (x - 20.0 * s, y + 200.0 * s), (x + 30.0 * s, y + 280.0 * s)], 0.8),
+        })?;
+    }
+    e.mark_saved();
+    Ok(e)
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

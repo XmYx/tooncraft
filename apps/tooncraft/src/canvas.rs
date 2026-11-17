@@ -87,6 +87,9 @@ fn begin(app: &mut ToonApp, s: Sample) {
 }
 
 fn end(app: &mut ToonApp) {
+    if let Some(s) = app.engine.live_last_sample() {
+        app.last_stroke_end = Some((s.x, s.y));
+    }
     if let Err(e) = app.engine.end_stroke() {
         app.set_status(e.to_string());
     }
@@ -175,6 +178,21 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                             begin(app, s);
                             fed = true;
                         }
+                    }
+                    Event::PointerButton { pos, button: PointerButton::Primary, pressed: true, modifiers, .. }
+                        if !app.engine.is_stroking() && rect.contains(pos) && modifiers.shift && app.last_stroke_end.is_some() =>
+                    {
+                        // Shift+click: a straight line from where the last stroke ended.
+                        let to = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));
+                        let (x0, y0) = app.last_stroke_end.unwrap_or((to.x, to.y));
+                        let n = (((to.x - x0).hypot(to.y - y0)) / 2.0).ceil().clamp(1.0, 4000.0) as usize;
+                        begin(app, Sample { x: x0, y: y0, ..to });
+                        for k in 1..=n {
+                            let t = k as f32 / n as f32;
+                            let _ = app.engine.stroke_to(Sample { x: x0 + (to.x - x0) * t, y: y0 + (to.y - y0) * t, time: t as f64 * 0.2, ..to });
+                        }
+                        end(app);
+                        fed = true;
                     }
                     Event::PointerButton { pos, button: PointerButton::Primary, pressed: true, .. } if !app.engine.is_stroking() && rect.contains(pos) => {
                         let s = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));

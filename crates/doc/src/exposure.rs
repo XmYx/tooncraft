@@ -128,6 +128,29 @@ impl Layer {
         Ok(())
     }
 
+    /// Make the exposure containing `frame` exactly `length` frames long (later cells move).
+    pub fn set_exposure_length(&mut self, frame: u32, length: u32) -> Result<(), ExposureError> {
+        let (start, end) = self.exposure_range(frame).ok_or(ExposureError::NoDrawing(frame))?;
+        let want = length.clamp(1, self.cells.len() as u32);
+        let mut have = end - start;
+        let mut guard = 0;
+        while have < want && guard < 70_000 {
+            let before = self.cells.clone();
+            self.extend_hold(start)?;
+            if self.cells == before {
+                break; // end of the shot
+            }
+            have += 1;
+            guard += 1;
+        }
+        while have > want && guard < 140_000 {
+            self.shorten_hold(start)?;
+            have -= 1;
+            guard += 1;
+        }
+        Ok(())
+    }
+
     /// Set the cell at `frame` to start `drawing` (the old exposure there is cut at `frame`).
     pub fn set_key(&mut self, frame: u32, drawing: DrawingId) {
         if let Some(c) = self.cells.get_mut(frame as usize) {
@@ -179,6 +202,134 @@ impl Layer {
         // A hold right after the range now continues the range's last drawing; keep the drawing
         // that was showing there before.
         repair(&mut self.cells, |_| true);
+        Ok(())
+    }
+}
+
+impl Layer {
+    /// The cells `from..=to` as a self-contained block: a leading hold becomes a key of the
+    /// drawing it continues, so the block pastes anywhere.
+    pub fn copy_cells(&self, from: u32, to: u32) -> Vec<Cell> {
+        let len = self.cells.len() as u32;
+        if from > to || from >= len {
+            return Vec::new();
+        }
+        let to = to.min(len - 1);
+        let mut block: Vec<Cell> = self.cells[from as usize..=to as usize].to_vec();
+        if let Some(first) = block.first_mut()
+            && *first == Cell::Hold
+        {
+            *first = resolve(&self.cells, from).map(Cell::Key).unwrap_or(Cell::Blank);
+        }
+        block
+    }
+
+    /// Paste a block at `at`: over the existing cells, or inserted (later cells move right; the
+    /// shot keeps its length, so cells pushed past the end fall off).
+    pub fn paste_cells(&mut self, at: u32, block: &[Cell], insert: bool) {
+        let len = self.cells.len();
+        let at = at as usize;
+        if at >= len || block.is_empty() {
+            return;
+        }
+        if insert {
+            let tail = self.cells.split_off(at);
+            self.cells.extend_from_slice(block);
+            self.cells.extend(tail);
+            self.cells.truncate(len);
+        } else {
+            // A hold right after the pasted block would now continue the block's last drawing;
+            // keep showing what it showed before.
+            let after = at + block.len();
+            if after < len && self.cells[after] == Cell::Hold {
+                self.cells[after] = resolve(&self.cells, after as u32).map(Cell::Key).unwrap_or(Cell::Blank);
+            }
+            for (i, c) in block.iter().enumerate() {
+                if let Some(cell) = self.cells.get_mut(at + i) {
+                    *cell = *c;
+                }
+            }
+        }
+        repair(&mut self.cells, |_| true);
+    }
+
+    /// Clear `from..=to` (blank), or remove those frames so later ones move left.
+    pub fn clear_range(&mut self, from: u32, to: u32, shift: bool) {
+        let len = self.cells.len() as u32;
+        if from > to || from >= len {
+            return;
+        }
+        let to = to.min(len - 1);
+        if shift {
+            for _ in from..=to {
+                self.delete_frame(from);
+            }
+        } else {
+            let after = to as usize + 1;
+            if (after as u32) < len && self.cells[after] == Cell::Hold {
+                self.cells[after] = resolve(&self.cells, after as u32).map(Cell::Key).unwrap_or(Cell::Blank);
+            }
+            for f in from..=to {
+                self.cells[f as usize] = Cell::Blank;
+            }
+            repair(&mut self.cells, |_| true);
+        }
+    }
+
+    /// Play `from..=to` backwards: the exposures (and blanks) in the range in reverse order, each
+    /// keeping its length.
+    pub fn reverse_range(&mut self, from: u32, to: u32) -> Result<(), ExposureError> {
+        let len = self.cells.len() as u32;
+        if from > to || to >= len {
+            return Err(ExposureError::BadRange(from, to));
+        }
+        let block = self.copy_cells(from, to);
+        // runs of (drawing or blank, length)
+        let mut runs: Vec<(Option<DrawingId>, u32)> = Vec::new();
+        for c in &block {
+            match c {
+                Cell::Key(d) => runs.push((Some(*d), 1)),
+                Cell::Hold => {
+                    if let Some(r) = runs.last_mut() {
+                        r.1 += 1;
+                    }
+                }
+                Cell::Blank => match runs.last_mut() {
+                    Some((None, n)) => *n += 1,
+                    _ => runs.push((None, 1)),
+                },
+            }
+        }
+        runs.reverse();
+        let mut out = Vec::with_capacity(block.len());
+        for (d, n) in runs {
+            for k in 0..n {
+                out.push(match (d, k) {
+                    (Some(d), 0) => Cell::Key(d),
+                    (Some(_), _) => Cell::Hold,
+                    (None, _) => Cell::Blank,
+                });
+            }
+        }
+        self.paste_cells(from, &out, false);
+        Ok(())
+    }
+
+    /// Repeat `from..=to` `times` more times right after it (later cells move right).
+    pub fn cycle(&mut self, from: u32, to: u32, times: u32) -> Result<(), ExposureError> {
+        let len = self.cells.len() as u32;
+        if from > to || to >= len {
+            return Err(ExposureError::BadRange(from, to));
+        }
+        let block = self.copy_cells(from, to);
+        let n = block.len() as u32;
+        for k in 0..times.min(64) {
+            let at = to + 1 + k * n;
+            if at >= len {
+                break;
+            }
+            self.paste_cells(at, &block, true);
+        }
         Ok(())
     }
 }
@@ -249,10 +400,44 @@ mod tests {
         assert_eq!(l.cells, vec![k(A), X, X]);
     }
 
+    #[test]
+    fn exposure_length() {
+        let mut l = layer(vec![k(A), k(B), H, X, X, X]);
+        l.set_exposure_length(0, 3).unwrap();
+        assert_eq!(l.cells, vec![k(A), H, H, k(B), H, X]);
+        l.set_exposure_length(4, 1).unwrap();
+        assert_eq!(l.cells, vec![k(A), H, H, k(B), X, X]);
+        l.set_exposure_length(0, 99).unwrap();
+        assert_eq!(l.cells[..3], [k(A), H, H]);
+        assert!(layer(vec![X, X]).set_exposure_length(1, 2).is_err());
+    }
+
+    #[test]
+    fn copy_paste_clear_reverse_cycle() {
+        let c = |d| Cell::Key(DrawingId(d));
+        let mut l = layer(vec![c(1), H, c(2), H, H, X, X, X, X, X]);
+        let block = l.copy_cells(1, 3);
+        assert_eq!(block, vec![c(1), c(2), H], "a leading hold becomes its key");
+        l.paste_cells(6, &block, false);
+        assert_eq!(l.cells, vec![c(1), H, c(2), H, H, X, c(1), c(2), H, X]);
+        l.paste_cells(0, &[c(3)], true);
+        assert_eq!(l.cells, vec![c(3), c(1), H, c(2), H, H, X, c(1), c(2), H]);
+        l.clear_range(1, 3, false);
+        assert_eq!(l.cells, vec![c(3), X, X, X, c(2), H, X, c(1), c(2), H], "a cut exposure keeps its drawing");
+        l.clear_range(1, 3, true);
+        assert_eq!(l.cells, vec![c(3), c(2), H, X, c(1), c(2), H, X, X, X]);
+        l.reverse_range(0, 6).unwrap();
+        assert_eq!(l.cells, vec![c(2), H, c(1), X, c(2), H, c(3), X, X, X]);
+        let mut l = layer(vec![c(1), c(2), H, X, X, X, X, X]);
+        l.cycle(0, 2, 2).unwrap();
+        assert_eq!(l.cells, vec![c(1), c(2), H, c(1), c(2), H, c(1), c(2)]);
+        assert!(l.reverse_range(3, 99).is_err());
+    }
+
     proptest::proptest! {
         /// Any sequence of edits keeps the sheet consistent: same length, no orphan holds.
         #[test]
-        fn edits_keep_the_sheet_consistent(ops in proptest::collection::vec((0u8..7, 0u32..12, 0u32..12, 1u32..4), 0..60)) {
+        fn edits_keep_the_sheet_consistent(ops in proptest::collection::vec((0u8..11, 0u32..12, 0u32..12, 1u32..4), 0..60)) {
             let mut l = layer(vec![k(A), H, k(B), X, X, k(DrawingId(3)), H, H, X, X, X, X]);
             for (op, a, b, s) in ops {
                 let _ = match op {
@@ -261,6 +446,10 @@ mod tests {
                     2 => l.extend_hold(a),
                     3 => l.shorten_hold(a),
                     4 => { l.set_key(a, DrawingId(b as u64 + 1)); Ok(()) }
+                    7 => { let blk = l.copy_cells(a.min(b), a.max(b)); l.paste_cells(s * 3, &blk, s % 2 == 0); Ok(()) }
+                    8 => { l.clear_range(a.min(b), a.max(b), s % 2 == 0); Ok(()) }
+                    9 => l.reverse_range(a.min(b), a.max(b)).or(Ok(())),
+                    10 => l.cycle(a.min(b), a.max(b), s).or(Ok(())),
                     5 => { l.clear(a); Ok(()) }
                     _ => l.retime(a.min(b), a.max(b), s),
                 };

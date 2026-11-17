@@ -121,3 +121,13 @@ proptest::proptest! {
         let _ = from_bytes(&zip.finish().unwrap());
     }
 }
+
+#[test]
+fn version_names() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-ver-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    assert_eq!(next_version_path(&dir.join("shot.toon")), dir.join("shot_v002.toon"));
+    std::fs::write(dir.join("shot_v003.toon"), b"x").unwrap();
+    assert_eq!(next_version_path(&dir.join("shot_v002.toon")), dir.join("shot_v004.toon"));
+    assert_eq!(next_version_path(&dir.join("a_vx.toon")), dir.join("a_vx_v002.toon"));
+}

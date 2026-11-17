@@ -44,6 +44,22 @@ compositor throttling redraws to 29–48 per second and dropping frames; that is
 ToonCraft (CPU time per frame stayed under 1 ms), but it means playback numbers are only valid with
 the window visible.
 
+## Large shots
+
+`tooncraft-cli demo large.toon --large` builds a 3840×2160, 24 fps, 240-frame shot: a held
+background and a different ink drawing on every frame (241 drawings).
+
+| Measure | Value |
+|---|---|
+| Build the shot through commands and save it | 1.1 s, 206 MB peak memory |
+| File size | 6.4 MB |
+| Load and inspect (`tooncraft-cli info`) | 0.12 s, 156 MB peak memory |
+| Pixel memory of the drawings (sparse tiles) | 147 MB (vs. 7.9 GB as full 4K frames) |
+| App start to first rendered frame with the shot open (`--screenshot`) | 0.67 s |
+| App playback, 8 s: animation frames shown per second (target 24) | 24.1, 0 dropped |
+| App playback: UI frame CPU time mean / 99th percentile | 0.73 ms / 3.13 ms |
+| MP4 export, 48 frames at 4K (H.264, CRF 18) | 8.0 s (6 frames per second), 131 KB |
+
 ## Engine (CPU)
 
 | Measure | Value |

@@ -70,6 +70,12 @@ pub enum Command {
         layer: usize,
         frame: u32,
     },
+    /// Show the drawing at the frame for exactly `length` frames (later frames move).
+    SetExposure {
+        layer: usize,
+        frame: u32,
+        length: u32,
+    },
     /// Show the drawing at the frame one frame shorter.
     ShortenHold {
         layer: usize,
@@ -86,6 +92,48 @@ pub enum Command {
         from: u32,
         to: u32,
         step: u32,
+    },
+    /// Paste a block of cells: `block[0]` goes to `layer`, `block[1]` to the layer above, and so
+    /// on, starting at `frame`. `insert` moves later cells right; `duplicate` pastes independent
+    /// copies of the drawings instead of more exposures of the same ones.
+    PasteCells {
+        layer: usize,
+        frame: u32,
+        block: Vec<Vec<Cell>>,
+        #[serde(default)]
+        insert: bool,
+        #[serde(default)]
+        duplicate: bool,
+    },
+    /// Blank `from..=to` on the layers (or remove those frames when `shift`).
+    ClearRange {
+        layers: Vec<usize>,
+        from: u32,
+        to: u32,
+        #[serde(default)]
+        shift: bool,
+    },
+    /// Play `from..=to` backwards.
+    Reverse {
+        layer: usize,
+        from: u32,
+        to: u32,
+    },
+    /// Repeat `from..=to` `times` more times after itself.
+    Cycle {
+        layer: usize,
+        from: u32,
+        to: u32,
+        times: u32,
+    },
+    /// Images (PNG, JPEG, WebP, TIFF …) as drawings on a new layer, one per `hold` frames from
+    /// `frame`, centred and scaled down to fit the canvas.
+    ImportImages {
+        paths: Vec<String>,
+        frame: u32,
+        #[serde(default = "one_frame")]
+        hold: u32,
+        name: String,
     },
     /// Erase all pixels of the drawing at the frame.
     ClearDrawing {
@@ -142,6 +190,10 @@ pub enum Command {
     SetPaper {
         color: [u8; 3],
     },
+}
+
+fn one_frame() -> u32 {
+    1
 }
 
 fn layers_entry(e: &Engine, label: &str) -> Entry {
@@ -233,6 +285,11 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.extend_hold(frame).map_err(DocError::from)?;
             Ok(())
         }),
+        Command::SetExposure { layer, frame, length } => edit_layers(e, "Change hold", |e| {
+            e.check_unlocked(layer)?;
+            e.project.layer_mut(layer)?.set_exposure_length(frame, length).map_err(DocError::from)?;
+            Ok(())
+        }),
         Command::ShortenHold { layer, frame } => edit_layers(e, "Shorten hold", |e| {
             e.check_unlocked(layer)?;
             e.project.layer_mut(layer)?.shorten_hold(frame).map_err(DocError::from)?;
@@ -249,6 +306,67 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.retime(from, to, step).map_err(DocError::from)?;
             Ok(())
         }),
+        Command::PasteCells { layer, frame, block, insert, duplicate } => {
+            frame_ok(e, frame)?;
+            if block.len() > tooncraft_doc::MAX_LAYERS || block.iter().any(|r| r.len() > tooncraft_doc::MAX_FRAMES as usize) {
+                return Err(DocError::TooLong.into());
+            }
+            for i in 0..block.len() {
+                e.check_unlocked(layer + i)?;
+            }
+            let mut parts = vec![Part::Layers(e.project.layers.clone())];
+            let mut block = block;
+            if duplicate {
+                let mut map = std::collections::BTreeMap::new();
+                for row in &mut block {
+                    for c in row.iter_mut() {
+                        if let Cell::Key(d) = *c {
+                            let new = match map.get(&d) {
+                                Some(n) => *n,
+                                None => {
+                                    let Some(src) = e.project.drawing(d).cloned() else { continue };
+                                    let n = e.project.add_drawing(Some(src))?;
+                                    parts.insert(0, Part::Drawing { id: n, surface: None });
+                                    map.insert(d, n);
+                                    n
+                                }
+                            };
+                            *c = Cell::Key(new);
+                        }
+                    }
+                }
+            }
+            for (i, row) in block.iter().enumerate() {
+                let ok: Vec<Cell> = row
+                    .iter()
+                    .map(|c| match c {
+                        Cell::Key(d) if e.project.drawing(*d).is_none() => Cell::Blank,
+                        c => *c,
+                    })
+                    .collect();
+                e.project.layer_mut(layer + i)?.paste_cells(frame, &ok, insert);
+            }
+            e.push(Entry { label: "Paste frames".into(), parts });
+            Ok(())
+        }
+        Command::ClearRange { layers, from, to, shift } => edit_layers(e, if shift { "Delete frames" } else { "Clear frames" }, |e| {
+            for l in layers {
+                e.check_unlocked(l)?;
+                e.project.layer_mut(l)?.clear_range(from, to, shift);
+            }
+            Ok(())
+        }),
+        Command::Reverse { layer, from, to } => edit_layers(e, "Reverse", |e| {
+            e.check_unlocked(layer)?;
+            e.project.layer_mut(layer)?.reverse_range(from, to).map_err(DocError::from)?;
+            Ok(())
+        }),
+        Command::Cycle { layer, from, to, times } => edit_layers(e, "Cycle", |e| {
+            e.check_unlocked(layer)?;
+            e.project.layer_mut(layer)?.cycle(from, to, times).map_err(DocError::from)?;
+            Ok(())
+        }),
+        Command::ImportImages { paths, frame, hold, name } => crate::import::images(e, &paths, frame, hold.clamp(1, 64), &name),
         Command::ClearDrawing { layer, frame } => {
             e.check_unlocked(layer)?;
             let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;

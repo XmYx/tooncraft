@@ -12,7 +12,7 @@ Celsys, Savage Interactive or any other vendor.
 |---|---|---|---|---|
 | `assets/app-icon/tooncraft.svg` | ToonCraft contributors | Original work: draft app icon (flip-book sheets, bouncing ball) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon, README |
 | `docs/images/tooncraft-onion-skin.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --frame 8 --screenshot`) of the built-in demo shot, code-drawn in `crates/engine/src/demo.rs` | MIT OR Apache-2.0 | README |
-| `docs/images/tooncraft-timeline.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --frame 15 --light-table --panel onion --screenshot`) of the built-in demo shot | MIT OR Apache-2.0 | README |
+| `docs/images/tooncraft-timeline.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --select 9..14 --light-table --panel onion --screenshot`) of the built-in demo shot | MIT OR Apache-2.0 | README |
 
 Code-drawn content (the demo shot *Bouncing ball*, the tool icons in `apps/tooncraft/src/icons.rs`
 and the paper grain in `crates/brush/src/grain.rs`) is original work under the project licence.

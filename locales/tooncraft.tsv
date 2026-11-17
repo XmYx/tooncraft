@@ -7,6 +7,7 @@ tooncraft	After
 tooncraft	Airbrush	
 tooncraft	All visible layers	
 tooncraft	Animated GIF…	
+tooncraft	Animated PNG…	
 tooncraft	Before	
 tooncraft	Blank frame: drawing here starts a new drawing.	
 tooncraft	Blue	
@@ -27,10 +28,14 @@ tooncraft	Close gaps
 tooncraft	Colour	
 tooncraft	Colour #{hex}	
 tooncraft	Colour picker	
+tooncraft	Copied {frames} frames from {layers} layers	
+tooncraft	Copy / cut / paste frames	
+tooncraft	Copy Frames	
 tooncraft	Could not open {file}: {error}	
 tooncraft	Could not save: {error}	
 tooncraft	Create	
 tooncraft	Current colour: open the Colour panel	
+tooncraft	Cut Frames	
 tooncraft	Delete	
 tooncraft	Delete Frame	
 tooncraft	Delete Frame in All Layers	
@@ -79,6 +84,7 @@ tooncraft	Hand-drawn, frame-by-frame animation. Part of the ArtCraft Crafting Ap
 tooncraft	Hardness	
 tooncraft	Has a drawing. Arrow keys move the keyboard pen, Enter puts it down or lifts it.	
 tooncraft	Height	
+tooncraft	Held for {n} frames	
 tooncraft	Help	
 tooncraft	Hex	
 tooncraft	Hide Layer	
@@ -88,6 +94,10 @@ tooncraft	Hold One Frame Shorter
 tooncraft	Hold one frame longer / shorter	
 tooncraft	Hold −	
 tooncraft	Hue	
+tooncraft	Images	
+tooncraft	Import Image Sequence…	
+tooncraft	Imported	
+tooncraft	Imported {count} images	
 tooncraft	Ink pen	
 tooncraft	Insert	
 tooncraft	Insert Frame	
@@ -133,6 +143,7 @@ tooncraft	New shot
 tooncraft	Next Frame	
 tooncraft	Next frame	
 tooncraft	Next panel	
+tooncraft	Nothing copied yet	
 tooncraft	On	
 tooncraft	Onion	
 tooncraft	Onion Skin	
@@ -151,6 +162,11 @@ tooncraft	Pan
 tooncraft	Paper	
 tooncraft	Paper colour	
 tooncraft	Paper grain	
+tooncraft	Paste Frames	
+tooncraft	Paste Frames, Moving Later Frames	
+tooncraft	Paste as New Drawings	
+tooncraft	Paste frames, moving later frames right	
+tooncraft	Pasted	
 tooncraft	Pen down: arrow keys draw, Enter lifts	
 tooncraft	Pen lifted	
 tooncraft	Pencil	
@@ -184,9 +200,11 @@ tooncraft	Remove
 tooncraft	Removed {count} unused drawings	
 tooncraft	Rename	
 tooncraft	Rename Layer…	
+tooncraft	Repeat Selected Frames	
 tooncraft	Reset Brush	
 tooncraft	Reset Panels	
 tooncraft	Reset Rotation	
+tooncraft	Reverse Selected Frames	
 tooncraft	Rotate Left	
 tooncraft	Rotate Right	
 tooncraft	Rotate view	
@@ -195,8 +213,12 @@ tooncraft	Saturation and brightness
 tooncraft	Save	
 tooncraft	Save / save as	
 tooncraft	Save As…	
+tooncraft	Save New Version	
+tooncraft	Save as shot_v002, shot_v003 … next to the current file (Ctrl+Alt+S)	
+tooncraft	Save new version	
 tooncraft	Save the shot before quitting?	
 tooncraft	Saved {file} ({size} KB)	
+tooncraft	Select frames	
 tooncraft	Shot	
 tooncraft	Show	
 tooncraft	Show Layer	
@@ -216,6 +238,7 @@ tooncraft	Steady line
 tooncraft	Steady line (px)	
 tooncraft	Step by	
 tooncraft	Stop	
+tooncraft	Straight line from the last stroke	
 tooncraft	Stroke cancelled	
 tooncraft	Swatch #{hex}	
 tooncraft	Swatches	
@@ -239,6 +262,7 @@ tooncraft	Unlock Layer
 tooncraft	Unpin This Frame	
 tooncraft	Unsaved changes	
 tooncraft	Up	
+tooncraft	Video (MP4, H.264)…	
 tooncraft	View	
 tooncraft	Width	
 tooncraft	Zoom In	

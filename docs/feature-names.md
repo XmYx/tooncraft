@@ -24,3 +24,8 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Mirror view | Descriptive | Use |
 | Purge unused drawings | Our wording | Use |
 | Paper, Paper grain | Descriptive | Use |
+| Save New Version | Descriptive; common phrase | Use |
+| Paste as New Drawings, Paste Frames Moving Later Frames | Our wording | Use |
+| Reverse Selected Frames, Repeat Selected Frames | Descriptive (instead of vendor terms for cycles) | Use |
+| Import Image Sequence | Descriptive | Use |
+| Video (MP4, H.264), Animated PNG | Format names (allowed by rule 3) | Use |
