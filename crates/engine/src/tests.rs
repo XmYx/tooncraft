@@ -194,7 +194,7 @@ proptest::proptest! {
     #![proptest_config(proptest::prelude::ProptestConfig::with_cases(40))]
     /// Random command sequences never panic, and undoing everything gives the start state back.
     #[test]
-    fn random_commands_undo_to_the_start(ops in proptest::collection::vec((0u8..14, 0usize..3, 0u32..10, 0u32..10), 1..30)) {
+    fn random_commands_undo_to_the_start(ops in proptest::collection::vec((0u8..20, 0usize..3, 0u32..10, 0u32..10), 1..30)) {
         let mut e = engine();
         let start = e.project.clone();
         for (op, layer, a, b) in ops {
@@ -212,12 +212,20 @@ proptest::proptest! {
                 10 => Command::DeleteLayer { layer },
                 11 => Command::MoveLayer { from: layer, to: a as usize },
                 12 => Command::ClearDrawing { layer, frame: a },
+                14 => Command::AddPeg { name: "p".into(), parent: (b > 4).then_some(tooncraft_doc::PegId(a as u64)) },
+                15 => Command::SetPegKey { peg: tooncraft_doc::PegId(layer as u64 + 1), frame: a, x: b as f32 * 9.0, y: 0.0, angle: a as f32 * 20.0, scale_x: 1.0, scale_y: 1.0, skew: 0.0, ease: tooncraft_doc::Ease::Linear },
+                16 => Command::SetLayerPeg { layer, peg: Some(tooncraft_doc::PegId(b as u64)) },
+                17 => Command::SetPegParent { peg: tooncraft_doc::PegId(a as u64), parent: Some(tooncraft_doc::PegId(b as u64)) },
+                18 => Command::DeletePeg { peg: tooncraft_doc::PegId(a as u64) },
+                19 => Command::AddCameraShake { shake: tooncraft_doc::Shake { from: a, to: b, amplitude: 5.0, rotation: 1.0, frequency: 0.3, fade: 1, seed: a } },
                 _ => Command::PurgeUnused,
             };
             let _ = e.apply(cmd);
         }
         while e.undo().is_ok() {}
         proptest::prop_assert_eq!(&e.project.layers, &start.layers);
+        proptest::prop_assert_eq!(&e.project.pegs, &start.pegs);
+        proptest::prop_assert_eq!(&e.project.camera, &start.camera);
         for f in 0..8 {
             proptest::prop_assert_eq!(tooncraft_doc::render_frame(&e.project, f, RenderOptions::default()), tooncraft_doc::render_frame(&start, f, RenderOptions::default()));
         }
@@ -483,4 +491,44 @@ fn interchange_round_trips_through_other_apps_formats() {
     let before = b.project.clone();
     assert!(b.apply(Command::ImportLayers { path: psd.to_string_lossy().into_owned(), frame: 0 }).is_err());
     assert_eq!(b.project, before);
+}
+
+#[test]
+fn pegs_move_layers_undo_save_and_fill_in_local_space() {
+    use tooncraft_doc::{Ease, PegId};
+    let mut e = engine();
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: circle(60.0, 60.0, 20.0) }).unwrap();
+    e.apply(Command::ExtendHold { layer: 0, frame: 0 }).unwrap();
+    e.apply(Command::ExtendHold { layer: 0, frame: 0 }).unwrap();
+    let before = e.project.clone();
+    e.apply(Command::AddPeg { name: "Body".into(), parent: None }).unwrap();
+    let body = PegId(1);
+    e.apply(Command::SetLayerPeg { layer: 0, peg: Some(body) }).unwrap();
+    let key = |frame, x| Command::SetPegKey { peg: body, frame, x, y: 0.0, angle: 0.0, scale_x: 1.0, scale_y: 1.0, skew: 0.0, ease: Ease::Linear };
+    e.apply(key(0, 0.0)).unwrap();
+    e.apply(key(2, 100.0)).unwrap();
+    let dark = |c: [u8; 4]| c[0] < 128;
+    assert!(dark(e.pick_color(0, 40, 60)), "the ring at rest on frame 1");
+    assert!(dark(e.pick_color(2, 140, 60)), "moved 100 px by frame 3");
+    assert!(!dark(e.pick_color(2, 40, 60)));
+    // a fill clicked in the drawing's own space lands inside the moved ring
+    e.apply(Command::Fill { layer: 0, frame: 2, x: 60, y: 60, color: [200, 0, 0, 255], options: FillOptions::default(), reference: FillReference::AllLayers })
+        .unwrap();
+    assert_eq!(e.pick_color(2, 160, 60), [200, 0, 0, 255]);
+    // nesting, loops refused, file round-trip
+    e.apply(Command::AddPeg { name: "Arm".into(), parent: Some(body) }).unwrap();
+    assert!(e.apply(Command::SetPegParent { peg: body, parent: Some(PegId(2)) }).is_err(), "no loops");
+    assert!(e.apply(Command::SetLayerPeg { layer: 0, peg: Some(PegId(9)) }).is_err());
+    e.apply(Command::SetLayerDepth { layer: 0, depth: 2.0 }).unwrap();
+    e.apply(Command::AddCameraShake { shake: tooncraft_doc::Shake { from: 0, to: 5, amplitude: 4.0, rotation: 0.0, frequency: 0.4, fade: 0, seed: 3 } })
+        .unwrap();
+    let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
+    assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap(), e.project);
+    let json = serde_json::to_string(&key(1, 5.0)).unwrap();
+    assert!(json.contains(r#""cmd":"set_peg_key""#) && json.contains(r#""ease":{"kind":"linear"}"#), "{json}");
+    for _ in 0..8 {
+        e.undo().unwrap();
+    }
+    assert_eq!(e.project, before, "eight successful commands, eight undo steps");
+    assert_eq!(e.project.layers[0].peg, None);
 }

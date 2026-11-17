@@ -17,16 +17,16 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 <!-- parity:start -->
 | | Value | Kind |
 |---|---|---|
-| Feature rows | 134 | measured |
-| Done (D) | 96 | measured |
+| Feature rows | 135 | measured |
+| Done (D) | 98 | measured |
 | Partial (P) | 16 | measured |
-| Missing (M) | 22 | measured |
-| Parity score, (D + ½·P) / rows | 78 % | measured |
+| Missing (M) | 21 | measured |
+| Parity score, (D + ½·P) / rows | 79 % | measured |
 | Brush engine and tools | 81 % (19 D, 1 P, 4 M) | measured |
 | Paper and canvas | 73 % (7 D, 2 P, 2 M) | measured |
 | Layers and timeline / exposure sheet | 82 % (15 D, 1 P, 3 M) | measured |
 | Onion skin and light table | 80 % (7 D, 2 P, 1 M) | measured |
-| Animation tools | 67 % (6 D, 0 P, 3 M) | measured |
+| Animation tools | 80 % (8 D, 0 P, 2 M) | measured |
 | Colouring | 75 % (6 D, 3 P, 1 M) | measured |
 | Effects | 0 % (0 D, 0 P, 4 M) | measured |
 | Audio and lip-sync | 75 % (3 D, 0 P, 1 M) | measured |
@@ -139,8 +139,9 @@ features (video export, effects, audio) and understates it for small ones.
 | Flip through drawings (scrub) | all | D | |
 | Re-time a range (on 1s, 2s, 3s) | TV, TB | D | **Ours:** non-destructive, one undo step |
 | Reverse a range | TV, TB | D | |
-| Camera pan / zoom / rotate keys | TV, TB, PD | D | Eased keys, exports render through the camera |
-| Pegs (parented transforms) | TB | M | |
+| Camera pan / zoom / rotate keys | TV, TB, PD | D | Eased keys, exports render through the camera; layers at a depth for multiplane parallax when the camera pans or trucks in; repeatable camera shakes |
+| Pegs (parented transforms) | TB | D | Nested pegs (a peg can hang from a peg, loops refused); pivot, move, rotate, scale and skew keys; motion path on the canvas; drawings are never resampled, only rendered through the chain |
+| Keyed layer transforms with easing | TB, CSP, PD | D | Linear, ease in / out / both, hold, or a custom two-handle timing curve per key |
 | Cut / copy / paste cells | all | D | **Ours:** paste linked or as new drawings, in place or inserting |
 | Cycles (loop a range of cells) | TV, TB | D | |
 | In-between assist | — | M | **Ours:** later, as an AI feature through craft-ai-integrations |
@@ -245,3 +246,4 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | major | First map, written before the vertical slice; statuses set when the slice landed |
 | 2026-11-17 | major | Polish pass: re-measured after user research (docs/user-research.md); 4 rows added |
 | 2026-11-17 | major | Second pass: the top 10 gaps and interchange with other apps; 6 rows added |
+| 2026-11-17 | minor | Pegs and transform layers with easing, multiplane depth and camera shake; 1 row added |

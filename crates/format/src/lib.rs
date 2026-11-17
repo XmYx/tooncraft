@@ -122,6 +122,8 @@ struct ProjectJson {
     camera: tooncraft_doc::Camera,
     #[serde(default)]
     folders: Vec<tooncraft_doc::Folder>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pegs: Vec<tooncraft_doc::Peg>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -153,6 +155,7 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             light_table: p.light_table.clone(),
             camera: p.camera.clone(),
             folders: p.folders.clone(),
+            pegs: p.pegs.clone(),
         },
         drawings: p.drawings().map(|(id, s)| DrawingEntry { id, tiles: s.tile_count() as u32 }).collect(),
         soundtrack: p.soundtrack.as_ref().map(|s| SoundEntry { name: s.name.clone(), offset: s.offset, entry: "audio/soundtrack".into() }),
@@ -245,6 +248,7 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Project> {
     }
     let mut p = Project::from_parts(pj.name, (pj.width, pj.height), pj.fps, pj.length, pj.paper, pj.layers, drawings, pj.onion, pj.light_table)?;
     p.camera = pj.camera.sanitized(p.width(), p.height());
+    p.set_pegs(pj.pegs);
     p.folders = pj
         .folders
         .into_iter()

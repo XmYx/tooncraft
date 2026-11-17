@@ -340,7 +340,19 @@ mod tests {
     use crate::LayerId;
 
     fn layer(cells: Vec<Cell>) -> Layer {
-        Layer { id: LayerId(1), name: "L".into(), visible: true, locked: false, opacity: 1.0, blend: Default::default(), color: None, folder: None, cells }
+        Layer {
+            id: LayerId(1),
+            name: "L".into(),
+            visible: true,
+            locked: false,
+            opacity: 1.0,
+            blend: Default::default(),
+            color: None,
+            folder: None,
+            peg: None,
+            depth: 0.0,
+            cells,
+        }
     }
     const A: DrawingId = DrawingId(1);
     const B: DrawingId = DrawingId(2);

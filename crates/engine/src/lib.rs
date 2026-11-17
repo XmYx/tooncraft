@@ -53,6 +53,8 @@ pub enum EngineError {
     NothingToRedo,
     #[error("could not import {0}")]
     Import(String),
+    #[error("too many {0}")]
+    Limit(&'static str),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
@@ -314,9 +316,12 @@ impl Engine {
         let side = (MAX_FILL_PIXELS as f64).sqrt() as u32;
         let (wx, wy) = (x.saturating_sub(side / 2).min(w.saturating_sub(side)), y.saturating_sub(side / 2).min(h.saturating_sub(side)));
         let rect = (wx, wy, side.min(w), side.min(h));
+        // `x`, `y` are in the drawing's own pixels: a pegged layer looks at the picture through
+        // the inverse of its peg chain, so the area found lines up with what it fills.
+        let space = self.project.layer_transform(layer, frame).inverse().filter(|t| !t.is_identity(1e-6));
         let opts = match reference {
-            FillReference::Layer => RenderOptions { paper: false, only_layer: Some(layer), ..Default::default() },
-            FillReference::AllLayers => RenderOptions { paper: false, ..Default::default() },
+            FillReference::Layer => RenderOptions { paper: false, only_layer: Some(layer), space, ..Default::default() },
+            FillReference::AllLayers => RenderOptions { paper: false, space, ..Default::default() },
         };
         let reference_img = tooncraft_doc::render_region(&self.project, frame, rect, opts);
         let Some(mask) = fill::flood(&reference_img, (rect.0, rect.1), (x - rect.0, y - rect.1), options)? else { return Ok(None) };

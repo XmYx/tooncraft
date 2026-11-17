@@ -423,3 +423,56 @@ fn shortcuts_can_be_remapped() {
     h.run();
     assert_eq!(h.state().tool, Tool::Ink);
 }
+
+#[test]
+fn pegs_panel_keys_a_move_and_draws_on_the_moved_layer() {
+    let mut h = harness(false);
+    h.state_mut().workspace.raise(crate::dock::Pane::Pegs);
+    h.run();
+    h.get_by_label("Add Peg").click();
+    h.run();
+    assert_eq!(h.state().engine.project.pegs.len(), 1);
+    let peg = h.state().engine.project.pegs[0].id;
+    h.get(By::new().role(egui::Role::ComboBox).label("“Layer 1” hangs from"));
+    h.state_mut().run(tooncraft_engine::Command::SetLayerPeg { layer: 0, peg: Some(peg) });
+    h.run();
+    // key a move by keyboard on the drag value
+    h.get_by_label("Move X").focus();
+    h.run();
+    for _ in 0..5 {
+        h.key_press(Key::ArrowUp);
+        h.run();
+    }
+    h.key_press(Key::Enter);
+    h.run();
+    let key = h.state().engine.project.peg(peg).unwrap().at(0);
+    assert!(key.x > 0.0, "moved by the arrow keys: {}", key.x);
+    assert!(h.state().engine.project.peg(peg).unwrap().has_key(0));
+    h.get(By::new().role(egui::Role::ComboBox).label("Ease to next key"));
+    h.get(By::new().role(egui::Role::Image).label("Ease curve"));
+    // a stroke drawn under the pointer lands in the drawing's own space
+    let moved = key.x;
+    let rect = h.get_by_label("Canvas: Layer 1, frame 1").rect();
+    h.key_press(Key::N);
+    h.run();
+    drag_line(&mut h, rect.center(), rect.center() + egui::vec2(40.0, 0.0));
+    let p = &h.state().engine.project;
+    let d = p.drawing_at(0, 0).expect("drawn");
+    let s = p.drawing(d).unwrap();
+    let screen_x = rect.center().x;
+    let view = h.state().view;
+    let size = egui::vec2(p.width() as f32, p.height() as f32);
+    let canvas_x = view.to_canvas(rect, size, egui::pos2(screen_x, rect.center().y)).x;
+    let local_x = (canvas_x - moved).round() as i64;
+    let y = view.to_canvas(rect, size, rect.center()).y.round() as i64;
+    assert!(s.pixel(local_x + 2, y)[3] > 0, "ink at the un-moved position in the drawing");
+    // the camera panel's shake list
+    h.state_mut().workspace.raise(crate::dock::Pane::Camera);
+    h.run();
+    h.get_by_label("Add Shake Here").click();
+    h.run();
+    assert_eq!(h.state().engine.project.camera.shakes.len(), 1);
+    h.get_by_label("Remove").click();
+    h.run();
+    assert!(h.state().engine.project.camera.shakes.is_empty());
+}

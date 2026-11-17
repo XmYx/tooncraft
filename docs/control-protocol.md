@@ -25,6 +25,10 @@ hand a script can do.
 | `shape` | `layer`, `frame`, `brush`, `shape` (line / rectangle / ellipse), `from`, `to`, `constrain` |
 | `fill_all_frames` | as `fill`, without `frame` |
 | `set_camera_key`, `remove_camera_key`, `set_camera` | `frame`, `x`, `y`, `zoom`, `angle` (degrees); `enabled` |
+| `add_peg`, `delete_peg`, `rename_peg`, `set_peg_parent`, `set_peg_pivot` | `name`, optional `parent`; `peg` (+ `name`, `parent`, `x`/`y`) |
+| `set_peg_key`, `remove_peg_key` | `peg`, `frame`, `x`, `y`, `angle` (degrees), `scale_x`, `scale_y`, `skew` (degrees), `ease` (`{"kind":"linear"}`, `in`, `out`, `in_out`, `hold`, or `{"kind":"curve","x1","y1","x2","y2"}`) |
+| `set_layer_peg`, `set_layer_depth` | `layer`, `peg` (absent: off the peg); `depth` (0 the drawing plane, above 0 further away) |
+| `add_camera_shake`, `remove_camera_shake` | `shake` (`from`, `to`, `amplitude` px, `rotation` degrees, `frequency` per frame, `fade` frames, `seed`); `index` |
 | `set_layer_blend`, `set_layer_color`, `set_layer_folder`, `set_folder` | blend mode; colour; folder name; folder `visible`, `opacity`, `collapsed` |
 | `add_tip`, `add_tip_from_image` | `id`, `name`, `width`, `height`, `alpha`; or `id`, `path` |
 | `add_layer` | `name`, optional `index` |

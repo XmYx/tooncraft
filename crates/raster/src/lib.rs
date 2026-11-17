@@ -15,6 +15,7 @@ pub mod fill;
 mod image;
 mod pixel;
 pub mod select;
+mod warp;
 
 pub use image::RgbaImage;
 pub use pixel::{BlendMode, blend, over, premultiply, scale_alpha, unpremultiply};

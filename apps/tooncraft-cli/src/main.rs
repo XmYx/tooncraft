@@ -126,7 +126,13 @@ fn info(e: &Engine) -> serde_json::Value {
         "pixel_bytes": p.memory_bytes(),
         "layers": p.layers.iter().rev().map(|l| serde_json::json!({
             "name": l.name, "visible": l.visible, "locked": l.locked, "opacity": l.opacity, "sheet": sheet(&l.cells),
+            "peg": l.peg.and_then(|id| p.peg(id)).map(|g| g.name.clone()), "depth": l.depth,
         })).collect::<Vec<_>>(),
+        "pegs": p.pegs.iter().map(|g| serde_json::json!({
+            "id": g.id, "name": g.name, "parent": g.parent, "pivot": [g.pivot.0, g.pivot.1],
+            "keys": g.keys.iter().map(|k| k.frame + 1).collect::<Vec<_>>(),
+        })).collect::<Vec<_>>(),
+        "camera_shakes": p.camera.shakes.len(),
     })
 }
 

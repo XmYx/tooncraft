@@ -220,6 +220,7 @@ pub struct ToonApp {
     pub keys: crate::keys::Keys,
     /// Show the camera frame on the canvas.
     pub show_camera: bool,
+    pub peg_ui: crate::pegs::PegUi,
     pub shape: tooncraft_engine::shapes::ShapeKind,
     /// A shape being dragged: (from, to) in canvas pixels.
     pub shape_drag: Option<((f32, f32), (f32, f32))>,
@@ -343,6 +344,7 @@ impl ToonApp {
             sound: crate::sound::Sound::default(),
             keys: crate::keys::Keys::new(!cfg!(test) && cli.screenshot.is_none()),
             show_camera: true,
+            peg_ui: Default::default(),
             shape: tooncraft_engine::shapes::ShapeKind::Line,
             shape_drag: None,
             fill_every_frame: false,

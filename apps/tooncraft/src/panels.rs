@@ -722,6 +722,7 @@ pub fn camera(app: &mut ToonApp, ui: &mut egui::Ui) {
             app.run(Command::RemoveCameraKey { frame });
         }
     });
+    crate::pegs::shakes(app, ui);
     ui.separator();
     let keys: Vec<u32> = app.engine.project.camera.keys.iter().map(|k| k.frame).collect();
     egui::ScrollArea::vertical().id_salt("camera-keys").show(ui, |ui| {
