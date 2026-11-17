@@ -17,6 +17,7 @@ tooncraft-brush = { path = "crates/brush" }
 tooncraft-doc = { path = "crates/doc" }
 tooncraft-format = { path = "crates/format" }
 tooncraft-engine = { path = "crates/engine" }
+tooncraft-interop = { path = "crates/interop" }
 
 # shared Craft libraries (storytold/craft-libs), pinned by commit like the other Craft apps
 craft-atomic = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
@@ -26,8 +27,11 @@ craft-gif = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa1
 craft-ora = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 craft-i18n = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 craft-fonts-build = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
-craft-video = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["h264-encode"] }
+craft-video = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["h264-encode", "prores"] }
 craft-media = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
+craft-psd = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
+craft-audio = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["decode-native", "peaks", "aac-encode", "pcm-encode"] }
+craft-keymap = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", features = ["egui"] }
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 
 # foundation

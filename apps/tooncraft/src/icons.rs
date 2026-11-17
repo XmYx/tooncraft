@@ -56,6 +56,22 @@ pub fn tool(p: &Painter, rect: Rect, tool: Tool, color: Color32) {
             p.line_segment([at(-0.9, 0.9), at(0.35, -0.35)], Stroke::new(2.4, color));
             p.circle_filled(at(0.55, -0.55), s * 0.38, color);
         }
+        Tool::Select => {
+            let r = egui::Rect::from_center_size(c, vec2(s * 1.8, s * 1.5));
+            let corners = [r.left_top(), r.right_top(), r.right_bottom(), r.left_bottom(), r.left_top()];
+            for w in corners.windows(2) {
+                let (a, b) = (w[0], w[1]);
+                for k in 0..4 {
+                    let t0 = k as f32 / 4.0;
+                    let t1 = t0 + 0.125;
+                    p.line_segment([a + (b - a) * t0, a + (b - a) * t1], st);
+                }
+            }
+        }
+        Tool::Shape => {
+            p.rect_stroke(egui::Rect::from_min_max(at(-1.0, -1.0), at(0.3, 0.3)), 1.0, st, egui::StrokeKind::Middle);
+            p.circle_stroke(at(0.35, 0.35), s * 0.6, st);
+        }
         Tool::Hand => {
             for k in 0..4 {
                 let x = -0.6 + k as f32 * 0.4;

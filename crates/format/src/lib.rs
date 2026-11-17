@@ -76,7 +76,33 @@ struct Manifest {
     project: ProjectJson,
     #[serde(default)]
     drawings: Vec<DrawingEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    soundtrack: Option<SoundEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    tips: Vec<TipEntry>,
 }
+
+#[derive(Serialize, Deserialize)]
+struct TipEntry {
+    id: u64,
+    name: String,
+    width: u32,
+    height: u32,
+}
+
+fn tip_entry_name(id: u64) -> String {
+    format!("tips/{id}.alpha")
+}
+
+#[derive(Serialize, Deserialize)]
+struct SoundEntry {
+    name: String,
+    offset: i32,
+    entry: String,
+}
+
+/// Largest sound file kept in a shot.
+pub const MAX_SOUND_BYTES: u64 = 512 << 20;
 
 #[derive(Serialize, Deserialize)]
 struct ProjectJson {
@@ -92,6 +118,10 @@ struct ProjectJson {
     onion: OnionSkin,
     #[serde(default)]
     light_table: LightTable,
+    #[serde(default)]
+    camera: tooncraft_doc::Camera,
+    #[serde(default)]
+    folders: Vec<tooncraft_doc::Folder>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -121,8 +151,12 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             layers: p.layers.clone(),
             onion: p.onion,
             light_table: p.light_table.clone(),
+            camera: p.camera.clone(),
+            folders: p.folders.clone(),
         },
         drawings: p.drawings().map(|(id, s)| DrawingEntry { id, tiles: s.tile_count() as u32 }).collect(),
+        soundtrack: p.soundtrack.as_ref().map(|s| SoundEntry { name: s.name.clone(), offset: s.offset, entry: "audio/soundtrack".into() }),
+        tips: p.tips.iter().map(|(id, t)| TipEntry { id: *id, name: t.name.clone(), width: t.width, height: t.height }).collect(),
     };
     let json = serde_json::to_vec_pretty(&manifest).map_err(|e| FormatError::Damaged(e.to_string()))?;
     let mut zip = craft_zip::Writer::new();
@@ -138,6 +172,13 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             blob.extend_from_slice(tile.bytes());
         }
         zip.add(&entry_name(id), &blob, craft_zip::Compression::Level(1)).map_err(z)?;
+    }
+    for (id, t) in &p.tips {
+        zip.add(&tip_entry_name(*id), &t.alpha, craft_zip::Compression::Deflated).map_err(z)?;
+    }
+    if let Some(s) = &p.soundtrack {
+        // Compressed formats gain nothing from deflate; WAV and AIFF do.
+        zip.add("audio/soundtrack", &s.bytes, craft_zip::Compression::Level(1)).map_err(z)?;
     }
     let preview = tooncraft_doc::render_frame(p, 0, RenderOptions::default()).downscaled(256);
     if let Ok(png) = encode_png(&preview) {
@@ -202,7 +243,40 @@ pub fn from_bytes(bytes: &[u8]) -> Result<Project> {
         let blob = read(&mut zip, &entry_name(d.id), want)?;
         drawings.insert(d.id, decode_tiles(&blob, d.tiles, blank.clone()).map_err(|e| FormatError::Damaged(format!("drawing {}: {e}", d.id.0)))?);
     }
-    let p = Project::from_parts(pj.name, (pj.width, pj.height), pj.fps, pj.length, pj.paper, pj.layers, drawings, pj.onion, pj.light_table)?;
+    let mut p = Project::from_parts(pj.name, (pj.width, pj.height), pj.fps, pj.length, pj.paper, pj.layers, drawings, pj.onion, pj.light_table)?;
+    p.camera = pj.camera.sanitized(p.width(), p.height());
+    p.folders = pj
+        .folders
+        .into_iter()
+        .take(512)
+        .map(|mut f| {
+            f.name = f.name.chars().take(200).collect();
+            f.opacity = if f.opacity.is_finite() { f.opacity.clamp(0.0, 1.0) } else { 1.0 };
+            f
+        })
+        .collect();
+    if m.tips.len() > 256 {
+        return Err(FormatError::TooLarge(format!("{} brush tips", m.tips.len())));
+    }
+    for t in &m.tips {
+        if t.width == 0 || t.height == 0 || t.width > tooncraft_brush::MAX_TIP_SIDE || t.height > tooncraft_brush::MAX_TIP_SIDE {
+            return Err(FormatError::Damaged(format!("brush tip {} has a bad size", t.id)));
+        }
+        let alpha = read(&mut zip, &tip_entry_name(t.id), t.width as u64 * t.height as u64)?;
+        let tip = tooncraft_brush::Tip::new(&t.name, t.width, t.height, alpha).ok_or_else(|| FormatError::Damaged(format!("brush tip {}", t.id)))?;
+        p.tips.insert(t.id, std::sync::Arc::new(tip));
+    }
+    if let Some(s) = m.soundtrack {
+        if s.entry != "audio/soundtrack" {
+            return Err(FormatError::Damaged("unexpected sound entry".into()));
+        }
+        let bytes = read(&mut zip, &s.entry, MAX_SOUND_BYTES)?;
+        p.soundtrack = Some(tooncraft_doc::Soundtrack {
+            name: s.name.chars().take(200).collect(),
+            offset: s.offset.clamp(-1_000_000, 1_000_000),
+            bytes: std::sync::Arc::new(bytes),
+        });
+    }
     Ok(p)
 }
 

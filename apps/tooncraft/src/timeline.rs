@@ -17,8 +17,8 @@ pub fn grid_id() -> egui::Id {
 }
 
 const NAME_W: f32 = 132.0;
-const CELL_W: f32 = 17.0;
-const ROW_H: f32 = 22.0;
+const CELL_W0: f32 = 17.0;
+const ROW_H0: f32 = 22.0;
 const RULER_H: f32 = 20.0;
 
 /// A small button with a painted icon and an accessible name.
@@ -134,9 +134,18 @@ fn transport(app: &mut ToonApp, ui: &mut egui::Ui) {
         if ui.selectable_label(onion, tl!("Onion")).on_hover_text(tl!("Onion skin (O)")).clicked() {
             app.engine.project.onion.enabled = !onion;
         }
+        if app.engine.project.soundtrack.is_some() {
+            let on = !app.sound.muted;
+            if ui.selectable_label(on, tl!("Sound")).on_hover_text(tl!("Play the soundtrack")).clicked() {
+                app.sound.muted = on;
+            }
+        }
         let lt = app.engine.project.light_table.enabled;
         if ui.selectable_label(lt, tl!("Light table")).clicked() {
             app.engine.project.light_table.enabled = !lt;
+        }
+        if ui.selectable_label(app.thumbnails, tl!("Thumbnails")).on_hover_text(tl!("Show drawing thumbnails in the cells")).clicked() {
+            app.thumbnails = !app.thumbnails;
         }
         if ui.button(tl!("Pin")).on_hover_text(tl!("Pin this frame to the light table (Shift+L)")).clicked() {
             app.run(Command::TogglePin { layer, frame });
@@ -184,8 +193,10 @@ fn grid_keys(app: &mut ToonApp, ui: &egui::Ui) {
     }
 }
 
+#[allow(non_snake_case)]
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     transport(app, ui);
+    let (CELL_W, ROW_H) = if app.thumbnails { (46.0, 42.0) } else { (CELL_W0, ROW_H0) };
     ui.add_space(2.0);
     let area = ui.available_rect_before_wrap();
     if area.width() < 40.0 || area.height() < RULER_H + 4.0 {
@@ -196,7 +207,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let n_layers = app.engine.project.layers.len();
     let frames_area = Rect::from_min_max(pos2(area.left() + NAME_W, area.top()), area.max);
     let visible_cols = ((frames_area.width() / CELL_W).floor() as u32).max(1);
-    let visible_rows = (((area.height() - RULER_H) / ROW_H).floor() as usize).max(1);
+    let sound_h = if app.sound.pcm.is_some() || app.engine.project.soundtrack.is_some() { ROW_H * 1.6 } else { 0.0 };
+    let visible_rows = (((area.height() - RULER_H - sound_h) / ROW_H).floor() as usize).max(1);
     // keep the current frame and layer in view
     let mut first = app.timeline_scroll.x.max(0.0) as u32;
     if app.frame < first {
@@ -250,6 +262,14 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         }
         painter.line_segment([pos2(x, ruler.bottom() - if second { 8.0 } else { 4.0 }), pos2(x, ruler.bottom())], Stroke::new(1.0, pal.weak));
     }
+    // camera keys on the ruler
+    for k in &app.engine.project.camera.keys {
+        if k.frame >= first && k.frame < first + visible_cols {
+            let x = frames_area.left() + (k.frame - first) as f32 * CELL_W + CELL_W * 0.5;
+            let y = ruler.bottom() - 4.0;
+            painter.add(egui::Shape::convex_polygon(vec![pos2(x, y - 4.0), pos2(x + 4.0, y), pos2(x, y + 4.0), pos2(x - 4.0, y)], pal.accent, Stroke::NONE));
+        }
+    }
     // scrub on the ruler (click or drag)
     let ruler_resp = ui.interact(ruler, grid_id().with("ruler"), Sense::click_and_drag());
     ruler_resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Slider, true, tl!("Frame ruler")));
@@ -259,6 +279,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         let f = first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64;
         app.frame = f.clamp(0, len as i64 - 1) as u32;
         app.playback.stop();
+    }
+    if app.thumbnails {
+        refresh_thumbnails(app, ui.ctx(), first, first + visible_cols);
     }
     // rows
     let pins: Vec<Pin> = app.engine.project.light_table.pins.clone();
@@ -295,7 +318,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         if name_resp.clicked() {
             clicked = Some((li, app.frame));
         }
-        let mut name = layer.name.clone();
+        let mut name = match &layer.folder {
+            Some(f) => format!("{f} › {}", layer.name),
+            None => layer.name.clone(),
+        };
         if layer.locked {
             name.push_str(&format!(" · {}", tl!("locked")));
         }
@@ -308,15 +334,23 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             let cell = layer.cells.get(f as usize).copied().unwrap_or_default();
             let fade = if layer.visible { 1.0 } else { 0.45 };
             match cell {
-                Cell::Key(_) => {
-                    painter.rect_filled(r.shrink2(vec2(1.0, 0.0)), 2.0, pal.cell_key.gamma_multiply(fade));
-                    painter.circle_filled(pos2(r.left() + 6.0, r.center().y), 2.6, pal.bg);
+                Cell::Key(d) => {
+                    let kc = layer.color.map(|c| Color32::from_rgb(c[0], c[1], c[2])).unwrap_or(pal.cell_key);
+                    painter.rect_filled(r.shrink2(vec2(1.0, 0.0)), 2.0, kc.gamma_multiply(fade));
+                    if let Some((_, t)) = app.thumbs.get(&d).filter(|_| app.thumbnails) {
+                        let inner = r.shrink(3.0);
+                        painter.rect_filled(inner, 1.0, Color32::from_rgb(246, 243, 236));
+                        painter.image(t.id(), inner, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                    } else {
+                        painter.circle_filled(pos2(r.left() + 6.0, r.center().y), 2.6, pal.bg);
+                    }
                 }
                 Cell::Hold => {
+                    let hc = layer.color.map(|c| Color32::from_rgb(c[0], c[1], c[2]).gamma_multiply(0.55)).unwrap_or(pal.cell_hold);
                     painter.rect_filled(
                         Rect::from_min_max(pos2(r.left() - 1.0, r.center().y - 3.0), pos2(r.right() - 1.0, r.center().y + 3.0)),
                         0.0,
-                        pal.cell_hold.gamma_multiply(fade),
+                        hc.gamma_multiply(fade),
                     );
                 }
                 Cell::Blank => {
@@ -341,6 +375,53 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             f += 1;
         }
         painter.line_segment([row_rect.left_bottom(), row_rect.right_bottom()], Stroke::new(1.0, pal.grid));
+    }
+    // sound
+    if sound_h > 0.0 {
+        let y = area.bottom() - sound_h;
+        let row = Rect::from_min_max(pos2(area.left(), y), pos2(area.right(), area.bottom()));
+        painter.rect_filled(row, 0.0, pal.panel);
+        let name = app.engine.project.soundtrack.as_ref().map(|s| s.name.clone()).unwrap_or_default();
+        let offset = app.sound_offset();
+        painter.text(pos2(area.left() + 6.0, row.center().y), Align2::LEFT_CENTER, &name, FontId::proportional(11.5), pal.weak);
+        let wave = Rect::from_min_max(pos2(frames_area.left(), y + 2.0), pos2(area.right(), area.bottom() - 2.0));
+        let resp = ui.interact(wave, grid_id().with("sound"), Sense::click_and_drag());
+        let label = tlf!("Sound {name}, starts at frame {frame}", name = name, frame = offset + 1);
+        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Slider, true, label.clone()));
+        if let (Some(pcm), Some(peaks)) = (&app.sound.pcm, &app.sound.peaks) {
+            let fps = app.engine.project.fps().max(1) as f64;
+            let per_frame = pcm.rate as f64 / fps;
+            let cols = wave.width().max(1.0) as usize;
+            let start = (first as f64 - offset as f64) * per_frame;
+            let step = per_frame / CELL_W as f64;
+            let spans = peaks.spans(&app.sound.mono, start, step, 0.0, cols);
+            let mid = wave.center().y;
+            let half = wave.height() * 0.5;
+            for (i, sp) in spans.iter().enumerate() {
+                if let Some((lo, hi)) = sp {
+                    let x = wave.left() + i as f32 + 0.5;
+                    painter.line_segment(
+                        [pos2(x, mid - hi.clamp(-1.0, 1.0) * half), pos2(x, mid - lo.clamp(-1.0, 1.0) * half)],
+                        Stroke::new(1.0, pal.playhead.gamma_multiply(0.8)),
+                    );
+                }
+            }
+        } else if !app.sound.error.is_empty() {
+            painter.text(wave.left_center(), Align2::LEFT_CENTER, &app.sound.error, FontId::proportional(11.0), pal.accent);
+        }
+        // drag the waveform sideways to move the sound (keyboard: Frame ▸ Start Sound Here)
+        if resp.dragged() {
+            let d = ui.data(|m| m.get_temp::<f32>(grid_id().with("sound-drag")).unwrap_or(0.0)) + resp.drag_delta().x;
+            ui.data_mut(|m| m.insert_temp(grid_id().with("sound-drag"), d));
+        }
+        if resp.drag_stopped() {
+            let d = ui.data(|m| m.get_temp::<f32>(grid_id().with("sound-drag")).unwrap_or(0.0));
+            ui.data_mut(|m| m.remove::<f32>(grid_id().with("sound-drag")));
+            let frames = (d / CELL_W).round() as i32;
+            if frames != 0 {
+                app.run(Command::MoveSound { offset: offset + frames });
+            }
+        }
     }
     // selection
     if app.has_range() {
@@ -415,6 +496,38 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.allocate_rect(area, Sense::hover());
 }
 
+/// Thumbnails of the drawings keyed in the visible frames, a few new ones per UI frame, each
+/// cached until its drawing changes.
+fn refresh_thumbnails(app: &mut ToonApp, ctx: &egui::Context, from: u32, to: u32) {
+    let mut budget = 6;
+    let mut ids = Vec::new();
+    for l in &app.engine.project.layers {
+        for f in from..to.min(app.engine.project.length()) {
+            if let Some(Cell::Key(d)) = l.cells.get(f as usize) {
+                ids.push(*d);
+            }
+        }
+    }
+    for d in ids {
+        let Some(s) = app.engine.project.drawing(d) else { continue };
+        let rev = s.tiles().map(|(_, t)| t.revision()).max().unwrap_or(0) ^ (s.tile_count() as u64).rotate_left(40);
+        if app.thumbs.get(&d).is_some_and(|(r, _)| *r == rev) || budget == 0 {
+            continue;
+        }
+        budget -= 1;
+        let img = s.to_image().downscaled(80);
+        let tex = ctx.load_texture(
+            format!("thumb-{}", d.0),
+            egui::ColorImage::from_rgba_premultiplied([img.width as usize, img.height as usize], &img.data),
+            egui::TextureOptions::LINEAR,
+        );
+        app.thumbs.insert(d, (rev, tex));
+    }
+    if budget == 0 {
+        ctx.request_repaint();
+    }
+}
+
 /// The Frame menu (menu bar).
 pub fn frame_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     let (layer, frame) = (app.layer, app.frame);
@@ -480,6 +593,9 @@ pub fn frame_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     if ui.button(tl!("Delete Frame in All Layers")).clicked() {
         app.run(Command::DeleteFrame { layer: None, frame });
+    }
+    if ui.add_enabled(app.engine.project.soundtrack.is_some(), egui::Button::new(tl!("Start Sound Here"))).clicked() {
+        app.run(Command::MoveSound { offset: frame as i32 });
     }
     if ui.button(tl!("Focus Exposure Sheet")).clicked() {
         ui.memory_mut(|m| m.request_focus(grid_id()));

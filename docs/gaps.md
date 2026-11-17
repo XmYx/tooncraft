@@ -12,33 +12,36 @@ F = request).
 
 | # | Gap | Category | Beta | Hours | Evidence |
 |---|---|---|---|---|---|
-| 1 | Pen pressure and tilt on Linux X11, Wayland and macOS (winit drops them) | Input | B | 16 | A5 (~10 sources) |
-| 2 | Audio track with waveform and scrubbing for lip sync | Audio | B | 30 | A8, F1 (~7 each) |
-| 3 | Selection, transform (move, scale, rotate) of drawings and selections | Drawing | B | 30 | A11, F3 (~5 each) |
-| 4 | Camera keys (pan, zoom, rotate) and transform layers over drawings | Animation | B | 24 | F16 |
-| 5 | Remappable shortcuts (craft-keymap) and saved workspaces | UI | B | 10 | A17, F11 |
-| 6 | Shape tools (rectangle, ellipse, curve) and angle snapping for lines | Drawing | | 10 | F4 |
-| 7 | Drawing thumbnails in timeline cells | Timeline | | 8 | F12 |
-| 8 | Layer blend modes, clipping and folders; layer colours | Layers | | 12 | F15, F18 |
-| 9 | Fill every frame of a layer at once | Colouring | | 6 | F8 |
-| 10 | Image brush tips, brush preset files | Brushes | | 20 | F7 |
+| 1 | Pen input in Wayland-native windows (tablet-v2 protocol through winit) | Input | B | 16 | A5 |
+| 2 | Effects: blur, glow, shadow, colour adjust as a non-destructive stack | Effects | | 30 | target rows |
+| 3 | Lip-sync assist: mouth charts from the soundtrack | Audio | | 24 | F1 |
+| 4 | Pegs and transform layers (keyframed moves over drawings) | Animation | | 24 | F16 |
+| 5 | Nested folders, clipping layers, folders in the timeline | Layers | | 12 | F15 |
+| 6 | Brush editor with curves per dynamic; textured brush grain images | Brushes | | 20 | F7 |
+| 7 | Key / breakdown / inbetween marks and a planning chart | Animation | | 10 | target rows |
+| 8 | Field guide, safe areas, canvas resize / crop | Canvas | | 10 | target rows |
+| 9 | Saved workspaces (panel layouts) | UI | | 6 | A13 |
+| 10 | Onion skin as outlines; hide only the previous step | Onion | | 6 | F2 |
 | 11 | BoardCraft animatic import as a layout | Import | | 10 | [interop.md](interop.md) |
 | 12 | GPU dab rasterisation (craft-gpu, RFC-0022) | Performance | | 30 | below |
 | 13 | Paging of drawings to disk for very long shots | Stability | | 20 | below |
-| 14 | PSD-layers and WebP export; per-layer sequences | Export | | 8 | F17 |
+| 14 | WebP export, multi-frame PSD / PSB, TGA / TIFF sequences | Export | | 8 | F10 |
 | 15 | Translations (craft-i18n catalogs) | Languages | | 6 | [localization-parity.md](localization-parity.md) |
 
-Closed in the polish pass: cell copy / cut / paste, range selection, drag-to-hold, reverse, cycles,
-image-sequence import, MP4 and animated PNG export, versioned saves, keyboard panning, Shift+click
-straight lines.
+Closed in the second pass: pen pressure / tilt / eraser end on X11 and macOS, soundtrack with
+waveform, scrubbing and sound in MP4, selection and transform, camera keys, remappable shortcuts,
+shape tools, timeline thumbnails, blend modes, folders and layer colours, fill across frames,
+image brush tips and preset files, and exchange with other apps (PSD / PSB and OpenRaster layers,
+XDTS exposure sheets with drawing folders, GIF import, ProRes 4444 with alpha, per-layer
+sequences).
 
 ## Input
 
-### Pen pressure and tilt on every desktop
-winit 0.30 reports pen force only as touch force on some platforms (Windows Ink, mobile). PhotoCraft
-has `photocraft-tablet` (XInput2 on X11, AppKit on macOS, WinTab on Windows). Per RFC-0040 the right
-move is to propose it to craft-libs (`craft-tablet`) and use it here rather than copy it. Until then
-mouse and pens without touch force draw at the "Mouse pressure" setting.
+### Pen input in Wayland-native windows
+Pressure, tilt and the eraser end come from PhotoCraft's `photocraft-tablet` (pinned git
+dependency) on X11 (also under Xwayland) and macOS, and from winit's touch force on Windows.
+Wayland-native windows need the tablet-v2 protocol bound on winit's own connection. The shared
+reader belongs in craft-libs (`craft-tablet`, RFC-0040 proposal to write).
 
 ### Input-to-photon latency
 Engine latency per sample is measured ([performance.md](performance.md)); end-to-end latency on

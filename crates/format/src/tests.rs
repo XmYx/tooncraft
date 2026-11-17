@@ -16,12 +16,16 @@ fn sample() -> Project {
     p.add_layer("Colour", 0).unwrap();
     p.light_table.toggle(tooncraft_doc::Pin { layer: p.layers[1].id, frame: 2 });
     p.onion.before = 3;
+    p.tips.insert(7, std::sync::Arc::new(tooncraft_brush::Tip::new("leaf", 2, 2, vec![0, 255, 128, 64]).unwrap()));
+    p.camera.enabled = true;
+    p.camera.set(tooncraft_doc::CameraKey { frame: 2, x: 100.0, y: 80.0, zoom: 1.5, angle: 10.0 });
     p
 }
 
 #[test]
 fn round_trip() {
-    let p = sample();
+    let mut p = sample();
+    p.soundtrack = Some(tooncraft_doc::Soundtrack { name: "dialogue.wav".into(), offset: -3, bytes: std::sync::Arc::new(vec![1, 2, 3, 4]) });
     let bytes = to_bytes(&p).unwrap();
     let q = from_bytes(&bytes).unwrap();
     assert_eq!(q, p);

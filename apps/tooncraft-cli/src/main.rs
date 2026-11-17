@@ -47,7 +47,25 @@ impl Args {
         let mut it = raw.peekable();
         while let Some(a) = it.next() {
             if let Some(name) = a.strip_prefix("--") {
-                let takes = matches!(name, "size" | "fps" | "frames" | "name" | "png" | "gif" | "ora" | "mp4" | "apng" | "frame" | "range" | "hold");
+                let takes = matches!(
+                    name,
+                    "size"
+                        | "fps"
+                        | "frames"
+                        | "name"
+                        | "png"
+                        | "gif"
+                        | "ora"
+                        | "mp4"
+                        | "apng"
+                        | "frame"
+                        | "range"
+                        | "hold"
+                        | "psd"
+                        | "levels"
+                        | "layers"
+                        | "prores"
+                );
                 let v = if takes { it.next() } else { None };
                 flags.push((name.to_string(), v));
             } else {
@@ -206,12 +224,27 @@ fn run() -> Result<(), String> {
                 export::apng(&e.project, Path::new(file), o, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {file}");
+            } else if let Some(file) = rest.flag("psd") {
+                let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
+                let bytes = tooncraft_interop::psd::export_frame(&e.project, frame).map_err(|e| e.to_string())?;
+                std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
+                println!("wrote {file}");
+            } else if let Some(dir) = rest.flag("levels") {
+                let files = tooncraft_interop::levels::export(&e.project, Path::new(dir)).map_err(|e| e.to_string())?;
+                println!("wrote an XDTS sheet and {} drawings to {dir}", files.len().saturating_sub(1));
+            } else if let Some(dir) = rest.flag("layers") {
+                let files = tooncraft_interop::layer_sequences::export(&e.project, Path::new(dir), o.start, o.end, progress).map_err(|e| e.to_string())?;
+                eprintln!();
+                println!("wrote {} PNG files to {dir}", files.len());
+            } else if let Some(file) = rest.flag("prores") {
+                tooncraft_interop::prores::export_mov(&e.project, Path::new(file), o.start, o.end, rest.has("alpha")).map_err(|e| e.to_string())?;
+                println!("wrote {file}");
             } else if let Some(file) = rest.flag("ora") {
                 let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
                 export::ora_frame(&e.project, frame, Path::new(file)).map_err(|e| e.to_string())?;
                 println!("wrote {file}");
             } else {
-                return Err(format!("export needs --png, --gif, --mp4, --apng or --ora\n\n{USAGE}"));
+                return Err(format!("export needs --png, --gif, --mp4, --apng, --prores, --psd, --layers, --levels or --ora\n\n{USAGE}"));
             }
             Ok(())
         }
@@ -226,6 +259,20 @@ fn run() -> Result<(), String> {
             let hold = num(rest.flag("hold"), 1)?;
             let name = rest.flag("name").unwrap_or("Imported").to_string();
             e.apply(Command::ImportImages { paths: images, frame, hold, name }).map_err(|e| e.to_string())?;
+            save(&path, &e)
+        }
+        "import-layers" | "import-gif" | "import-sheet" | "set-sound" => {
+            let path = rest.file(0)?;
+            let mut e = load(&path)?;
+            let src = rest.positional.get(1).cloned().ok_or_else(|| format!("{cmd} needs a source file\n\n{USAGE}"))?;
+            let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
+            let c = match cmd.as_str() {
+                "import-layers" => Command::ImportLayers { path: src, frame },
+                "import-gif" => Command::ImportGif { path: src, frame },
+                "import-sheet" => Command::ImportSheet { path: src },
+                _ => Command::SetSound { path: Some(src), offset: frame as i32 },
+            };
+            e.apply(c).map_err(|e| e.to_string())?;
             save(&path, &e)
         }
         "check" => {

@@ -17,21 +17,21 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 <!-- parity:start -->
 | | Value | Kind |
 |---|---|---|
-| Feature rows | 128 | measured |
-| Done (D) | 75 | measured |
-| Partial (P) | 17 | measured |
-| Missing (M) | 36 | measured |
-| Parity score, (D + ½·P) / rows | 65 % | measured |
-| Brush engine and tools | 60 % (13 D, 3 P, 8 M) | measured |
+| Feature rows | 134 | measured |
+| Done (D) | 96 | measured |
+| Partial (P) | 16 | measured |
+| Missing (M) | 22 | measured |
+| Parity score, (D + ½·P) / rows | 78 % | measured |
+| Brush engine and tools | 81 % (19 D, 1 P, 4 M) | measured |
 | Paper and canvas | 73 % (7 D, 2 P, 2 M) | measured |
-| Layers and timeline / exposure sheet | 68 % (13 D, 0 P, 6 M) | measured |
+| Layers and timeline / exposure sheet | 82 % (15 D, 1 P, 3 M) | measured |
 | Onion skin and light table | 80 % (7 D, 2 P, 1 M) | measured |
-| Animation tools | 56 % (5 D, 0 P, 4 M) | measured |
-| Colouring | 65 % (5 D, 3 P, 2 M) | measured |
+| Animation tools | 67 % (6 D, 0 P, 3 M) | measured |
+| Colouring | 75 % (6 D, 3 P, 1 M) | measured |
 | Effects | 0 % (0 D, 0 P, 4 M) | measured |
-| Audio and lip-sync | 0 % (0 D, 0 P, 4 M) | measured |
-| Import / export | 70 % (6 D, 2 P, 2 M) | measured |
-| UI and workspace | 72 % (10 D, 3 P, 3 M) | measured |
+| Audio and lip-sync | 75 % (3 D, 0 P, 1 M) | measured |
+| Import / export | 88 % (13 D, 2 P, 1 M) | measured |
+| UI and workspace | 78 % (11 D, 3 P, 2 M) | measured |
 | Stability and performance | 91 % (9 D, 2 P, 0 M) | measured |
 <!-- parity:end -->
 
@@ -62,19 +62,19 @@ features (video export, effects, audio) and understates it for small ones.
 | Eraser | all | D | |
 | Textured chalk / grain brush | TV, CSP, PD | D | |
 | Opacity vs flow without dab overlap darkening | TV, CSP | D | |
-| Brush presets | all | P | |
-| Custom brush tips from images | TV, CSP, PD | M | |
+| Brush presets | all | D | `.toonbrush` files and a preset library folder |
+| Custom brush tips from images | TV, CSP, PD | D | |
 | Brush editor with curves for each dynamic | TV, CSP | M | |
 | Watercolour / wet mixing brushes | TV, CSP, PD | M | |
 | Smudge / blur tool | all | M | |
-| Shape tools (line, rectangle, ellipse) | all | P | Shift+click straight lines; shapes missing |
-| Lasso / rectangle selection | all | M | |
-| Transform selection (move, scale, rotate) | all | M | |
+| Shape tools (line, rectangle, ellipse) | all | D | Shift: 15° lines, squares, circles |
+| Lasso / rectangle selection | all | D | |
+| Transform selection (move, scale, rotate) | all | D | Live preview, one undo step; flips and 90° turns |
 | Eyedropper | all | D | |
 | Fill bucket | all | D | |
 | GPU dab rasterisation | — | M | **Ours:** dabs on the GPU through craft-gpu (RFC-0022), CPU path kept as the oracle |
-| Pen pressure and tilt from tablets on every desktop | all | P | Pressure where winit reports it (touch force); X11/macOS readers are a gap |
-| Pen eraser end switches tool | TV, CSP | M | |
+| Pen pressure and tilt from tablets on every desktop | all | P | X11 (incl. Xwayland) and macOS through the shared photocraft-tablet reader, Windows Ink as touch force; Wayland-native windows have no pen data yet |
+| Pen eraser end switches tool | TV, CSP | D | |
 
 ## Paper and canvas
 
@@ -109,9 +109,9 @@ features (video export, effects, audio) and understates it for small ones.
 | Frame numbers and current-frame marker | all | D | |
 | Change a hold by dragging its cells | TB, CSP, PD | D | Keyboard: + / − |
 | Select a range of cells across layers | all | D | |
-| Layer blending modes | all | M | |
-| Layer groups / folders | all | M | |
-| Thumbnails in timeline cells | TV, PD | M | |
+| Layer blending modes | all | D | Multiply, screen, overlay, darken, lighten, add |
+| Layer groups / folders | all | P | Folders with visibility, opacity, collapse in the layer list; not nested |
+| Thumbnails in timeline cells | TV, PD | D | |
 | Markers / notes on frames | TV, TB | M | |
 | Several shots in one project | TV, TB | M | |
 | Drawings kept when no longer exposed | TB | D | **Ours:** re-timing never deletes a drawing; unexposed drawings stay until purged, and the purge is undoable |
@@ -139,7 +139,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Flip through drawings (scrub) | all | D | |
 | Re-time a range (on 1s, 2s, 3s) | TV, TB | D | **Ours:** non-destructive, one undo step |
 | Reverse a range | TV, TB | D | |
-| Camera pan / zoom / rotate keys | TV, TB, PD | M | |
+| Camera pan / zoom / rotate keys | TV, TB, PD | D | Eased keys, exports render through the camera |
 | Pegs (parented transforms) | TB | M | |
 | Cut / copy / paste cells | all | D | **Ours:** paste linked or as new drawings, in place or inserting |
 | Cycles (loop a range of cells) | TV, TB | D | |
@@ -155,7 +155,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Fill reference: current layer or all visible layers | TV, CSP, TB | D | |
 | Fill under lines (spread into the line's antialiasing) | TV, CSP, TB | D | |
 | Separate line and paint layers (paint under ink) | TB, CSP | P | Paint on a layer below the ink with reference = all visible; no linked line/paint pair yet |
-| Fill every frame of a layer at once | TV, TB | M | |
+| Fill every frame of a layer at once | TV, TB | D | One undo step |
 | Colour swatches | all | P | |
 | Colour models and palette files | TB | M | |
 | Colour picker (hue, saturation, value) | all | P | Works with keyboard fields; no behaviour test yet |
@@ -173,9 +173,9 @@ features (video export, effects, audio) and understates it for small ones.
 
 | Feature | Refs | Status | Ours |
 |---|---|---|---|
-| Import audio track | all | M | |
-| Waveform in timeline | all | M | |
-| Scrub audio | all | M | |
+| Import audio track | all | D | WAV, AIFF, MP3, AAC/M4A, FLAC, Ogg, Opus through craft-audio; saved in the shot |
+| Waveform in timeline | all | D | Drag to slip the sound |
+| Scrub audio | all | D | Each frame step plays that frame's sound |
 | Mouth-chart lip-sync detection | TB | M | |
 
 ## Import / export
@@ -187,11 +187,17 @@ features (video export, effects, audio) and understates it for small ones.
 | GIF export | TV, CSP, PD | D | |
 | APNG / WebP export | TV, CSP | P | Animated PNG; WebP missing |
 | Video export (MP4 / MOV) | all | D | H.264 MP4 through craft-video and craft-media, no external tools |
-| PSD layers export | TV, CSP | M | Through craft-psd |
+| PSD layers export | TV, CSP | D | Layered PSD of a frame through craft-psd; PSD / PSB layers import too |
 | OpenRaster frame export | TV | D | Through craft-ora |
 | Image sequence import | all | D | |
 | BoardCraft animatic as a starting layout | — | M | **Ours:** suite hand-off, see roadmap |
 | Transparent background export | all | P | PNG and OpenRaster; no test yet |
+| ProRes MOV with alpha for compositing | TV, TB | D | ProRes 4444 with alpha or 422 HQ through craft-video |
+| Video export carries the soundtrack | all | D | AAC in the MP4 |
+| Per-layer PNG sequences for compositing | TV, TB | D | |
+| Exposure sheet exchange (XDTS) with drawing folders | TB, CSP | D | Import and export, timing round-trips |
+| Layers from PSD / OpenRaster import | TV, CSP | D | |
+| Animated GIF import | TV, PD | D | Timed by its delays |
 
 ## UI and workspace
 
@@ -206,7 +212,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Layers panel | all | D | |
 | Timeline docked at the bottom | all | D | |
 | Keyboard shortcuts for every tool | all | D | |
-| Customisable shortcuts | all | M | Through craft-keymap |
+| Customisable shortcuts | all | D | Through craft-keymap, saved per user |
 | Every action reachable by keyboard | — | P | **Ours:** accessibility rule, kittest-tested |
 | Screen reader names for canvas and timeline | — | D | **Ours:** AccessKit nodes for the canvas and every visible timeline cell |
 | Saved workspaces | TV, TB, CSP | M | |
@@ -238,3 +244,4 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 |---|---|---|
 | 2026-11-17 | major | First map, written before the vertical slice; statuses set when the slice landed |
 | 2026-11-17 | major | Polish pass: re-measured after user research (docs/user-research.md); 4 rows added |
+| 2026-11-17 | major | Second pass: the top 10 gaps and interchange with other apps; 6 rows added |

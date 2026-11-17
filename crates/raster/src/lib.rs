@@ -14,9 +14,11 @@
 pub mod fill;
 mod image;
 mod pixel;
+pub mod select;
 
 pub use image::RgbaImage;
-pub use pixel::{over, premultiply, scale_alpha, unpremultiply};
+pub use pixel::{BlendMode, blend, over, premultiply, scale_alpha, unpremultiply};
+pub use select::sample as sample_bilinear;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

@@ -135,10 +135,15 @@ pub struct Stroke {
 impl Stroke {
     /// Start a stroke; the surface starts capturing tiles for undo.
     pub fn begin(surface: &mut Surface, brush: Brush) -> Self {
+        Self::begin_with_tip(surface, brush, None)
+    }
+
+    /// Start a stroke stamping an image tip (the brush's `tip` resolved by the caller).
+    pub fn begin_with_tip(surface: &mut Surface, brush: Brush, tip: Option<Arc<crate::Tip>>) -> Self {
         let brush = brush.sanitized();
         surface.begin_capture();
         Self {
-            shape: Shape { kind: brush.kind, hardness: brush.hardness, grain: brush.grain, grain_scale: brush.grain_scale },
+            shape: Shape { kind: brush.kind, hardness: brush.hardness, grain: brush.grain, grain_scale: brush.grain_scale, tip },
             color: premultiply(brush.color),
             brush,
             coverage: HashMap::new(),
@@ -305,6 +310,26 @@ mod tests {
         assert!(s.tiles().map(|(_, t)| t.bytes().as_chunks::<4>().0.iter().filter(|p| p[3] > 0).count()).sum::<usize>() < 50);
         s.swap_snapshot(undo);
         assert_eq!(s, before);
+    }
+
+    #[test]
+    fn image_tip_stamps_its_shape() {
+        // a tip that is only its left half: a horizontal stroke of it leaves a thinner trail than
+        // a vertical one would not; simpler: a single dab covers only the left half
+        let mut alpha = vec![0u8; 16 * 16];
+        for y in 0..16 {
+            for x in 0..8 {
+                alpha[y * 16 + x] = 255;
+            }
+        }
+        let tip = Arc::new(crate::Tip::new("half", 16, 16, alpha).unwrap());
+        let mut s = Surface::new(128, 128).unwrap();
+        let brush = Brush { size: 40.0, smoothing: crate::Smoothing { average: 0.0, ..Default::default() }, ..Brush::preset(BrushKind::Ink) };
+        let mut st = Stroke::begin_with_tip(&mut s, brush, Some(tip));
+        let dab = Dab { x: 64.0, y: 64.0, radius: 20.0, alpha: 1.0, angle: 0.0, roundness: 1.0, pressure: 1.0 };
+        st.add(&mut s, &[dab]);
+        st.end(&mut s);
+        assert!(s.pixel(54, 64)[3] > 200 && s.pixel(74, 64)[3] == 0);
     }
 
     #[test]

@@ -103,6 +103,10 @@ pub fn demo(width: u32, height: u32) -> Result<Engine> {
         e.apply(Command::ExtendHold { layer: 2, frame })?;
     }
     e.project.light_table.enabled = false;
+    // a slow push-in over the shot
+    let (cx, cy) = (640.0 * s, 360.0 * sy);
+    e.apply(Command::SetCameraKey { frame: 0, x: cx, y: cy, zoom: 1.0, angle: 0.0 })?;
+    e.apply(Command::SetCameraKey { frame: DEMO_FRAMES - 1, x: cx + 60.0 * s, y: cy + 30.0 * sy, zoom: 1.12, angle: 0.0 })?;
     e.mark_saved();
     Ok(e)
 }

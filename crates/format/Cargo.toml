@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 tooncraft-raster = { workspace = true }
 tooncraft-doc = { workspace = true }
+tooncraft-brush = { workspace = true }
 craft-zip = { workspace = true }
 craft-atomic = { workspace = true }
 craft-image-codecs = { workspace = true }

@@ -9,17 +9,20 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+pub mod camera;
 mod exposure;
 mod onion;
 pub mod render;
 
+pub use camera::{Camera, CameraKey};
 pub use exposure::{Cell, ExposureError};
 pub use onion::{LightTable, OnionMode, OnionSkin, Pin};
-pub use render::{RenderOptions, render_frame, render_region};
+pub use render::{RenderOptions, render_camera, render_frame, render_region};
 
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+pub use tooncraft_raster::BlendMode;
 use tooncraft_raster::{MAX_SIDE, RasterError, Surface};
 
 /// Most frames in one project (about 46 minutes at 24 fps).
@@ -79,8 +82,20 @@ pub struct Layer {
     pub locked: bool,
     #[serde(default = "one")]
     pub opacity: f32,
+    #[serde(default, skip_serializing_if = "is_normal")]
+    pub blend: BlendMode,
+    /// Label colour (straight RGB) for the timeline and layer list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<[u8; 3]>,
+    /// Name of the folder the layer is in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folder: Option<String>,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
+}
+
+fn is_normal(b: &BlendMode) -> bool {
+    *b == BlendMode::Normal
 }
 
 fn yes() -> bool {
@@ -112,6 +127,19 @@ impl Layer {
     }
 }
 
+/// A folder of layers: its members are the layers whose `folder` names it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Folder {
+    pub name: String,
+    #[serde(default = "yes")]
+    pub visible: bool,
+    #[serde(default = "one")]
+    pub opacity: f32,
+    /// Its layers are hidden in the timeline and layer list (not in the picture).
+    #[serde(default)]
+    pub collapsed: bool,
+}
+
 /// Paper (background) settings.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -126,6 +154,17 @@ impl Default for Paper {
     fn default() -> Self {
         Self { color: [246, 243, 236], export: true }
     }
+}
+
+/// The shot's sound: the original file's bytes (any format craft-audio decodes) and where it
+/// starts. Kept as the user's file so nothing is re-encoded until export.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Soundtrack {
+    /// File name it was imported from (shown in the timeline; its extension hints the decoder).
+    pub name: String,
+    /// Frame at which the sound starts (negative: the sound starts before the shot).
+    pub offset: i32,
+    pub bytes: std::sync::Arc<Vec<u8>>,
 }
 
 /// A shot: canvas, timing, layers and the drawing library.
@@ -144,6 +183,11 @@ pub struct Project {
     drawings: BTreeMap<DrawingId, Surface>,
     pub onion: OnionSkin,
     pub light_table: LightTable,
+    pub soundtrack: Option<Soundtrack>,
+    pub camera: Camera,
+    pub folders: Vec<Folder>,
+    /// Image brush tips used by this shot's brushes, by id.
+    pub tips: BTreeMap<u64, std::sync::Arc<tooncraft_brush::Tip>>,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -157,6 +201,10 @@ impl PartialEq for Project {
             && self.drawings == o.drawings
             && self.onion == o.onion
             && self.light_table == o.light_table
+            && self.soundtrack == o.soundtrack
+            && self.camera == o.camera
+            && self.folders == o.folders
+            && self.tips == o.tips
     }
 }
 
@@ -183,6 +231,10 @@ impl Project {
             drawings: BTreeMap::new(),
             onion: OnionSkin::default(),
             light_table: LightTable::default(),
+            soundtrack: None,
+            camera: Camera::default(),
+            folders: Vec::new(),
+            tips: BTreeMap::new(),
             next_drawing: 1,
             next_layer: 1,
         };
@@ -203,6 +255,10 @@ impl Project {
             drawings: BTreeMap::new(),
             onion: OnionSkin::default(),
             light_table: LightTable::default(),
+            soundtrack: None,
+            camera: Camera::default(),
+            folders: Vec::new(),
+            tips: BTreeMap::new(),
             next_drawing: 1,
             next_layer: 1,
         };
@@ -330,7 +386,17 @@ impl Project {
         let index = index.min(self.layers.len());
         self.layers.insert(
             index,
-            Layer { id, name: name.chars().take(200).collect(), visible: true, locked: false, opacity: 1.0, cells: vec![Cell::Blank; self.length as usize] },
+            Layer {
+                id,
+                name: name.chars().take(200).collect(),
+                visible: true,
+                locked: false,
+                opacity: 1.0,
+                blend: Default::default(),
+                color: None,
+                folder: None,
+                cells: vec![Cell::Blank; self.length as usize],
+            },
         );
         Ok(index)
     }
@@ -409,6 +475,19 @@ impl Project {
     pub fn unused_drawings(&self) -> Vec<DrawingId> {
         let used: std::collections::BTreeSet<DrawingId> = self.layers.iter().flat_map(|l| l.cells.iter().filter_map(|c| c.key())).collect();
         self.drawings.keys().filter(|d| !used.contains(d)).copied().collect()
+    }
+
+    /// The folder a layer is in.
+    pub fn folder_of(&self, layer: &Layer) -> Option<&Folder> {
+        layer.folder.as_ref().and_then(|n| self.folders.iter().find(|f| &f.name == n))
+    }
+
+    /// Visible after its folder's visibility, and its opacity times the folder's.
+    pub fn effective(&self, layer: &Layer) -> (bool, f32) {
+        match self.folder_of(layer) {
+            Some(f) => (layer.visible && f.visible, layer.opacity * f.opacity.clamp(0.0, 1.0)),
+            None => (layer.visible, layer.opacity),
+        }
     }
 
     /// Bytes of pixel data held by the library (shared tiles counted in full).

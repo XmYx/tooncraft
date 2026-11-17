@@ -22,6 +22,13 @@ pub(crate) enum Part {
         layers: Vec<Layer>,
     },
     Fps(u32),
+    Sound(Option<tooncraft_doc::Soundtrack>),
+    Camera(tooncraft_doc::Camera),
+    Folders(Vec<tooncraft_doc::Folder>),
+    Tip {
+        id: u64,
+        tip: Option<std::sync::Arc<tooncraft_brush::Tip>>,
+    },
 }
 
 /// One undo step.
@@ -62,6 +69,16 @@ impl Entry {
                     }
                     old
                 }
+                Part::Tip { id, tip } => {
+                    let old = match tip {
+                        Some(t) => p.tips.insert(id, t),
+                        None => p.tips.remove(&id),
+                    };
+                    Part::Tip { id, tip: old }
+                }
+                Part::Folders(f) => Part::Folders(std::mem::replace(&mut p.folders, f)),
+                Part::Camera(c) => Part::Camera(std::mem::replace(&mut p.camera, c)),
+                Part::Sound(s) => Part::Sound(std::mem::replace(&mut p.soundtrack, s)),
                 Part::Fps(fps) => {
                     let old = Part::Fps(p.fps());
                     let _ = p.set_fps(fps);

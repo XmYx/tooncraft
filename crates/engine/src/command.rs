@@ -43,6 +43,29 @@ pub enum Command {
         #[serde(default)]
         reference: FillReference,
     },
+    /// Fill the same point in every drawing exposed on the layer (one undo step).
+    FillAllFrames {
+        layer: usize,
+        x: u32,
+        y: u32,
+        color: [u8; 4],
+        #[serde(default)]
+        options: FillOptions,
+        #[serde(default)]
+        reference: FillReference,
+    },
+    /// A line, rectangle or ellipse drawn with the brush between two corners (`constrain`:
+    /// 15° lines, squares, circles).
+    Shape {
+        layer: usize,
+        frame: u32,
+        brush: Brush,
+        shape: crate::shapes::ShapeKind,
+        from: (f32, f32),
+        to: (f32, f32),
+        #[serde(default)]
+        constrain: bool,
+    },
     /// Start a new, empty drawing at the frame.
     NewDrawing {
         layer: usize,
@@ -135,6 +158,95 @@ pub enum Command {
         hold: u32,
         name: String,
     },
+    /// Use a sound file (WAV, AIFF, MP3, AAC/M4A, FLAC, Ogg …) as the shot's soundtrack, starting at
+    /// `offset` frames; no `path` removes it.
+    SetSound {
+        #[serde(default)]
+        path: Option<String>,
+        #[serde(default)]
+        offset: i32,
+    },
+    /// Set (or replace) the camera key at `frame`: centre `x`, `y` in canvas pixels, `zoom` (1 =
+    /// whole canvas), `angle` in degrees. The camera is switched on.
+    SetCameraKey {
+        frame: u32,
+        x: f32,
+        y: f32,
+        zoom: f32,
+        angle: f32,
+    },
+    /// Remove the camera key at `frame`.
+    RemoveCameraKey {
+        frame: u32,
+    },
+    /// Render exports through the camera, or not.
+    SetCamera {
+        enabled: bool,
+    },
+    /// Add an image brush tip (grey mask; dark is ink) under `id`, replacing a tip with that id.
+    AddTip {
+        id: u64,
+        name: String,
+        width: u32,
+        height: u32,
+        alpha: Vec<u8>,
+    },
+    /// Add a brush tip from an image file (scaled down to 1024 px at most) under `id`.
+    AddTipFromImage {
+        id: u64,
+        path: String,
+    },
+    /// The layers of a PSD / PSB or OpenRaster file, as new layers with a drawing at `frame`.
+    ImportLayers {
+        path: String,
+        frame: u32,
+    },
+    /// An animated GIF as a new layer from `frame`, timed by its delays.
+    ImportGif {
+        path: String,
+        frame: u32,
+    },
+    /// An XDTS exposure sheet and its drawing folders, one new layer per track.
+    ImportSheet {
+        path: String,
+    },
+    /// Move the soundtrack to start at `offset` frames.
+    MoveSound {
+        offset: i32,
+    },
+    /// Move / scale / rotate (radians) / flip (negative scale) the pixels inside `polygon`, about
+    /// the centre of its bounding box.
+    TransformSelection {
+        layer: usize,
+        frame: u32,
+        polygon: Vec<(f32, f32)>,
+        #[serde(default)]
+        dx: f32,
+        #[serde(default)]
+        dy: f32,
+        #[serde(default = "unit")]
+        scale_x: f32,
+        #[serde(default = "unit")]
+        scale_y: f32,
+        #[serde(default)]
+        angle: f32,
+    },
+    /// Erase the pixels inside `polygon`.
+    ClearSelection {
+        layer: usize,
+        frame: u32,
+        polygon: Vec<(f32, f32)>,
+    },
+    /// Paste straight-RGBA pixels with their top-left at (x, y) (a new drawing on a blank cell).
+    PastePixels {
+        layer: usize,
+        frame: u32,
+        x: f32,
+        y: f32,
+        width: u32,
+        height: u32,
+        rgba: Vec<u8>,
+    },
     /// Erase all pixels of the drawing at the frame.
     ClearDrawing {
         layer: usize,
@@ -165,6 +277,33 @@ pub enum Command {
         #[serde(default)]
         opacity: Option<f32>,
     },
+    /// How the layer combines with the layers below.
+    SetLayerBlend {
+        layer: usize,
+        blend: tooncraft_doc::BlendMode,
+    },
+    /// The layer's label colour (`None`: no colour).
+    SetLayerColor {
+        layer: usize,
+        #[serde(default)]
+        color: Option<[u8; 3]>,
+    },
+    /// Put the layer in a folder (made if missing), or take it out (`None`).
+    SetLayerFolder {
+        layer: usize,
+        #[serde(default)]
+        folder: Option<String>,
+    },
+    /// A folder's visibility, opacity or collapsed state.
+    SetFolder {
+        name: String,
+        #[serde(default)]
+        visible: Option<bool>,
+        #[serde(default)]
+        opacity: Option<f32>,
+        #[serde(default)]
+        collapsed: Option<bool>,
+    },
     SetLength {
         frames: u32,
     },
@@ -190,6 +329,10 @@ pub enum Command {
     SetPaper {
         color: [u8; 3],
     },
+}
+
+fn unit() -> f32 {
+    1.0
 }
 
 fn one_frame() -> u32 {
@@ -219,6 +362,15 @@ fn frame_ok(e: &Engine, frame: u32) -> Result<()> {
     if frame >= e.project.length() { Err(DocError::NoFrame(frame).into()) } else { Ok(()) }
 }
 
+fn add_tip(e: &mut Engine, id: u64, tip: tooncraft_brush::Tip) -> Result<()> {
+    if e.project.tips.len() >= 256 && !e.project.tips.contains_key(&id) {
+        return Err(DocError::TooManyDrawings.into());
+    }
+    let old = e.project.tips.insert(id, std::sync::Arc::new(tip));
+    e.push(Entry { label: "Brush tip".into(), parts: vec![Part::Tip { id, tip: old }] });
+    Ok(())
+}
+
 pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
     match cmd {
         Command::Stroke { layer, frame, brush, samples } => {
@@ -231,6 +383,16 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::Fill { layer, frame, x, y, color, options, reference } => {
             frame_ok(e, frame)?;
             e.fill(layer, frame, x, y, color, options, reference).map(|_| ())
+        }
+        Command::FillAllFrames { layer, x, y, color, options, reference } => e.fill_all(layer, x, y, color, options, reference).map(|_| ()),
+        Command::Shape { layer, frame, brush, shape, from, to, constrain } => {
+            let samples = crate::shapes::samples(shape, from, to, constrain, 1.0);
+            let brush = tooncraft_brush::Brush { smoothing: tooncraft_brush::Smoothing { average: 0.0, string: 0.0, catch_up: true }, ..brush };
+            apply(e, Command::Stroke { layer, frame, brush, samples })?;
+            if let Some(top) = e.undo.last_mut() {
+                top.label = "Shape".into();
+            }
+            Ok(())
         }
         Command::NewDrawing { layer, frame } => {
             e.check_unlocked(layer)?;
@@ -367,6 +529,46 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }),
         Command::ImportImages { paths, frame, hold, name } => crate::import::images(e, &paths, frame, hold.clamp(1, 64), &name),
+        Command::TransformSelection { layer, frame, polygon, dx, dy, scale_x, scale_y, angle } => {
+            crate::select::transform(e, layer, frame, &polygon, (dx, dy, scale_x, scale_y, angle))
+        }
+        Command::ClearSelection { layer, frame, polygon } => crate::select::clear(e, layer, frame, &polygon),
+        Command::PastePixels { layer, frame, x, y, width, height, rgba } => crate::select::paste(e, layer, frame, (x, y), width, height, &rgba),
+        Command::SetSound { path, offset } => crate::audio::set(e, path.as_deref(), offset),
+        Command::SetCameraKey { frame, x, y, zoom, angle } => {
+            frame_ok(e, frame)?;
+            let before = Part::Camera(e.project.camera.clone());
+            let (w, h) = (e.project.width(), e.project.height());
+            e.project.camera.set(tooncraft_doc::CameraKey { frame, x, y, zoom, angle }.sanitized(w, h));
+            e.project.camera.enabled = true;
+            e.push(Entry { label: "Camera key".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::RemoveCameraKey { frame } => {
+            let before = Part::Camera(e.project.camera.clone());
+            if e.project.camera.remove(frame) {
+                e.push(Entry { label: "Remove camera key".into(), parts: vec![before] });
+            }
+            Ok(())
+        }
+        Command::SetCamera { enabled } => {
+            let before = Part::Camera(e.project.camera.clone());
+            e.project.camera.enabled = enabled;
+            e.push(Entry { label: "Camera".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::AddTip { id, name, width, height, alpha } => {
+            let tip = tooncraft_brush::Tip::new(&name, width, height, alpha).ok_or(tooncraft_raster::RasterError::BadImage { got: 0, want: 1 })?;
+            add_tip(e, id, tip)
+        }
+        Command::AddTipFromImage { id, path } => {
+            let tip = crate::preset::tip_from_image(&path).map_err(EngineError::Import)?;
+            add_tip(e, id, tip)
+        }
+        Command::ImportLayers { path, frame } => crate::interchange::layers(e, &path, frame),
+        Command::ImportGif { path, frame } => crate::interchange::gif(e, &path, frame),
+        Command::ImportSheet { path } => crate::interchange::sheet(e, &path),
+        Command::MoveSound { offset } => crate::audio::shift(e, offset),
         Command::ClearDrawing { layer, frame } => {
             e.check_unlocked(layer)?;
             let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;
@@ -411,6 +613,47 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             }
             Ok(())
         }),
+        Command::SetLayerBlend { layer, blend } => edit_layers(e, "Blend mode", |e| {
+            e.project.layer_mut(layer)?.blend = blend;
+            Ok(())
+        }),
+        Command::SetLayerColor { layer, color } => edit_layers(e, "Layer colour", |e| {
+            e.project.layer_mut(layer)?.color = color;
+            Ok(())
+        }),
+        Command::SetLayerFolder { layer, folder } => {
+            let parts = vec![Part::Folders(e.project.folders.clone()), Part::Layers(e.project.layers.clone())];
+            let folder = folder.map(|f| f.chars().take(200).collect::<String>()).filter(|f| !f.trim().is_empty());
+            e.project.layer_mut(layer)?.folder = folder.clone();
+            if let Some(name) = folder
+                && !e.project.folders.iter().any(|f| f.name == name)
+            {
+                if e.project.folders.len() >= 512 {
+                    return Err(DocError::TooManyLayers.into());
+                }
+                e.project.folders.push(tooncraft_doc::Folder { name, visible: true, opacity: 1.0, collapsed: false });
+            }
+            // drop folders nobody is in
+            let used: Vec<String> = e.project.layers.iter().filter_map(|l| l.folder.clone()).collect();
+            e.project.folders.retain(|f| used.contains(&f.name));
+            e.push(Entry { label: "Layer folder".into(), parts });
+            Ok(())
+        }
+        Command::SetFolder { name, visible, opacity, collapsed } => {
+            let before = Part::Folders(e.project.folders.clone());
+            let f = e.project.folders.iter_mut().find(|f| f.name == name).ok_or(DocError::NoLayer(usize::MAX))?;
+            if let Some(v) = visible {
+                f.visible = v;
+            }
+            if let Some(o) = opacity.filter(|o| o.is_finite()) {
+                f.opacity = o.clamp(0.0, 1.0);
+            }
+            if let Some(c) = collapsed {
+                f.collapsed = c;
+            }
+            e.push(Entry { label: "Folder".into(), parts: vec![before] });
+            Ok(())
+        }
         Command::SetLength { frames } => {
             let before = Part::Length { length: e.project.length(), layers: e.project.layers.clone() };
             e.project.set_length(frames)?;

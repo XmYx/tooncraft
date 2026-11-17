@@ -18,6 +18,7 @@ tooncraft-brush = { workspace = true }
 tooncraft-doc = { workspace = true }
 tooncraft-format = { workspace = true }
 tooncraft-engine = { workspace = true }
+tooncraft-interop = { workspace = true }
 egui = { workspace = true }
 eframe = { workspace = true, features = ["default_fonts", "wgpu", "accesskit", "wayland", "x11"] }
 rfd = { workspace = true }
@@ -26,9 +27,20 @@ chrono = { workspace = true }
 craft-i18n = { workspace = true }
 craft-fonts-build = { workspace = true }
 craft-ui = { workspace = true }
+craft-audio = { workspace = true }
+craft-keymap = { workspace = true }
+serde_json = { workspace = true }
+craft-atomic = { workspace = true }
+cpal = "0.16"
 
 [build-dependencies]
 craft-fonts-build = { workspace = true }
 
 [dev-dependencies]
 egui_kittest = { workspace = true }
+
+# Pen pressure, tilt and eraser end where winit drops them (Linux X11 through XInput2, macOS through
+# AppKit). Shared with PhotoCraft rather than copied (house rule 16); Windows Ink already reports
+# pen force as touch force.
+[target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
+photocraft-tablet = { git = "https://github.com/storytold/photocraft", rev = "c337d6e4e831584e7f9ad11481c683a9b45ea134" }

@@ -28,12 +28,18 @@ Apps, next to AniCraft (vector animation), BoardCraft (storyboards) and FilmCraf
 
 - **Canvas:** tiled, sparse, GPU-composited; pan, zoom about the pointer, rotate, mirror; up to
   16384 px a side.
-- **Brushes:** pencil with paper grain, ink pen, airbrush, chalk, eraser; pressure, tilt and speed
-  dynamics; smoothing and a "steady line" pulled-string stabilizer; strokes never darken where dabs
-  overlap.
+- **Brushes:** pencil with paper grain, ink pen, airbrush, chalk, eraser, image tips and
+  `.toonbrush` presets; pen pressure, tilt and the eraser end (Linux X11, macOS, Windows); speed
+  dynamics, smoothing and a "steady line" stabilizer; strokes never darken where dabs overlap.
+- **Selection and shapes:** lasso and rectangle selections you move, scale, rotate and flip live;
+  lines, rectangles and ellipses.
 - **Exposure sheet:** layers with keys, holds and blanks; new / duplicate drawing, insert / delete
   frame, drag a drawing's cells to change its hold, re-time on 1s–4s without losing drawings; select
   ranges across layers, copy / cut / paste them (linked or as new drawings), reverse and repeat them.
+- **Layers:** blend modes, folders, label colours, timeline thumbnails.
+- **Camera:** eased pan, zoom and rotation keys; exports render through it.
+- **Sound:** a soundtrack with its waveform in the timeline, frame-by-frame scrubbing and sound in
+  the MP4.
 - **Onion skin and light table:** before / after counts, tints, falloff, by drawings or by frames,
   every layer or one; pin any frame of any layer under the drawing.
 - **Colour:** paint bucket with gap closing and spread under lines, on the line layer or a paint
@@ -41,8 +47,10 @@ Apps, next to AniCraft (vector animation), BoardCraft (storyboards) and FilmCraf
 - **Playback** at the shot's frame rate, looping, clock-driven.
 - **Safety:** unlimited undo (memory-bounded), journaled atomic saves with a backup, Save New
   Version, background autosave with crash recovery, a property-tested loader.
-- **Export and import:** MP4 (H.264), animated GIF, animated PNG, PNG sequence, OpenRaster, all
-  built in with no external tools; image sequences import as drawings.
+- **Works with other apps:** layered PSD / PSB and OpenRaster in and out, XDTS exposure sheets with
+  their drawing folders in and out, ProRes 4444 with alpha and per-layer PNG sequences for
+  compositing, MP4 (H.264 + AAC), GIF, animated PNG; all built in, no external tools
+  ([docs/interop.md](docs/interop.md)).
 - **Yours to keep:** open source, offline, no account, no tiers, no watermark; a 4K, 240-drawing shot
   plays in real time and loads in a tenth of a second.
 - **Accessibility:** every control named for screen readers, the canvas and exposure-sheet cells
@@ -56,9 +64,9 @@ Apps, next to AniCraft (vector animation), BoardCraft (storyboards) and FilmCraf
 cargo run --release -p tooncraft -- --demo
 ```
 
-Keys: P pencil, N ink, A airbrush, C chalk, E eraser, F fill, I picker, H hand · Enter play · , . frames ·
-Shift+N new drawing · Shift+D duplicate · + − hold · O onion skin · [ ] brush size · Ctrl+[ ] rotate ·
-F6 canvas ↔ sheet. Help ▸ Keyboard Shortcuts lists them all.
+Keys: P pencil, N ink, A airbrush, C chalk, E eraser, F fill, I picker, S select, U shapes, H hand ·
+Enter play · , . frames · Shift+N new drawing · Shift+D duplicate · + − hold · O onion skin · [ ] brush
+size · Ctrl+[ ] rotate · F6 canvas ↔ sheet. Help ▸ Keyboard Shortcuts lists them all and remaps them.
 
 `cargo xtask ci` runs every check (fmt, clippy, tests, layering, assets, progress, parity, strings,
 licences).

@@ -2,9 +2,8 @@
 
 > **Last updated:** 2026-11-17 · **Change:** major
 
-**Current focus:** after the polish pass (timing tools, video export, versioned saves, large-shot
-performance measured), the next items are pen input everywhere, the audio track and selection /
-transform, ranked in [gaps.md](gaps.md) from [user-research.md](user-research.md).
+**Current focus:** after the second pass (the ten top gaps and exchange with other apps), the
+next items are Wayland pen input, an effects stack and lip-sync assist, ranked in [gaps.md](gaps.md).
 
 Items marked **Ours** are where we plan to do better than the reference apps.
 
@@ -29,16 +28,20 @@ paste (linked or as new drawings), drag-to-hold, reverse, cycles; image-sequence
 and animated PNG export with no external tools; Save New Version; Alt+arrow panning; Shift+click
 straight lines; a 4K, 240-drawing stress shot measured at 24.1 fps with 0 dropped frames.
 
-## M1: alpha (editing depth), about 110 h
+## M1: second pass (done, 2026-11-17)
 
-Pen pressure everywhere (shared tablet crate), audio track with waveform and scrub, selection and
-transform, remappable shortcuts, shape tools, timeline thumbnails.
+Pen pressure, tilt and eraser end (X11, macOS, Windows Ink); soundtrack with waveform, scrubbing,
+sync and AAC in MP4; selection and transform; camera keys; remappable shortcuts (craft-keymap);
+shape tools; timeline thumbnails; blend modes, folders, layer colours; fill across frames; image
+brush tips and `.toonbrush` presets; exchange with other apps: PSD / PSB and OpenRaster layers,
+XDTS exposure sheets with drawing folders, GIF import, ProRes 4444 with alpha, per-layer PNG
+sequences.
 
 ## M2: beta (production), about 140 h
 
-Camera keys and transform layers, layer blend modes / folders / colours, fill across frames, brush
-tips and preset files, BoardCraft animatic import, PSD / WebP export, saved workspaces, translations,
-paging to disk.
+Wayland pen input, effects stack, lip-sync assist, pegs and transform layers, nested folders and
+clipping, brush editor curves, key / breakdown marks, field guide and canvas resize, saved
+workspaces, BoardCraft animatic import, translations, paging to disk.
 **Ours:** MCP / control channel on craft-control so agents can draw and time a shot.
 
 ## M3: beyond the references

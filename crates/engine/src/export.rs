@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use tooncraft_doc::{Project, RenderOptions, render_frame};
+// Frame exports (PNG, GIF, APNG, MP4) render through the camera; layer exports (ORA) do not.
 
 #[derive(Debug, thiserror::Error)]
 pub enum ExportError {
@@ -45,7 +46,7 @@ pub fn png_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, mut
     let digits = (o.end.max(1).ilog10() + 1).max(4) as usize;
     let mut out = Vec::new();
     for f in o.start..o.end {
-        let img = render_frame(p, f, RenderOptions { paper: o.paper, ..Default::default() });
+        let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: o.paper, ..Default::default() });
         let png = tooncraft_format::encode_png(&img).map_err(|e| ExportError::Encode(e.to_string()))?;
         let path = dir.join(format!("{prefix}_{:0digits$}.png", f + 1));
         craft_atomic::atomic_write(&path, &png).map_err(|e| ExportError::Io(path.display().to_string(), e))?;
@@ -70,7 +71,7 @@ pub fn gif(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(
     let opts = craft_gif::write::Options::default();
     let mut w = craft_gif::write::AnimationWriter::new(Vec::new(), p.width(), p.height(), opts).map_err(|e| ExportError::Encode(e.to_string()))?;
     for (i, f) in (o.start..o.end).enumerate() {
-        let img = render_frame(p, f, RenderOptions { paper: o.paper, ..Default::default() });
+        let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: o.paper, ..Default::default() });
         let straight = img.to_straight();
         let delay_cs = delays.get(i).copied().unwrap_or(4);
         w.write_frame(craft_gif::write::RgbaFrame { pixels: &straight, delay_cs }).map_err(|e| ExportError::Encode(e.to_string()))?;
@@ -90,7 +91,12 @@ pub fn ora_frame(p: &Project, frame: u32, path: &Path) -> Result<()> {
     let mut w = craft_ora::Writer::new();
     let mut stack = Vec::new();
     for (i, layer) in p.layers.iter().enumerate().rev() {
-        let img = render_frame(p, frame, RenderOptions { paper: false, only_layer: Some(i), ..Default::default() });
+        // The drawing's own pixels: OpenRaster applies the layer opacity from the stack itself.
+        let img = layer
+            .drawing_at(frame)
+            .and_then(|d| p.drawing(d))
+            .map(|d| d.to_image())
+            .unwrap_or_else(|| tooncraft_raster::RgbaImage::transparent(p.width(), p.height()));
         let src = format!("data/layer{i}.png");
         w.add(&src, &tooncraft_format::encode_png(&img).map_err(enc)?).map_err(ora)?;
         stack.push(craft_ora::Node::Layer(craft_ora::Layer {
@@ -164,6 +170,18 @@ pub fn mp4(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(
     cfg.rate = RateControl::Crf(18.0);
     cfg.writer = format!("ToonCraft {}", env!("CARGO_PKG_VERSION"));
     let mut enc = Encoder::new(cfg).map_err(enc_err)?;
+    // The soundtrack under the exported frames, as AAC in its own M4A, whose track is copied in.
+    let sound = match crate::audio::decode_project(p) {
+        Some(Ok(pcm)) => {
+            let s = p.soundtrack.as_ref().ok_or_else(|| ExportError::Encode("sound".into()))?;
+            let seg = crate::audio::segment(&pcm, s, fps, o.start, o.end);
+            let buf = craft_audio::AudioBuffer { sample_rate: seg.rate, channels: seg.channels };
+            let opts = craft_audio::EncodeOptions::new(craft_audio::EncodeFormat::Aac);
+            Some(craft_audio::encode(&buf, &opts).map_err(|e| ExportError::Encode(format!("sound: {e}")))?)
+        }
+        Some(Err(e)) => return Err(ExportError::Encode(format!("sound: {e}"))),
+        None => None,
+    };
     let entry = |enc: &Encoder| -> Result<SampleEntry> { Ok(SampleEntry::avc(AvcConfig::parse(&enc.avcc()).map_err(mux_err)?, w as u16, h as u16)) };
     let result = craft_atomic::atomic_write_with(path, |file| {
         let io = |e: ExportError| std::io::Error::other(e.to_string());
@@ -182,7 +200,7 @@ pub fn mp4(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(
             Ok(())
         };
         for (i, f) in (o.start..o.end).enumerate() {
-            let img = render_frame(p, f, RenderOptions { paper: true, ..Default::default() });
+            let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: true, ..Default::default() });
             let (y, u, v) = to_yuv420(&img, w, h);
             let frame = YuvFrame { y: &y, u: &u, v: &v, y_stride: w as usize, uv_stride: w as usize / 2 };
             let packets = enc.encode(&frame, i as i64).map_err(|e| io(enc_err(e)))?;
@@ -192,10 +210,31 @@ pub fn mp4(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(
         let packets = enc.flush();
         write(&mut mux, packets)?;
         mux.set_sample_entry(track, entry(&enc).map_err(io)?).map_err(|e| io(mux_err(e)))?;
+        if let Some(aac) = &sound {
+            add_aac_track(&mut mux, aac).map_err(io)?;
+        }
         mux.finish().map_err(|e| io(mux_err(e)))?;
         Ok(())
     });
     result.map_err(|e| ExportError::Io(path.display().to_string(), e))
+}
+
+/// Copy the audio track of an M4A into the movie being written.
+fn add_aac_track<W: std::io::Write + std::io::Seek>(mux: &mut craft_media::isobmff::Mp4Writer<W>, m4a: &[u8]) -> Result<()> {
+    use craft_media::isobmff::{TrackConfig, WriteSample};
+    let e = |e: craft_media::isobmff::Error| ExportError::Encode(format!("sound: {e}"));
+    let file = craft_media::isobmff::open(m4a).map_err(e)?;
+    let Some((index, t)) = file.tracks.iter().enumerate().find(|(_, t)| !t.entries.is_empty() && !t.samples.is_empty()) else { return Ok(()) };
+    let Some(entry) = t.entries.first().cloned() else { return Ok(()) };
+    let mut cfg = TrackConfig::new(entry, t.timescale);
+    cfg.media_start = t.edits.iter().find(|ed| ed.media_time >= 0).map(|ed| ed.media_time);
+    cfg.roll_distance = Some(-1);
+    let track = mux.add_track(cfg).map_err(e)?;
+    for (i, smp) in t.samples.iter().enumerate() {
+        let data = file.read_sample(m4a, index, i).map_err(e)?;
+        mux.write_sample(track, WriteSample { data: &data, duration: smp.duration, composition_offset: 0, is_sync: smp.is_sync }).map_err(e)?;
+    }
+    Ok(())
 }
 
 /// Concatenated IDAT payload of a PNG (APNG frames carry it).
@@ -221,7 +260,7 @@ pub fn apng(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut
     let delays = gif_delays(p.fps(), o.end - o.start);
     let mut payloads = Vec::new();
     for f in o.start..o.end {
-        let img = render_frame(p, f, RenderOptions { paper: o.paper, ..Default::default() });
+        let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: o.paper, ..Default::default() });
         let png = tooncraft_format::encode_png(&img).map_err(|e| ExportError::Encode(e.to_string()))?;
         payloads.push(idat(&png).ok_or_else(|| ExportError::Encode("PNG without image data".into()))?);
         progress(f);

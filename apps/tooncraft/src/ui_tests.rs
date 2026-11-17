@@ -229,3 +229,197 @@ fn dragging_a_cell_changes_its_hold() {
     h.run();
     assert_eq!(&sheet(&h.state().engine.project.layers[0].cells)[..5], "#---.");
 }
+
+#[test]
+fn soundtrack_shows_a_waveform_and_scrubs() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-ui-sound-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let rate = 22_050u32;
+    let tone: Vec<f32> = (0..rate * 2).map(|i| (i as f32 * 0.05).sin() * 0.6).collect();
+    let wav = craft_audio::encode(
+        &craft_audio::AudioBuffer { sample_rate: rate, channels: vec![tone] },
+        &craft_audio::EncodeOptions::new(craft_audio::EncodeFormat::Wav),
+    )
+    .unwrap();
+    let path = dir.join("voice.wav");
+    std::fs::write(&path, wav).unwrap();
+    let mut h = harness(false);
+    h.state_mut().run(tooncraft_engine::Command::SetSound { path: Some(path.to_string_lossy().into_owned()), offset: 2 });
+    h.run();
+    h.get(By::new().role(egui::Role::Slider).label("Sound voice.wav, starts at frame 3"));
+    assert!(h.state().sound.peaks.is_some());
+    assert!(!h.state().sound.is_playing());
+    h.key_press(Key::Period);
+    h.run();
+    assert!(h.state().sound.is_playing(), "stepping a frame plays that frame's sound");
+}
+
+fn drag_line(h: &mut Harness<'static, ToonApp>, from: egui::Pos2, to: egui::Pos2) {
+    h.drag_at(from);
+    h.run();
+    for i in 1..=12 {
+        h.hover_at(from + (to - from) * (i as f32 / 12.0));
+        h.run();
+    }
+    h.drop_at(to);
+    h.run();
+}
+
+#[test]
+fn pen_eraser_end_erases() {
+    let mut h = harness(false);
+    h.run();
+    let rect = h.get(By::new().role(egui::Role::Canvas).label_contains("Canvas")).rect();
+    let (a, b) = (rect.center() - egui::vec2(150.0, 0.0), rect.center() + egui::vec2(150.0, 0.0));
+    h.state_mut().brushes[0].size = 30.0;
+    drag_line(&mut h, a, b);
+    let count = |h: &Harness<'static, ToonApp>| {
+        let app = h.state();
+        let d = app.engine.project.drawing_at(0, 0).unwrap();
+        app.engine.project.drawing(d).unwrap().tiles().map(|(_, t)| t.bytes().as_chunks::<4>().0.iter().filter(|p| p[3] > 0).count()).sum::<usize>()
+    };
+    let inked = count(&h);
+    assert!(inked > 100);
+    // flip the pen: the eraser end is reported by the tablet reader
+    h.state().tablet.set(Some(crate::tablet::Pen { pressure: 1.0, tilt_x: 0.0, tilt_y: 0.0, eraser: true }));
+    h.state_mut().brushes[4].size = 120.0;
+    drag_line(&mut h, a, b);
+    assert!(count(&h) < inked / 4, "the eraser end removed the line ({} → {})", inked, count(&h));
+}
+
+#[test]
+fn select_move_nudge_and_erase() {
+    let mut h = harness(false);
+    h.run();
+    let rect = h.get(By::new().role(egui::Role::Canvas).label_contains("Canvas")).rect();
+    let c = rect.center();
+    h.state_mut().brushes[1].size = 12.0;
+    h.key_press(Key::N);
+    h.run();
+    drag_line(&mut h, c - egui::vec2(40.0, 0.0), c + egui::vec2(40.0, 0.0));
+    let ink_at = |h: &Harness<'static, ToonApp>, p: egui::Pos2| {
+        let app = h.state();
+        let size = egui::vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
+        let q = app.view.to_canvas(app.workspace.canvas_rect, size, p);
+        app.engine.pick_color(0, q.x as u32, q.y as u32) != [246, 243, 236, 255]
+    };
+    assert!(ink_at(&h, c));
+    h.key_press(Key::S);
+    h.run();
+    h.state_mut().select_mode = crate::app::SelectMode::Rectangle;
+    drag_line(&mut h, c - egui::vec2(80.0, 40.0), c + egui::vec2(80.0, 40.0));
+    assert!(h.state().selection.is_some());
+    let undo_before = h.state().engine.undo_len();
+    // drag inside: move 100 px down on screen
+    drag_line(&mut h, c, c + egui::vec2(0.0, 100.0));
+    assert_eq!(h.state().engine.undo_len(), undo_before + 1, "a live move is one undo step");
+    let ink_box = |h: &Harness<'static, ToonApp>| {
+        let app = h.state();
+        let s = app.engine.project.drawing(app.engine.project.drawing_at(0, 0).unwrap()).unwrap();
+        let mut bb = (i64::MAX, i64::MAX, i64::MIN, i64::MIN);
+        for (i, t) in s.tiles() {
+            let (tx, ty) = s.tile_coords(i);
+            for (k, p) in t.bytes().as_chunks::<4>().0.iter().enumerate() {
+                if p[3] > 0 {
+                    let (x, y) = ((tx * 64) as i64 + k as i64 % 64, (ty * 64) as i64 + k as i64 / 64);
+                    bb = (bb.0.min(x), bb.1.min(y), bb.2.max(x), bb.3.max(y));
+                }
+            }
+        }
+        bb
+    };
+    assert!(!ink_at(&h, c), "the line left its old place");
+    let sel = h.state().selection.clone().unwrap();
+    let (x0, y0) = (sel.iter().map(|p| p.0).fold(f32::MAX, f32::min), sel.iter().map(|p| p.1).fold(f32::MAX, f32::min));
+    let (x1, y1) = (sel.iter().map(|p| p.0).fold(f32::MIN, f32::max), sel.iter().map(|p| p.1).fold(f32::MIN, f32::max));
+    let bb = ink_box(&h);
+    assert!(
+        bb.0 as f32 >= x0 - 1.0 && bb.2 as f32 <= x1 + 1.0 && bb.1 as f32 >= y0 - 1.0 && bb.3 as f32 <= y1 + 1.0,
+        "the line moved with the selection: {bb:?} in {sel:?}"
+    );
+    // keyboard: nudge, then erase
+    focus(&mut h, crate::canvas::canvas_id());
+    h.key_press(Key::ArrowRight);
+    h.run();
+    assert_eq!(h.state().engine.undo_len(), undo_before + 2);
+    h.key_press(Key::Delete);
+    h.run();
+    assert_eq!(ink_box(&h).0, i64::MAX, "Delete erased the selected pixels");
+    h.key_press(Key::Escape);
+    h.run();
+    assert!(h.state().selection.is_none());
+}
+
+#[test]
+fn camera_panel_sets_keys_from_the_keyboard() {
+    let mut h = harness(false);
+    h.state_mut().workspace.raise(crate::dock::Pane::Camera);
+    h.run();
+    h.get_by_label("Set Key").click();
+    h.run();
+    assert_eq!(h.state().engine.project.camera.keys.len(), 1);
+    assert!(h.state().engine.project.camera.enabled);
+    // type a zoom
+    h.get_by_label("Zoom").focus();
+    h.run();
+    h.key_press(Key::ArrowUp);
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    assert!(h.state().engine.project.camera.keys[0].zoom > 1.0);
+    h.get(By::new().role(egui::Role::CheckBox).label("Export through the camera"));
+    h.get_by_label("Remove Key").click();
+    h.run();
+    assert!(h.state().engine.project.camera.keys.is_empty());
+}
+
+#[test]
+fn shapes_layer_properties_and_thumbnails() {
+    let mut h = harness(false);
+    h.run();
+    h.key_press(Key::U);
+    h.run();
+    assert_eq!(h.state().tool, Tool::Shape);
+    h.state_mut().shape = tooncraft_engine::shapes::ShapeKind::Rectangle;
+    let rect = h.get(By::new().role(egui::Role::Canvas).label_contains("Canvas")).rect();
+    drag_line(&mut h, rect.center() - egui::vec2(60.0, 40.0), rect.center() + egui::vec2(60.0, 40.0));
+    assert_eq!(h.state().engine.undo_label(), Some("Shape"));
+    // layer properties: blend mode by keyboard-reachable combo, then thumbnails
+    h.state_mut().workspace.raise(crate::dock::Pane::Layers);
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Blend"));
+    h.state_mut().run(tooncraft_engine::Command::SetLayerBlend { layer: 0, blend: tooncraft_doc::BlendMode::Multiply });
+    h.run();
+    assert!(h.state().blend_cache.is_some(), "a blend mode switches the canvas to the CPU composite");
+    h.get_by_label("Thumbnails").click();
+    h.run();
+    h.run();
+    assert!(!h.state().thumbs.is_empty());
+}
+
+#[test]
+fn shortcuts_can_be_remapped() {
+    let mut h = harness(false);
+    h.state_mut().show_shortcuts = true;
+    h.run();
+    h.get_by_label("Change Ink pen").click();
+    h.run();
+    assert_eq!(h.state().keys.recording.as_deref(), Some("tool.ink"));
+    h.key_press(Key::K);
+    h.run();
+    assert_eq!(h.state().keys.text("tool.ink"), "K");
+    h.state_mut().show_shortcuts = false;
+    h.run();
+    h.key_press(Key::K);
+    h.run();
+    assert_eq!(h.state().tool, Tool::Ink);
+    h.key_press(Key::P);
+    h.run();
+    h.key_press(Key::N);
+    h.run();
+    assert_eq!(h.state().tool, Tool::Pencil, "N no longer picks the ink pen");
+    h.state_mut().keys.reset("tool.ink");
+    h.key_press(Key::N);
+    h.run();
+    assert_eq!(h.state().tool, Tool::Ink);
+}

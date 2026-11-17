@@ -8,11 +8,16 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+pub mod audio;
 mod command;
 pub mod demo;
 pub mod export;
 mod import;
+mod interchange;
 pub mod playback;
+pub mod preset;
+pub mod select;
+pub mod shapes;
 mod undo;
 
 pub use command::{Command, FillReference, sheet};
@@ -63,7 +68,7 @@ struct LiveStroke {
 /// A project with its history.
 pub struct Engine {
     pub project: Project,
-    undo: Vec<Entry>,
+    pub(crate) undo: Vec<Entry>,
     redo: Vec<Entry>,
     /// Most bytes of tile data the undo history may hold.
     pub undo_budget: u64,
@@ -168,7 +173,7 @@ impl Engine {
 
     /// The drawing to paint on at a frame; on a blank cell a new drawing is made (the parts
     /// that undo that are returned).
-    fn ensure_drawing(&mut self, layer: usize, frame: u32) -> Result<(DrawingId, Vec<Part>)> {
+    pub(crate) fn ensure_drawing(&mut self, layer: usize, frame: u32) -> Result<(DrawingId, Vec<Part>)> {
         self.check_unlocked(layer)?;
         if frame >= self.project.length() {
             return Err(DocError::NoFrame(frame).into());
@@ -190,8 +195,9 @@ impl Engine {
             return Err(EngineError::Busy);
         }
         let (drawing, created) = self.ensure_drawing(layer, frame)?;
+        let tip = brush.tip.and_then(|id| self.project.tips.get(&id).cloned());
         let surface = self.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
-        let stroke = Stroke::begin(surface, brush);
+        let stroke = Stroke::begin_with_tip(surface, brush, tip);
         self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke });
         Ok(())
     }
@@ -256,10 +262,53 @@ impl Engine {
     }
 
     fn fill(&mut self, layer: usize, frame: u32, x: u32, y: u32, color: [u8; 4], options: FillOptions, reference: FillReference) -> Result<bool> {
+        match self.fill_parts(layer, frame, x, y, color, options, reference)? {
+            Some(parts) => {
+                self.push(Entry { label: "Fill".into(), parts });
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+
+    /// Fill the same point in every drawing exposed on the layer, as one undo step. Returns how
+    /// many drawings were filled.
+    pub(crate) fn fill_all(&mut self, layer: usize, x: u32, y: u32, color: [u8; 4], options: FillOptions, reference: FillReference) -> Result<usize> {
+        let l = self.project.layer(layer)?;
+        let mut frames = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        for f in 0..self.project.length() {
+            if let Some(d) = l.drawing_at(f)
+                && seen.insert(d)
+            {
+                frames.push(f);
+            }
+        }
+        let mut all = Vec::new();
+        for f in frames {
+            if let Some(parts) = self.fill_parts(layer, f, x, y, color, options, reference)? {
+                all.extend(parts);
+            }
+        }
+        let n = all.len();
+        self.push(Entry { label: "Fill all frames".into(), parts: all });
+        Ok(n)
+    }
+
+    fn fill_parts(
+        &mut self,
+        layer: usize,
+        frame: u32,
+        x: u32,
+        y: u32,
+        color: [u8; 4],
+        options: FillOptions,
+        reference: FillReference,
+    ) -> Result<Option<Vec<Part>>> {
         self.check_unlocked(layer)?;
         let (w, h) = (self.project.width(), self.project.height());
         if x >= w || y >= h {
-            return Ok(false);
+            return Ok(None);
         }
         // Huge canvases fill a window around the seed so memory stays bounded.
         let side = (MAX_FILL_PIXELS as f64).sqrt() as u32;
@@ -270,15 +319,14 @@ impl Engine {
             FillReference::AllLayers => RenderOptions { paper: false, ..Default::default() },
         };
         let reference_img = tooncraft_doc::render_region(&self.project, frame, rect, opts);
-        let Some(mask) = fill::flood(&reference_img, (rect.0, rect.1), (x - rect.0, y - rect.1), options)? else { return Ok(false) };
+        let Some(mask) = fill::flood(&reference_img, (rect.0, rect.1), (x - rect.0, y - rect.1), options)? else { return Ok(None) };
         let (drawing, mut parts) = self.ensure_drawing(layer, frame)?;
         let surface = self.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
         surface.begin_capture();
         fill::apply(surface, &mask, premultiply(color));
         let tiles = surface.take_capture();
         parts.push(Part::Tiles { drawing, tiles });
-        self.push(Entry { label: "Fill".into(), parts });
-        Ok(true)
+        Ok(Some(parts))
     }
 
     /// Apply a command as one undo step.

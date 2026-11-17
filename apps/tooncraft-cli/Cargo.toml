@@ -20,4 +20,5 @@ tooncraft-brush = { workspace = true }
 tooncraft-doc = { workspace = true }
 tooncraft-format = { workspace = true }
 tooncraft-engine = { workspace = true }
+tooncraft-interop = { workspace = true }
 serde_json = { workspace = true }

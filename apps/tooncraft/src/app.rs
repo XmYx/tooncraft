@@ -26,11 +26,39 @@ pub enum Tool {
     Eraser,
     Fill,
     Picker,
+    Select,
+    Shape,
     Hand,
 }
 
+/// How the select tool draws a new selection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SelectMode {
+    Lasso,
+    Rectangle,
+}
+
+/// A transform being dragged: the selection before it and what kind of drag it is.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Xform {
+    pub base: Vec<(f32, f32)>,
+    pub kind: XformKind,
+    pub start: (f32, f32),
+    pub applied: bool,
+    /// The current numbers: (dx, dy, scale, angle).
+    pub now: (f32, f32, f32, f32),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum XformKind {
+    Move,
+    Scale,
+    Rotate,
+}
+
 impl Tool {
-    pub const ALL: [Tool; 8] = [Tool::Pencil, Tool::Ink, Tool::Airbrush, Tool::Chalk, Tool::Eraser, Tool::Fill, Tool::Picker, Tool::Hand];
+    pub const ALL: [Tool; 10] =
+        [Tool::Pencil, Tool::Ink, Tool::Airbrush, Tool::Chalk, Tool::Eraser, Tool::Fill, Tool::Picker, Tool::Select, Tool::Shape, Tool::Hand];
 
     pub fn brush(self) -> Option<BrushKind> {
         Some(match self {
@@ -52,21 +80,26 @@ impl Tool {
             Tool::Eraser => tl!("Eraser"),
             Tool::Fill => tl!("Paint bucket"),
             Tool::Picker => tl!("Colour picker"),
+            Tool::Select => tl!("Select"),
+            Tool::Shape => tl!("Shapes"),
             Tool::Hand => tl!("Hand"),
         }
         .to_string()
     }
 
-    pub fn key(self) -> egui::Key {
+    /// Command id suffix (`tool.<id>`) in the shortcut catalog.
+    pub fn id(self) -> &'static str {
         match self {
-            Tool::Pencil => egui::Key::P,
-            Tool::Ink => egui::Key::N,
-            Tool::Airbrush => egui::Key::A,
-            Tool::Chalk => egui::Key::C,
-            Tool::Eraser => egui::Key::E,
-            Tool::Fill => egui::Key::F,
-            Tool::Picker => egui::Key::I,
-            Tool::Hand => egui::Key::H,
+            Tool::Pencil => "pencil",
+            Tool::Ink => "ink",
+            Tool::Airbrush => "airbrush",
+            Tool::Chalk => "chalk",
+            Tool::Eraser => "eraser",
+            Tool::Fill => "fill",
+            Tool::Picker => "picker",
+            Tool::Select => "select",
+            Tool::Shape => "shape",
+            Tool::Hand => "hand",
         }
     }
 }
@@ -174,6 +207,30 @@ pub struct ToonApp {
     pub sel_anchor: Option<(usize, u32)>,
     /// Copied cells, one row per layer (bottom first).
     pub cell_clipboard: Option<Vec<Vec<tooncraft_doc::Cell>>>,
+    pub tablet: crate::tablet::Tablet,
+    /// The canvas selection (canvas pixels), on the current drawing.
+    pub selection: Option<Vec<(f32, f32)>>,
+    pub select_mode: SelectMode,
+    /// Points of a selection being drawn.
+    pub selecting: Vec<(f32, f32)>,
+    pub xform: Option<Xform>,
+    /// Copied pixels: straight RGBA, size, and where they came from.
+    pub pixel_clipboard: Option<(Vec<u8>, u32, u32, (f32, f32))>,
+    pub sound: crate::sound::Sound,
+    pub keys: crate::keys::Keys,
+    /// Show the camera frame on the canvas.
+    pub show_camera: bool,
+    pub shape: tooncraft_engine::shapes::ShapeKind,
+    /// A shape being dragged: (from, to) in canvas pixels.
+    pub shape_drag: Option<((f32, f32), (f32, f32))>,
+    /// Paint-bucket clicks fill the point in every drawing of the layer.
+    pub fill_every_frame: bool,
+    /// Bigger timeline cells with drawing thumbnails.
+    pub thumbnails: bool,
+    pub thumbs: std::collections::HashMap<tooncraft_doc::DrawingId, (u64, egui::TextureHandle)>,
+    /// CPU composite used while a layer with a blend mode is visible: (key, surface).
+    pub blend_cache: Option<(u64, tooncraft_raster::Surface)>,
+    last_frame: u32,
     /// Where the last stroke ended (canvas pixels), for Shift+click straight lines.
     pub last_stroke_end: Option<(f32, f32)>,
 }
@@ -283,6 +340,22 @@ impl ToonApp {
             sel_anchor: None,
             cell_clipboard: None,
             last_stroke_end: None,
+            sound: crate::sound::Sound::default(),
+            keys: crate::keys::Keys::new(!cfg!(test) && cli.screenshot.is_none()),
+            show_camera: true,
+            shape: tooncraft_engine::shapes::ShapeKind::Line,
+            shape_drag: None,
+            fill_every_frame: false,
+            thumbnails: false,
+            thumbs: std::collections::HashMap::new(),
+            blend_cache: None,
+            selection: None,
+            select_mode: SelectMode::Lasso,
+            selecting: Vec::new(),
+            xform: None,
+            pixel_clipboard: None,
+            last_frame: 0,
+            tablet: if cfg!(test) { crate::tablet::Tablet::default() } else { crate::tablet::Tablet::start(ctx) },
         };
         if let Some(name) = &cli.panel {
             app.workspace.raise(Pane::from_name(name));
@@ -296,6 +369,7 @@ impl ToonApp {
             app.sel_anchor = Some((app.layer, a.min(last)));
             app.frame = b.min(last);
         }
+        app.thumbnails = cli.thumbnails;
         if cli.light_table {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
@@ -427,6 +501,52 @@ impl ToonApp {
         }
     }
 
+    /// Apply a transform to the selection (one undo step) and move the outline with it.
+    pub fn transform_selection(&mut self, dx: f32, dy: f32, scale: (f32, f32), angle: f32) {
+        let Some(poly) = self.selection.clone() else { return };
+        let (layer, frame) = (self.layer, self.frame);
+        if self.run(Command::TransformSelection { layer, frame, polygon: poly.clone(), dx, dy, scale_x: scale.0, scale_y: scale.1, angle }) {
+            let t = tooncraft_engine::select::affine(&poly, dx, dy, scale.0, scale.1, angle);
+            self.selection = Some(poly.iter().map(|p| t.apply(p.0, p.1)).collect());
+        }
+    }
+
+    pub fn delete_selected_pixels(&mut self) {
+        if let Some(poly) = self.selection.clone() {
+            let (layer, frame) = (self.layer, self.frame);
+            self.run(Command::ClearSelection { layer, frame, polygon: poly });
+        }
+    }
+
+    pub fn select_all(&mut self) {
+        let (w, h) = (self.engine.project.width() as f32, self.engine.project.height() as f32);
+        self.selection = Some(vec![(0.0, 0.0), (w, 0.0), (w, h), (0.0, h)]);
+        self.tool = Tool::Select;
+    }
+
+    pub fn copy_pixels(&mut self, cut: bool) {
+        let Some(poly) = self.selection.clone() else { return };
+        let (w, h) = (self.engine.project.width(), self.engine.project.height());
+        let Some(mask) = tooncraft_raster::select::polygon_mask(w, h, &poly) else { return };
+        let Some(s) = self.engine.project.drawing_at(self.layer, self.frame).and_then(|d| self.engine.project.drawing(d)) else { return };
+        let img = tooncraft_raster::select::copy(s, &mask);
+        self.pixel_clipboard = Some((img.to_straight(), img.width, img.height, (mask.x as f32, mask.y as f32)));
+        if cut {
+            self.delete_selected_pixels();
+        }
+        self.set_status(if cut { tl!("Cut") } else { tl!("Copied") });
+    }
+
+    pub fn paste_pixels(&mut self) {
+        let Some((rgba, w, h, (x, y))) = self.pixel_clipboard.clone() else { return };
+        let (layer, frame) = (self.layer, self.frame);
+        if self.run(Command::PastePixels { layer, frame, x, y, width: w, height: h, rgba }) {
+            let (w, h) = (w as f32, h as f32);
+            self.selection = Some(vec![(x, y), (x + w, y), (x + w, y + h), (x, y + h)]);
+            self.tool = Tool::Select;
+        }
+    }
+
     pub fn save_new_version(&mut self) {
         match self.path.clone() {
             Some(p) => {
@@ -461,9 +581,25 @@ impl ToonApp {
     pub fn toggle_play(&mut self) {
         if self.playback.playing {
             self.playback.stop();
+            self.sound.stop();
         } else {
             let now = self.now();
             self.playback.play(now, self.frame, 0, self.engine.project.length());
+            let (offset, fps) = (self.sound_offset(), self.engine.project.fps());
+            self.sound.play(self.frame as f64, offset, fps);
+        }
+    }
+
+    pub fn sound_offset(&self) -> i32 {
+        self.engine.project.soundtrack.as_ref().map(|s| s.offset).unwrap_or(0)
+    }
+
+    pub fn import_sound(&mut self) {
+        let Some(f) = rfd::FileDialog::new().add_filter(tl!("Sound"), &["wav", "aif", "aiff", "mp3", "m4a", "aac", "flac", "ogg", "opus"]).pick_file() else {
+            return;
+        };
+        if self.run(Command::SetSound { path: Some(f.to_string_lossy().into_owned()), offset: 0 }) {
+            self.set_status(tlf!("Sound {file} added", file = f.display()));
         }
     }
 
@@ -555,6 +691,27 @@ impl ToonApp {
                 .set_file_name(format!("{name}.png"))
                 .save_file()
                 .map(|f| export::apng(&self.engine.project, &f, o, |_| {}).map(|_| tlf!("Exported {file}", file = f.display())).map_err(|e| e.to_string())),
+            "prores4444" | "prores422" => rfd::FileDialog::new().add_filter("MOV", &["mov"]).set_file_name(format!("{name}.mov")).save_file().map(|f| {
+                tooncraft_interop::prores::export_mov(&self.engine.project, &f, o.start, o.end, kind == "prores4444")
+                    .map(|_| tlf!("Exported {file}", file = f.display()))
+                    .map_err(|e| e.to_string())
+            }),
+            "layers" => rfd::FileDialog::new().set_title(tl!("Folder for the layer sequences")).pick_folder().map(|d| {
+                tooncraft_interop::layer_sequences::export(&self.engine.project, &d, o.start, o.end, |_| {})
+                    .map(|f| tlf!("Exported {count} files to {folder}", count = f.len(), folder = d.display()))
+                    .map_err(|e| e.to_string())
+            }),
+            "levels" => rfd::FileDialog::new().set_title(tl!("Folder for the exposure sheet and drawings")).pick_folder().map(|d| {
+                tooncraft_interop::levels::export(&self.engine.project, &d)
+                    .map(|f| tlf!("Exported {count} files to {folder}", count = f.len(), folder = d.display()))
+                    .map_err(|e| e.to_string())
+            }),
+            "psd" => rfd::FileDialog::new().add_filter("PSD", &["psd"]).set_file_name(format!("{name}-{}.psd", self.frame + 1)).save_file().map(|f| {
+                tooncraft_interop::psd::export_frame(&self.engine.project, self.frame)
+                    .map_err(|e| e.to_string())
+                    .and_then(|b| std::fs::write(&f, b).map_err(|e| e.to_string()))
+                    .map(|_| tlf!("Exported {file}", file = f.display()))
+            }),
             "gif" => rfd::FileDialog::new()
                 .add_filter("GIF", &["gif"])
                 .set_file_name(format!("{name}.gif"))
@@ -626,6 +783,15 @@ impl ToonApp {
             self.stats.last_shown = None;
         }
         self.autosave_tick();
+        // Sound: decode when the soundtrack changed, follow playback, scrub on frame changes.
+        self.sound.sync(&self.engine.project);
+        let (offset, fps) = (self.sound_offset(), self.engine.project.fps());
+        if self.playback.playing {
+            self.sound.follow(self.frame as f64, offset, fps);
+        } else if self.frame != self.last_frame {
+            self.sound.scrub(self.frame, offset, fps);
+        }
+        self.last_frame = self.frame;
         let now = self.now();
         if let Some((secs, started)) = &mut self.bench {
             if *started == 0.0 {
@@ -743,12 +909,55 @@ impl ToonApp {
                 if ui.button(tl!("Import Image Sequence…")).clicked() {
                     self.import_images();
                 }
+                ui.menu_button(tl!("Import from Other Apps"), |ui| {
+                    if ui.button(tl!("Layers from PSD or OpenRaster…")).clicked()
+                        && let Some(f) = rfd::FileDialog::new().add_filter(tl!("Layered images"), &["psd", "psb", "ora"]).pick_file()
+                    {
+                        let frame = self.frame;
+                        if self.run(Command::ImportLayers { path: f.to_string_lossy().into_owned(), frame }) {
+                            self.set_status(tlf!("Imported layers from {file}", file = f.display()));
+                        }
+                    }
+                    if ui.button(tl!("Animated GIF…")).clicked()
+                        && let Some(f) = rfd::FileDialog::new().add_filter("GIF", &["gif"]).pick_file()
+                    {
+                        let frame = self.frame;
+                        self.run(Command::ImportGif { path: f.to_string_lossy().into_owned(), frame });
+                    }
+                    if ui.button(tl!("XDTS Exposure Sheet with Drawings…")).clicked()
+                        && let Some(f) = rfd::FileDialog::new().add_filter("XDTS", &["xdts"]).pick_file()
+                    {
+                        self.run(Command::ImportSheet { path: f.to_string_lossy().into_owned() });
+                    }
+                });
+                if ui.button(tl!("Import Sound…")).clicked() {
+                    self.import_sound();
+                }
+                if ui.add_enabled(self.engine.project.soundtrack.is_some(), egui::Button::new(tl!("Remove Sound"))).clicked() {
+                    self.run(Command::SetSound { path: None, offset: 0 });
+                }
                 ui.menu_button(tl!("Export"), |ui| {
                     if ui.button(tl!("Video (MP4, H.264)…")).clicked() {
                         self.export("mp4");
                     }
                     if ui.button(tl!("Animated PNG…")).clicked() {
                         self.export("apng");
+                    }
+                    ui.separator();
+                    if ui.button(tl!("ProRes 4444 with Alpha (MOV)…")).clicked() {
+                        self.export("prores4444");
+                    }
+                    if ui.button(tl!("ProRes 422 HQ (MOV)…")).clicked() {
+                        self.export("prores422");
+                    }
+                    if ui.button(tl!("PNG Sequence per Layer…")).clicked() {
+                        self.export("layers");
+                    }
+                    if ui.button(tl!("Layered PSD, Current Frame…")).clicked() {
+                        self.export("psd");
+                    }
+                    if ui.button(tl!("XDTS Exposure Sheet with Drawings…")).clicked() {
+                        self.export("levels");
                     }
                     if ui.button(tl!("PNG Sequence…")).clicked() {
                         self.export("png");
@@ -773,6 +982,37 @@ impl ToonApp {
                 let r = self.engine.redo_label().map(|l| tlf!("Redo {action}", action = l)).unwrap_or_else(|| tl!("Redo").to_string());
                 if ui.add_enabled(self.engine.can_redo(), egui::Button::new(r)).clicked() {
                     self.redo();
+                }
+                ui.separator();
+                if ui.button(tl!("Select All")).clicked() {
+                    self.select_all();
+                }
+                let has = self.selection.is_some();
+                if ui.add_enabled(has, egui::Button::new(tl!("Deselect"))).clicked() {
+                    self.selection = None;
+                }
+                ui.menu_button(tl!("Transform Selection"), |ui| {
+                    if ui.add_enabled(has, egui::Button::new(tl!("Flip Horizontally"))).clicked() {
+                        self.transform_selection(0.0, 0.0, (-1.0, 1.0), 0.0);
+                    }
+                    if ui.add_enabled(has, egui::Button::new(tl!("Flip Vertically"))).clicked() {
+                        self.transform_selection(0.0, 0.0, (1.0, -1.0), 0.0);
+                    }
+                    if ui.add_enabled(has, egui::Button::new(tl!("Rotate 90° Clockwise"))).clicked() {
+                        self.transform_selection(0.0, 0.0, (1.0, 1.0), std::f32::consts::FRAC_PI_2);
+                    }
+                    if ui.add_enabled(has, egui::Button::new(tl!("Rotate 90° Counter-clockwise"))).clicked() {
+                        self.transform_selection(0.0, 0.0, (1.0, 1.0), -std::f32::consts::FRAC_PI_2);
+                    }
+                    if ui.add_enabled(has, egui::Button::new(tl!("Scale 50 %"))).clicked() {
+                        self.transform_selection(0.0, 0.0, (0.5, 0.5), 0.0);
+                    }
+                    if ui.add_enabled(has, egui::Button::new(tl!("Scale 200 %"))).clicked() {
+                        self.transform_selection(0.0, 0.0, (2.0, 2.0), 0.0);
+                    }
+                });
+                if ui.add_enabled(has, egui::Button::new(tl!("Erase Selection"))).clicked() {
+                    self.delete_selected_pixels();
                 }
                 ui.separator();
                 if ui.button(tl!("Clear Drawing")).clicked() {
@@ -937,6 +1177,39 @@ impl ToonApp {
             if paste {
                 self.paste_cells(shift, false);
             }
+        } else if focus == Some(crate::canvas::canvas_id()) {
+            let (copy, cut, paste) = ctx.input(|i| {
+                let mut r = (false, false, false);
+                for e in &i.events {
+                    match e {
+                        egui::Event::Copy => r.0 = true,
+                        egui::Event::Cut => r.1 = true,
+                        egui::Event::Paste(_) => r.2 = true,
+                        _ => {}
+                    }
+                }
+                r
+            });
+            if copy {
+                self.copy_pixels(false);
+            }
+            if cut {
+                self.copy_pixels(true);
+            }
+            if paste {
+                self.paste_pixels();
+            }
+        }
+        if self.selection.is_some()
+            && !self.engine.is_stroking()
+            && !ctx.egui_wants_keyboard_input()
+            && ctx.input(|i| i.key_pressed(Key::Escape))
+            && focus != Some(crate::timeline::grid_id())
+        {
+            self.selection = None;
+        }
+        if ctx.input_mut(|i| i.consume_shortcut(&cmd(Key::A))) && !ctx.egui_wants_keyboard_input() {
+            self.select_all();
         }
         // Alt+arrows pan the canvas from the keyboard.
         if focus.is_none() || focus == Some(crate::canvas::canvas_id()) {
@@ -960,13 +1233,16 @@ impl ToonApp {
             return;
         }
         let plain = |i: &egui::InputState, k| i.modifiers.is_none() && i.key_pressed(k);
-        let shift = |i: &egui::InputState, k| i.modifiers.shift_only() && i.key_pressed(k);
-        let mut picked = None;
-        for t in Tool::ALL {
-            if ctx.input(|i| plain(i, t.key())) {
-                picked = Some(t);
-            }
-        }
+        // Remappable commands (craft-keymap); Enter stays with the canvas's keyboard pen.
+        let canvas_focused = focus == Some(crate::canvas::canvas_id());
+        let hits: Vec<String> = if self.keys.recording.is_some() {
+            Vec::new()
+        } else {
+            self.keys
+                .dispatch_filtered(ctx, |id| !(canvas_focused && (id == "frame.play" || (id == "frame.clear" && self.keyboard_pen.is_some_and(|p| p.down)))))
+        };
+        let hit = |id: &str| hits.iter().any(|h| h == id);
+        let picked = Tool::ALL.into_iter().find(|t| hit(&format!("tool.{}", t.id())));
         if let Some(t) = picked
             && !self.engine.is_stroking()
         {
@@ -974,31 +1250,39 @@ impl ToonApp {
             self.set_status(tlf!("{tool} selected", tool = t.label()));
         }
         let (layer, frame) = (self.layer, self.frame);
-        let keys = ctx.input(|i| {
+        let arrows = ctx.input(|i| {
             [
-                plain(i, Key::Enter),
-                plain(i, Key::Comma) || (plain(i, Key::ArrowLeft) && !own_focus),
-                plain(i, Key::Period) || (plain(i, Key::ArrowRight) && !own_focus),
-                plain(i, Key::Home),
-                plain(i, Key::End),
-                plain(i, Key::O),
-                shift(i, Key::N),
-                shift(i, Key::D),
-                plain(i, Key::Insert),
-                shift(i, Key::Delete),
-                plain(i, Key::Plus) || plain(i, Key::Equals),
-                plain(i, Key::Minus),
-                plain(i, Key::Delete) || plain(i, Key::Backspace),
-                plain(i, Key::OpenBracket),
-                plain(i, Key::CloseBracket),
-                plain(i, Key::M),
-                shift(i, Key::L),
+                plain(i, Key::ArrowLeft) && !own_focus,
+                plain(i, Key::ArrowRight) && !own_focus,
                 plain(i, Key::ArrowUp) && !own_focus,
                 plain(i, Key::ArrowDown) && !own_focus,
+                plain(i, Key::Backspace),
+                plain(i, Key::Plus),
             ]
         });
+        let keys = [
+            hit("frame.play"),
+            hit("frame.prev") || arrows[0],
+            hit("frame.next") || arrows[1],
+            hit("frame.first"),
+            hit("frame.last"),
+            hit("view.onion"),
+            hit("frame.new_drawing"),
+            hit("frame.duplicate"),
+            hit("frame.insert"),
+            hit("frame.delete"),
+            hit("frame.hold_more") || arrows[5],
+            hit("frame.hold_less"),
+            hit("frame.clear") || arrows[4],
+            hit("brush.smaller"),
+            hit("brush.bigger"),
+            hit("view.mirror"),
+            hit("view.pin"),
+            arrows[2],
+            arrows[3],
+        ];
         let [play, prev, next, first, last, onion, new_d, dup, ins, del, plus, minus, clear, smaller, bigger, mirror, pin, up, down] = keys;
-        if play && focus != Some(crate::canvas::canvas_id()) {
+        if play {
             self.toggle_play();
         }
         if prev {
@@ -1043,7 +1327,9 @@ impl ToonApp {
         if minus {
             self.run(Command::ShortenHold { layer, frame });
         }
-        if clear && !own_focus_is_canvas_pen(self) {
+        if clear && self.selection.is_some() && focus != Some(crate::timeline::grid_id()) {
+            self.delete_selected_pixels();
+        } else if clear && !own_focus_is_canvas_pen(self) {
             if self.has_range() {
                 self.delete_selection(false);
             } else {
@@ -1166,17 +1452,42 @@ impl ToonApp {
         }
         if self.show_shortcuts {
             let mut open = true;
-            egui::Window::new(tl!("Keyboard shortcuts")).open(&mut open).collapsible(false).show(ctx, |ui| {
-                egui::Grid::new("keys").num_columns(2).striped(true).show(ui, |ui| {
-                    for (k, what) in shortcut_table() {
-                        ui.label(k);
-                        ui.label(what);
-                        ui.end_row();
-                    }
+            if self.keys.record(ctx) {
+                self.set_status(tl!("Shortcut changed"));
+            }
+            egui::Window::new(tl!("Keyboard shortcuts")).open(&mut open).collapsible(false).default_height(520.0).show(ctx, |ui| {
+                ui.label(tl!("Choose Change, then press the new key. Escape cancels."));
+                egui::ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
+                    egui::Grid::new("keys").num_columns(4).striped(true).show(ui, |ui| {
+                        for (id, _, _) in crate::keys::COMMANDS {
+                            ui.label(crate::keys::label(id));
+                            let recording = self.keys.recording.as_deref() == Some(*id);
+                            ui.label(if recording { tl!("Press a key…").to_string() } else { self.keys.text(id) });
+                            if ui.button(tlf!("Change {what}", what = crate::keys::label(id))).clicked() {
+                                self.keys.recording = Some(id.to_string());
+                            }
+                            if ui.button(tlf!("Reset {what}", what = crate::keys::label(id))).clicked() {
+                                self.keys.reset(id);
+                            }
+                            ui.end_row();
+                        }
+                    });
+                    ui.separator();
+                    egui::Grid::new("fixed-keys").num_columns(2).striped(true).show(ui, |ui| {
+                        for (k, what) in shortcut_table() {
+                            ui.label(k);
+                            ui.label(what);
+                            ui.end_row();
+                        }
+                    });
                 });
+                if ui.button(tl!("Reset All Shortcuts")).clicked() {
+                    self.keys.reset_all();
+                }
             });
-            if !open || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            if !open || (self.keys.recording.is_none() && ctx.input(|i| i.key_pressed(egui::Key::Escape))) {
                 self.show_shortcuts = false;
+                self.keys.recording = None;
             }
         }
         if self.show_about {
@@ -1276,12 +1587,12 @@ fn open_checked(p: &Path) -> Result<Engine, String> {
 }
 
 pub fn shortcut_table() -> Vec<(String, String)> {
-    let mut v: Vec<(String, String)> = Tool::ALL.iter().map(|t| (format!("{:?}", t.key()), t.label())).collect();
+    let mut v: Vec<(String, String)> = Vec::new();
     for (k, what) in [
         ("Enter", tl!("Play / stop")),
         (", / .", tl!("Previous / next frame")),
-        ("← / →", tl!("Previous / next frame (timeline: move)")),
-        ("↑ / ↓", tl!("Layer above / below")),
+        ("Left / Right", tl!("Previous / next frame (timeline: move)")),
+        ("Up / Down", tl!("Layer above / below")),
         ("Home / End", tl!("First / last frame")),
         ("Shift+N", tl!("New drawing")),
         ("Shift+D", tl!("Duplicate drawing")),
@@ -1298,6 +1609,9 @@ pub fn shortcut_table() -> Vec<(String, String)> {
         ("Ctrl+= / Ctrl+-", tl!("Zoom in / out")),
         ("Space + drag, Alt+arrows", tl!("Pan")),
         ("Shift+click", tl!("Straight line from the last stroke")),
+        ("S, Ctrl+A", tl!("Select tool, select all")),
+        ("Select tool: drag inside / corners / top knob", tl!("Move / scale / rotate the selection")),
+        ("Canvas focused with a selection: arrows", tl!("Nudge the selection (Shift: 10 px)")),
         ("Shift+arrows, Shift+click (sheet)", tl!("Select frames")),
         ("Ctrl+C / Ctrl+X / Ctrl+V", tl!("Copy / cut / paste frames")),
         ("Ctrl+Shift+V", tl!("Paste frames, moving later frames right")),

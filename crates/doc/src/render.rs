@@ -75,14 +75,49 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
         }
     }
     for (li, layer) in p.layers.iter().enumerate() {
-        if o.only_layer.is_some_and(|only| only != li) || (!layer.visible && o.only_layer.is_none()) {
+        let (visible, opacity) = p.effective(layer);
+        if o.only_layer.is_some_and(|only| only != li) || (!visible && o.only_layer.is_none()) {
             continue;
         }
         if let Some(s) = layer.drawing_at(frame).and_then(|d| p.drawing(d)) {
-            s.composite_region(&mut img, x, y, layer.opacity, None);
+            if layer.blend == tooncraft_raster::BlendMode::Normal || o.only_layer.is_some() {
+                s.composite_region(&mut img, x, y, opacity, None);
+            } else {
+                let mut top = RgbaImage::transparent(w, h);
+                s.composite_region(&mut top, x, y, opacity, None);
+                img.blend_image(&top, layer.blend);
+            }
         }
     }
     img
+}
+
+/// The frame as the camera sees it (same size as the canvas). Without camera keys, or with the
+/// camera off, this is [`render_frame`].
+pub fn render_camera(p: &Project, frame: u32, o: RenderOptions) -> RgbaImage {
+    let full = render_frame(p, frame, o);
+    if !p.camera.enabled || p.camera.keys.is_empty() {
+        return full;
+    }
+    let (w, h) = (p.width(), p.height());
+    let map = p.camera.output_to_canvas(frame, w, h);
+    let mut out = if o.paper {
+        let c = p.paper.color;
+        RgbaImage::filled(w, h, tooncraft_raster::premultiply([c[0], c[1], c[2], 255]))
+    } else {
+        RgbaImage::transparent(w, h)
+    };
+    for y in 0..h {
+        for x in 0..w {
+            let (cx, cy) = map(x as f32 + 0.5, y as f32 + 0.5);
+            let s = tooncraft_raster::sample_bilinear(&full, cx, cy);
+            if s[3] != 0 {
+                let d = out.pixel(x, y);
+                out.set_pixel(x, y, tooncraft_raster::over(d, s));
+            }
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -103,6 +138,22 @@ mod tests {
         assert_eq!(plain.pixel(0, 0), [246, 243, 236, 255]);
         let onion = render_frame(&p, 1, RenderOptions { onion_layer: Some(0), ..Default::default() });
         assert_ne!(onion.pixel(0, 0), plain.pixel(0, 0), "the previous drawing shows tinted");
+        p.camera.enabled = true;
+        p.camera.set(crate::CameraKey { frame: 0, x: 1.0, y: 0.0, zoom: 2.0, angle: 0.0 });
+        let cam = render_camera(&p, 1, RenderOptions::default());
+        let px = cam.pixel(4, 4);
+        assert!(px[2] > 200 && px[0] < 150, "zoomed ×2 on the blue pixel at (1, 0): {px:?}");
+        // multiply layer and a hidden folder
+        p.add_layer("Shade", 1).unwrap();
+        let shade = p.add_drawing(None).unwrap();
+        p.drawing_mut(shade).unwrap().tile_mut(0).unwrap().bytes_mut()[8..12].copy_from_slice(&[128, 128, 128, 255]);
+        p.layers[1].cells[1] = Cell::Key(shade);
+        p.layers[1].blend = crate::BlendMode::Multiply;
+        let m = render_frame(&p, 1, RenderOptions::default());
+        assert_eq!(m.pixel(2, 0), [123, 122, 118, 255], "paper × 50 % grey");
+        p.folders.push(crate::Folder { name: "F".into(), visible: false, opacity: 1.0, collapsed: false });
+        p.layers[1].folder = Some("F".into());
+        assert_eq!(render_frame(&p, 1, RenderOptions::default()).pixel(2, 0), [246, 243, 236, 255]);
         let clear = render_region(&p, 2, (1, 0, 4, 4), RenderOptions { paper: false, ..Default::default() });
         assert_eq!((clear.width, clear.pixel(0, 0)), (4, [0, 0, 255, 255]));
     }

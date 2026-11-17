@@ -12,6 +12,7 @@ Options:
   --bench-playback <SECONDS> play the shot for SECONDS, print frame timing and quit
   --select <A..B>            start with frames A to B (1-based) of the top layer selected
   --light-table              pin frame 1 of the top layer to the light table and show it
+  --thumbnails               start with drawing thumbnails in the timeline
   --light                    light theme
   -h, --help                 print this help
   -V, --version              print the version
@@ -27,6 +28,7 @@ pub struct Cli {
     pub light: bool,
     pub light_table: bool,
     pub select: Option<(u32, u32)>,
+    pub thumbnails: bool,
     pub file: Option<PathBuf>,
 }
 
@@ -59,6 +61,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             "--demo" => cli.demo = true,
             "--light" => cli.light = true,
             "--light-table" => cli.light_table = true,
+            "--thumbnails" => cli.thumbnails = true,
             "--select" => {
                 let v = it.next().ok_or("--select needs A..B")?;
                 let (a, b) = v.split_once("..").ok_or("--select needs A..B")?;

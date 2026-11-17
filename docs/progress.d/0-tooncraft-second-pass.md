@@ -1,0 +1,1 @@
+- 2026-11-17: Second pass: pen pressure / tilt / eraser end, soundtrack with waveform and scrub, selection and transform, camera keys, remappable shortcuts, shapes, thumbnails, blend modes and folders, fill across frames, brush tips and presets; interchange through PSD, OpenRaster, XDTS, GIF, ProRes and per-layer sequences.

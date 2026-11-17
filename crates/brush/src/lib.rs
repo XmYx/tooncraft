@@ -16,11 +16,13 @@ mod dab;
 mod grain;
 mod stabilizer;
 mod stroke;
+mod tip;
 
 pub use dab::Dab;
 pub use grain::paper_grain;
 pub use stabilizer::Stabilizer;
 pub use stroke::{Stroke, StrokeEngine, paint};
+pub use tip::{MAX_TIP_SIDE, Tip};
 
 use serde::{Deserialize, Serialize};
 
@@ -117,6 +119,9 @@ pub struct Brush {
     pub smoothing: Smoothing,
     /// Straight (not premultiplied) RGBA.
     pub color: [u8; 4],
+    /// An image tip (its id in the project's tips) instead of the round dab.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tip: Option<u64>,
 }
 
 impl Default for Brush {
@@ -140,6 +145,7 @@ impl Brush {
             dynamics: Dynamics::default(),
             smoothing: Smoothing::default(),
             color: [24, 22, 30, 255],
+            tip: None,
         };
         match kind {
             BrushKind::Pencil => Brush { size: 3.5, hardness: 0.7, grain: 0.55, grain_scale: 1.6, opacity: 0.9, ..base },
@@ -200,6 +206,7 @@ impl Brush {
                 catch_up: self.smoothing.catch_up,
             },
             color: self.color,
+            tip: self.tip,
         }
     }
 }

@@ -1,0 +1,29 @@
+[package]
+name = "tooncraft-interop"
+description = "ToonCraft shot exchange with other animation and compositing tools through public formats (PSD, OpenRaster, XDTS, PNG levels and sequences, GIF, ProRes MOV)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tooncraft-raster = { workspace = true }
+tooncraft-doc = { workspace = true }
+tooncraft-format = { workspace = true }
+craft-psd = { workspace = true }
+craft-ora = { workspace = true }
+craft-gif = { workspace = true, features = ["frames"] }
+craft-atomic = { workspace = true }
+craft-image-codecs = { workspace = true }
+craft-video = { workspace = true }
+craft-media = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

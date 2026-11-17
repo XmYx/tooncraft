@@ -29,3 +29,13 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Reverse Selected Frames, Repeat Selected Frames | Descriptive (instead of vendor terms for cycles) | Use |
 | Import Image Sequence | Descriptive | Use |
 | Video (MP4, H.264), Animated PNG | Format names (allowed by rule 3) | Use |
+| Select, Lasso, Rectangle, Transform Selection, Flip Horizontally / Vertically | Generic | Use (common) |
+| Shapes, Line, Rectangle, Ellipse | Generic | Use (common) |
+| Camera, Set Key, Export through the camera | Generic film terms | Use (common) |
+| Blend modes: Normal, Multiply, Screen, Overlay, Darken, Lighten, Add | Standard compositing names (W3C) | Use (common) |
+| Folder, Layer colour, Thumbnails | Generic | Use (common) |
+| Fill every drawing of the layer | Our wording | Use |
+| Tip, Tip from Image, Brush preset, My brushes | Generic | Use (common) |
+| Sound, Import Sound, Start Sound Here | Generic | Use |
+| XDTS Exposure Sheet with Drawings | File format name (rule 3) | Use |
+| ProRes 4444 / 422 HQ (MOV), Layered PSD, OpenRaster | Format names (rule 3: formats we support) | Use |

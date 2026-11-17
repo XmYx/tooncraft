@@ -20,12 +20,13 @@ pub struct Dab {
 }
 
 /// Shape parameters precomputed for a stroke.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Shape {
     pub kind: BrushKind,
     pub hardness: f32,
     pub grain: f32,
     pub grain_scale: f32,
+    pub tip: Option<std::sync::Arc<crate::Tip>>,
 }
 
 impl Dab {
@@ -43,7 +44,9 @@ impl Dab {
         let v = (-cx * sin + cy * cos) / self.roundness.max(0.1);
         let d = (u * u + v * v).sqrt();
         let r = self.radius.max(0.25);
-        let mut a = if shape.kind == BrushKind::Airbrush || shape.hardness <= 0.0 {
+        let mut a = if let Some(tip) = &shape.tip {
+            tip.sample(u / r, v / r)
+        } else if shape.kind == BrushKind::Airbrush || shape.hardness <= 0.0 {
             // gaussian-like falloff, zero at the radius
             let t = (d / r).min(1.0);
             let g = (1.0 - t * t).max(0.0);

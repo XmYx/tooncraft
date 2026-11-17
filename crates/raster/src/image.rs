@@ -1,6 +1,6 @@
 //! A flat premultiplied RGBA8 image (composites, exports, fill references).
 
-use crate::pixel::{over, unpremultiply};
+use crate::pixel::{BlendMode, blend, over, unpremultiply};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RgbaImage {
@@ -50,6 +50,18 @@ impl RgbaImage {
             if s[3] != 0 {
                 let o = over([d[0], d[1], d[2], d[3]], [s[0], s[1], s[2], s[3]]);
                 d.copy_from_slice(&o);
+            }
+        }
+    }
+
+    /// Composite `top` (same size) over this image with a blend mode.
+    pub fn blend_image(&mut self, top: &RgbaImage, mode: BlendMode) {
+        if top.width != self.width || top.height != self.height {
+            return;
+        }
+        for (d, s) in self.data.as_chunks_mut::<4>().0.iter_mut().zip(top.data.as_chunks::<4>().0.iter()) {
+            if s[3] != 0 {
+                *d = blend(*d, *s, mode);
             }
         }
     }

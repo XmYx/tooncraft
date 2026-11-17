@@ -9,9 +9,9 @@
 
 | | Value | Kind |
 |---|---|---|
-| Parity score, feature rows (D + ½·P) / rows | 65 % (75 D, 17 P, 36 M of 128); 64 % on the original 124 rows, up from 59 % | measured (`cargo xtask parity`) |
-| Parity weighted by effort (depth of each area) | about 20 % | estimated |
-| Tests | 83 (core and property tests, CLI end to end, 9 kittest UI flows) | measured |
+| Parity score, feature rows (D + ½·P) / rows | 78 % (96 D, 16 P, 22 M of 134); 77 % on the previous 128 rows, up from 65 % | measured (`cargo xtask parity`) |
+| Parity weighted by effort (depth of each area) | about 35 % | estimated |
+| Tests | 134 (core and property tests, interop round trips, CLI end to end, 15 kittest UI flows) | measured |
 | 4K, 240-drawing shot: playback / load | 24.1 fps at 24, 0 dropped / 0.12 s | measured |
 | Ink stroke latency per pen sample, 1920×1080 | 0.008 ms mean, 0.020 ms 99th percentile | measured |
 | Playback, 12 fps demo shot | 12.1 fps shown, 0 dropped, 0.4 ms UI CPU per frame | measured |
@@ -55,3 +55,4 @@ Fragments in [docs/progress.d/](docs/progress.d/) (RFC-0017); `cargo xtask progr
 |---|---|---|
 | 2026-11-17 | major | First vertical slice |
 | 2026-11-17 | major | Polish pass: user research, timing tools, video export, large-shot numbers |
+| 2026-11-17 | major | Second pass: top-10 gaps and exchange with other apps |

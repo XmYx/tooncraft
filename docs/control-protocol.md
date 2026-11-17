@@ -17,6 +17,16 @@ hand a script can do.
 | `clear_range` | `layers`, `from`, `to`, `shift` (remove the frames instead of blanking) |
 | `reverse`, `cycle` | `layer`, `from`, `to` (+ `times` for `cycle`) |
 | `import_images` | `paths`, `frame`, `hold`, `name` |
+| `import_layers`, `import_gif` | `path` (PSD / PSB / OpenRaster, or GIF), `frame` |
+| `import_sheet` | `path` (an XDTS sheet; drawings are read from the folders beside it) |
+| `set_sound`, `move_sound` | `path` (absent removes it), `offset` frames |
+| `transform_selection` | `layer`, `frame`, `polygon`, `dx`, `dy`, `scale_x`, `scale_y`, `angle` (radians) |
+| `clear_selection`, `paste_pixels` | `polygon`; or `x`, `y`, `width`, `height`, `rgba` |
+| `shape` | `layer`, `frame`, `brush`, `shape` (line / rectangle / ellipse), `from`, `to`, `constrain` |
+| `fill_all_frames` | as `fill`, without `frame` |
+| `set_camera_key`, `remove_camera_key`, `set_camera` | `frame`, `x`, `y`, `zoom`, `angle` (degrees); `enabled` |
+| `set_layer_blend`, `set_layer_color`, `set_layer_folder`, `set_folder` | blend mode; colour; folder name; folder `visible`, `opacity`, `collapsed` |
+| `add_tip`, `add_tip_from_image` | `id`, `name`, `width`, `height`, `alpha`; or `id`, `path` |
 | `add_layer` | `name`, optional `index` |
 | `delete_layer` / `rename_layer` / `move_layer` / `set_layer` | `layer` (+ `name`, `from`/`to`, `visible`/`locked`/`opacity`) |
 | `set_length`, `set_fps`, `set_paper`, `set_onion`, `toggle_pin`, `set_light_table`, `purge_unused` | as named |
@@ -29,7 +39,9 @@ Example:
 {"cmd":"fill","layer":0,"frame":0,"x":125,"y":120,"color":[230,90,70,255]}
 ```
 
-`tooncraft-cli export` writes `--png <dir>`, `--gif`, `--mp4`, `--apng` or `--ora` (one frame);
-`tooncraft-cli import shot.toon a.png b.png … [--hold N]` adds an image sequence on a new layer.
+`tooncraft-cli export` writes `--png <dir>`, `--gif`, `--mp4` (with the soundtrack), `--apng`,
+`--prores <file.mov> [--alpha]`, `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
+`--layers <dir>` (PNG sequence per layer) or `--levels <dir>` (XDTS sheet and drawing folders).
+`tooncraft-cli import`, `import-layers`, `import-gif`, `import-sheet` and `set-sound` bring work in.
 
 An MCP server on craft-control is planned (see [roadmap.md](roadmap.md)).

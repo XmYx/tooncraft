@@ -304,3 +304,183 @@ fn large_demo_is_sparse() {
     let full = 1920u64 * 1080 * 4;
     assert!(e.project.memory_bytes() / 13 < full / 4, "{} bytes per drawing", e.project.memory_bytes() / 13);
 }
+
+#[test]
+fn soundtrack_round_trip_and_mp4_with_audio() {
+    let dir = scratch("sound");
+    std::fs::create_dir_all(&dir).unwrap();
+    let rate = 48_000u32;
+    let tone: Vec<f32> = (0..rate).map(|i| (i as f32 * 440.0 * std::f32::consts::TAU / rate as f32).sin() * 0.5).collect();
+    let wav = craft_audio::encode(
+        &craft_audio::AudioBuffer { sample_rate: rate, channels: vec![tone.clone(), tone] },
+        &craft_audio::EncodeOptions::new(craft_audio::EncodeFormat::Wav),
+    )
+    .unwrap();
+    let path = dir.join("line.wav");
+    std::fs::write(&path, &wav).unwrap();
+    let mut e = engine();
+    e.apply(Command::SetSound { path: Some(path.to_string_lossy().into_owned()), offset: 2 }).unwrap();
+    let pcm = crate::audio::decode_project(&e.project).unwrap().unwrap();
+    assert_eq!((pcm.rate, pcm.channels.len(), pcm.frames()), (rate, 2, rate as usize));
+    let seg = crate::audio::segment(&pcm, e.project.soundtrack.as_ref().unwrap(), 12, 0, 4);
+    assert_eq!(seg.frames(), rate as usize / 3);
+    assert_eq!(seg.channels[0][0], 0.0, "silence before the sound starts at frame 2");
+    e.apply(Command::MoveSound { offset: 0 }).unwrap();
+    e.undo().unwrap();
+    assert_eq!(e.project.soundtrack.as_ref().unwrap().offset, 2);
+    // round trip through the file
+    let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
+    assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap().soundtrack, e.project.soundtrack);
+    // video with sound
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: circle(100.0, 100.0, 30.0) }).unwrap();
+    let mp4 = dir.join("talk.mp4");
+    crate::export::mp4(&e.project, &mp4, crate::export::ExportOptions::whole(&e.project), |_| {}).unwrap();
+    let data = std::fs::read(&mp4).unwrap();
+    let file = craft_media::isobmff::open(&data[..]).unwrap();
+    assert_eq!(file.tracks.len(), 2, "video and sound");
+    assert!(e.apply(Command::SetSound { path: Some(dir.join("nope.wav").to_string_lossy().into_owned()), offset: 0 }).is_err());
+    e.apply(Command::SetSound { path: None, offset: 0 }).unwrap();
+    assert!(e.project.soundtrack.is_none());
+}
+
+#[test]
+fn selection_commands() {
+    let mut e = engine();
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: Brush { size: 20.0, ..ink() }, samples: circle(60.0, 60.0, 20.0) }).unwrap();
+    let sq = vec![(20.0, 20.0), (100.0, 20.0), (100.0, 100.0), (20.0, 100.0)];
+    let before = e.pick_color(0, 60, 40);
+    e.apply(Command::TransformSelection { layer: 0, frame: 0, polygon: sq.clone(), dx: 150.0, dy: 40.0, scale_x: 1.0, scale_y: 1.0, angle: 0.0 }).unwrap();
+    assert_eq!(e.pick_color(0, 210, 80), before, "the ring moved by (150, 40)");
+    assert_ne!(e.pick_color(0, 60, 40), before);
+    e.undo().unwrap();
+    assert_eq!(e.pick_color(0, 60, 40), before);
+    e.apply(Command::ClearSelection { layer: 0, frame: 0, polygon: sq }).unwrap();
+    assert!(e.project.drawing(e.project.drawing_at(0, 0).unwrap()).unwrap().is_empty());
+    e.apply(Command::PastePixels { layer: 0, frame: 3, x: 10.0, y: 10.0, width: 2, height: 1, rgba: vec![255, 0, 0, 255, 0, 0, 255, 255] }).unwrap();
+    assert_eq!(e.pick_color(3, 10, 10), [255, 0, 0, 255]);
+    assert!(e.apply(Command::PastePixels { layer: 0, frame: 3, x: 0.0, y: 0.0, width: 5, height: 5, rgba: vec![0; 3] }).is_err());
+}
+
+#[test]
+fn camera_keys_undo_and_exports_use_them() {
+    let mut e = engine();
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: Brush { size: 30.0, ..ink() }, samples: circle(40.0, 40.0, 10.0) }).unwrap();
+    let plain = tooncraft_doc::render_camera(&e.project, 0, RenderOptions::default());
+    e.apply(Command::SetCameraKey { frame: 0, x: 40.0, y: 40.0, zoom: 4.0, angle: 0.0 }).unwrap();
+    assert!(e.project.camera.enabled);
+    let cam = tooncraft_doc::render_camera(&e.project, 0, RenderOptions::default());
+    assert_ne!(plain, cam);
+    assert!(cam.pixel(160, 120 - 40)[3] == 255 && cam.pixel(160, 120 - 40)[0] < 100, "the ring fills the view");
+    e.apply(Command::RemoveCameraKey { frame: 0 }).unwrap();
+    assert!(e.project.camera.keys.is_empty());
+    e.undo().unwrap();
+    e.undo().unwrap();
+    assert!(e.project.camera.keys.is_empty() && !e.project.camera.enabled);
+}
+
+#[test]
+fn shapes_and_fill_all_frames() {
+    let mut e = engine();
+    for f in [0u32, 2, 4] {
+        e.apply(Command::Shape {
+            layer: 0,
+            frame: f,
+            brush: ink(),
+            shape: crate::shapes::ShapeKind::Ellipse,
+            from: (100.0, 60.0),
+            to: (220.0, 180.0),
+            constrain: false,
+        })
+        .unwrap();
+    }
+    assert_eq!(e.undo_label(), Some("Shape"));
+    e.apply(Command::ExtendHold { layer: 0, frame: 0 }).unwrap();
+    let red = [200, 20, 20, 255];
+    e.apply(Command::FillAllFrames { layer: 0, x: 160, y: 120, color: red, options: FillOptions::default(), reference: FillReference::Layer }).unwrap();
+    for f in [0u32, 1, 3, 5] {
+        assert_eq!(e.pick_color(f, 160, 120), red, "frame {f}");
+    }
+    e.undo().unwrap();
+    assert_ne!(e.pick_color(5, 160, 120), red, "one undo step clears every frame's fill");
+}
+
+#[test]
+fn layer_blend_colour_and_folders() {
+    let mut e = engine();
+    e.apply(Command::AddLayer { name: "Shade".into(), index: None }).unwrap();
+    e.apply(Command::SetLayerBlend { layer: 1, blend: tooncraft_doc::BlendMode::Multiply }).unwrap();
+    e.apply(Command::SetLayerColor { layer: 1, color: Some([200, 50, 50]) }).unwrap();
+    e.apply(Command::SetLayerFolder { layer: 1, folder: Some("Character".into()) }).unwrap();
+    e.apply(Command::SetLayerFolder { layer: 0, folder: Some("Character".into()) }).unwrap();
+    assert_eq!(e.project.folders.len(), 1);
+    e.apply(Command::SetFolder { name: "Character".into(), visible: Some(false), opacity: None, collapsed: Some(true) }).unwrap();
+    assert!(!e.project.effective(&e.project.layers[0]).0);
+    e.apply(Command::SetLayerFolder { layer: 0, folder: None }).unwrap();
+    e.apply(Command::SetLayerFolder { layer: 1, folder: None }).unwrap();
+    assert!(e.project.folders.is_empty(), "empty folders go away");
+    let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
+    assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap(), e.project);
+    for _ in 0..7 {
+        e.undo().unwrap();
+    }
+    assert_eq!(e.project.layers[1].blend, tooncraft_doc::BlendMode::Normal);
+    assert!(e.project.folders.is_empty() && e.project.layers[1].color.is_none());
+}
+
+#[test]
+fn image_tip_strokes_and_undo() {
+    let mut e = engine();
+    let alpha = vec![255u8; 8 * 8];
+    e.apply(Command::AddTip { id: 1, name: "square".into(), width: 8, height: 8, alpha }).unwrap();
+    let brush = Brush { tip: Some(1), size: 20.0, ..ink() };
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush, samples: vec![Sample::at(100.0, 100.0, 1.0, 0.0)] }).unwrap();
+    // a square tip covers the corner a round dab would miss
+    assert_eq!(e.pick_color(0, 92, 92), [24, 22, 30, 255]);
+    let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
+    assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap().tips, e.project.tips);
+    e.undo().unwrap();
+    e.undo().unwrap();
+    assert!(e.project.tips.is_empty());
+}
+
+#[test]
+fn interchange_round_trips_through_other_apps_formats() {
+    let dir = scratch("interop");
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut e = engine();
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: Brush { size: 12.0, ..ink() }, samples: circle(100.0, 100.0, 40.0) }).unwrap();
+    e.apply(Command::ExtendHold { layer: 0, frame: 0 }).unwrap();
+    e.apply(Command::Stroke { layer: 0, frame: 3, brush: Brush { size: 12.0, ..ink() }, samples: circle(200.0, 120.0, 40.0) }).unwrap();
+    e.apply(Command::RenameLayer { layer: 0, name: "Ink".into() }).unwrap();
+    // PSD out and back in
+    let psd = dir.join("frame.psd");
+    std::fs::write(&psd, tooncraft_interop::psd::export_frame(&e.project, 0).unwrap()).unwrap();
+    let mut b = engine();
+    b.apply(Command::ImportLayers { path: psd.to_string_lossy().into_owned(), frame: 0 }).unwrap();
+    assert!(b.project.layers.iter().any(|l| l.name == "Ink"));
+    assert_eq!(b.pick_color(0, 140, 100), e.pick_color(0, 140, 100), "the ring came back where it was");
+    // OpenRaster out and back in
+    let ora = dir.join("frame.ora");
+    crate::export::ora_frame(&e.project, 3, &ora).unwrap();
+    let mut c = engine();
+    c.apply(Command::ImportLayers { path: ora.to_string_lossy().into_owned(), frame: 2 }).unwrap();
+    assert_eq!(c.pick_color(2, 240, 120), e.pick_color(3, 240, 120));
+    // XDTS sheet + drawing folders out and back in: same timing
+    let files = tooncraft_interop::levels::export(&e.project, &dir.join("sheet")).unwrap();
+    let mut d = engine();
+    d.apply(Command::ImportSheet { path: files[0].to_string_lossy().into_owned() }).unwrap();
+    let ink = d.project.layers.iter().find(|l| l.name == "Ink").unwrap();
+    assert_eq!(sheet(&ink.cells), sheet(&e.project.layers[0].cells));
+    // GIF out and back in
+    let g = dir.join("shot.gif");
+    crate::export::gif(&e.project, &g, crate::export::ExportOptions::whole(&e.project), |_| {}).unwrap();
+    let mut f = engine();
+    f.apply(Command::ImportGif { path: g.to_string_lossy().into_owned(), frame: 0 }).unwrap();
+    assert_eq!(f.project.layers.len(), 2);
+    assert!(f.project.drawing_count() >= 2);
+    // a damaged file changes nothing
+    std::fs::write(&psd, b"8BPS broken").unwrap();
+    let before = b.project.clone();
+    assert!(b.apply(Command::ImportLayers { path: psd.to_string_lossy().into_owned(), frame: 0 }).is_err());
+    assert_eq!(b.project, before);
+}
