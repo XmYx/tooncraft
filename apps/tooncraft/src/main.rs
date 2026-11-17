@@ -16,6 +16,7 @@ mod dock;
 mod effects_panel;
 mod icons;
 mod keys;
+mod layer_tree;
 mod lipsync_panel;
 mod panels;
 mod pegs;

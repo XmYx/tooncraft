@@ -111,24 +111,28 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
 
 /// Composite the layers bottom to top; `map` gives each layer's transform (`None`: skip the
 /// layer, `Some(None)`: drawn as is). Layers a matte clips are composited on their own and cut
-/// by the matte; the matte itself is not drawn.
+/// by the matte; the matte itself is not drawn. A layer with clipping layers above it is
+/// composited with them as a group (see [`crate::Layer::clip`]).
 fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: RenderOptions, map: impl Fn(usize) -> Option<Option<Affine>>) {
     let only = o.only_layer;
     let owners = p.matte_owners();
     let (w, h) = (img.width, img.height);
     let mut clipped: Option<RgbaImage> = None;
-    for (li, layer) in p.layers.iter().enumerate() {
+    let n = p.layers.len();
+    let mut li = 0;
+    while li < n {
+        let Some(layer) = p.layers.get(li) else { break };
         let (visible, opacity) = p.effective_at(layer, frame);
         if let Some(only) = only {
-            if only != li {
-                continue;
+            if only == li {
+                let mut out = RgbaImage::transparent(w, h);
+                draw_layer(p, li, frame, &mut out, origin, o, BlendMode::Normal, opacity, &map);
+                if let Some(m) = owners.get(li).copied().flatten() {
+                    apply_matte(p, m, frame, &mut out, origin, o, &map);
+                }
+                img.over_image(&out);
             }
-            let mut out = RgbaImage::transparent(w, h);
-            draw_layer(p, li, frame, &mut out, origin, o, BlendMode::Normal, opacity, &map);
-            if let Some(m) = owners.get(li).copied().flatten() {
-                apply_matte(p, m, frame, &mut out, origin, o, &map);
-            }
-            img.over_image(&out);
+            li += 1;
             continue;
         }
         if layer.matte.is_some() {
@@ -136,13 +140,37 @@ fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: R
                 apply_matte(p, li, frame, &mut c, origin, o, &map);
                 img.over_image(&c);
             }
+            li += 1;
             continue;
         }
-        if !visible {
-            continue;
+        // the clipping layers resting on this one
+        let mut end = li + 1;
+        while p.layers.get(end).is_some_and(|l| l.clip && l.matte.is_none()) {
+            end += 1;
         }
-        let target = if owners.get(li).copied().flatten().is_some() { clipped.get_or_insert_with(|| RgbaImage::transparent(w, h)) } else { &mut *img };
-        draw_layer(p, li, frame, target, origin, o, layer.blend, opacity, &map);
+        if visible {
+            let target = if owners.get(li).copied().flatten().is_some() { clipped.get_or_insert_with(|| RgbaImage::transparent(w, h)) } else { &mut *img };
+            if end == li + 1 {
+                draw_layer(p, li, frame, target, origin, o, layer.blend, opacity, &map);
+            } else {
+                // a clipping group: each clipping layer shows only where the base has paint, and
+                // the base's opacity and blend mode carry the group
+                let mut group = RgbaImage::transparent(w, h);
+                draw_layer(p, li, frame, &mut group, origin, o, BlendMode::Normal, 1.0, &map);
+                for ci in li + 1..end {
+                    let Some(c) = p.layers.get(ci) else { continue };
+                    let (cv, co) = p.effective_at(c, frame);
+                    if !cv {
+                        continue;
+                    }
+                    let mut top = RgbaImage::transparent(w, h);
+                    draw_layer(p, ci, frame, &mut top, origin, o, BlendMode::Normal, co, &map);
+                    group.atop_image(&top, c.blend);
+                }
+                target.composite(&group, layer.blend, opacity);
+            }
+        }
+        li = end;
     }
     if let Some(c) = clipped {
         img.over_image(&c);
@@ -265,7 +293,7 @@ mod tests {
         p.layers[1].blend = crate::BlendMode::Multiply;
         let m = render_frame(&p, 1, RenderOptions::default());
         assert_eq!(m.pixel(2, 0), [123, 122, 118, 255], "paper × 50 % grey");
-        p.folders.push(crate::Folder { name: "F".into(), visible: false, opacity: 1.0, collapsed: false });
+        p.folders.push(crate::Folder { visible: false, ..crate::Folder::new("F") });
         p.layers[1].folder = Some("F".into());
         assert_eq!(render_frame(&p, 1, RenderOptions::default()).pixel(2, 0), [246, 243, 236, 255]);
         let clear = render_region(&p, 2, (1, 0, 4, 4), RenderOptions { paper: false, ..Default::default() });
@@ -404,5 +432,69 @@ mod tests {
         p.layers[1].visible = true;
         p.layers[0].folder = Some("F".into());
         assert_eq!(p.matte_owners(), vec![None, None]);
+    }
+
+    #[test]
+    fn clipping_layers_show_only_over_their_base() {
+        let (mut p, d) = dot_project();
+        // a full red layer clipped to the 4×4 black dot
+        p.add_layer("Shade", 1).unwrap();
+        let red = p.add_drawing(None).unwrap();
+        {
+            let s = p.drawing_mut(red).unwrap();
+            let mut img = RgbaImage::filled(128, 64, [200, 0, 0, 255]);
+            img.set_pixel(0, 0, [200, 0, 0, 255]);
+            s.load_image(&img).unwrap();
+        }
+        p.layers[1].cells = vec![Cell::Key(red), Cell::Hold, Cell::Hold, Cell::Hold];
+        let unclipped = render_frame(&p, 0, RenderOptions::default());
+        assert_eq!(unclipped.pixel(40, 40), [200, 0, 0, 255]);
+        p.layers[1].clip = true;
+        let img = render_frame(&p, 0, RenderOptions::default());
+        assert_eq!(img.pixel(12, 12), [200, 0, 0, 255], "red over the dot");
+        assert_eq!(img.pixel(40, 40), [246, 243, 236, 255], "nothing outside the base");
+        // the base's opacity carries the group; hiding the base hides the group
+        p.layers[0].opacity = 0.5;
+        let half = render_frame(&p, 0, RenderOptions::default()).pixel(12, 12);
+        assert!(half[1] > 60 && half[0] > 200, "{half:?}");
+        p.layers[0].visible = false;
+        assert_eq!(render_frame(&p, 0, RenderOptions::default()).pixel(12, 12), [246, 243, 236, 255]);
+        // one layer alone (the fill's "current layer") ignores clipping
+        let only = render_frame(&p, 0, RenderOptions { only_layer: Some(1), paper: false, ..Default::default() });
+        assert_eq!(only.pixel(40, 40), [200, 0, 0, 255]);
+        let _ = d;
+    }
+
+    #[test]
+    fn nested_folders_hide_fade_and_lock() {
+        let (mut p, _) = dot_project();
+        p.set_folders(vec![
+            crate::Folder { parent: Some("Outer".into()), opacity: 0.5, ..crate::Folder::new("Inner") },
+            crate::Folder { opacity: 0.5, ..crate::Folder::new("Outer") },
+        ]);
+        p.layers[0].folder = Some("Inner".into());
+        let l = p.layers[0].clone();
+        assert_eq!(p.effective(&l), (true, 0.25));
+        assert_eq!(p.folder_depth("Inner"), 1);
+        assert!(!p.is_locked(&l));
+        p.folders[1].locked = true;
+        assert!(p.is_locked(&l), "locked through the outer folder");
+        p.folders[1].visible = false;
+        assert!(!p.effective(&l).0);
+        p.folders[1].collapsed = true;
+        assert!(p.is_collapsed(&l));
+        assert!(p.folder_would_loop("Outer", "Inner"));
+        // loops and missing parents are repaired on load
+        p.set_folders(vec![
+            crate::Folder { parent: Some("B".into()), ..crate::Folder::new("A") },
+            crate::Folder { parent: Some("A".into()), ..crate::Folder::new("B") },
+            crate::Folder { parent: Some("Gone".into()), ..crate::Folder::new("C") },
+            crate::Folder::new("A"),
+        ]);
+        assert_eq!(p.folders.len(), 3);
+        assert!(p.folders.iter().all(|f| f.parent.as_ref().is_none_or(|q| !p.folder_would_loop(&f.name, q))));
+        assert_eq!(p.folders[2].parent, None);
+        assert_eq!(p.layers[0].folder, None, "its folder is gone");
+        assert!(p.folder_chain(Some("A")).len() <= 2);
     }
 }

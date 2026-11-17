@@ -12,7 +12,8 @@ A ZIP archive (PKWARE APPNOTE), written and read with craft-zip.
 
 `project` may also hold `pegs` (`id`, `name`, `parent`, `pivot`, `keys` with `frame`, `x`, `y`,
 `angle`, `scale_x`, `scale_y`, `skew`, `ease`) and `camera.shakes`; a layer may name its `peg` and its
-`depth`. Older readers ignore these fields; loaders drop unknown parents, break loops and clamp values.
+`depth`, and `clip` (clipped to the layer below). Folders may carry `locked`, `color` and `parent`
+(the folder they are in). Older readers ignore these fields; loaders drop unknown parents, break loops and clamp values.
 
 Layers list bottom to top; each has `id`, `name`, `visible`, `locked`, `opacity` and `cells`, one per
 frame: `"blank"`, `"hold"` or `{"key": <drawing id>}`. A layer may have `effects`: a list, run in order, of

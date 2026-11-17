@@ -16,6 +16,7 @@ tooncraft	Amount
 tooncraft	Angle	
 tooncraft	Animated GIF…	
 tooncraft	Animated PNG…	
+tooncraft	Any colour	
 tooncraft	Audio tracks	
 tooncraft	Before	
 tooncraft	Blank frame: drawing here starts a new drawing.	
@@ -43,11 +44,11 @@ tooncraft	Clear frame
 tooncraft	Clear frame (Delete)	
 tooncraft	Clear {mouth}	
 tooncraft	Click the canvas to pick a colour (Alt+click with any brush)	
+tooncraft	Clip to the layer below	
 tooncraft	Clip volume here	
 tooncraft	Clip {n}: {name}	
 tooncraft	Close gaps	
 tooncraft	Closed (M B P)	
-tooncraft	Collapsed	
 tooncraft	Colour	
 tooncraft	Colour #{hex}	
 tooncraft	Colour key	
@@ -129,11 +130,13 @@ tooncraft	Flip horizontally
 tooncraft	Flip vertically	
 tooncraft	Flow	
 tooncraft	Focus Exposure Sheet	
+tooncraft	Fold {name}	
 tooncraft	Folder	
 tooncraft	Folder for the PNG frames	
 tooncraft	Folder for the exposure sheet and drawings	
 tooncraft	Folder for the layer sequences	
 tooncraft	Folder {name}	
+tooncraft	Folder {n}	
 tooncraft	Frame	
 tooncraft	Frame ruler	
 tooncraft	Frame {frame} / {total}	
@@ -179,6 +182,7 @@ tooncraft	Import from Other Apps
 tooncraft	Imported	
 tooncraft	Imported layers from {file}	
 tooncraft	Imported {count} images	
+tooncraft	In	
 tooncraft	Ink pen	
 tooncraft	Input black	
 tooncraft	Input white	
@@ -197,6 +201,7 @@ tooncraft	Key {name} here
 tooncraft	Keyboard Shortcuts	
 tooncraft	Keyboard pen: move, put down / lift	
 tooncraft	Keyboard shortcuts	
+tooncraft	Label colour of {name}	
 tooncraft	Lasso	
 tooncraft	Last frame	
 tooncraft	Layer	
@@ -226,6 +231,7 @@ tooncraft	Lip Sync
 tooncraft	Load Preset…	
 tooncraft	Lock	
 tooncraft	Lock Layer	
+tooncraft	Lock {name}	
 tooncraft	Look at	
 tooncraft	Loop playback	
 tooncraft	Matte	
@@ -256,6 +262,7 @@ tooncraft	My brushes
 tooncraft	Name	
 tooncraft	New	
 tooncraft	New Drawing	
+tooncraft	New Folder	
 tooncraft	New Layer	
 tooncraft	New Shot…	
 tooncraft	New drawing	
@@ -338,6 +345,7 @@ tooncraft	ProRes 422 HQ (MOV)…
 tooncraft	ProRes 4444 with Alpha (MOV)…	
 tooncraft	Pucker (U W Q)	
 tooncraft	Purge Unused Drawings	
+tooncraft	Put the current layer in a new folder inside its folder	
 tooncraft	Quit	
 tooncraft	Radius	
 tooncraft	Re-time Layer	
@@ -414,11 +422,13 @@ tooncraft	Show
 tooncraft	Show Layer	
 tooncraft	Show a mouth drawing at the current frame, then press its “Use” button.	
 tooncraft	Show drawing thumbnails in the cells	
+tooncraft	Show layers labelled	
 tooncraft	Show one frame longer (+)	
 tooncraft	Show one frame shorter (−)	
 tooncraft	Show onion skin	
 tooncraft	Show pinned frames	
 tooncraft	Show the camera frame	
+tooncraft	Show this layer only where the layer below has paint	
 tooncraft	Show {layer}	
 tooncraft	Silence below	
 tooncraft	Size	
@@ -468,6 +478,7 @@ tooncraft	Tone curve
 tooncraft	Tongue (L TH)	
 tooncraft	ToonCraft found a recovery copy from {when} that is newer than the shot. Open it?	
 tooncraft	ToonCraft shot	
+tooncraft	Top	
 tooncraft	Track	
 tooncraft	Track {n}	
 tooncraft	Transform Selection	
@@ -495,6 +506,7 @@ tooncraft	Zoom Out
 tooncraft	Zoom blur	
 tooncraft	Zoom in / out	
 tooncraft	blank	
+tooncraft	clipped	
 tooncraft	drawing {id}	
 tooncraft	drawing {n}	
 tooncraft	fps	
