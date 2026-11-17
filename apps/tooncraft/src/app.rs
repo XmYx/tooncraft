@@ -940,6 +940,7 @@ impl ToonApp {
                     {
                         self.run(Command::ImportSheet { path: f.to_string_lossy().into_owned() });
                     }
+                    crate::pipeline::import_items(self, ui);
                 });
                 if ui.button(tl!("Import Sound…")).clicked() {
                     self.import_sound();

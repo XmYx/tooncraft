@@ -34,6 +34,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Camera, Set Key, Export through the camera | Generic film terms | Use (common) |
 | Blend modes: Normal, Multiply, Screen, Overlay, Darken, Lighten, Add | Standard compositing names (W3C) | Use (common) |
 | Folder, Layer colour, Thumbnails | Generic | Use (common) |
+| BoardCraft Board or Animatic | Suite app name (rule 3) | Use |
 | Field Guide, Safe Areas, Canvas Size, Crop to Camera, Workspaces, Save Workspace, Outlines only, Hide the previous step | Generic words; "field guide" and "safe area" are traditional film and animation terms | Use (common) |
 | Key, Breakdown, Inbetween, Spacing chart, Add Inbetweens, Re-time Between Keys, Timing preset, On ones / twos, Slow start / end | Traditional animation terms and our wording | Use (common) |
 | Clip to the layer below, Fold, Lock, Show layers labelled | Descriptive | Use |

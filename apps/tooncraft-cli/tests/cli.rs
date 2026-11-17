@@ -136,3 +136,23 @@ fn timing_commands_from_a_command_file() {
     let (ok, out) = cli(&["info", shot_s]);
     assert!(ok && out.contains("\"mark\": \"key\"") && out.contains("\"sheet\": \"##-#-#--#\"") && out.contains("\"size\": [\n    80,\n    48\n  ]"), "{out}");
 }
+
+#[test]
+fn boardcraft_board_imports_as_layout() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-pipe-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let board = dir.join("boats.boardcraft");
+    std::fs::write(&board, tooncraft_interop::boards::demo().unwrap()).unwrap();
+    let shot = dir.join("p.toon");
+    let shot_s = shot.to_str().unwrap();
+    assert!(cli(&["new", shot_s, "--size", "128x64", "--frames", "2"]).0);
+    let cmds = dir.join("p.jsonl");
+    std::fs::write(&cmds, format!("{{\"cmd\":\"import_boards\",\"path\":{:?}}}\n", board.to_str().unwrap())).unwrap();
+    let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap()]);
+    assert!(ok, "{out}");
+    let (ok, out) = cli(&["info", shot_s]);
+    assert!(ok && out.contains("\"frames\": 12") && out.contains("Boards: Boats"), "{out}");
+    let png = dir.join("png");
+    let (ok, out) = cli(&["export", shot_s, "--png", png.to_str().unwrap(), "--range", "1..2"]);
+    assert!(ok && png.join("frame_0002.png").is_file(), "{out}");
+}

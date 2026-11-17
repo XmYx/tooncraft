@@ -210,7 +210,7 @@ features (video export, effects, audio) and understates it for small ones.
 | PSD layers export | TV, CSP | D | Layered PSD of a frame through craft-psd; PSD / PSB layers import too |
 | OpenRaster frame export | TV | D | Through craft-ora |
 | Image sequence import | all | D | |
-| BoardCraft animatic as a starting layout | — | M | **Ours:** suite hand-off, see roadmap |
+| BoardCraft animatic as a starting layout | — | D | **Ours:** panels become a locked reference layer with their timings, key marks and camera moves ([interop.md](interop.md)) |
 | Transparent background export | all | P | PNG and OpenRaster; no test yet |
 | ProRes MOV with alpha for compositing | TV, TB | D | ProRes 4444 with alpha or 422 HQ through craft-video |
 | Video export carries the soundtrack | all | D | AAC in the MP4 |
@@ -265,6 +265,7 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | major | First map, written before the vertical slice; statuses set when the slice landed |
 | 2026-11-17 | major | Polish pass: re-measured after user research (docs/user-research.md); 4 rows added |
 | 2026-11-17 | major | Second pass: the top 10 gaps and interchange with other apps; 6 rows added |
+| 2026-11-17 | minor | BoardCraft boards as the layout |
 | 2026-11-17 | minor | Canvas tools: field guide and safe areas, canvas resize and crop, saved workspaces, onion outlines |
 | 2026-11-17 | minor | Timing: drawing marks, spacing chart, presets, re-timing between keys, inbetween guides |
 | 2026-11-17 | minor | Nested folders, folder locks, clipping layers and a label filter; 2 rows added |

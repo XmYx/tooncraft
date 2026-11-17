@@ -30,7 +30,7 @@ const USAGE: &str = "usage:
   tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
   tooncraft-cli info <file.toon>
   tooncraft-cli run <file.toon> <commands.jsonl | ->
-  tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
   tooncraft-cli check <file.toon>
   tooncraft-cli bench [--json]
 ";
