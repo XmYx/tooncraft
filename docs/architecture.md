@@ -3,6 +3,7 @@
 | Layer | Crate | What it does | UI? |
 |---|---|---|---|
 | L0 | `tooncraft-raster` | 64×64 premultiplied RGBA8 tiles, sparse copy-on-write surfaces, compositing, flood fill with gap closing | no |
+| L0 | `tooncraft-fx` | layer effects on premultiplied images: blurs, glow, shadow, outline, line thickening, colour adjustments, grain, light wrap, soft masks; keyframable, row-parallel on the CPU | no |
 | L1 | `tooncraft-brush` | samples → stabilizer → dabs → coverage → pixels; pencil, ink, airbrush, chalk, eraser | no |
 | L1 | `tooncraft-doc` | project, layers, exposure sheets (key / hold / blank), drawing library, onion skin, light table, CPU compositing | no |
 | L2 | `tooncraft-format` | `.toon` file (craft-zip), journaled atomic saves (craft-atomic), backup, autosave | no |

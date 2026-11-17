@@ -105,6 +105,9 @@ pub struct Layer {
     /// Distance from the drawing plane for the multiplane camera (negative: nearer the camera).
     #[serde(default, skip_serializing_if = "is_zero")]
     pub depth: f32,
+    /// The layer's effect stack, run top to bottom over its drawing before it is composited.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<tooncraft_fx::Effect>,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
 }
@@ -333,6 +336,7 @@ impl Project {
             layer.depth = if layer.depth.is_finite() { layer.depth.clamp(camera::MIN_DEPTH, camera::MAX_DEPTH) } else { 0.0 };
             layer.opacity = layer.opacity.clamp(0.0, 1.0);
             layer.name = layer.name.chars().take(200).collect();
+            layer.effects = tooncraft_fx::sanitize_stack(std::mem::take(&mut layer.effects));
             if !seen.insert(layer.id) {
                 layer.id = LayerId(u64::MAX); // fixed below
             }
@@ -422,6 +426,7 @@ impl Project {
                 folder: None,
                 peg: None,
                 depth: 0.0,
+                effects: Vec::new(),
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );

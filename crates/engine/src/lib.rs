@@ -11,6 +11,7 @@
 pub mod audio;
 mod command;
 pub mod demo;
+mod effects;
 pub mod export;
 mod import;
 mod interchange;
@@ -55,6 +56,12 @@ pub enum EngineError {
     Import(String),
     #[error("too many {0}")]
     Limit(&'static str),
+    #[error("there is no effect {0} on this layer")]
+    NoEffect(usize),
+    #[error("a layer can have at most {max} effects", max = tooncraft_fx::MAX_EFFECTS)]
+    TooManyEffects,
+    #[error("that change does not fit this effect")]
+    EffectMismatch,
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
@@ -320,8 +327,8 @@ impl Engine {
         // the inverse of its peg chain, so the area found lines up with what it fills.
         let space = self.project.layer_transform(layer, frame).inverse().filter(|t| !t.is_identity(1e-6));
         let opts = match reference {
-            FillReference::Layer => RenderOptions { paper: false, only_layer: Some(layer), space, ..Default::default() },
-            FillReference::AllLayers => RenderOptions { paper: false, space, ..Default::default() },
+            FillReference::Layer => RenderOptions { paper: false, only_layer: Some(layer), space, effects: false, ..Default::default() },
+            FillReference::AllLayers => RenderOptions { paper: false, space, effects: false, ..Default::default() },
         };
         let reference_img = tooncraft_doc::render_region(&self.project, frame, rect, opts);
         let Some(mask) = fill::flood(&reference_img, (rect.0, rect.1), (x - rect.0, y - rect.1), options)? else { return Ok(None) };

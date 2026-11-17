@@ -13,6 +13,7 @@ mod args;
 mod canvas;
 mod color;
 mod dock;
+mod effects_panel;
 mod icons;
 mod keys;
 mod panels;

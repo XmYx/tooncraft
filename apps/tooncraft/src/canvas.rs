@@ -610,10 +610,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
     }
-    let blended = p.layers.iter().any(|l| l.blend != tooncraft_doc::BlendMode::Normal && p.effective(l).0);
+    let blended = p.layers.iter().any(|l| (l.blend != tooncraft_doc::BlendMode::Normal || tooncraft_fx::is_active(&l.effects)) && p.effective(l).0);
     if blended {
-        // A blend mode needs what is below it: composite the layers on the CPU (cached until the
-        // project or frame changes) and show that as tiles.
+        // A blend mode needs what is below it, and effects reach past their tiles: composite the
+        // layers on the CPU (cached until the project or frame changes) and show that as tiles.
         let key = app.engine.changes().wrapping_mul(1_000_003) ^ (app.frame as u64).wrapping_mul(7919);
         if app.blend_cache.as_ref().is_none_or(|(k, _)| *k != key) {
             let img = tooncraft_doc::render_frame(p, app.frame, tooncraft_doc::RenderOptions { paper: false, ..Default::default() });

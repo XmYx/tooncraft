@@ -9,7 +9,7 @@
 
 | | Value | Kind |
 |---|---|---|
-| Parity score, feature rows (D + ½·P) / rows | 78 % (96 D, 16 P, 22 M of 134); 77 % on the previous 128 rows, up from 65 % | measured (`cargo xtask parity`) |
+| Parity score, feature rows (D + ½·P) / rows | 81 % (104 D, 18 P, 18 M of 140) | measured (`cargo xtask parity`) |
 | Parity weighted by effort (depth of each area) | about 35 % | estimated |
 | Tests | 134 (core and property tests, interop round trips, CLI end to end, 15 kittest UI flows) | measured |
 | 4K, 240-drawing shot: playback / load | 24.1 fps at 24, 0 dropped / 0.12 s | measured |

@@ -4086,6 +4086,7 @@ dependencies = [
  "tooncraft-doc",
  "tooncraft-engine",
  "tooncraft-format",
+ "tooncraft-fx",
  "tooncraft-interop",
  "tooncraft-raster",
 ]
@@ -4120,6 +4121,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.21",
  "tooncraft-brush",
+ "tooncraft-fx",
  "tooncraft-raster",
 ]
 
@@ -4142,6 +4144,7 @@ dependencies = [
  "tooncraft-brush",
  "tooncraft-doc",
  "tooncraft-format",
+ "tooncraft-fx",
  "tooncraft-interop",
  "tooncraft-raster",
 ]
@@ -4164,6 +4167,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tooncraft-fx"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "serde",
+ "serde_json",
+ "tooncraft-raster",
+]
+
+[[package]]
 name = "tooncraft-interop"
 version = "0.1.0"
 dependencies = [
@@ -4180,6 +4193,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tooncraft-doc",
  "tooncraft-format",
+ "tooncraft-fx",
  "tooncraft-raster",
 ]
 

@@ -65,6 +65,7 @@ impl Args {
                         | "levels"
                         | "layers"
                         | "prores"
+                        | "prores-layers"
                 );
                 let v = if takes { it.next() } else { None };
                 flags.push((name.to_string(), v));
@@ -242,6 +243,9 @@ fn run() -> Result<(), String> {
                 let files = tooncraft_interop::layer_sequences::export(&e.project, Path::new(dir), o.start, o.end, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {} PNG files to {dir}", files.len());
+            } else if let Some(dir) = rest.flag("prores-layers") {
+                let files = tooncraft_interop::prores::export_layer_movs(&e.project, Path::new(dir), o.start, o.end).map_err(|e| e.to_string())?;
+                println!("wrote {} ProRes 4444 movies to {dir}", files.len());
             } else if let Some(file) = rest.flag("prores") {
                 tooncraft_interop::prores::export_mov(&e.project, Path::new(file), o.start, o.end, rest.has("alpha")).map_err(|e| e.to_string())?;
                 println!("wrote {file}");
@@ -250,7 +254,7 @@ fn run() -> Result<(), String> {
                 export::ora_frame(&e.project, frame, Path::new(file)).map_err(|e| e.to_string())?;
                 println!("wrote {file}");
             } else {
-                return Err(format!("export needs --png, --gif, --mp4, --apng, --prores, --psd, --layers, --levels or --ora\n\n{USAGE}"));
+                return Err(format!("export needs --png, --gif, --mp4, --apng, --prores, --prores-layers, --psd, --layers, --levels or --ora\n\n{USAGE}"));
             }
             Ok(())
         }

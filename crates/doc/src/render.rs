@@ -1,6 +1,8 @@
 //! CPU compositing of a frame: exports, thumbnails, the fill reference and tests. The app draws
 //! the canvas on the GPU from cached tile textures instead; both follow the same stacking order:
-//! paper, light table pins, onion skin, then the layers bottom to top.
+//! paper, light table pins, onion skin, then the layers bottom to top. A layer with effects is
+//! drawn on its own (through its transform), run through its effect stack (which may read the
+//! composite under it), and then composited with its opacity and blend mode.
 
 use tooncraft_raster::select::Affine;
 use tooncraft_raster::{BlendMode, RgbaImage, Surface, premultiply};
@@ -16,8 +18,10 @@ pub struct RenderOptions {
     pub onion_layer: Option<usize>,
     /// Draw the light table pins, if enabled in the project.
     pub light_table: bool,
-    /// Only this layer (fill reference "current layer").
+    /// Only this layer (fill reference "current layer", per-layer exports).
     pub only_layer: Option<usize>,
+    /// Run the layers' effect stacks (off: only the drawn pixels, as the fill bucket needs).
+    pub effects: bool,
     /// A map applied to the whole canvas before compositing (canvas pixels → output pixels);
     /// the fill uses it to see the picture in a pegged layer's own space.
     pub space: Option<Affine>,
@@ -25,7 +29,7 @@ pub struct RenderOptions {
 
 impl Default for RenderOptions {
     fn default() -> Self {
-        Self { paper: true, onion_layer: None, light_table: false, only_layer: None, space: None }
+        Self { paper: true, onion_layer: None, light_table: false, only_layer: None, space: None, effects: true }
     }
 }
 
@@ -61,6 +65,10 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
     let y = rect.1.min(p.height());
     let w = rect.2.min(p.width() - x);
     let h = rect.3.min(p.height() - y);
+    // Effects reach across the canvas (blurs, shadows, zoom blur): render it all, then cut out.
+    if o.effects && (x, y, w, h) != (0, 0, p.width(), p.height()) && uses_effects(p, frame, o) {
+        return render_region(p, frame, (0, 0, p.width(), p.height()), o).crop(x, y, w, h);
+    }
     let mut img = background(p, w, h, o.paper);
     let space = o.space.unwrap_or(Affine::IDENTITY);
     let map = |li: usize, f: u32| non_identity(p.layer_transform(li, f).then(&space));
@@ -97,13 +105,14 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
             }
         }
     }
-    layers(p, frame, &mut img, (x, y), o.only_layer, |li| Some(map(li, frame)));
+    layers(p, frame, &mut img, (x, y), o, |li| Some(map(li, frame)));
     img
 }
 
 /// Composite the layers bottom to top; `map` gives each layer's transform (`None`: skip the
 /// layer, `Some(None)`: drawn as is).
-fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), only: Option<usize>, map: impl Fn(usize) -> Option<Option<Affine>>) {
+fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: RenderOptions, map: impl Fn(usize) -> Option<Option<Affine>>) {
+    let only = o.only_layer;
     for (li, layer) in p.layers.iter().enumerate() {
         let (visible, opacity) = p.effective(layer);
         if only.is_some_and(|only| only != li) || (!visible && only.is_none()) {
@@ -111,7 +120,15 @@ fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), only
         }
         let Some(s) = layer.drawing_at(frame).and_then(|d| p.drawing(d)) else { continue };
         let Some(t) = map(li) else { continue };
-        if layer.blend == BlendMode::Normal || only.is_some() {
+        let mode = if only.is_some() { BlendMode::Normal } else { layer.blend };
+        if o.effects && tooncraft_fx::is_active(&layer.effects) {
+            // the whole canvas here (see the top of `render_region`)
+            let mut top = RgbaImage::transparent(img.width, img.height);
+            draw(s, &mut top, origin, t.as_ref(), 1.0, None);
+            let below = tooncraft_fx::needs_below(&layer.effects).then_some(&*img);
+            tooncraft_fx::apply_stack(&mut top, &layer.effects, frame, below);
+            img.composite(&top, mode, opacity);
+        } else if mode == BlendMode::Normal {
             draw(s, img, origin, t.as_ref(), opacity, None);
         } else {
             let mut top = RgbaImage::transparent(img.width, img.height);
@@ -119,6 +136,17 @@ fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), only
             img.blend_image(&top, layer.blend);
         }
     }
+}
+
+/// Will compositing `frame` with these options run any effect?
+fn uses_effects(p: &Project, frame: u32, o: RenderOptions) -> bool {
+    p.layers.iter().enumerate().any(|(li, l)| {
+        let shown = match o.only_layer {
+            Some(only) => only == li,
+            None => p.effective(l).0,
+        };
+        shown && tooncraft_fx::is_active(&l.effects) && l.drawing_at(frame).is_some()
+    })
 }
 
 /// The frame as the camera sees it (same size as the canvas). Without camera keys or shakes, or
@@ -130,7 +158,7 @@ pub fn render_camera(p: &Project, frame: u32, o: RenderOptions) -> RgbaImage {
     }
     let (w, h) = (p.width(), p.height());
     let mut out = background(p, w, h, o.paper);
-    layers(p, frame, &mut out, (0, 0), o.only_layer, |li| {
+    layers(p, frame, &mut out, (0, 0), o, |li| {
         let depth = p.layers.get(li).map(|l| l.depth).unwrap_or(0.0);
         let cam = p.camera.layer_map(frame, w, h, depth)?;
         Some(Some(p.layer_transform(li, frame).then(&cam)))
@@ -238,5 +266,38 @@ mod tests {
         assert!(moved.pixel(22, 12)[0] < 50, "the drawing plane slides 10 px");
         let far = moved.pixel(16, 12)[0];
         assert!(far > 50 && far < 200, "the far plane slides 5 px: {far}");
+    }
+
+    #[test]
+    fn effects_render_everywhere_and_regions_match_the_frame() {
+        let mut p = Project::new("t", 96, 64, 24, 2).unwrap();
+        let d = p.add_drawing(None).unwrap();
+        for i in 0..16u32 {
+            let t = p.drawing_mut(d).unwrap().tile_mut(0).unwrap();
+            let k = ((20 + i) * 64 + 20) as usize * 4;
+            t.bytes_mut()[k..k + 4].copy_from_slice(&[0, 0, 0, 255]);
+        }
+        p.layers[0].cells = vec![Cell::Key(d), Cell::Hold];
+        let plain = render_frame(&p, 0, RenderOptions::default());
+        p.layers[0].effects = vec![
+            tooncraft_fx::Effect::new(tooncraft_fx::EffectKind::DropShadow { dx: 30.0, dy: 0.0, blur: 2.0, colour: [255, 0, 0], opacity: 1.0 }),
+            tooncraft_fx::Effect::new(tooncraft_fx::EffectKind::LightWrap { radius: 3.0, intensity: 1.0 }),
+        ];
+        let full = render_frame(&p, 0, RenderOptions::default());
+        assert_ne!(full, plain);
+        assert!(full.pixel(50, 28)[0] > full.pixel(50, 28)[1], "the red shadow shows 30 px to the right");
+        // a region (eyedropper, tiles) is the same pixels as the whole frame
+        let part = render_region(&p, 0, (40, 10, 30, 40), RenderOptions::default());
+        assert_eq!(part, full.crop(40, 10, 30, 40));
+        // the fill bucket sees the drawing, not its effects
+        let raw = render_frame(&p, 0, RenderOptions { effects: false, ..Default::default() });
+        assert_eq!(raw, plain);
+        // per-layer exports carry the layer's effects; a disabled effect does nothing
+        let only = render_frame(&p, 0, RenderOptions { paper: false, only_layer: Some(0), ..Default::default() });
+        assert!(only.pixel(50, 28)[3] > 0);
+        for e in &mut p.layers[0].effects {
+            e.enabled = false;
+        }
+        assert_eq!(render_frame(&p, 0, RenderOptions::default()), plain);
     }
 }

@@ -11,8 +11,9 @@ rust-version = "1.95"
 repository = "https://github.com/storytold/tooncraft"
 
 [workspace.dependencies]
-# internal (layer order: raster → brush → doc → format → engine → apps)
+# internal (layer order: raster → fx, brush → doc → format → engine → apps)
 tooncraft-raster = { path = "crates/raster" }
+tooncraft-fx = { path = "crates/fx" }
 tooncraft-brush = { path = "crates/brush" }
 tooncraft-doc = { path = "crates/doc" }
 tooncraft-format = { path = "crates/format" }

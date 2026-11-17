@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 const UI_CRATES: &[&str] = &["egui", "eframe", "egui-winit", "winit", "rfd", "egui-wgpu", "egui_glow"];
-const CORE: &[&str] = &["tooncraft-raster", "tooncraft-brush", "tooncraft-doc", "tooncraft-format", "tooncraft-interop", "tooncraft-engine"];
+const CORE: &[&str] = &["tooncraft-raster", "tooncraft-fx", "tooncraft-brush", "tooncraft-doc", "tooncraft-format", "tooncraft-interop", "tooncraft-engine"];
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."))

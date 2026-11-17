@@ -398,6 +398,56 @@ pub enum Command {
     SetPaper {
         color: [u8; 3],
     },
+    /// Add an effect to the layer's stack at `index` (default: last, so it runs after the others).
+    AddEffect {
+        layer: usize,
+        effect: tooncraft_fx::Effect,
+        #[serde(default)]
+        index: Option<usize>,
+    },
+    /// Replace the effect at `index` (parameters, keys and switch).
+    SetEffect {
+        layer: usize,
+        index: usize,
+        effect: tooncraft_fx::Effect,
+    },
+    /// Change an effect's parameters as seen at `frame`: a key there when it has keys, otherwise
+    /// the effect itself.
+    EditEffect {
+        layer: usize,
+        index: usize,
+        frame: u32,
+        value: tooncraft_fx::EffectKind,
+    },
+    /// Key an effect at `frame` with `value`, or with the parameters it shows there.
+    SetEffectKey {
+        layer: usize,
+        index: usize,
+        frame: u32,
+        #[serde(default)]
+        value: Option<tooncraft_fx::EffectKind>,
+    },
+    RemoveEffectKey {
+        layer: usize,
+        index: usize,
+        frame: u32,
+    },
+    /// Switch an effect on or off.
+    EnableEffect {
+        layer: usize,
+        index: usize,
+        enabled: bool,
+    },
+    RemoveEffect {
+        layer: usize,
+        index: usize,
+    },
+    /// Move an effect within the stack.
+    MoveEffect {
+        layer: usize,
+        from: usize,
+        to: usize,
+    },
 }
 
 fn unit() -> f32 {
@@ -847,6 +897,23 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.touch();
             Ok(())
         }
+        Command::AddEffect { layer, effect, index } => crate::effects::add(e, layer, effect, index),
+        Command::SetEffect { layer, index, effect } => crate::effects::edit(e, layer, index, "Effect", |fx| {
+            *fx = effect.sanitized();
+            true
+        }),
+        Command::EditEffect { layer, index, frame, value } => crate::effects::edit(e, layer, index, "Effect settings", |fx| fx.edit(frame, value)),
+        Command::SetEffectKey { layer, index, frame, value } => crate::effects::edit(e, layer, index, "Effect key", |fx| {
+            let v = value.unwrap_or_else(|| fx.at(frame));
+            fx.set_key(frame, v)
+        }),
+        Command::RemoveEffectKey { layer, index, frame } => crate::effects::edit(e, layer, index, "Remove effect key", |fx| fx.remove_key(frame)),
+        Command::EnableEffect { layer, index, enabled } => crate::effects::edit(e, layer, index, "Effect on / off", |fx| {
+            fx.enabled = enabled;
+            true
+        }),
+        Command::RemoveEffect { layer, index } => crate::effects::remove(e, layer, index),
+        Command::MoveEffect { layer, from, to } => crate::effects::move_to(e, layer, from, to),
     }
 }
 

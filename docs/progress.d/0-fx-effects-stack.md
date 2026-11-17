@@ -1,0 +1,1 @@
+- 2026-11-17: Effects: a non-destructive, keyframable effect stack per layer (blurs, glow, drop shadow, outline, line thickening, levels, tone curve, hue / saturation, tint, grain, light wrap, hard edges, soft masks) in the canvas, playback and every export; new `tooncraft-fx` crate.

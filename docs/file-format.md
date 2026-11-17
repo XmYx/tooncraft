@@ -14,7 +14,10 @@ A ZIP archive (PKWARE APPNOTE), written and read with craft-zip.
 `depth`. Older readers ignore these fields; loaders drop unknown parents, break loops and clamp values.
 
 Layers list bottom to top; each has `id`, `name`, `visible`, `locked`, `opacity` and `cells`, one per
-frame: `"blank"`, `"hold"` or `{"key": <drawing id>}`. `saved_at` is RFC 3339 UTC (chrono).
+frame: `"blank"`, `"hold"` or `{"key": <drawing id>}`. A layer may have `effects`: a list, run in order, of
+`{"enabled", "kind": {"type": "blur", "radius": 4, …}, "keys": [{"frame", "value": {…}}]}`; the
+kinds and their parameters are `tooncraft_fx::EffectKind`, and loading clamps every parameter
+and drops keys of another kind. `saved_at` is RFC 3339 UTC (chrono).
 
 Readers must refuse a higher `version` with a clear message, cap entries and expanded size, and
 repair rather than reject inconsistent cells (holds with nothing to hold and keys to missing

@@ -1,0 +1,19 @@
+[package]
+name = "tooncraft-fx"
+description = "ToonCraft layer effects: blurs, glow, shadow, outline, line thickening, colour adjustments, grain, light wrap and feathered masks, keyframable, on the CPU"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tooncraft-raster = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+serde_json = { workspace = true }
