@@ -476,3 +476,50 @@ fn pegs_panel_keys_a_move_and_draws_on_the_moved_layer() {
     h.run();
     assert!(h.state().engine.project.camera.shakes.is_empty());
 }
+
+#[test]
+fn effects_panel_builds_a_keyed_stack() {
+    let mut h = harness(true);
+    h.state_mut().workspace.raise(crate::dock::Pane::Effects);
+    h.run();
+    let li = h.state().layer;
+    h.get(By::new().role(egui::Role::ComboBox).label("Add effect")).click();
+    h.run();
+    h.get_by_label("Soft blur").click();
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Add effect")).click();
+    h.run();
+    h.get_by_label("Drop shadow").click();
+    h.run();
+    let ids: Vec<&str> = h.state().engine.project.layers[li].effects.iter().map(|e| e.kind.id()).collect();
+    assert_eq!(ids, ["blur", "drop_shadow"]);
+    assert!(h.state().blend_cache.is_some(), "effects switch the canvas to the CPU composite");
+    // reorder, switch off, key
+    h.get_by_label("Move Drop shadow up").click();
+    h.run();
+    assert_eq!(h.state().engine.project.layers[li].effects[0].kind.id(), "drop_shadow");
+    h.get(By::new().role(egui::Role::CheckBox).label("Soft blur")).click();
+    h.run();
+    assert!(!h.state().engine.project.layers[li].effects[1].enabled);
+    h.get_by_label("Key Soft blur here").click();
+    h.run();
+    assert_eq!(h.state().engine.project.layers[li].effects[1].keys.len(), 1);
+    // a setting typed from the keyboard
+    h.get_by_label("Softness").focus();
+    h.run();
+    h.key_press(Key::ArrowUp);
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    let tooncraft_fx::EffectKind::DropShadow { blur, .. } = h.state().engine.project.layers[li].effects[0].kind else { panic!("not a shadow") };
+    assert!(blur > 6.0, "softness went up: {blur}");
+    // the stack is taller than the panel: reach the button from the keyboard
+    h.get_by_label("Remove Soft blur").focus();
+    h.run();
+    h.key_press(Key::Space);
+    h.run();
+    assert_eq!(h.state().engine.project.layers[li].effects.len(), 1, "last step: {:?}", h.state().engine.undo_label());
+    h.state_mut().undo();
+    h.run();
+    assert_eq!(h.state().engine.project.layers[li].effects.len(), 2, "removing an effect undoes");
+}

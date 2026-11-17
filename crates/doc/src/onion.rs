@@ -166,6 +166,7 @@ mod tests {
             folder: None,
             peg: None,
             depth: 0.0,
+            effects: Vec::new(),
             cells,
         }
     }

@@ -31,6 +31,9 @@ hand a script can do.
 | `add_camera_shake`, `remove_camera_shake` | `shake` (`from`, `to`, `amplitude` px, `rotation` degrees, `frequency` per frame, `fade` frames, `seed`); `index` |
 | `set_layer_blend`, `set_layer_color`, `set_layer_folder`, `set_folder` | blend mode; colour; folder name; folder `visible`, `opacity`, `collapsed` |
 | `add_tip`, `add_tip_from_image` | `id`, `name`, `width`, `height`, `alpha`; or `id`, `path` |
+| `add_effect` | `layer`, `effect` (`enabled`, `kind` with a `type` such as `blur`, `drop_shadow`, `levels`, `mask`, and its parameters, `keys`), optional `index` |
+| `set_effect`, `edit_effect`, `set_effect_key`, `remove_effect_key` | `layer`, `index`; `effect`; `frame` and `value` (`edit_effect` keys the frame when the effect has keys); `value` optional for `set_effect_key` |
+| `enable_effect`, `remove_effect`, `move_effect` | `layer`, `index` (+ `enabled`; `from` / `to` for `move_effect`) |
 | `add_layer` | `name`, optional `index` |
 | `delete_layer` / `rename_layer` / `move_layer` / `set_layer` | `layer` (+ `name`, `from`/`to`, `visible`/`locked`/`opacity`) |
 | `set_length`, `set_fps`, `set_paper`, `set_onion`, `toggle_pin`, `set_light_table`, `purge_unused` | as named |
@@ -44,7 +47,7 @@ Example:
 ```
 
 `tooncraft-cli export` writes `--png <dir>`, `--gif`, `--mp4` (with the soundtrack), `--apng`,
-`--prores <file.mov> [--alpha]`, `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
+`--prores <file.mov> [--alpha]`, `--prores-layers <dir>` (ProRes 4444 with alpha per layer), `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
 `--layers <dir>` (PNG sequence per layer) or `--levels <dir>` (XDTS sheet and drawing folders).
 `tooncraft-cli import`, `import-layers`, `import-gif`, `import-sheet` and `set-sound` bring work in.
 

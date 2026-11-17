@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 tooncraft-raster = { workspace = true }
 tooncraft-brush = { workspace = true }
+tooncraft-fx = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 

@@ -75,6 +75,29 @@ fn to_frame(img: &RgbaImage, chroma: ChromaFormat, depth: u8, alpha: bool) -> Re
 /// Write frames `start..end` as a ProRes QuickTime movie: 4444 with alpha when `alpha`, else
 /// 422 HQ on the paper. The file is replaced atomically.
 pub fn export_mov(p: &Project, path: &Path, start: u32, end: u32, alpha: bool) -> Result<()> {
+    write_mov(p, path, start, end, alpha, None)
+}
+
+/// One ProRes 4444 movie with alpha per visible layer, `<dir>/<Layer>.mov`, each with the layer's
+/// effects and opacity baked in (as the per-layer PNG sequences). Returns the files written.
+pub fn export_layer_movs(p: &Project, dir: &Path, start: u32, end: u32) -> Result<Vec<std::path::PathBuf>> {
+    check_range(p, start, end)?;
+    crate::common::create_dir(dir)?;
+    let names = crate::common::track_names(&p.layers);
+    let mut out = Vec::new();
+    for (i, layer) in p.layers.iter().enumerate() {
+        if !layer.visible {
+            continue;
+        }
+        let name = crate::safe_file_name(names.get(i).map_or(layer.name.as_str(), String::as_str));
+        let path = dir.join(format!("{name}.mov"));
+        write_mov(p, &path, start, end, true, Some(i))?;
+        out.push(path);
+    }
+    Ok(out)
+}
+
+fn write_mov(p: &Project, path: &Path, start: u32, end: u32, alpha: bool, only_layer: Option<usize>) -> Result<()> {
     check_range(p, start, end)?;
     let (w, h) = (p.width(), p.height());
     let (profile, depth) = if alpha { (Profile::P4444, 12) } else { (Profile::Hq, 10) };
@@ -92,7 +115,7 @@ pub fn export_mov(p: &Project, path: &Path, start: u32, end: u32, alpha: bool) -
         let mut m = Mp4Writer::new(file, opts).map_err(mux)?;
         let track = m.add_track(TrackConfig::new(entry, fps)).map_err(mux)?;
         for f in start..end {
-            let img = render_frame(p, f, RenderOptions { paper: !alpha, ..Default::default() });
+            let img = render_frame(p, f, RenderOptions { paper: !alpha, only_layer, ..Default::default() });
             let frame = to_frame(&img, profile.chroma(), depth, alpha).map_err(io)?;
             let data = enc.encode(&frame).map_err(|e| io(InteropError::Encode(e.to_string())))?;
             m.write_sample(track, WriteSample { data: &data, duration: 1, composition_offset: 0, is_sync: true }).map_err(mux)?;
@@ -167,5 +190,19 @@ mod tests {
         assert_eq!(ycbcr(0.0, 0.0, 0.0, 10), (64, 512, 512));
         assert_eq!(ycbcr(1.0, 1.0, 1.0, 10), (940, 512, 512));
         assert_eq!(ycbcr(1.0, 1.0, 1.0, 12), (3760, 2048, 2048));
+    }
+
+    #[test]
+    fn one_movie_per_layer_with_effects() {
+        let mut p = shot();
+        p.layers[0].effects = vec![tooncraft_fx::Effect::new(tooncraft_fx::EffectKind::Blur { radius: 2.0 })];
+        let dir = temp_dir("prores-layers");
+        let files = export_layer_movs(&p, &dir, 0, 2).unwrap();
+        assert_eq!(files.len(), p.layers.iter().filter(|l| l.visible).count());
+        for f in &files {
+            let bytes = std::fs::read(f).unwrap();
+            let mov = craft_media::isobmff::open(bytes.as_slice()).unwrap();
+            assert_eq!(mov.tracks.len(), 1);
+        }
     }
 }

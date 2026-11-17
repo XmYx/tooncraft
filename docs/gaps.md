@@ -13,7 +13,7 @@ F = request).
 | # | Gap | Category | Beta | Hours | Evidence |
 |---|---|---|---|---|---|
 | 1 | Pen input in Wayland-native windows (tablet-v2 protocol through winit) | Input | B | 16 | A5 |
-| 2 | Effects: blur, glow, shadow, colour adjust as a non-destructive stack | Effects | | 30 | target rows |
+| 2 | Effects, the rest: drawn mask shapes, smoothing of jagged lines, a GPU path (RFC-0022) | Effects | | 14 | target rows |
 | 3 | Lip-sync assist: mouth charts from the soundtrack | Audio | | 24 | F1 |
 | 5 | Nested folders, clipping layers, folders in the timeline | Layers | | 12 | F15 |
 | 6 | Brush editor with curves per dynamic; textured brush grain images | Brushes | | 20 | F7 |
@@ -26,6 +26,10 @@ F = request).
 | 13 | Paging of drawings to disk for very long shots | Stability | | 20 | below |
 | 14 | WebP export, multi-frame PSD / PSB, TGA / TIFF sequences | Export | | 8 | F10 |
 | 15 | Translations (craft-i18n catalogs) | Languages | | 6 | [localization-parity.md](localization-parity.md) |
+
+Closed in the effects pass: a non-destructive, keyframable effect stack per layer (blurs, glow,
+shadow, outline, line thickening, colour adjustments, grain, light wrap, soft masks) in the canvas,
+playback and every export.
 
 Closed in the second pass: pen pressure / tilt / eraser end on X11 and macOS, soundtrack with
 waveform, scrubbing and sound in MP4, selection and transform, camera keys, remappable shortcuts,

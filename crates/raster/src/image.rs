@@ -66,6 +66,40 @@ impl RgbaImage {
         }
     }
 
+    /// Composite `top` (same size) over this image at `opacity` with a blend mode.
+    pub fn composite(&mut self, top: &RgbaImage, mode: BlendMode, opacity: f32) {
+        if top.width != self.width || top.height != self.height {
+            return;
+        }
+        let o = (if opacity.is_finite() { opacity.clamp(0.0, 1.0) } else { 1.0 } * 255.0).round() as u8;
+        if o == 0 {
+            return;
+        }
+        for (d, s) in self.data.as_chunks_mut::<4>().0.iter_mut().zip(top.data.as_chunks::<4>().0.iter()) {
+            if s[3] != 0 {
+                let s = if o == 255 { *s } else { crate::pixel::scale_alpha(*s, o) };
+                *d = blend(*d, s, mode);
+            }
+        }
+    }
+
+    /// The `w`×`h` rectangle at (`x`, `y`), clipped to the image.
+    pub fn crop(&self, x: u32, y: u32, w: u32, h: u32) -> RgbaImage {
+        let x = x.min(self.width);
+        let y = y.min(self.height);
+        let w = w.min(self.width - x);
+        let h = h.min(self.height - y);
+        let mut out = RgbaImage::transparent(w, h);
+        let (sw, ow) = (self.width as usize * 4, w as usize * 4);
+        for row in 0..h as usize {
+            let s = (y as usize + row) * sw + x as usize * 4;
+            if let (Some(src), Some(dst)) = (self.data.get(s..s + ow), out.data.get_mut(row * ow..(row + 1) * ow)) {
+                dst.copy_from_slice(src);
+            }
+        }
+        out
+    }
+
     /// Straight (non-premultiplied) RGBA bytes, for encoders.
     pub fn to_straight(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(self.data.len());
