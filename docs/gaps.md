@@ -17,7 +17,6 @@ F = request).
 | 3 | Lip-sync: check detection on recorded speech and tune it; microphone recording | Audio | | 12 | F1 |
 | 6 | Brush editor with curves per dynamic; textured brush grain images | Brushes | | 20 | F7 |
 | 12 | GPU dab rasterisation (craft-gpu, RFC-0022) | Performance | | 30 | below |
-| 13 | Paging of drawings to disk for very long shots | Stability | | 20 | below |
 | 14 | WebP export, multi-frame PSD / PSB, TGA / TIFF sequences | Export | | 8 | F10 |
 | 15 | Translations (craft-i18n catalogs) | Languages | | 6 | [localization-parity.md](localization-parity.md) |
 
@@ -62,9 +61,12 @@ tile edges. Not visible in normal use; a texture atlas with 1 px gutters would r
 
 ## Stability
 
-### Paging to disk
-Everything lives in RAM (sparse, copy-on-write). A 2000-drawing 4K shot can need several GB; the
-budgets refuse rather than crash, but paging cold drawings to a cache file would lift the limit.
+### Paging to disk: what is left
+Drawings away from the playhead are paged to a scratch file once they pass the page budget
+([performance.md](performance.md#long-shots-paging-to-disk)). Left: the page file only grows (a
+drawing edited and paged again is written again; it is deleted when the shot is closed), undo
+history keeps its own copies of changed tiles (bounded by the undo budget, not paged), and the
+GPU tile cache is still bounded separately at 768 MB.
 
 ### Autosave covers the project, not the open stroke
 A crash mid-stroke loses that stroke (at most one autosave interval of 45 s otherwise).

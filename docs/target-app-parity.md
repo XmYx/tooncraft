@@ -249,7 +249,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Autosave and crash recovery | TV, CSP, PD | D | **Ours:** written on a background thread from a copy-on-write snapshot, no UI stall |
 | Hostile-file safety (property-tested loader) | — | D | **Ours:** property tests of the loader and the fill |
 | Never panics (lint-enforced) | — | D | **Ours:** deny lints on every crate |
-| Memory bounded on huge canvases and long shots | — | P | Sparse tiles and budgets; paging to disk is planned |
+| Memory bounded on huge canvases and long shots | — | D | **Ours:** drawings away from the playhead are paged to a scratch file past a budget (1 GB by default), while loading too; a 2000-frame 4K shot plays from 317 MB instead of 1.2 GB ([performance.md](performance.md)) |
 | Real-time playback at project fps | all | D | |
 | Playback cache | TV, TB | P | Tile textures cached; no frame pre-render |
 | Stroke latency measured and published | — | D | **Ours:** [performance.md](performance.md) |
@@ -265,6 +265,7 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | major | First map, written before the vertical slice; statuses set when the slice landed |
 | 2026-11-17 | major | Polish pass: re-measured after user research (docs/user-research.md); 4 rows added |
 | 2026-11-17 | major | Second pass: the top 10 gaps and interchange with other apps; 6 rows added |
+| 2026-11-17 | minor | Long shots: drawings paged to disk, measured on a 2000-frame 4K shot |
 | 2026-11-17 | minor | BoardCraft boards as the layout |
 | 2026-11-17 | minor | Canvas tools: field guide and safe areas, canvas resize and crop, saved workspaces, onion outlines |
 | 2026-11-17 | minor | Timing: drawing marks, spacing chart, presets, re-timing between keys, inbetween guides |
