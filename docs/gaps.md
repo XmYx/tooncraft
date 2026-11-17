@@ -26,6 +26,11 @@ F = request).
 | 14 | WebP export, multi-frame PSD / PSB, TGA / TIFF sequences | Export | | 8 | F10 |
 | 15 | Translations (craft-i18n catalogs) | Languages | | 6 | [localization-parity.md](localization-parity.md) |
 
+Closed in the sound pass: several audio tracks and clips with trim, fades, volume keys, mute and
+solo, scrubbing while dragging the playhead, and a WAV mix export. Still open: recording a voice
+track from the microphone (craft-audio has no capture; the app's cpal output could take an input
+stream, which belongs in craft-audio first).
+
 Closed in the effects pass: a non-destructive, keyframable effect stack per layer (blurs, glow,
 shadow, outline, line thickening, colour adjustments, grain, light wrap, soft masks) in the canvas,
 playback and every export.

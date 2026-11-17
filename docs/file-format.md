@@ -7,6 +7,7 @@ A ZIP archive (PKWARE APPNOTE), written and read with craft-zip.
 | `mimetype` | `application/vnd.storyteller.tooncraft`, first, stored |
 | `project.json` | `{"format":"tooncraft","version":1,"app","saved_at","project":{name,width,height,fps,length,paper,layers,onion,light_table},"drawings":[{id,tiles}]}` |
 | `drawings/<id>.tiles` | `TCT1`, u32 LE tile count, then per tile u32 LE tile index (row-major, 64 px tiles) and 16384 bytes of premultiplied RGBA8 |
+| `audio/sound-<n>` | a sound file as imported (any format craft-audio decodes), once per file |
 | `preview.png` | frame 1, at most 256 px |
 
 `project` may also hold `pegs` (`id`, `name`, `parent`, `pivot`, `keys` with `frame`, `x`, `y`,
@@ -23,3 +24,9 @@ and drops keys of another kind. `opacity_keys` (`[{"frame", "opacity"}]`) animat
 Readers must refuse a higher `version` with a clear message, cap entries and expanded size, and
 repair rather than reject inconsistent cells (holds with nothing to hold and keys to missing
 drawings become blanks). ToonCraft's loader is property-tested with random corruption.
+
+Sound: `sounds` lists the clips (`name`, `offset` frame, `track`, `trim_start`, `length`, `fade_in`,
+`fade_out` in seconds, `volume`, `volume_keys` `[{"frame", "gain"}]`, `muted`, and the `entry` of
+its file); `audio_tracks` holds each track's `name`, `muted`, `solo` and `volume`. Files written
+before clips have one `soundtrack` (`name`, `offset`, `entry: "audio/soundtrack"`), which loads as a
+single clip.

@@ -17,10 +17,10 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 <!-- parity:start -->
 | | Value | Kind |
 |---|---|---|
-| Feature rows | 144 | measured |
-| Done (D) | 109 | measured |
+| Feature rows | 150 | measured |
+| Done (D) | 114 | measured |
 | Partial (P) | 20 | measured |
-| Missing (M) | 15 | measured |
+| Missing (M) | 16 | measured |
 | Parity score, (D + ½·P) / rows | 83 % | measured |
 | Brush engine and tools | 90 % (20 D, 3 P, 1 M) | measured |
 | Paper and canvas | 73 % (7 D, 2 P, 2 M) | measured |
@@ -29,7 +29,7 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 | Animation tools | 80 % (8 D, 0 P, 2 M) | measured |
 | Colouring | 75 % (6 D, 3 P, 1 M) | measured |
 | Effects | 83 % (9 D, 2 P, 1 M) | measured |
-| Audio and lip-sync | 75 % (3 D, 0 P, 1 M) | measured |
+| Audio and lip-sync | 80 % (8 D, 0 P, 2 M) | measured |
 | Import / export | 88 % (13 D, 2 P, 1 M) | measured |
 | UI and workspace | 78 % (11 D, 3 P, 2 M) | measured |
 | Stability and performance | 91 % (9 D, 2 P, 0 M) | measured |
@@ -184,8 +184,14 @@ features (video export, effects, audio) and understates it for small ones.
 | Feature | Refs | Status | Ours |
 |---|---|---|---|
 | Import audio track | all | D | WAV, AIFF, MP3, AAC/M4A, FLAC, Ogg, Opus through craft-audio; saved in the shot |
-| Waveform in timeline | all | D | Drag to slip the sound |
-| Scrub audio | all | D | Each frame step plays that frame's sound |
+| Waveform in timeline | all | D | The mix of every clip; drag to slip the first clip |
+| Scrub audio | all | D | Each frame step, and every frame passed while dragging the frame ruler, plays that frame's sound |
+| Several audio tracks and clips | TV, TB, CSP, PD | D | Up to 16 tracks and 64 clips; clips of one file share it in the shot |
+| Clip start, trim and fades | TB, CSP, PD | D | Start frame, trim start, length, fade in / out in seconds |
+| Volume keys on a clip | TB, PD | D | Linear between keys; a clip and a track volume on top |
+| Mute and solo tracks | TB, PD | D | |
+| Export the sound mix | TV, TB | D | WAV (16-bit, 48 kHz stereo); MP4 carries the same mix as AAC |
+| Record a voice track from the microphone | TB, CSP, PD | M | craft-audio has no capture yet |
 | Mouth-chart lip-sync detection | TB | M | |
 
 ## Import / export
@@ -258,3 +264,4 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | minor | Pegs and transform layers with easing, multiplane depth and camera shake; 1 row added |
 | 2026-11-17 | minor | Effects stack: 4 effects rows re-scored, 5 rows added (keys, masks, exports, grain / light wrap, GPU) |
 | 2026-11-17 | minor | Compositing basics: 4 rows added (opacity keys, mattes, colour key, effect blending) |
+| 2026-11-17 | minor | Sound depth: 6 audio rows added (tracks and clips, trim and fades, volume keys, mute / solo, mix export, recording) |

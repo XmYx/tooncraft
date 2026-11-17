@@ -6,6 +6,9 @@ use std::path::Path;
 
 use tooncraft_brush::{Brush, GrainKind, MAX_TIP_SIDE, Tip};
 
+/// Largest tip or grain image decoded (a 4096 px square is 64 MB as RGBA, plus one copy while it is
+/// scaled down to 1024 px); bigger images are refused from their header, before any pixels.
+pub const MAX_IMPORT_SIDE: u32 = 4096;
 pub const EXTENSION: &str = "toonbrush";
 const MIMETYPE: &str = "application/vnd.storyteller.tooncraft-brush";
 /// The version this build writes. Readers accept this and older versions.
@@ -43,7 +46,7 @@ pub fn tip_from_image(path: &str) -> Result<Tip, String> {
 
 fn tip_from_bytes(bytes: &[u8], name: &str) -> Result<Tip, String> {
     let (w, h) = craft_image_codecs::probe_size(bytes).map_err(|e| e.to_string())?;
-    if w == 0 || h == 0 || w > 8192 || h > 8192 {
+    if w == 0 || h == 0 || w > MAX_IMPORT_SIDE || h > MAX_IMPORT_SIDE {
         return Err(format!("a {w}×{h} image is too large for a brush tip"));
     }
     let img = craft_image_codecs::decode(bytes).map_err(|e| e.to_string())?;
@@ -58,7 +61,7 @@ fn tip_from_bytes(bytes: &[u8], name: &str) -> Result<Tip, String> {
 
 fn grain_from_bytes(bytes: &[u8], name: &str) -> Result<Tip, String> {
     let (w, h) = craft_image_codecs::probe_size(bytes).map_err(|e| e.to_string())?;
-    if w == 0 || h == 0 || w > 8192 || h > 8192 {
+    if w == 0 || h == 0 || w > MAX_IMPORT_SIDE || h > MAX_IMPORT_SIDE {
         return Err(format!("a {w}×{h} image is too large for a grain"));
     }
     let img = craft_image_codecs::decode(bytes).map_err(|e| e.to_string())?;
@@ -212,6 +215,16 @@ mod tests {
         assert_eq!(back.name, "Wash");
         assert_eq!(back.grain.map(|g| g.alpha), Some(grain.alpha));
         assert!(back.tip.is_none());
+    }
+
+    #[test]
+    fn huge_images_are_refused_before_decoding() {
+        let wide = tooncraft_raster::RgbaImage::filled(MAX_IMPORT_SIDE + 1, 1, [0, 0, 0, 255]);
+        let png = tooncraft_format::encode_png(&wide).unwrap();
+        assert!(tip_from_bytes(&png, "t").unwrap_err().contains("too large"));
+        assert!(grain_from_bytes(&png, "g").unwrap_err().contains("too large"));
+        let ok = tooncraft_raster::RgbaImage::filled(MAX_IMPORT_SIDE, 1, [0, 0, 0, 255]);
+        assert!(tip_from_bytes(&tooncraft_format::encode_png(&ok).unwrap(), "t").is_ok());
     }
 
     #[test]

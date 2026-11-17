@@ -1,5 +1,6 @@
-//! Sound playback (cpal) for the soundtrack: in sync with playback, and a one-frame snippet when
-//! scrubbing so lip sync can be found frame by frame. The waveform shown in the timeline comes
+//! Sound playback (cpal) of the shot's sound mix (every clip on every audible track, mixed by the
+//! engine): in sync with playback, and a one-frame snippet when scrubbing (stepping or dragging
+//! the playhead) so lip sync can be found frame by frame. The waveform shown in the timeline comes
 //! from craft-audio's peak pyramid.
 
 use std::sync::{Arc, Mutex};
@@ -22,12 +23,32 @@ pub struct Sound {
     pub pcm: Option<Arc<Pcm>>,
     pub mono: Vec<f32>,
     pub peaks: Option<craft_audio::peaks::Peaks>,
-    /// What the decoded sound belongs to: (name, byte length, data pointer).
-    key: Option<(String, usize, usize)>,
+    /// The sound settings the mix was made from.
+    key: Option<u64>,
+    /// Decoded clips by the address of their file bytes (clips of one file share it).
+    decoded: std::collections::HashMap<usize, Arc<Pcm>>,
     state: Arc<Mutex<Play>>,
     stream: Option<cpal::Stream>,
     pub error: String,
     pub muted: bool,
+}
+
+/// A hash of everything the mix depends on (file identity, clip and track settings, timing).
+fn settings_key(p: &tooncraft_doc::Project) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    (p.fps(), p.length()).hash(&mut h);
+    for s in &p.sounds {
+        (Arc::as_ptr(&s.bytes) as usize, s.bytes.len(), &s.name, s.offset, s.track, s.muted).hash(&mut h);
+        (s.trim_start.to_bits(), s.length.map(f64::to_bits), s.fade_in.to_bits(), s.fade_out.to_bits(), s.volume.to_bits()).hash(&mut h);
+        for k in &s.volume_keys {
+            (k.frame, k.gain.to_bits()).hash(&mut h);
+        }
+    }
+    for t in &p.audio_tracks {
+        (t.muted, t.solo, t.volume.to_bits()).hash(&mut h);
+    }
+    h.finish()
 }
 
 fn lock(m: &Mutex<Play>) -> std::sync::MutexGuard<'_, Play> {
@@ -35,26 +56,44 @@ fn lock(m: &Mutex<Play>) -> std::sync::MutexGuard<'_, Play> {
 }
 
 impl Sound {
-    /// Decode the project's soundtrack again when it changed.
+    /// Mix the shot's sound again when a clip, a track or the timing changed. The mix covers
+    /// the whole shot from frame 0, so its offset is 0.
     pub fn sync(&mut self, p: &tooncraft_doc::Project) {
-        let key = p.soundtrack.as_ref().map(|s| (s.name.clone(), s.bytes.len(), Arc::as_ptr(&s.bytes) as usize));
-        if key == self.key {
+        let key = settings_key(p);
+        if Some(key) == self.key {
             return;
         }
-        self.key = key;
+        self.key = Some(key);
         self.pcm = None;
         self.mono.clear();
         self.peaks = None;
-        if let Some(r) = tooncraft_engine::audio::decode_project(p) {
-            match r {
-                Ok(pcm) => {
-                    self.mono = pcm.mono();
-                    self.peaks = Some(craft_audio::peaks::Peaks::build(&self.mono));
-                    self.pcm = Some(Arc::new(pcm));
-                    self.error.clear();
-                }
-                Err(e) => self.error = e,
-            }
+        self.error.clear();
+        let live: Vec<usize> = p.sounds.iter().map(|s| Arc::as_ptr(&s.bytes) as usize).collect();
+        self.decoded.retain(|k, _| live.contains(k));
+        let mut pcms: Vec<Option<Arc<Pcm>>> = Vec::with_capacity(p.sounds.len());
+        for (s, ptr) in p.sounds.iter().zip(&live) {
+            let pcm = match self.decoded.get(ptr) {
+                Some(d) => Some(d.clone()),
+                None => match tooncraft_engine::audio::decode(&s.bytes, &s.name) {
+                    Ok(d) => {
+                        let d = Arc::new(d);
+                        self.decoded.insert(*ptr, d.clone());
+                        Some(d)
+                    }
+                    Err(e) => {
+                        self.error = format!("{}: {e}", s.name);
+                        None
+                    }
+                },
+            };
+            pcms.push(pcm);
+        }
+        if !p.sounds.is_empty() {
+            let refs: Vec<Option<&Pcm>> = pcms.iter().map(|o| o.as_deref()).collect();
+            let mix = tooncraft_engine::audio::mix(p, &refs, 0, p.length());
+            self.mono = mix.mono();
+            self.peaks = Some(craft_audio::peaks::Peaks::build(&self.mono));
+            self.pcm = Some(Arc::new(mix));
         }
         let mut st = lock(&self.state);
         st.pcm = self.pcm.clone();

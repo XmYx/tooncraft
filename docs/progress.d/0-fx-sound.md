@@ -1,0 +1,1 @@
+- 2026-11-17: Sound depth: several audio tracks and clips with start frame, trim, fades, volume keys, mute and solo, mixed for playback, scrubbing (also while dragging the playhead), MP4 and a WAV mix export; a Sound panel.

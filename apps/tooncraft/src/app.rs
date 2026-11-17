@@ -613,14 +613,17 @@ impl ToonApp {
     }
 
     pub fn sound_offset(&self) -> i32 {
-        self.engine.project.soundtrack.as_ref().map(|s| s.offset).unwrap_or(0)
+        // the mix starts at frame 0 (see `Sound::sync`)
+        0
     }
 
     pub fn import_sound(&mut self) {
         let Some(f) = rfd::FileDialog::new().add_filter(tl!("Sound"), &["wav", "aif", "aiff", "mp3", "m4a", "aac", "flac", "ogg", "opus"]).pick_file() else {
             return;
         };
-        if self.run(Command::SetSound { path: Some(f.to_string_lossy().into_owned()), offset: 0 }) {
+        // a new clip on the next free track (the first one when the shot has no sound)
+        let track = self.engine.project.sounds.iter().map(|s| s.track + 1).max().unwrap_or(0);
+        if self.run(Command::AddSound { path: f.to_string_lossy().into_owned(), offset: 0, track }) {
             self.set_status(tlf!("Sound {file} added", file = f.display()));
         }
     }
@@ -955,7 +958,7 @@ impl ToonApp {
                 if ui.button(tl!("Import Sound…")).clicked() {
                     self.import_sound();
                 }
-                if ui.add_enabled(self.engine.project.soundtrack.is_some(), egui::Button::new(tl!("Remove Sound"))).clicked() {
+                if ui.add_enabled(!self.engine.project.sounds.is_empty(), egui::Button::new(tl!("Remove Sound"))).clicked() {
                     self.run(Command::SetSound { path: None, offset: 0 });
                 }
                 ui.menu_button(tl!("Export"), |ui| {

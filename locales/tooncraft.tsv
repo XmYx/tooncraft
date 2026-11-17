@@ -6,6 +6,7 @@ tooncraft	Add
 tooncraft	Add Current Colour	
 tooncraft	Add Peg	
 tooncraft	Add Shake Here	
+tooncraft	Add Sound…	
 tooncraft	Add effect	
 tooncraft	Add point	
 tooncraft	After	
@@ -16,6 +17,7 @@ tooncraft	Angle
 tooncraft	Angle jitter	
 tooncraft	Animated GIF…	
 tooncraft	Animated PNG…	
+tooncraft	Audio tracks	
 tooncraft	Before	
 tooncraft	Blank frame: drawing here starts a new drawing.	
 tooncraft	Blend	
@@ -43,6 +45,8 @@ tooncraft	Clear Frame
 tooncraft	Clear frame	
 tooncraft	Clear frame (Delete)	
 tooncraft	Click the canvas to pick a colour (Alt+click with any brush)	
+tooncraft	Clip volume here	
+tooncraft	Clip {n}: {name}	
 tooncraft	Close gaps	
 tooncraft	Clouds	
 tooncraft	Collapsed	
@@ -106,6 +110,7 @@ tooncraft	Erase Selection
 tooncraft	Eraser	
 tooncraft	Every drawing of the layer	
 tooncraft	Export	
+tooncraft	Export Sound Mix…	
 tooncraft	Export failed: {error}	
 tooncraft	Export paper	
 tooncraft	Export through the camera	
@@ -113,6 +118,8 @@ tooncraft	Exported {count} files to {folder}
 tooncraft	Exported {count} frames to {folder}	
 tooncraft	Exported {file}	
 tooncraft	Exposure sheet	
+tooncraft	Fade in	
+tooncraft	Fade out	
 tooncraft	Fade per step	
 tooncraft	Feather	
 tooncraft	File	
@@ -198,6 +205,7 @@ tooncraft	Intensity
 tooncraft	Jitter	
 tooncraft	Keep the outside	
 tooncraft	Key at frame {n}	
+tooncraft	Key clip {n} volume here	
 tooncraft	Key colour	
 tooncraft	Key opacity here	
 tooncraft	Key {name} here	
@@ -217,6 +225,7 @@ tooncraft	Layered images
 tooncraft	Layers	
 tooncraft	Layers from PSD or OpenRaster…	
 tooncraft	Length	
+tooncraft	Length (0: to the end)	
 tooncraft	Levels	
 tooncraft	Licensed under the MIT License or the Apache License 2.0.	
 tooncraft	Light Table	
@@ -252,6 +261,8 @@ tooncraft	Move the layer up
 tooncraft	Move {name} down	
 tooncraft	Move {name} up	
 tooncraft	Multiply	
+tooncraft	Mute clip {n}	
+tooncraft	Mute {track}	
 tooncraft	My brushes	
 tooncraft	Name	
 tooncraft	New	
@@ -268,6 +279,7 @@ tooncraft	Next frame
 tooncraft	Next panel	
 tooncraft	No effects on this layer.	
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
+tooncraft	No sound in this shot.	
 tooncraft	None	
 tooncraft	Normal	
 tooncraft	Not a matte	
@@ -353,6 +365,8 @@ tooncraft	Redo {action}
 tooncraft	Remove	
 tooncraft	Remove Key	
 tooncraft	Remove Sound	
+tooncraft	Remove clip {n}	
+tooncraft	Remove clip {n} volume key	
 tooncraft	Remove opacity key	
 tooncraft	Remove point	
 tooncraft	Remove this shake	
@@ -431,6 +445,7 @@ tooncraft	Smudge
 tooncraft	Soft blur	
 tooncraft	Soft mask	
 tooncraft	Softness	
+tooncraft	Solo {track}	
 tooncraft	Sound	
 tooncraft	Sound {file} added	
 tooncraft	Sound {name}, starts at frame {frame}	
@@ -439,6 +454,7 @@ tooncraft	Speckle
 tooncraft	Speed	
 tooncraft	Spread under lines	
 tooncraft	Start Sound Here	
+tooncraft	Starts at frame	
 tooncraft	Steady line	
 tooncraft	Steady line (px)	
 tooncraft	Step by	
@@ -470,7 +486,10 @@ tooncraft	Tolerance
 tooncraft	Tone curve	
 tooncraft	ToonCraft found a recovery copy from {when} that is newer than the shot. Open it?	
 tooncraft	ToonCraft shot	
+tooncraft	Track	
+tooncraft	Track {n}	
 tooncraft	Transform Selection	
+tooncraft	Trim start	
 tooncraft	Undid {action}	
 tooncraft	Undo	
 tooncraft	Undo / redo	
@@ -482,9 +501,11 @@ tooncraft	Up
 tooncraft	Use brush {name}	
 tooncraft	Video (MP4, H.264)…	
 tooncraft	View	
+tooncraft	Volume	
 tooncraft	Watercolour	
 tooncraft	Wet mixing	
 tooncraft	Width	
+tooncraft	Wrote {file}	
 tooncraft	XDTS Exposure Sheet with Drawings…	
 tooncraft	Zoom	
 tooncraft	Zoom In	
@@ -502,6 +523,7 @@ tooncraft	{drawings} drawings ({unused} not exposed)
 tooncraft	{fps} fps playback · {ms} ms/frame	
 tooncraft	{layer}, frame {frame}	
 tooncraft	{layer}, frame {frame}: {cell}	
+tooncraft	{name} and {n} more	
 tooncraft	{n} keys	
 tooncraft	{tool} selected	
 tooncraft	{w}×{h} · {fps} fps	

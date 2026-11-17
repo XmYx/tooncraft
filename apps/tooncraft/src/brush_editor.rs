@@ -586,6 +586,32 @@ mod tests {
     }
 
     #[test]
+    fn choose_the_dynamic_and_reach_the_curve_with_the_keyboard_only() {
+        let mut h = harness();
+        for (focus, press) in [("Dynamics for Opacity", Key::Space), ("Edit the curve of Speed", Key::Enter)] {
+            h.get_by_label(focus).scroll_to_me();
+            h.run();
+            h.get_by_label(focus).focus();
+            h.run();
+            h.key_press(press);
+            h.run();
+        }
+        let st = state(&h.ctx);
+        assert_eq!((st.target, st.source), (Target::Opacity, Source::Speed));
+        h.get(By::new().role(egui::Role::Slider).label_contains("Curve: Speed to Opacity, point 1 of 2"));
+        // Tab from the last source button lands on the curve editor, and its keys then work
+        h.get_by_label("Edit the curve of Random").focus();
+        h.run();
+        h.key_press(Key::Tab);
+        h.run();
+        assert!(h.ctx.memory(|m| m.has_focus(curve_id())), "the curve editor follows the source buttons in tab order");
+        let before = h.state().brushes[INK].dynamics.response.get(Target::Opacity, Source::Speed).curve;
+        h.key_press(Key::ArrowDown);
+        h.run();
+        assert_ne!(h.state().brushes[INK].dynamics.response.get(Target::Opacity, Source::Speed).curve, before);
+    }
+
+    #[test]
     fn jitter_and_wet_mixing_sections_open_and_edit() {
         let mut h = harness();
         click(&mut h, "Jitter");

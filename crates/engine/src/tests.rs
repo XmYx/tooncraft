@@ -328,17 +328,34 @@ fn soundtrack_round_trip_and_mp4_with_audio() {
     std::fs::write(&path, &wav).unwrap();
     let mut e = engine();
     e.apply(Command::SetSound { path: Some(path.to_string_lossy().into_owned()), offset: 2 }).unwrap();
-    let pcm = crate::audio::decode_project(&e.project).unwrap().unwrap();
+    let pcm = crate::audio::decode_all(&e.project).unwrap().remove(0);
     assert_eq!((pcm.rate, pcm.channels.len(), pcm.frames()), (rate, 2, rate as usize));
-    let seg = crate::audio::segment(&pcm, e.project.soundtrack.as_ref().unwrap(), 12, 0, 4);
+    let seg = crate::audio::mix_project(&e.project, 0, 4).unwrap().unwrap();
     assert_eq!(seg.frames(), rate as usize / 3);
     assert_eq!(seg.channels[0][0], 0.0, "silence before the sound starts at frame 2");
-    e.apply(Command::MoveSound { offset: 0 }).unwrap();
+    e.apply(Command::MoveSound { offset: 0, index: 0 }).unwrap();
     e.undo().unwrap();
-    assert_eq!(e.project.soundtrack.as_ref().unwrap().offset, 2);
+    assert_eq!(e.project.sounds[0].offset, 2);
+    // a second clip on another track, trimmed, faded and keyed
+    e.apply(Command::AddSound { path: path.to_string_lossy().into_owned(), offset: 6, track: 1 }).unwrap();
+    let cmd: Command = serde_json::from_str(r#"{"cmd":"set_sound_clip","index":1,"trim_start":0.25,"length":0.5,"fade_in":0.1,"volume":0.5}"#).unwrap();
+    e.apply(cmd).unwrap();
+    e.apply(Command::SetVolumeKey { index: 1, frame: 6, gain: 0.0 }).unwrap();
+    e.apply(Command::SetAudioTrack { track: 1, name: Some("Voice".into()), muted: None, solo: Some(true), volume: None }).unwrap();
+    assert_eq!(e.project.audio_tracks.len(), 2);
+    assert!(e.apply(Command::RemoveVolumeKey { index: 1, frame: 99 }).is_err());
+    assert!(e.apply(Command::SetAudioTrack { track: 99, name: None, muted: None, solo: None, volume: None }).is_err());
     // round trip through the file
     let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
-    assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap().soundtrack, e.project.soundtrack);
+    let back = tooncraft_format::from_bytes(&bytes).unwrap();
+    assert_eq!((back.sounds.clone(), back.audio_tracks.clone()), (e.project.sounds.clone(), e.project.audio_tracks.clone()));
+    // the mix as WAV
+    let mixed = crate::audio::mix_project(&e.project, 0, e.project.length()).unwrap().unwrap();
+    let wav = crate::audio::wav(&mixed).unwrap();
+    let (_, back) = craft_audio::decode_with(&wav, Some("wav"), &craft_audio::DecodeOptions::default()).unwrap();
+    assert_eq!(back.channels.len(), 2);
+    e.apply(Command::RemoveSound { index: 1 }).unwrap();
+    assert_eq!(e.project.sounds.len(), 1);
     // video with sound
     e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: circle(100.0, 100.0, 30.0) }).unwrap();
     let mp4 = dir.join("talk.mp4");
@@ -348,7 +365,7 @@ fn soundtrack_round_trip_and_mp4_with_audio() {
     assert_eq!(file.tracks.len(), 2, "video and sound");
     assert!(e.apply(Command::SetSound { path: Some(dir.join("nope.wav").to_string_lossy().into_owned()), offset: 0 }).is_err());
     e.apply(Command::SetSound { path: None, offset: 0 }).unwrap();
-    assert!(e.project.soundtrack.is_none());
+    assert!(e.project.sounds.is_empty());
 }
 
 #[test]

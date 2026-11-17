@@ -20,6 +20,7 @@ mod keys;
 mod panels;
 mod pegs;
 mod sound;
+mod sound_panel;
 mod tablet;
 mod textures;
 mod theme;

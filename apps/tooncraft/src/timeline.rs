@@ -134,7 +134,7 @@ fn transport(app: &mut ToonApp, ui: &mut egui::Ui) {
         if ui.selectable_label(onion, tl!("Onion")).on_hover_text(tl!("Onion skin (O)")).clicked() {
             app.engine.project.onion.enabled = !onion;
         }
-        if app.engine.project.soundtrack.is_some() {
+        if !app.engine.project.sounds.is_empty() {
             let on = !app.sound.muted;
             if ui.selectable_label(on, tl!("Sound")).on_hover_text(tl!("Play the soundtrack")).clicked() {
                 app.sound.muted = on;
@@ -207,7 +207,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let n_layers = app.engine.project.layers.len();
     let frames_area = Rect::from_min_max(pos2(area.left() + NAME_W, area.top()), area.max);
     let visible_cols = ((frames_area.width() / CELL_W).floor() as u32).max(1);
-    let sound_h = if app.sound.pcm.is_some() || app.engine.project.soundtrack.is_some() { ROW_H * 1.6 } else { 0.0 };
+    let sound_h = if app.sound.pcm.is_some() || !app.engine.project.sounds.is_empty() { ROW_H * 1.6 } else { 0.0 };
     let visible_rows = (((area.height() - RULER_H - sound_h) / ROW_H).floor() as usize).max(1);
     // keep the current frame and layer in view
     let mut first = app.timeline_scroll.x.max(0.0) as u32;
@@ -381,12 +381,18 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         let y = area.bottom() - sound_h;
         let row = Rect::from_min_max(pos2(area.left(), y), pos2(area.right(), area.bottom()));
         painter.rect_filled(row, 0.0, pal.panel);
-        let name = app.engine.project.soundtrack.as_ref().map(|s| s.name.clone()).unwrap_or_default();
+        let sounds = &app.engine.project.sounds;
+        let name = match sounds.len() {
+            0 | 1 => sounds.first().map(|s| s.name.clone()).unwrap_or_default(),
+            n => tlf!("{name} and {n} more", name = sounds.first().map(|s| s.name.clone()).unwrap_or_default(), n = n - 1),
+        };
+        // the waveform is the mix (from frame 0); dragging moves the first clip
         let offset = app.sound_offset();
+        let first_start = sounds.first().map(|s| s.offset).unwrap_or(0);
         painter.text(pos2(area.left() + 6.0, row.center().y), Align2::LEFT_CENTER, &name, FontId::proportional(11.5), pal.weak);
         let wave = Rect::from_min_max(pos2(frames_area.left(), y + 2.0), pos2(area.right(), area.bottom() - 2.0));
         let resp = ui.interact(wave, grid_id().with("sound"), Sense::click_and_drag());
-        let label = tlf!("Sound {name}, starts at frame {frame}", name = name, frame = offset + 1);
+        let label = tlf!("Sound {name}, starts at frame {frame}", name = name, frame = first_start + 1);
         resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Slider, true, label.clone()));
         if let (Some(pcm), Some(peaks)) = (&app.sound.pcm, &app.sound.peaks) {
             let fps = app.engine.project.fps().max(1) as f64;
@@ -419,7 +425,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             ui.data_mut(|m| m.remove::<f32>(grid_id().with("sound-drag")));
             let frames = (d / CELL_W).round() as i32;
             if frames != 0 {
-                app.run(Command::MoveSound { offset: offset + frames });
+                app.run(Command::MoveSound { offset: first_start + frames, index: 0 });
             }
         }
     }
@@ -594,8 +600,8 @@ pub fn frame_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     if ui.button(tl!("Delete Frame in All Layers")).clicked() {
         app.run(Command::DeleteFrame { layer: None, frame });
     }
-    if ui.add_enabled(app.engine.project.soundtrack.is_some(), egui::Button::new(tl!("Start Sound Here"))).clicked() {
-        app.run(Command::MoveSound { offset: frame as i32 });
+    if ui.add_enabled(!app.engine.project.sounds.is_empty(), egui::Button::new(tl!("Start Sound Here"))).clicked() {
+        app.run(Command::MoveSound { offset: frame as i32, index: 0 });
     }
     if ui.button(tl!("Focus Exposure Sheet")).clicked() {
         ui.memory_mut(|m| m.request_focus(grid_id()));

@@ -22,7 +22,7 @@ pub(crate) enum Part {
         layers: Vec<Layer>,
     },
     Fps(u32),
-    Sound(Option<tooncraft_doc::Soundtrack>),
+    Sounds(Vec<tooncraft_doc::Soundtrack>, Vec<tooncraft_doc::AudioTrack>),
     Camera(tooncraft_doc::Camera),
     Folders(Vec<tooncraft_doc::Folder>),
     Pegs(Vec<tooncraft_doc::Peg>),
@@ -80,7 +80,7 @@ impl Entry {
                 Part::Folders(f) => Part::Folders(std::mem::replace(&mut p.folders, f)),
                 Part::Pegs(g) => Part::Pegs(std::mem::replace(&mut p.pegs, g)),
                 Part::Camera(c) => Part::Camera(std::mem::replace(&mut p.camera, c)),
-                Part::Sound(s) => Part::Sound(std::mem::replace(&mut p.soundtrack, s)),
+                Part::Sounds(s, t) => Part::Sounds(std::mem::replace(&mut p.sounds, s), std::mem::replace(&mut p.audio_tracks, t)),
                 Part::Fps(fps) => {
                     let old = Part::Fps(p.fps());
                     let _ = p.set_fps(fps);
