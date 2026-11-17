@@ -82,3 +82,30 @@ fn pegs_from_a_command_file_move_the_export() {
     let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap()]);
     assert!(!ok && out.contains("line 1") && out.contains("peg"), "{out}");
 }
+
+#[test]
+fn nested_folders_and_clipping_from_a_command_file() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-folders-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let shot = dir.join("f.toon");
+    let shot_s = shot.to_str().unwrap();
+    assert!(cli(&["new", shot_s, "--size", "64x64", "--frames", "2"]).0);
+    let cmds = dir.join("f.jsonl");
+    std::fs::write(
+        &cmds,
+        r#"{"cmd":"add_layer","name":"Shade"}
+{"cmd":"add_folder","name":"Hero"}
+{"cmd":"add_folder","name":"Head","parent":"Hero","layers":[0,1]}
+{"cmd":"set_layer_clip","layer":1,"clip":true}
+{"cmd":"set_folder_lock","name":"Hero","locked":true}
+"#,
+    )
+    .unwrap();
+    let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap()]);
+    assert!(ok, "{out}");
+    let (ok, out) = cli(&["info", shot_s]);
+    assert!(ok && out.contains("\"clip\": true") && out.contains("\"effectively_locked\": true") && out.contains("\"parent\": \"Hero\""), "{out}");
+    std::fs::write(&cmds, "{\"cmd\":\"set_folder_parent\",\"name\":\"Hero\",\"parent\":\"Head\"}\n").unwrap();
+    let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap()]);
+    assert!(!ok && out.contains("line 1"), "{out}");
+}
