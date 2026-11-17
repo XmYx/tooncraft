@@ -643,3 +643,31 @@ fn canvas_resize_and_crop_move_drawings_without_resampling() {
     e.undo().unwrap();
     assert_eq!(e.project, before, "undo brings the cut paint back");
 }
+
+#[test]
+fn boardcraft_board_becomes_a_layout() {
+    let dir = scratch("board");
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("boats.boardcraft");
+    std::fs::write(&path, tooncraft_interop::boards::demo().unwrap()).unwrap();
+    // a 128×64 shot: the 64×32 board scales up ×2
+    let mut e = Engine::new(Project::new("Test", 128, 64, 12, 4).unwrap());
+    let before = e.project.clone();
+    e.apply(Command::ImportBoards { path: path.to_string_lossy().into_owned(), frame: 0, camera: true }).unwrap();
+    let p = &e.project;
+    assert_eq!(p.length(), 12, "the shot grew to the board's 12 frames");
+    let b = &p.layers[0];
+    assert!(b.locked && b.name.starts_with("Boards"));
+    assert_eq!(sheet(&b.cells), "#-----#---#-");
+    assert!(b.cells.iter().filter_map(|c| c.key()).all(|d| p.marks.get(&d) == Some(&tooncraft_doc::Mark::Key)));
+    let first = p.drawing(b.drawing_at(0).unwrap()).unwrap();
+    assert_eq!(first.pixel(10, 10), [200, 0, 0, 255], "scaled ×2: board pixel (5, 5) lands at (10, 10)");
+    assert!(p.camera.enabled);
+    assert_eq!(p.camera.keys.len(), 2);
+    let k = p.camera.keys[1];
+    assert_eq!((k.frame, k.x, k.y, k.zoom, k.angle), (5, 32.0, 32.0, 2.0, 10.0));
+    e.undo().unwrap();
+    assert_eq!(e.project, before);
+    assert!(e.apply(Command::ImportBoards { path: dir.join("missing.boardcraft").to_string_lossy().into_owned(), frame: 0, camera: true }).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}

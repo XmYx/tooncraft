@@ -17,6 +17,7 @@ tooncraft	Amount
 tooncraft	Angle	
 tooncraft	Animated GIF…	
 tooncraft	Animated PNG…	
+tooncraft	Animated WebP…	
 tooncraft	Any colour	
 tooncraft	Apply	
 tooncraft	Audio tracks	
@@ -24,6 +25,7 @@ tooncraft	Before
 tooncraft	Blank frame: drawing here starts a new drawing.	
 tooncraft	Blend	
 tooncraft	Blue	
+tooncraft	BoardCraft Board or Animatic…	
 tooncraft	Breakdown	
 tooncraft	Brightness	
 tooncraft	Brush	
@@ -146,6 +148,7 @@ tooncraft	Fold {name}
 tooncraft	Folder	
 tooncraft	Folder for the PNG frames	
 tooncraft	Folder for the exposure sheet and drawings	
+tooncraft	Folder for the frames	
 tooncraft	Folder for the layer sequences	
 tooncraft	Folder {name}	
 tooncraft	Folder {n}	
@@ -197,6 +200,7 @@ tooncraft	Import Sound…
 tooncraft	Import from Other Apps	
 tooncraft	Imported	
 tooncraft	Imported layers from {file}	
+tooncraft	Imported the board {file}	
 tooncraft	Imported {count} images	
 tooncraft	In	
 tooncraft	Inbetween	
@@ -344,8 +348,11 @@ tooncraft	Output white
 tooncraft	Overlay	
 tooncraft	PNG Sequence per Layer…	
 tooncraft	PNG Sequence…	
+tooncraft	PSB with a Layer per Frame (large documents)…	
+tooncraft	PSD with a Layer per Frame…	
 tooncraft	Paint bucket	
 tooncraft	Pan	
+tooncraft	Panels become a locked reference layer with their timings and camera moves	
 tooncraft	Paper	
 tooncraft	Paper colour	
 tooncraft	Paper grain	
@@ -507,6 +514,8 @@ tooncraft	Strength
 tooncraft	Stroke cancelled	
 tooncraft	Swatch #{hex}	
 tooncraft	Swatches	
+tooncraft	TGA Sequence…	
+tooncraft	TIFF Sequence…	
 tooncraft	Teeth on lip (F V)	
 tooncraft	The brush follows the pen only when it is further than this: very steady lines	
 tooncraft	The last save of this shot was interrupted and there is no backup.	
@@ -548,6 +557,7 @@ tooncraft	Use for {mouth}
 tooncraft	Video (MP4, H.264)…	
 tooncraft	View	
 tooncraft	Volume	
+tooncraft	WebP Sequence…	
 tooncraft	Wide (E)	
 tooncraft	Width	
 tooncraft	Workspaces	

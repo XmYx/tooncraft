@@ -136,3 +136,27 @@ fn timing_commands_from_a_command_file() {
     let (ok, out) = cli(&["info", shot_s]);
     assert!(ok && out.contains("\"mark\": \"key\"") && out.contains("\"sheet\": \"##-#-#--#\"") && out.contains("\"size\": [\n    80,\n    48\n  ]"), "{out}");
 }
+
+#[test]
+fn boards_in_and_new_formats_out() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-pipe-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let board = dir.join("boats.boardcraft");
+    std::fs::write(&board, tooncraft_interop::boards::demo().unwrap()).unwrap();
+    let shot = dir.join("p.toon");
+    let shot_s = shot.to_str().unwrap();
+    assert!(cli(&["new", shot_s, "--size", "128x64", "--frames", "2"]).0);
+    let cmds = dir.join("p.jsonl");
+    std::fs::write(&cmds, format!("{{\"cmd\":\"import_boards\",\"path\":{:?}}}\n", board.to_str().unwrap())).unwrap();
+    let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap()]);
+    assert!(ok, "{out}");
+    let (ok, out) = cli(&["info", shot_s]);
+    assert!(ok && out.contains("\"frames\": 12") && out.contains("Boards: Boats"), "{out}");
+    for (flag, target) in [("--webp", "a.webp"), ("--psd-frames", "a.psd"), ("--tga", "tga"), ("--tiff", "tiff"), ("--webp-seq", "webp")] {
+        let t = dir.join(target);
+        let (ok, out) = cli(&["export", shot_s, flag, t.to_str().unwrap(), "--range", "1..3"]);
+        assert!(ok, "{flag}: {out}");
+        assert!(t.exists(), "{flag}");
+    }
+    assert!(dir.join("tga/frame_0003.tga").is_file() && dir.join("tiff/frame_0001.tif").is_file());
+}

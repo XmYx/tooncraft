@@ -13,6 +13,8 @@
 //! | [`layer_sequences`] | export | one transparent PNG sequence per layer for compositing |
 //! | [`gif`] | import | the frames and delays of an animated GIF |
 //! | [`prores`] | export | Apple ProRes 4444 (with alpha) or 422 HQ in a QuickTime movie |
+//! | [`sequences`] | export | WebP, TGA and TIFF sequences, animated WebP, a PSD / PSB with a layer per frame |
+//! | [`boards`] | import | a BoardCraft board or animatic: panels, timings and camera moves |
 //!
 //! Imported files are hostile: every reader bounds its allocations and returns an error for
 //! truncated or corrupt input, never a panic. Imported pixels are premultiplied RGBA8
@@ -25,6 +27,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+pub mod boards;
 mod common;
 pub mod gif;
 pub mod layer_sequences;
@@ -32,6 +35,7 @@ pub mod levels;
 pub mod ora;
 pub mod prores;
 pub mod psd;
+pub mod sequences;
 pub mod xdts;
 
 #[cfg(test)]

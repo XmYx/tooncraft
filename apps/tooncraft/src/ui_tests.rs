@@ -766,3 +766,26 @@ fn guides_canvas_size_onion_outlines_and_workspaces() {
     h.run();
     assert_eq!(h.state().workspace.layout, standard, "the saved workspace comes back");
 }
+
+#[test]
+fn board_import_and_new_export_formats_in_the_menus() {
+    let mut h = harness(false);
+    h.run();
+    h.get_by_label("File").click();
+    h.run();
+    h.get_by_label("Export").click();
+    h.run();
+    for label in ["Animated WebP…", "TGA Sequence…", "TIFF Sequence…", "WebP Sequence…", "PSD with a Layer per Frame…"] {
+        h.get(By::new().role(egui::Role::Button).label(label));
+    }
+    h.key_press(Key::Escape);
+    h.run();
+    let dir = std::env::temp_dir().join(format!("tooncraft-ui-board-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("b.boardcraft");
+    std::fs::write(&path, tooncraft_interop::boards::demo().unwrap()).unwrap();
+    assert!(h.state_mut().run(tooncraft_engine::Command::ImportBoards { path: path.to_string_lossy().into_owned(), frame: 0, camera: true }));
+    h.run();
+    h.get(By::new().role(egui::Role::Cell).label_contains("Boards: Boats, frame 1: drawing"));
+    let _ = std::fs::remove_dir_all(&dir);
+}

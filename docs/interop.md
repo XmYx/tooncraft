@@ -12,12 +12,30 @@ external tools) and tested by round trips in `crates/engine/src/tests.rs` and `c
 | Compositing | ProRes 4444 with alpha (MOV), ProRes 422 HQ | Export | Through camera, transparent background with 4444 |
 | Compositing | PNG sequence per layer, transparent | Export | `<Layer>/<Layer>_0001.png`, one per frame |
 | Editing, review | MP4 (H.264 + AAC soundtrack) | Export | |
-| Web, chat | GIF, animated PNG | Export; GIF import (timed by its delays) | |
-| Any | PNG / JPEG / WebP / TIFF image sequences | Import as drawings; PNG sequence export | |
+| Web, chat | GIF, animated PNG, animated WebP | Export; GIF import (timed by its delays) | WebP is lossless; a held frame is stored once with a longer duration |
+| Any | PNG / JPEG / WebP / TIFF / TGA image sequences | Import as drawings; PNG, WebP, TGA and TIFF sequence export | Through the camera; transparent when the paper is not exported |
+| Paint and compositing apps | PSD / PSB with one layer per frame | Export | `Frame 1` … bottom to top, only the first visible; PSB for large canvases or on request |
 | Sound | WAV, AIFF, MP3, AAC / M4A, FLAC, Ogg Vorbis, Opus | Soundtrack import | Stored as the original file in the shot |
-| BoardCraft | OTIO + stills | Planned (gap 11) | An animatic as a held "Layout" layer |
+| BoardCraft | `.boardcraft` board or animatic | Import as the layout | See below |
 
 XDTS note: the sheet layout used is the one written by several animation tools (a first line
 `exchangeDigitalTimeSheet Save Data`, then JSON with time tables, fields, tracks and frames). No
 formal public specification was found; the implementation follows the format's documented
 structure and treats other `SYMBOL_*` marks as holds.
+
+## BoardCraft boards as the layout
+
+File ▸ Import from Other Apps ▸ BoardCraft Board or Animatic…, or the `import_boards` command,
+reads a `.boardcraft` file as BoardCraft documents it (`docs/file-format.md` in BoardCraft: a ZIP
+with `project.json`, format `boardcraft.project`, schema 1 or 2, and `layers/<id>.png`):
+
+| BoardCraft | ToonCraft |
+|---|---|
+| each panel, scenes in order | one drawing on a new, locked "Boards: <name>" layer at the bottom (half opacity), marked as a key |
+| panel layers (visible ones, with their opacity) | flattened into that drawing, scaled to fit the canvas and centred |
+| `panel.duration` | the drawing's hold; the shot grows to fit the board |
+| camera keys (`frame`, `center`, `zoom`, `rotation`) | camera keys at the panel's start plus `frame`, mapped through the same fit; the camera is switched on |
+| annotations, sound clips, dialogue and notes | not read |
+
+**Checked against BoardCraft:** the reader is tested on a board written by hand in that format
+(`tooncraft_interop::boards::demo`), not yet on a file saved by BoardCraft itself.

@@ -940,6 +940,7 @@ impl ToonApp {
                     {
                         self.run(Command::ImportSheet { path: f.to_string_lossy().into_owned() });
                     }
+                    crate::pipeline::import_items(self, ui);
                 });
                 if ui.button(tl!("Import Sound…")).clicked() {
                     self.import_sound();
@@ -979,6 +980,7 @@ impl ToonApp {
                     if ui.button(tl!("OpenRaster, Current Frame…")).clicked() {
                         self.export("ora");
                     }
+                    crate::pipeline::export_items(self, ui);
                 });
                 ui.separator();
                 if ui.button(tl!("Quit")).clicked() {

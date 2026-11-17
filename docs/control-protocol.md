@@ -32,6 +32,7 @@ hand a script can do.
 | `shape` | `layer`, `frame`, `brush`, `shape` (line / rectangle / ellipse), `from`, `to`, `constrain` |
 | `fill_all_frames` | as `fill`, without `frame` |
 | `set_camera_key`, `remove_camera_key`, `set_camera` | `frame`, `x`, `y`, `zoom`, `angle` (degrees); `enabled` |
+| `import_boards` | `path` (a `.boardcraft` file), `frame` (start, default 0), `camera` (default true) |
 | `resize_canvas` | `width`, `height`, `anchor` ([x, y] in 0…1, default centre); drawings move, never resample |
 | `crop_canvas` | `x`, `y`, `width`, `height` |
 | `set_mark` | `layer`, `frame`, `mark` (`key` / `breakdown` / `inbetween`; absent removes it) |
@@ -64,7 +65,8 @@ Example:
 ```
 
 `tooncraft-cli export` writes `--png <dir>`, `--gif`, `--mp4` (with the soundtrack), `--apng`,
-`--prores <file.mov> [--alpha]`, `--prores-layers <dir>` (ProRes 4444 with alpha per layer), `--wav <file>` (the sound mix), `--mouth-sheet <file> [--layer N]` (a mouth sheet; `.dat` writes switch data), `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
+`--prores <file.mov> [--alpha]`, `--prores-layers <dir>` (ProRes 4444 with alpha per layer), `--wav <file>` (the sound mix), `--mouth-sheet <file> [--layer N]` (a mouth sheet; `.dat` writes switch data), `--webp <file>` (animated),
+`--webp-seq` / `--tga` / `--tiff <dir>`, `--psd-frames <file> [--psb]` (a layer per frame), `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
 `--layers <dir>` (PNG sequence per layer) or `--levels <dir>` (XDTS sheet and drawing folders).
 `tooncraft-cli import`, `import-layers`, `import-gif`, `import-sheet` and `set-sound` bring work in.
 

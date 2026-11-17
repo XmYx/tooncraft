@@ -17,11 +17,11 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 <!-- parity:start -->
 | | Value | Kind |
 |---|---|---|
-| Feature rows | 154 | measured |
-| Done (D) | 123 | measured |
-| Partial (P) | 19 | measured |
-| Missing (M) | 12 | measured |
-| Parity score, (D + ½·P) / rows | 86 % | measured |
+| Feature rows | 155 | measured |
+| Done (D) | 126 | measured |
+| Partial (P) | 18 | measured |
+| Missing (M) | 11 | measured |
+| Parity score, (D + ½·P) / rows | 87 % | measured |
 | Brush engine and tools | 81 % (19 D, 1 P, 4 M) | measured |
 | Paper and canvas | 91 % (9 D, 2 P, 0 M) | measured |
 | Layers and timeline / exposure sheet | 86 % (19 D, 0 P, 3 M) | measured |
@@ -30,7 +30,7 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 | Colouring | 75 % (6 D, 3 P, 1 M) | measured |
 | Effects | 83 % (9 D, 2 P, 1 M) | measured |
 | Audio and lip-sync | 88 % (10 D, 1 P, 1 M) | measured |
-| Import / export | 88 % (13 D, 2 P, 1 M) | measured |
+| Import / export | 97 % (16 D, 1 P, 0 M) | measured |
 | UI and workspace | 84 % (12 D, 3 P, 1 M) | measured |
 | Stability and performance | 91 % (9 D, 2 P, 0 M) | measured |
 <!-- parity:end -->
@@ -205,12 +205,13 @@ features (video export, effects, audio) and understates it for small ones.
 | Native project save / open | all | D | |
 | PNG sequence export | all | D | |
 | GIF export | TV, CSP, PD | D | |
-| APNG / WebP export | TV, CSP | P | Animated PNG; WebP missing |
+| APNG / WebP export | TV, CSP | D | Animated PNG and lossless animated WebP (craft-webp); WebP, TGA and TIFF sequences too |
 | Video export (MP4 / MOV) | all | D | H.264 MP4 through craft-video and craft-media, no external tools |
-| PSD layers export | TV, CSP | D | Layered PSD of a frame through craft-psd; PSD / PSB layers import too |
+| PSD layers export | TV, CSP | D | Layered PSD of a frame through craft-psd, or a PSD / PSB with one layer per frame; PSD / PSB layers import too |
+| TGA / TIFF image sequences | TV, TB | D | Through craft-image-codecs, with transparency |
 | OpenRaster frame export | TV | D | Through craft-ora |
 | Image sequence import | all | D | |
-| BoardCraft animatic as a starting layout | — | M | **Ours:** suite hand-off, see roadmap |
+| BoardCraft animatic as a starting layout | — | D | **Ours:** panels become a locked reference layer with their timings, key marks and camera moves ([interop.md](interop.md)) |
 | Transparent background export | all | P | PNG and OpenRaster; no test yet |
 | ProRes MOV with alpha for compositing | TV, TB | D | ProRes 4444 with alpha or 422 HQ through craft-video |
 | Video export carries the soundtrack | all | D | AAC in the MP4 |
@@ -265,6 +266,7 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | major | First map, written before the vertical slice; statuses set when the slice landed |
 | 2026-11-17 | major | Polish pass: re-measured after user research (docs/user-research.md); 4 rows added |
 | 2026-11-17 | major | Second pass: the top 10 gaps and interchange with other apps; 6 rows added |
+| 2026-11-17 | minor | Pipeline: BoardCraft boards as layout, animated WebP, WebP / TGA / TIFF sequences, PSD / PSB with a layer per frame; 1 row added |
 | 2026-11-17 | minor | Canvas tools: field guide and safe areas, canvas resize and crop, saved workspaces, onion outlines |
 | 2026-11-17 | minor | Timing: drawing marks, spacing chart, presets, re-timing between keys, inbetween guides |
 | 2026-11-17 | minor | Nested folders, folder locks, clipping layers and a label filter; 2 rows added |
