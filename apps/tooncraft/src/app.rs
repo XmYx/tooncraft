@@ -178,6 +178,7 @@ pub struct ToonApp {
     pub clock: Instant,
     pub textures: TileTextures,
     pub workspace: Workspace,
+    pub library: crate::brush_library::State,
     pub status: String,
     pub stats: Stats,
     pub keyboard_pen: Option<KeyboardPen>,
@@ -318,6 +319,7 @@ impl ToonApp {
             clock: Instant::now(),
             textures: TileTextures::default(),
             workspace: Workspace::default(),
+            library: crate::brush_library::State::new(crate::panels::preset_dir()),
             status,
             stats: Stats::default(),
             keyboard_pen: None,
@@ -1271,6 +1273,10 @@ impl ToonApp {
         {
             self.tool = t;
             self.set_status(tlf!("{tool} selected", tool = t.label()));
+        }
+        if hit("library.find") {
+            self.workspace.raise(Pane::Library);
+            self.library.focus_search = true;
         }
         let (layer, frame) = (self.layer, self.frame);
         let arrows = ctx.input(|i| {

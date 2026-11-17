@@ -43,6 +43,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Depth, Shake, Add Shake Here | Generic film words | Use |
 | Fill every drawing of the layer | Our wording | Use |
 | Tip, Tip from Image, Brush preset, My brushes | Generic | Use (common) |
+| Brushes (panel), Favourites, Recent, Basics, Add Current Brush, Import Brush, Reload Library | Generic library words | Use (common) |
 | Sound, Import Sound, Start Sound Here | Generic | Use |
 | XDTS Exposure Sheet with Drawings | File format name (rule 3) | Use |
 | ProRes 4444 / 422 HQ (MOV), Layered PSD, OpenRaster | Format names (rule 3: formats we support) | Use |

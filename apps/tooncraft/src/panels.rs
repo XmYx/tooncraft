@@ -281,7 +281,7 @@ pub fn preset_dir() -> Option<std::path::PathBuf> {
     crate::keys::overrides_path().and_then(|p| p.parent().map(|d| d.join("brushes")))
 }
 
-fn use_preset(app: &mut ToonApp, path: &std::path::Path) {
+pub(crate) fn use_preset(app: &mut ToonApp, path: &std::path::Path) {
     match tooncraft_engine::preset::load(path) {
         Ok((name, mut brush, tip)) => {
             if let Some(t) = tip {

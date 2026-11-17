@@ -63,6 +63,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Textured chalk / grain brush | TV, CSP, PD | D | |
 | Opacity vs flow without dab overlap darkening | TV, CSP | D | |
 | Brush presets | all | D | `.toonbrush` files and a preset library folder |
+| Brush library: categories, favourites, recent brushes, search | TV, CSP, PD | D | **Ours:** a Brushes panel; every list and the search work from the keyboard (Ctrl+B); built-in variants; folders are the categories |
 | Custom brush tips from images | TV, CSP, PD | D | |
 | Brush editor with curves for each dynamic | TV, CSP | M | |
 | Watercolour / wet mixing brushes | TV, CSP, PD | M | |

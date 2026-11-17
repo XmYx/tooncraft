@@ -10,6 +10,7 @@
 mod i18n;
 mod app;
 mod args;
+mod brush_library;
 mod canvas;
 mod canvas_tools;
 mod color;
