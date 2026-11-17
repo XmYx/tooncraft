@@ -1,0 +1,1 @@
+- 2026-11-17: `cargo xtask ci` still validates every parity row strictly (a malformed row or a bad status fails) but only warns when the generated `parity:` block is stale, so concurrent PRs that flip rows no longer conflict on it; `cargo xtask parity [--write]` is unchanged and a maintainer refreshes the block in a separate PR
