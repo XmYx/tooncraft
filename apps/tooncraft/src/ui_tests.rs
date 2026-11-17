@@ -639,3 +639,26 @@ fn lip_sync_panel_builds_a_chart_and_keys_mouths_from_sound() {
     let open = p.layers[0].mouth_chart[&tooncraft_lipsync::Mouth::Open];
     assert_eq!(p.drawing_at(0, 12), Some(open), "the vowel opens the mouth");
 }
+
+#[test]
+fn the_window_can_be_shown_in_german_and_stays_accessible() {
+    let mut h = harness(true);
+    crate::i18n::set_language(Some("de"));
+    h.run();
+    // menus, tools and the canvas name come out translated, with names on every control
+    h.get_by_label("Datei");
+    h.get_by_label("Ansicht");
+    h.get_by_label("Tuschestift (N)");
+    h.get(By::new().role(egui::Role::Canvas).label_contains("Zeichenfläche: Ink, Bild 1"));
+    h.get_by_label("Datei").click();
+    h.run();
+    h.get_by_label("Speichern unter…");
+    h.get_by_label("Beenden");
+    // a keyboard shortcut still works (tool letters are not translated)
+    h.key_press(Key::Escape);
+    h.run();
+    h.key_press(Key::E);
+    h.run();
+    assert_eq!(h.state().tool, Tool::Eraser);
+    crate::i18n::set_language(None);
+}

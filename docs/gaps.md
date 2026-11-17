@@ -25,7 +25,6 @@ F = request).
 | 12 | GPU dab rasterisation (craft-gpu, RFC-0022) | Performance | | 30 | below |
 | 13 | Paging of drawings to disk for very long shots | Stability | | 20 | below |
 | 14 | WebP export, multi-frame PSD / PSB, TGA / TIFF sequences | Export | | 8 | F10 |
-| 15 | Translations (craft-i18n catalogs) | Languages | | 6 | [localization-parity.md](localization-parity.md) |
 
 Closed in the sound pass: several audio tracks and clips with trim, fades, volume keys, mute and
 solo, scrubbing while dragging the playhead, and a WAV mix export. Still open: recording a voice

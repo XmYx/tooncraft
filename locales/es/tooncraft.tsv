@@ -1,0 +1,352 @@
+# Spanish (es) interface catalog for ToonCraft (partial).
+# Columns, separated by a TAB:  context <TAB> English source text <TAB> translation
+#   context  usually empty. `@plural`, `@id` and `@msg` mean something to the apps; any other
+#            word is a label that tells apart two meanings of the same English.
+#   escapes  \n  \t  \\  inside a column. `{name}` placeholders must appear in both columns (in any
+#            order), and a trailing "…" in one needs one in the other.
+#   @plural  English `one|other`; the translation lists this language's plural forms, `|`-separated.
+#   Lines starting with # and blank lines are ignored. A missing entry shows in English.
+#
+# Clean room: every entry was written from the plain meaning of the English text in ordinary
+# computing vocabulary. No other product's localisation, string table or translated UI was
+# consulted or copied; add entries the same way.
+@id	language.name	Español
+	About ToonCraft	Acerca de ToonCraft
+	Actual Size	Tamaño real
+	Add	Añadir
+	Add Current Colour	Añadir el color actual
+	Add Peg	Añadir peg
+	Add Sound…	Añadir sonido…
+	Add effect	Añadir efecto
+	After	Después
+	Airbrush	Aerógrafo
+	All visible layers	Todas las capas visibles
+	Amount	Cantidad
+	Angle	Ángulo
+	Animated GIF…	GIF animado…
+	Animated PNG…	PNG animado…
+	Audio tracks	Pistas de audio
+	Before	Antes
+	Blank frame: drawing here starts a new drawing.	Fotograma vacío: al dibujar aquí empieza un dibujo nuevo.
+	Blend	Mezcla
+	Blue	Azul
+	Brightness	Brillo
+	Brush	Pincel
+	Brush preset	Preajuste de pincel
+	Brush {name} loaded	Pincel {name} cargado
+	Camera	Cámara
+	Cancel	Cancelar
+	Canvas	Lienzo
+	Canvas: {layer}, frame {frame}	Lienzo: {layer}, fotograma {frame}
+	Chalk	Tiza
+	Choose a brush tool to change its settings.	Elige una herramienta de pincel para cambiar sus ajustes.
+	Choose…	Elegir…
+	Clear	Vaciar
+	Clear Drawing	Vaciar el dibujo
+	Clear Frame	Vaciar el fotograma
+	Click the canvas to pick a colour (Alt+click with any brush)	Haz clic en el lienzo para tomar un color (Alt+clic con cualquier pincel)
+	Close gaps	Cerrar huecos
+	Collapsed	Contraído
+	Colour	Color
+	Colour #{hex}	Color #{hex}
+	Colour picker	Selector de color
+	Copied	Copiado
+	Copy Frames	Copiar fotogramas
+	Could not open {file}: {error}	No se pudo abrir {file}: {error}
+	Could not save: {error}	No se pudo guardar: {error}
+	Create	Crear
+	Current colour: open the Colour panel	Color actual: abrir el panel de color
+	Cut	Cortar
+	Cut Frames	Cortar fotogramas
+	Darken	Oscurecer
+	Delete	Eliminar
+	Delete Frame	Eliminar fotograma
+	Delete Frame in All Layers	Eliminar el fotograma en todas las capas
+	Delete Layer	Eliminar capa
+	Delete Peg	Eliminar peg
+	Depth	Profundidad
+	Deselect	Deseleccionar
+	Discard	Descartar
+	Done	Hecho
+	Don’t Save	No guardar
+	Down	Abajo
+	Drag to pan; wheel zooms, Alt+wheel rotates	Arrastra para desplazar; la rueda hace zoom, Alt+rueda gira
+	Drawing duplicated	Dibujo duplicado
+	Drawings	Dibujos
+	Drop shadow	Sombra paralela
+	Duplicate	Duplicar
+	Duplicate Drawing	Duplicar el dibujo
+	Duplicate drawing	Duplicar el dibujo
+	Each drawing on {n}s	Cada dibujo a {n}
+	Ease in	Entrada suave
+	Ease in and out	Entrada y salida suaves
+	Ease out	Salida suave
+	Edit	Editar
+	Effects	Efectos
+	Ellipse	Elipse
+	Erase Selection	Borrar la selección
+	Eraser	Borrador
+	Every drawing of the layer	Todos los dibujos de la capa
+	Export	Exportar
+	Export failed: {error}	Error al exportar: {error}
+	Export paper	Exportar el papel
+	Exported {count} files to {folder}	Se exportaron {count} archivos a {folder}
+	Exported {count} frames to {folder}	Se exportaron {count} fotogramas a {folder}
+	Exported {file}	Se exportó {file}
+	Exposure sheet	Hoja de exposición
+	Fade in	Aparecer gradualmente
+	Fade out	Desvanecer
+	Feather	Difuminado
+	File	Archivo
+	Finish the line where the pen lifts	Terminar la línea donde se levanta el lápiz
+	First frame	Primer fotograma
+	Fit to Window	Ajustar a la ventana
+	Flip Horizontally	Voltear horizontalmente
+	Flip Vertically	Voltear verticalmente
+	Flip horizontally	Voltear horizontalmente
+	Flip vertically	Voltear verticalmente
+	Flow	Flujo
+	Folder	Carpeta
+	Folder for the PNG frames	Carpeta para los fotogramas PNG
+	Folder {name}	Carpeta {name}
+	Frame	Fotograma
+	Frame {frame} / {total}	Fotograma {frame} / {total}
+	Frames	Fotogramas
+	Frames per second	Fotogramas por segundo
+	Gamma	Gamma
+	Glow	Resplandor
+	Grain	Grano
+	Grain size	Tamaño del grano
+	Green	Verde
+	Hand	Mano
+	Height	Alto
+	Held for {n} frames	Mantenido durante {n} fotogramas
+	Help	Ayuda
+	Hex	Hex
+	Hide Layer	Ocultar capa
+	Hold	Mantener
+	Hold One Frame Longer	Mantener un fotograma más
+	Hold One Frame Shorter	Mantener un fotograma menos
+	Hue	Matiz
+	Hue and saturation	Matiz y saturación
+	Images	Imágenes
+	Import Image Sequence…	Importar secuencia de imágenes…
+	Import Sound…	Importar sonido…
+	Import from Other Apps	Importar desde otras aplicaciones
+	Imported	Importado
+	Imported layers from {file}	Capas importadas de {file}
+	Imported {count} images	Se importaron {count} imágenes
+	Ink pen	Pluma de tinta
+	Insert	Insertar
+	Insert Frame	Insertar fotograma
+	Insert Frame in All Layers	Insertar fotograma en todas las capas
+	Intensity	Intensidad
+	Keyboard Shortcuts	Atajos de teclado
+	Keyboard shortcuts	Atajos de teclado
+	Lasso	Lazo
+	Last frame	Último fotograma
+	Layer	Capa
+	Layer colour	Color de la capa
+	Layer locked	Capa bloqueada
+	Layer {name}	Capa {name}
+	Layer {n}	Capa {n}
+	Layered PSD, Current Frame…	PSD con capas, fotograma actual…
+	Layers	Capas
+	Layers from PSD or OpenRaster…	Capas de PSD u OpenRaster…
+	Length	Duración
+	Levels	Niveles
+	Light Table	Mesa de luz
+	Light Theme	Tema claro
+	Light table	Mesa de luz
+	Lighten	Aclarar
+	Lightness	Luminosidad
+	Line	Línea
+	Linear	Lineal
+	Load Preset…	Cargar preajuste…
+	Lock	Bloquear
+	Lock Layer	Bloquear capa
+	Loop playback	Repetir la reproducción
+	Memory: {pixels} MB drawings, {history} MB history	Memoria: {pixels} MB de dibujos, {history} MB de historial
+	Mirror View	Reflejar la vista
+	Mirror view	Reflejar la vista
+	Motion blur	Desenfoque de movimiento
+	Motion path	Trayectoria de movimiento
+	Mouse pressure	Presión del ratón
+	Move Layer Down	Bajar la capa
+	Move Layer Up	Subir la capa
+	Move the layer down	Mover la capa hacia abajo
+	Move the layer up	Mover la capa hacia arriba
+	Move {name} down	Mover {name} hacia abajo
+	Move {name} up	Mover {name} hacia arriba
+	Multiply	Multiplicar
+	My brushes	Mis pinceles
+	Name	Nombre
+	New	Nuevo
+	New Drawing	Dibujo nuevo
+	New Layer	Capa nueva
+	New Shot…	Plano nuevo…
+	New drawing	Dibujo nuevo
+	New layer above the current one	Capa nueva sobre la actual
+	New shot	Plano nuevo
+	Next Frame	Fotograma siguiente
+	Next frame	Fotograma siguiente
+	Next panel	Panel siguiente
+	No effects on this layer.	No hay efectos en esta capa.
+	No sound in this shot.	No hay sonido en este plano.
+	None	Ninguno
+	Normal	Normal
+	Nothing copied yet	Todavía no se ha copiado nada
+	Offset X	Desplazamiento X
+	Offset Y	Desplazamiento Y
+	On	Activado
+	Onion	Cebolla
+	Onion Skin	Papel cebolla
+	Onion skin off	Papel cebolla desactivado
+	Onion skin on	Papel cebolla activado
+	Onion skin on / off	Activar / desactivar el papel cebolla
+	Opacity	Opacidad
+	Opacity from pressure	Opacidad según la presión
+	Open…	Abrir…
+	OpenRaster, Current Frame…	OpenRaster, fotograma actual…
+	Opened {file}	Se abrió {file}
+	Outline	Contorno
+	Outline colour	Color del contorno
+	Overlay	Superponer
+	PNG Sequence per Layer…	Secuencia PNG por capa…
+	PNG Sequence…	Secuencia PNG…
+	Paint bucket	Cubo de pintura
+	Pan	Desplazar
+	Paper	Papel
+	Paper colour	Color del papel
+	Paper grain	Grano del papel
+	Paste Frames	Pegar fotogramas
+	Paste as New Drawings	Pegar como dibujos nuevos
+	Pasted	Pegado
+	Peg {n}	Peg {n}
+	Pegs	Pegs
+	Pen lifted	Lápiz levantado
+	Pencil	Lápiz
+	Pick colour	Tomar color
+	Picked #{hex}	Se tomó #{hex}
+	Pin	Fijar
+	Pin This Frame	Fijar este fotograma
+	Pixels	Píxeles
+	Play	Reproducir
+	Play / stop	Reproducir / detener
+	Play the soundtrack	Reproducir la banda sonora
+	Press a key…	Pulsa una tecla…
+	Previous Frame	Fotograma anterior
+	Previous frame	Fotograma anterior
+	ProRes 422 HQ (MOV)…	ProRes 422 HQ (MOV)…
+	ProRes 4444 with Alpha (MOV)…	ProRes 4444 con alfa (MOV)…
+	Purge Unused Drawings	Eliminar los dibujos sin usar
+	Quit	Salir
+	Radius	Radio
+	Re-time Layer	Reajustar el tiempo de la capa
+	Recover	Recuperar
+	Recover unsaved work	Recuperar el trabajo sin guardar
+	Recovered; save to keep it	Recuperado; guarda para conservarlo
+	Rectangle	Rectángulo
+	Red	Rojo
+	Redid {action}	Se rehizo {action}
+	Redo	Rehacer
+	Redo {action}	Rehacer {action}
+	Remove	Quitar
+	Remove Key	Quitar la clave
+	Remove Sound	Quitar el sonido
+	Remove {name}	Quitar {name}
+	Removed {count} unused drawings	Se eliminaron {count} dibujos sin usar
+	Rename	Cambiar nombre
+	Rename Layer…	Cambiar el nombre de la capa…
+	Reset All Shortcuts	Restablecer todos los atajos
+	Reset Brush	Restablecer pincel
+	Reset Panels	Restablecer los paneles
+	Reset Rotation	Restablecer la rotación
+	Reverse Selected Frames	Invertir los fotogramas seleccionados
+	Rotate 90°	Girar 90°
+	Rotate 90° Clockwise	Girar 90° a la derecha
+	Rotate 90° Counter-clockwise	Girar 90° a la izquierda
+	Rotate view	Girar la vista
+	Rotation	Rotación
+	Round	Redondo
+	Saturation	Saturación
+	Save	Guardar
+	Save As…	Guardar como…
+	Save New Version	Guardar una versión nueva
+	Save Preset…	Guardar preajuste…
+	Save the shot before quitting?	¿Guardar el plano antes de salir?
+	Saved brush {name}	Pincel {name} guardado
+	Saved {file} ({size} KB)	Se guardó {file} ({size} KB)
+	Select	Seleccionar
+	Select All	Seleccionar todo
+	Set Key	Fijar clave
+	Shapes	Formas
+	Shortcut changed	Atajo cambiado
+	Shot	Plano
+	Show	Mostrar
+	Show Layer	Mostrar capa
+	Show onion skin	Mostrar el papel cebolla
+	Show the camera frame	Mostrar el encuadre de la cámara
+	Show {layer}	Mostrar {layer}
+	Size	Tamaño
+	Size from pressure	Tamaño según la presión
+	Size from speed	Tamaño según la velocidad
+	Smaller / bigger brush	Pincel más pequeño / más grande
+	Smallest size	Tamaño mínimo
+	Smoothing	Suavizado
+	Softness	Suavidad
+	Sound	Sonido
+	Sound {file} added	Sonido {file} añadido
+	Spacing	Espaciado
+	Spread under lines	Extender bajo las líneas
+	Start Sound Here	Iniciar el sonido aquí
+	Starts at frame	Empieza en el fotograma
+	Steady line	Línea estable
+	Steady line (px)	Línea estable (px)
+	Stop	Detener
+	Straight line from the last stroke	Línea recta desde el último trazo
+	Strength	Fuerza
+	Stroke cancelled	Trazo cancelado
+	Swatches	Muestras
+	The brush follows the pen only when it is further than this: very steady lines	El pincel solo sigue al lápiz cuando está más lejos que esto: líneas muy estables
+	This layer	Esta capa
+	Threshold	Umbral
+	Thumbnails	Miniaturas
+	Timeline	Línea de tiempo
+	Tint	Tinte
+	Tip	Punta
+	Tip from Image…	Punta desde imagen…
+	Tolerance	Tolerancia
+	ToonCraft shot	Plano de ToonCraft
+	Track	Pista
+	Track {n}	Pista {n}
+	Transform Selection	Transformar la selección
+	Undid {action}	Se deshizo {action}
+	Undo	Deshacer
+	Undo {action}	Deshacer {action}
+	Unlock Layer	Desbloquear capa
+	Unpin This Frame	Soltar este fotograma
+	Unsaved changes	Cambios sin guardar
+	Up	Arriba
+	Use brush {name}	Usar el pincel {name}
+	Video (MP4, H.264)…	Vídeo (MP4, H.264)…
+	View	Ver
+	Volume	Volumen
+	Width	Ancho
+	Wrote {file}	Se escribió {file}
+	Zoom	Zoom
+	Zoom In	Acercar
+	Zoom Out	Alejar
+	blank	vacío
+	fps	fps
+	hold	mantener
+	locked	bloqueado
+	none	ninguno
+	not set	sin definir
+	stroke {ms} ms	trazo {ms} ms
+	{drawings} drawings ({unused} not exposed)	{drawings} dibujos ({unused} sin exponer)
+	{layer}, frame {frame}	{layer}, fotograma {frame}
+	{name} and {n} more	{name} y {n} más
+	{n} keys	{n} claves
+	{tool} selected	{tool} seleccionado
+	{w}×{h} · {fps} fps	{w}×{h} · {fps} fps
