@@ -141,12 +141,16 @@ fn info(e: &Engine) -> serde_json::Value {
         "layers": p.layers.iter().rev().map(|l| serde_json::json!({
             "name": l.name, "visible": l.visible, "locked": l.locked, "opacity": l.opacity, "sheet": sheet(&l.cells),
             "peg": l.peg.and_then(|id| p.peg(id)).map(|g| g.name.clone()), "depth": l.depth,
+            "folder": l.folder, "clip": l.clip, "effectively_locked": p.is_locked(l),
         })).collect::<Vec<_>>(),
         "pegs": p.pegs.iter().map(|g| serde_json::json!({
             "id": g.id, "name": g.name, "parent": g.parent, "pivot": [g.pivot.0, g.pivot.1],
             "keys": g.keys.iter().map(|k| k.frame + 1).collect::<Vec<_>>(),
         })).collect::<Vec<_>>(),
         "camera_shakes": p.camera.shakes.len(),
+        "folders": p.folders.iter().map(|f| serde_json::json!({
+            "name": f.name, "parent": f.parent, "visible": f.visible, "locked": f.locked, "collapsed": f.collapsed, "color": f.color,
+        })).collect::<Vec<_>>(),
     })
 }
 

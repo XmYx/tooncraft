@@ -145,7 +145,7 @@ pub fn export_frames(p: &Project, start: u32, end: u32, large: bool) -> Result<V
         }
         b.end_group().map_err(encode_err)?;
     }
-    let merged = render_frame(p, start, RenderOptions { paper: true, ..Default::default() });
+    let merged = render_frame(p, start, RenderOptions { paper: p.paper.export, ..Default::default() });
     b.composite(PixelData::Rgba8(merged.to_straight()));
     b.to_bytes().map_err(encode_err)
 }

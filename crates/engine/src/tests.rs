@@ -647,3 +647,32 @@ fn pegs_move_layers_undo_save_and_fill_in_local_space() {
     assert_eq!(e.project, before, "eight successful commands, eight undo steps");
     assert_eq!(e.project.layers[0].peg, None);
 }
+
+#[test]
+fn nested_folders_lock_clip_and_round_trip() {
+    let mut e = engine();
+    e.apply(Command::AddLayer { name: "Shade".into(), index: None }).unwrap();
+    let before = e.project.clone();
+    e.apply(Command::AddFolder { name: "Character".into(), parent: None, layers: vec![] }).unwrap();
+    e.apply(Command::AddFolder { name: "Head".into(), parent: Some("Character".into()), layers: vec![0, 1] }).unwrap();
+    assert!(e.apply(Command::AddFolder { name: "Head".into(), parent: None, layers: vec![] }).is_err(), "names are unique");
+    assert!(e.apply(Command::SetFolderParent { name: "Character".into(), parent: Some("Head".into()) }).is_err(), "no loops");
+    e.apply(Command::SetFolderLock { name: "Character".into(), locked: true }).unwrap();
+    let err = e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: circle(50.0, 50.0, 10.0) });
+    assert!(matches!(err, Err(EngineError::Locked(_))), "locked through the outer folder: {err:?}");
+    e.apply(Command::InsertFrame { layer: None, frame: 0 }).unwrap();
+    assert_eq!(e.project.layers[0].cells, before.layers[0].cells, "insert skips locked layers");
+    e.apply(Command::SetFolderLock { name: "Character".into(), locked: false }).unwrap();
+    e.apply(Command::SetLayerClip { layer: 1, clip: true }).unwrap();
+    e.apply(Command::SetFolderColor { name: "Head".into(), color: Some([200, 40, 40]) }).unwrap();
+    e.apply(Command::RenameFolder { name: "Character".into(), to: "Hero".into() }).unwrap();
+    assert_eq!(e.project.folder("Head").and_then(|f| f.parent.clone()).as_deref(), Some("Hero"));
+    let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
+    assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap(), e.project);
+    // taking the layers out drops the now-empty folders
+    e.apply(Command::SetLayerFolder { layer: 0, folder: None }).unwrap();
+    e.apply(Command::SetLayerFolder { layer: 1, folder: None }).unwrap();
+    assert!(e.project.folders.is_empty());
+    while e.project != before && e.undo().is_ok() {}
+    assert_eq!(e.project, before);
+}

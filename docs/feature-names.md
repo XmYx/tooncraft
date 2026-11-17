@@ -34,6 +34,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Camera, Set Key, Export through the camera | Generic film terms | Use (common) |
 | Blend modes: Normal, Multiply, Screen, Overlay, Darken, Lighten, Add | Standard compositing names (W3C) | Use (common) |
 | Folder, Layer colour, Thumbnails | Generic | Use (common) |
+| Clip to the layer below, Fold, Lock, Show layers labelled | Descriptive | Use |
 | Peg, Hangs from, Pivot, Motion path | Traditional animation terms (the peg bar) and generic motion words | Use (common) |
 | Ease in, Ease out, Ease in and out, Hold, Custom curve | Generic animation timing words | Use (common) |
 | Depth, Shake, Add Shake Here | Generic film words | Use |
