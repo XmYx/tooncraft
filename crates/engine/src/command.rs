@@ -331,6 +331,29 @@ pub enum Command {
         index: usize,
         frame: u32,
     },
+    /// Use `drawing` for `mouth` in the layer's mouth chart (`None`: forget that mouth).
+    SetMouth {
+        layer: usize,
+        mouth: tooncraft_lipsync::Mouth,
+        #[serde(default)]
+        drawing: Option<tooncraft_doc::DrawingId>,
+    },
+    /// Detect mouths from the shot's sound and key the chart's drawings on the layer from
+    /// `from` (one undo step; edit the keys afterwards as usual).
+    LipSync {
+        layer: usize,
+        #[serde(default)]
+        from: u32,
+        #[serde(default)]
+        settings: tooncraft_lipsync::Settings,
+    },
+    /// Key a mouth timing sheet (ToonCraft mouth sheet or switch data) on the layer from `from`.
+    ImportMouthSheet {
+        layer: usize,
+        path: String,
+        #[serde(default)]
+        from: u32,
+    },
     /// An audio track's name, mute, solo and volume.
     SetAudioTrack {
         track: u32,
@@ -884,6 +907,25 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             c.volume_keys.retain(|k| k.frame != frame);
             c.volume_keys.len() != n
         }),
+        Command::SetMouth { layer, mouth, drawing } => edit_layers(e, "Mouth chart", |e| {
+            if let Some(d) = drawing
+                && e.project.drawing(d).is_none()
+            {
+                return Err(EngineError::Import(format!("there is no drawing {}", d.0)));
+            }
+            let l = e.project.layer_mut(layer)?;
+            match drawing {
+                Some(d) => {
+                    l.mouth_chart.insert(mouth, d);
+                }
+                None => {
+                    l.mouth_chart.remove(&mouth);
+                }
+            }
+            Ok(())
+        }),
+        Command::LipSync { layer, from, settings } => crate::lipsync::detect(e, layer, from, settings).map(|_| ()),
+        Command::ImportMouthSheet { layer, path, from } => crate::lipsync::import(e, layer, &path, from).map(|_| ()),
         Command::SetAudioTrack { track, name, muted, solo, volume } => crate::audio::set_track(e, track, |t| {
             if let Some(v) = name {
                 t.name = v;
