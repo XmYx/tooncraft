@@ -137,6 +137,8 @@ pub fn large(width: u32, height: u32, frames: u32) -> Result<Engine> {
             brush: ink,
             samples: line(&[(x, y + 60.0 * s), (x - 20.0 * s, y + 200.0 * s), (x + 30.0 * s, y + 280.0 * s)], 0.8),
         })?;
+        // long shots stay within the page budget while they are built
+        e.page(f)?;
     }
     e.mark_saved();
     Ok(e)

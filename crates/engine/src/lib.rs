@@ -19,6 +19,7 @@ pub mod inbetween;
 mod interchange;
 pub mod library;
 pub mod lipsync;
+pub mod paging;
 pub mod playback;
 pub mod preset;
 pub mod select;
@@ -90,11 +91,25 @@ pub struct Engine {
     live: Option<LiveStroke>,
     changes: u64,
     saved_at: u64,
+    /// Long shots: the page file drawings go to (made on first use) and how many bytes of
+    /// drawings may stay in memory (see [`paging`]).
+    pub(crate) pages: Option<std::sync::Arc<tooncraft_doc::paging::PageFile>>,
+    pub page_budget: u64,
 }
 
 impl Engine {
     pub fn new(project: Project) -> Self {
-        Self { project, undo: Vec::new(), redo: Vec::new(), undo_budget: DEFAULT_UNDO_BUDGET, live: None, changes: 0, saved_at: 0 }
+        Self {
+            project,
+            undo: Vec::new(),
+            redo: Vec::new(),
+            undo_budget: DEFAULT_UNDO_BUDGET,
+            live: None,
+            changes: 0,
+            saved_at: 0,
+            pages: None,
+            page_budget: paging::DEFAULT_PAGE_BUDGET,
+        }
     }
 
     /// Changes since the project was created or opened (undo and redo count as changes).
