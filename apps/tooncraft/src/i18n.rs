@@ -49,7 +49,9 @@ macro_rules! tlf {
     };
 }
 
-pub static CRAFT_FONTS: &[craft_fonts_build::EmbeddedFace] = include!(concat!(env!("OUT_DIR"), "/craft_fonts.rs"));
+// The generated table names `EmbeddedFace` unqualified (it is empty unless the build embeds craft-fonts).
+use craft_fonts_build::EmbeddedFace;
+pub static CRAFT_FONTS: &[EmbeddedFace] = include!(concat!(env!("OUT_DIR"), "/craft_fonts.rs"));
 
 /// Add the craft-fonts faces (if the build embedded any) behind egui's own, as fallbacks for
 /// scripts egui's fonts lack.
