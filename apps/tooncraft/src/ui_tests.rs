@@ -709,3 +709,60 @@ fn timing_panel_marks_adds_inbetweens_and_applies_presets() {
     h.run();
     assert!(sheet(&h.state().engine.project.layers[0].cells).starts_with("#-#-#-#-#-"), "on twos");
 }
+
+#[test]
+fn guides_canvas_size_onion_outlines_and_workspaces() {
+    let mut h = harness(true);
+    h.run();
+    h.get_by_label("View").click();
+    h.run();
+    h.get_by_label("Field Guide").click();
+    h.run();
+    assert!(h.state().canvas_ui.field_guide);
+    h.get_by_label("View").click();
+    h.run();
+    h.get_by_label("Canvas Size…").click();
+    h.run();
+    let (w, hh) = (h.state().engine.project.width(), h.state().engine.project.height());
+    h.get(By::new().role(egui::Role::RadioButton).label("Keep the centre in place"));
+    h.get_by_label("Keep the top left in place").click();
+    h.run();
+    assert_eq!(h.state().canvas_ui.resize.map(|r| r.2), Some((0, 0)), "the anchor was picked");
+    h.get(By::new().role(egui::Role::SpinButton).label("Width"));
+    h.state_mut().canvas_ui.resize = Some((w + 1, hh, (0, 0)));
+    h.run();
+    h.get_by_label("Resize").click();
+    h.run();
+    assert_eq!((h.state().engine.project.width(), h.state().engine.project.height()), (w + 1, hh));
+    assert!(h.state().canvas_ui.resize.is_none(), "the dialog closes");
+    h.state_mut().undo();
+    h.run();
+    assert_eq!(h.state().engine.project.width(), w);
+    // onion skin options
+    h.state_mut().workspace.raise(crate::dock::Pane::Onion);
+    h.run();
+    h.get_by_label("Outlines only").click();
+    h.run();
+    h.get_by_label("Hide the previous step").click();
+    h.run();
+    let o = h.state().engine.project.onion;
+    assert!(o.outline && o.hide_previous);
+    // workspaces: a built-in one, then save and restore a named one (not written to disk in tests)
+    let standard = crate::dock::Workspace::default().layout;
+    h.state_mut().workspace.layout = standard.clone();
+    h.state_mut().canvas_ui.save_workspace("Mine", &standard).unwrap();
+    h.get_by_label("View").click();
+    h.run();
+    h.get_by_label("Workspaces").click();
+    h.run();
+    h.get_by_label("Timing").click();
+    h.run();
+    assert_ne!(h.state().workspace.layout, standard, "the timing workspace is applied");
+    h.get_by_label("View").click();
+    h.run();
+    h.get_by_label("Workspaces").click();
+    h.run();
+    h.get_by_label("Mine").click();
+    h.run();
+    assert_eq!(h.state().workspace.layout, standard, "the saved workspace comes back");
+}
