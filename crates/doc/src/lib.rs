@@ -15,6 +15,7 @@ mod onion;
 pub mod peg;
 pub mod render;
 pub mod sound;
+pub mod timing;
 
 pub use camera::{Camera, CameraKey, Shake};
 pub use exposure::{Cell, ExposureError};
@@ -22,6 +23,7 @@ pub use onion::{LightTable, OnionMode, OnionSkin, Pin};
 pub use peg::{Ease, Peg, PegId, PegKey};
 pub use render::{RenderOptions, render_camera, render_frame, render_region};
 pub use sound::{AudioTrack, Soundtrack, VolumeKey};
+pub use timing::{Mark, TimingPreset};
 pub use tooncraft_raster::select::Affine;
 
 use std::collections::BTreeMap;
@@ -301,6 +303,8 @@ pub struct Project {
     pub tips: BTreeMap<u64, std::sync::Arc<tooncraft_brush::Tip>>,
     /// Pegs layers can hang from (see [`peg`]).
     pub pegs: Vec<Peg>,
+    /// Key, breakdown and inbetween marks of drawings (see [`timing`]).
+    pub marks: BTreeMap<DrawingId, Mark>,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -320,6 +324,7 @@ impl PartialEq for Project {
             && self.folders == o.folders
             && self.tips == o.tips
             && self.pegs == o.pegs
+            && self.marks == o.marks
     }
 }
 
@@ -352,6 +357,7 @@ impl Project {
             folders: Vec::new(),
             tips: BTreeMap::new(),
             pegs: Vec::new(),
+            marks: BTreeMap::new(),
             next_drawing: 1,
             next_layer: 1,
         };
@@ -378,6 +384,7 @@ impl Project {
             folders: Vec::new(),
             tips: BTreeMap::new(),
             pegs: Vec::new(),
+            marks: BTreeMap::new(),
             next_drawing: 1,
             next_layer: 1,
         };

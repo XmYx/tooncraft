@@ -353,6 +353,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
                     } else {
                         painter.circle_filled(pos2(r.left() + 6.0, r.center().y), 2.6, pal.bg);
                     }
+                    if let Some(m) = app.engine.project.marks.get(&d) {
+                        painter.text(r.right_top() + vec2(-2.0, 1.0), Align2::RIGHT_TOP, m.letter(), FontId::proportional(9.5), pal.bg);
+                    }
                 }
                 Cell::Hold => {
                     let hc = layer.color.map(|c| Color32::from_rgb(c[0], c[1], c[2]).gamma_multiply(0.55)).unwrap_or(pal.cell_hold);
@@ -376,7 +379,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
                 drag = Some((li, start, end - start));
             }
             let selected = li == app.layer && f == app.frame;
-            let label = tlf!("{layer}, frame {frame}: {cell}", layer = layer.name, frame = f + 1, cell = cell_text(cell));
+            let mut label = tlf!("{layer}, frame {frame}: {cell}", layer = layer.name, frame = f + 1, cell = cell_text(cell));
+            if let Some(m) = cell.key().and_then(|d| app.engine.project.marks.get(&d)) {
+                label = format!("{label}, {}", crate::timing_panel::mark_label(Some(*m)).to_lowercase());
+            }
             resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Cell, true, selected, label.clone()));
             if resp.clicked() {
                 clicked = Some((li, f));

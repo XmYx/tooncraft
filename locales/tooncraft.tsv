@@ -5,6 +5,7 @@ tooncraft	About ToonCraft
 tooncraft	Actual Size	
 tooncraft	Add	
 tooncraft	Add Current Colour	
+tooncraft	Add Inbetweens	
 tooncraft	Add Peg	
 tooncraft	Add Shake Here	
 tooncraft	Add Sound…	
@@ -17,11 +18,13 @@ tooncraft	Angle
 tooncraft	Animated GIF…	
 tooncraft	Animated PNG…	
 tooncraft	Any colour	
+tooncraft	Apply	
 tooncraft	Audio tracks	
 tooncraft	Before	
 tooncraft	Blank frame: drawing here starts a new drawing.	
 tooncraft	Blend	
 tooncraft	Blue	
+tooncraft	Breakdown	
 tooncraft	Brightness	
 tooncraft	Brush	
 tooncraft	Brush preset	
@@ -82,6 +85,7 @@ tooncraft	Don’t Save
 tooncraft	Down	
 tooncraft	Drag inside to move, corners to scale, the top knob to rotate	
 tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates	
+tooncraft	Drawing at frame {n}: {mark}	
 tooncraft	Drawing duplicated	
 tooncraft	Drawings	
 tooncraft	Drop shadow	
@@ -141,6 +145,7 @@ tooncraft	Frame
 tooncraft	Frame ruler	
 tooncraft	Frame {frame} / {total}	
 tooncraft	Frame {n} (between keys)	
+tooncraft	Frame {n} has no drawing	
 tooncraft	Frames	
 tooncraft	Frames per second	
 tooncraft	Frames {a}–{b}, {px} px	
@@ -150,6 +155,7 @@ tooncraft	Glow colour
 tooncraft	Grain	
 tooncraft	Grain size	
 tooncraft	Green	
+tooncraft	Guides on a layer above	
 tooncraft	Hand	
 tooncraft	Hand-drawn, frame-by-frame animation. Part of the ArtCraft Crafting Apps.	
 tooncraft	Handle 1 time	
@@ -183,6 +189,8 @@ tooncraft	Imported
 tooncraft	Imported layers from {file}	
 tooncraft	Imported {count} images	
 tooncraft	In	
+tooncraft	Inbetween	
+tooncraft	Inbetweens	
 tooncraft	Ink pen	
 tooncraft	Input black	
 tooncraft	Input white	
@@ -193,6 +201,7 @@ tooncraft	Insert frame
 tooncraft	Insert frame (Insert)	
 tooncraft	Intensity	
 tooncraft	Keep the outside	
+tooncraft	Key	
 tooncraft	Key at frame {n}	
 tooncraft	Key clip {n} volume here	
 tooncraft	Key colour	
@@ -201,6 +210,7 @@ tooncraft	Key {name} here
 tooncraft	Keyboard Shortcuts	
 tooncraft	Keyboard pen: move, put down / lift	
 tooncraft	Keyboard shortcuts	
+tooncraft	Keys and breakdowns stay put; the drawings between them follow the spacing	
 tooncraft	Label colour of {name}	
 tooncraft	Lasso	
 tooncraft	Last frame	
@@ -267,6 +277,7 @@ tooncraft	New Layer
 tooncraft	New Shot…	
 tooncraft	New drawing	
 tooncraft	New drawing (Shift+N)	
+tooncraft	New drawings between this drawing and the next, placed along the spacing	
 tooncraft	New grain every frame	
 tooncraft	New layer above the current one	
 tooncraft	New shot	
@@ -274,6 +285,8 @@ tooncraft	Next Frame
 tooncraft	Next frame	
 tooncraft	Next panel	
 tooncraft	No effects on this layer.	
+tooncraft	No mark	
+tooncraft	No next drawing	
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
 tooncraft	No sound in this shot.	
 tooncraft	None	
@@ -284,6 +297,10 @@ tooncraft	Nudge the selection (Shift: 10 px)
 tooncraft	Offset X	
 tooncraft	Offset Y	
 tooncraft	On	
+tooncraft	On fours	
+tooncraft	On ones	
+tooncraft	On threes	
+tooncraft	On twos	
 tooncraft	Onion	
 tooncraft	Onion Skin	
 tooncraft	Onion skin (O)	
@@ -348,7 +365,9 @@ tooncraft	Purge Unused Drawings
 tooncraft	Put the current layer in a new folder inside its folder	
 tooncraft	Quit	
 tooncraft	Radius	
+tooncraft	Re-time Between Keys	
 tooncraft	Re-time Layer	
+tooncraft	Re-time the selected frames (or the whole layer)	
 tooncraft	Re-timed on {n}s; no drawing was deleted	
 tooncraft	Recover	
 tooncraft	Recover unsaved work	
@@ -435,6 +454,9 @@ tooncraft	Size
 tooncraft	Size from pressure	
 tooncraft	Size from speed	
 tooncraft	Skew	
+tooncraft	Slow at both ends	
+tooncraft	Slow end (1s to 3s)	
+tooncraft	Slow start (3s to 1s)	
 tooncraft	Smaller / bigger brush	
 tooncraft	Smallest size	
 tooncraft	Smoothing	
@@ -446,6 +468,8 @@ tooncraft	Sound
 tooncraft	Sound {file} added	
 tooncraft	Sound {name}, starts at frame {frame}	
 tooncraft	Spacing	
+tooncraft	Spacing chart: no next drawing	
+tooncraft	Spacing chart: {n} drawings between frames {a} and {b}	
 tooncraft	Spread under lines	
 tooncraft	Start Sound Here	
 tooncraft	Starts at frame	
@@ -467,6 +491,8 @@ tooncraft	This layer
 tooncraft	Threshold	
 tooncraft	Thumbnails	
 tooncraft	Timeline	
+tooncraft	Timing	
+tooncraft	Timing preset	
 tooncraft	Tint	
 tooncraft	Tint after	
 tooncraft	Tint before	
@@ -520,6 +546,7 @@ tooncraft	{fps} fps playback · {ms} ms/frame
 tooncraft	{layer}, frame {frame}	
 tooncraft	{layer}, frame {frame}: {cell}	
 tooncraft	{name} and {n} more	
+tooncraft	{n} frames	
 tooncraft	{n} keys	
 tooncraft	{tool} selected	
 tooncraft	{w}×{h} · {fps} fps	
