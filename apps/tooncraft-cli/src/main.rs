@@ -67,6 +67,8 @@ impl Args {
                         | "prores"
                         | "prores-layers"
                         | "wav"
+                        | "mouth-sheet"
+                        | "layer"
                 );
                 let v = if takes { it.next() } else { None };
                 flags.push((name.to_string(), v));
@@ -244,6 +246,11 @@ fn run() -> Result<(), String> {
                 let files = tooncraft_interop::layer_sequences::export(&e.project, Path::new(dir), o.start, o.end, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {} PNG files to {dir}", files.len());
+            } else if let Some(file) = rest.flag("mouth-sheet") {
+                let layer = num(rest.flag("layer"), 1)?.max(1) as usize - 1;
+                let text = tooncraft_engine::lipsync::sheet_text(&e.project, layer, file.ends_with(".dat"))?;
+                std::fs::write(file, text).map_err(|e| format!("{file}: {e}"))?;
+                println!("wrote the mouth timing of layer {} to {file}", layer + 1);
             } else if let Some(file) = rest.flag("wav") {
                 tooncraft_engine::audio::export_wav(&e.project, Path::new(file), o.start, o.end)?;
                 println!("wrote the sound mix to {file}");
@@ -259,7 +266,7 @@ fn run() -> Result<(), String> {
                 println!("wrote {file}");
             } else {
                 return Err(format!(
-                    "export needs --png, --gif, --mp4, --apng, --prores, --prores-layers, --wav, --psd, --layers, --levels or --ora\n\n{USAGE}"
+                    "export needs --png, --gif, --mp4, --apng, --prores, --prores-layers, --wav, --mouth-sheet, --psd, --layers, --levels or --ora\n\n{USAGE}"
                 ));
             }
             Ok(())

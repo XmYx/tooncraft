@@ -23,6 +23,9 @@ hand a script can do.
 | `add_sound`, `remove_sound`, `move_sound` | `path`, `offset`, `track`; `index`; `offset` and `index` (default 0) |
 | `set_sound_clip` | `index`, optional `track`, `offset`, `trim_start`, `length` (seconds), `to_end`, `fade_in`, `fade_out`, `volume` (0…4), `muted` |
 | `set_volume_key`, `remove_volume_key` | `index`, `frame` (+ `gain` 0…4) |
+| `set_mouth` | `layer`, `mouth` (`rest`, `closed`, `open`, `wide`, `round`, `pucker`, `teeth`, `tongue`, `consonant`), `drawing` (absent: forget it) |
+| `lip_sync` | `layer`, `from`, `settings` (`silence` 0…1, `min_hold` frames) |
+| `import_mouth_sheet` | `layer`, `path`, `from` |
 | `set_audio_track` | `track`, optional `name`, `muted`, `solo`, `volume` |
 | `transform_selection` | `layer`, `frame`, `polygon`, `dx`, `dy`, `scale_x`, `scale_y`, `angle` (radians) |
 | `clear_selection`, `paste_pixels` | `polygon`; or `x`, `y`, `width`, `height`, `rgba` |
@@ -53,7 +56,7 @@ Example:
 ```
 
 `tooncraft-cli export` writes `--png <dir>`, `--gif`, `--mp4` (with the soundtrack), `--apng`,
-`--prores <file.mov> [--alpha]`, `--prores-layers <dir>` (ProRes 4444 with alpha per layer), `--wav <file>` (the sound mix), `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
+`--prores <file.mov> [--alpha]`, `--prores-layers <dir>` (ProRes 4444 with alpha per layer), `--wav <file>` (the sound mix), `--mouth-sheet <file> [--layer N]` (a mouth sheet; `.dat` writes switch data), `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
 `--layers <dir>` (PNG sequence per layer) or `--levels <dir>` (XDTS sheet and drawing folders).
 `tooncraft-cli import`, `import-layers`, `import-gif`, `import-sheet` and `set-sound` bring work in.
 

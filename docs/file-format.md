@@ -30,3 +30,21 @@ Sound: `sounds` lists the clips (`name`, `offset` frame, `track`, `trim_start`, 
 its file); `audio_tracks` holds each track's `name`, `muted`, `solo` and `volume`. Files written
 before clips have one `soundtrack` (`name`, `offset`, `entry: "audio/soundtrack"`), which loads as a
 single clip.
+
+A layer's `mouth_chart` maps mouths (`rest`, `closed`, `open`, `wide`, `round`, `pucker`, `teeth`,
+`tongue`, `consonant`) to drawing ids.
+
+## Mouth sheets
+
+Plain UTF-8 text, one item per line, `#` starts a comment, blank lines are ignored.
+
+- **ToonCraft mouth sheet** (`.txt`): the first line is `tooncraft-mouths 1`; an optional
+  `fps N` line gives the frame rate the frames count in; then `FRAME MOUTH` lines, one per change,
+  frames from 1, mouths by the names above. Example: `tooncraft-mouths 1` / `fps 24` / `1 rest` /
+  `5 open` / `9 closed`.
+- **Switch data** (`.dat`): the first line is `MohoSwitch1`, then `FRAME NAME` lines with frames
+  from 1 and the phoneme-group names `AI`, `E`, `O`, `U`, `WQ`, `MBP`, `FV`, `L`, `etc`, `rest`
+  (read case-insensitively; our names are accepted too).
+
+Readers refuse a missing header, frame 0, frames past 2^20 and unknown mouths with the line
+number, and read at most 200 000 lines.

@@ -17,11 +17,11 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 <!-- parity:start -->
 | | Value | Kind |
 |---|---|---|
-| Feature rows | 150 | measured |
-| Done (D) | 113 | measured |
-| Partial (P) | 18 | measured |
-| Missing (M) | 19 | measured |
-| Parity score, (D + ½·P) / rows | 81 % | measured |
+| Feature rows | 152 | measured |
+| Done (D) | 115 | measured |
+| Partial (P) | 19 | measured |
+| Missing (M) | 18 | measured |
+| Parity score, (D + ½·P) / rows | 82 % | measured |
 | Brush engine and tools | 81 % (19 D, 1 P, 4 M) | measured |
 | Paper and canvas | 73 % (7 D, 2 P, 2 M) | measured |
 | Layers and timeline / exposure sheet | 82 % (16 D, 1 P, 3 M) | measured |
@@ -29,7 +29,7 @@ numbers here and in [ROADMAP.md](../ROADMAP.md) are copied from its output, neve
 | Animation tools | 80 % (8 D, 0 P, 2 M) | measured |
 | Colouring | 75 % (6 D, 3 P, 1 M) | measured |
 | Effects | 83 % (9 D, 2 P, 1 M) | measured |
-| Audio and lip-sync | 80 % (8 D, 0 P, 2 M) | measured |
+| Audio and lip-sync | 88 % (10 D, 1 P, 1 M) | measured |
 | Import / export | 88 % (13 D, 2 P, 1 M) | measured |
 | UI and workspace | 78 % (11 D, 3 P, 2 M) | measured |
 | Stability and performance | 91 % (9 D, 2 P, 0 M) | measured |
@@ -192,7 +192,9 @@ features (video export, effects, audio) and understates it for small ones.
 | Mute and solo tracks | TB, PD | D | |
 | Export the sound mix | TV, TB | D | WAV (16-bit, 48 kHz stereo); MP4 carries the same mix as AAC |
 | Record a voice track from the microphone | TB, CSP, PD | M | craft-audio has no capture yet |
-| Mouth-chart lip-sync detection | TB | M | |
+| Mouth-chart lip-sync detection | TB | P | **Ours:** offline and model-free: loudness, noise and formant rules over the sound mix map to a nine-drawing mouth chart. Checked on synthetic vowels, silence, hiss and closures, not yet on a speech corpus |
+| Lip-sync result as editable exposure keys | TB | D | One undo step; keys and holds like hand timing |
+| Mouth timing sheets in and out | TB | D | Our documented text sheet and the common switch-data `.dat`; other frame rates are rescaled |
 
 ## Import / export
 
@@ -265,3 +267,4 @@ Refs: TV = TVPaint Animation, TB = Toon Boom Harmony, CSP = Clip Studio Paint, P
 | 2026-11-17 | minor | Effects stack: 4 effects rows re-scored, 5 rows added (keys, masks, exports, grain / light wrap, GPU) |
 | 2026-11-17 | minor | Compositing basics: 4 rows added (opacity keys, mattes, colour key, effect blending) |
 | 2026-11-17 | minor | Sound depth: 6 audio rows added (tracks and clips, trim and fades, volume keys, mute / solo, mix export, recording) |
+| 2026-11-17 | minor | Lip-sync assist: lip-sync row re-scored (P), 2 rows added (editable keys, timing sheets) |

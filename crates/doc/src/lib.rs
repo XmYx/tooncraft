@@ -118,6 +118,9 @@ pub struct Layer {
     /// next matte) to its own shape, or to everything outside it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub matte: Option<Matte>,
+    /// The layer's mouth chart for lip sync: which drawing shows each mouth.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub mouth_chart: BTreeMap<tooncraft_lipsync::Mouth, DrawingId>,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
 }
@@ -403,6 +406,7 @@ impl Project {
                 k.opacity = if k.opacity.is_finite() { k.opacity.clamp(0.0, 1.0) } else { 1.0 };
             }
             layer.opacity_keys = keys;
+            layer.mouth_chart.retain(|_, d| p.drawings.contains_key(d));
             if !seen.insert(layer.id) {
                 layer.id = LayerId(u64::MAX); // fixed below
             }
@@ -495,6 +499,7 @@ impl Project {
                 effects: Vec::new(),
                 opacity_keys: Vec::new(),
                 matte: None,
+                mouth_chart: BTreeMap::new(),
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );
