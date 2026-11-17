@@ -1,0 +1,1 @@
+- 2026-11-17: Translation tooling: `cargo xtask strings` checks translated ToonCraft catalogs (`locales/<locale>/tooncraft.tsv` here or in a `CRAFT_I18N_DIR` checkout) against the craft-i18n catalog format and reports coverage; tests run in English whatever the machine's language.

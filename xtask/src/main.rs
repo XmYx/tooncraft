@@ -14,7 +14,9 @@
 //! - `licenses`: every dependency's licence expression is satisfiable from the suite allowlist
 //!   (house-rules-rust), from `cargo metadata` (the same list `deny.toml` gives cargo-deny).
 //! - `strings`: extracts every `tl!`/`tlf!` source text into `locales/tooncraft.tsv` (the English
-//!   catalog translators start from); `ci` fails when it is out of date.
+//!   catalog translators start from); `ci` fails when it is out of date. Also checks the translated
+//!   catalogs `locales/<locale>/tooncraft.tsv` (kept here or in a `CRAFT_I18N_DIR` checkout) against the craft-i18n catalog format and reports how
+//!   much of the source each covers.
 //! - `icons`: render `assets/app-icon/tooncraft.svg` to the hicolor PNGs, the 1024 px PNG, the
 //!   Windows `.ico` and the macOS `.icns` (committed, so packaging needs no tools).
 //! - `bench`: the engine benchmark (`tooncraft-cli bench`, release build).
@@ -360,14 +362,129 @@ fn strings(write: bool) -> Result<(), String> {
     if write {
         std::fs::write(&path, &tsv).map_err(|e| e.to_string())?;
         println!("strings: wrote {} source texts to {}", list.len(), path.display());
-        return Ok(());
+        return catalogs(&list);
     }
     let current = std::fs::read_to_string(&path).unwrap_or_default();
     if current != tsv {
         return Err("locales/tooncraft.tsv is out of date: run `cargo xtask strings --write`".into());
     }
     println!("strings: {} source texts, catalog up to date", list.len());
-    Ok(())
+    catalogs(&list)
+}
+
+/// The `{name}` placeholders of a catalog text, sorted.
+fn placeholders(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(a) = rest.find('{') {
+        let Some(b) = rest[a..].find('}') else { break };
+        out.push(rest[a + 1..a + b].to_string());
+        rest = &rest[a + b + 1..];
+    }
+    out.sort();
+    out
+}
+
+/// Problems of one translated catalog and its row counts `(rows, stale)`.
+fn check_catalog(code: &str, text: &str, known: &std::collections::BTreeSet<&str>) -> (usize, usize, Vec<String>) {
+    let mut problems = Vec::new();
+    let at = |n: usize| format!("locales/{code}/tooncraft.tsv:{}", n + 1);
+    if !text.lines().any(|l| l.starts_with("# Clean room:")) {
+        problems.push(format!("locales/{code}/tooncraft.tsv: the header needs the \"# Clean room:\" line"));
+    }
+    let (mut rows, mut stale, mut named) = (0usize, 0usize, false);
+    let mut seen = std::collections::BTreeSet::new();
+    for (n, line) in text.trim_start_matches('\u{feff}').lines().enumerate() {
+        let line = line.trim_end_matches('\r');
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let cols: Vec<&str> = line.split('\t').collect();
+        let [ctx, en, tr] = cols.as_slice() else {
+            problems.push(format!("{}: a row has three tab-separated columns", at(n)));
+            continue;
+        };
+        if tr.is_empty() {
+            problems.push(format!("{}: empty translation (leave the row out instead)", at(n)));
+            continue;
+        }
+        if !seen.insert((ctx.to_string(), en.to_string())) {
+            problems.push(format!("{}: duplicate row", at(n)));
+        }
+        for col in [en, tr] {
+            let mut it = col.chars();
+            while let Some(c) = it.next() {
+                if c == '\\' && !matches!(it.next(), Some('n' | 't' | '\\')) {
+                    problems.push(format!("{}: only \\n, \\t and \\\\ are escapes", at(n)));
+                    break;
+                }
+            }
+        }
+        if *ctx == "@id" {
+            named |= *en == "language.name";
+            continue;
+        }
+        rows += 1;
+        if !ctx.starts_with('@') && !known.contains(en) {
+            stale += 1;
+        }
+        if placeholders(en) != placeholders(tr) {
+            problems.push(format!("{}: the {{placeholders}} differ between the English and the translation", at(n)));
+        }
+        if en.ends_with('…') != tr.ends_with('…') {
+            problems.push(format!("{}: a trailing … must be in both columns or neither", at(n)));
+        }
+    }
+    if !named {
+        problems.push(format!("locales/{code}/tooncraft.tsv: needs the row  @id<TAB>language.name<TAB>the language's own name"));
+    }
+    (rows, stale, problems)
+}
+
+/// Check the translated catalogs `locales/<locale>/tooncraft.tsv` against the rules of the
+/// craft-i18n catalog format (rows of three columns, valid escapes, no empty translations, the
+/// same placeholders and trailing ellipsis in both columns, no duplicate rows, the language name,
+/// the clean-room header) and report how much of the source catalog each one covers. Rows whose
+/// English text is no longer in the app are reported, never an error: translations may lag the app.
+fn catalogs(source: &[String]) -> Result<(), String> {
+    // Translated catalogs live in storytold/craft-i18n; with `CRAFT_I18N_DIR` set to a checkout its
+    // ToonCraft catalogs are read too. The rules are this repository's reading of craft-i18n's
+    // `docs/catalog-format.md` (rows, escapes, placeholders, ellipsis, duplicates, the language-name
+    // row and the `# Clean room:` header line), so a finding in another repository's file is only
+    // a warning here, while one in a catalog kept in this repository fails the build.
+    let mut roots = vec![(root().join("locales"), false)];
+    if let Some(d) = std::env::var_os("CRAFT_I18N_DIR").filter(|d| !d.is_empty()) {
+        roots.push((PathBuf::from(d).join("locales"), true));
+    }
+    let mut dirs: Vec<(PathBuf, bool)> = Vec::new();
+    for (r, external) in roots {
+        let Ok(entries) = std::fs::read_dir(&r) else { continue };
+        dirs.extend(entries.flatten().map(|e| e.path()).filter(|p| p.is_dir() && p.join("tooncraft.tsv").is_file()).map(|p| (p, external)));
+    }
+    dirs.sort();
+    let known: std::collections::BTreeSet<&str> = source.iter().map(String::as_str).collect();
+    let mut problems = Vec::new();
+    for (dir, external) in dirs {
+        let code = dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        if code != code.to_lowercase() {
+            problems.push(format!("locales/{code}: locale directories are lowercase"));
+        }
+        let Ok(text) = std::fs::read_to_string(dir.join("tooncraft.tsv")) else { continue };
+        let (rows, stale, found) = check_catalog(&code, &text, &known);
+        if external {
+            for f in found {
+                println!("strings: warning (craft-i18n checkout): {f}");
+            }
+        } else {
+            problems.extend(found);
+        }
+        println!(
+            "strings: {code}: {rows} of {} source texts translated{}",
+            source.len(),
+            if stale > 0 { format!(", {stale} rows for texts the app no longer has") } else { String::new() }
+        );
+    }
+    if problems.is_empty() { Ok(()) } else { Err(problems.join("\n")) }
 }
 
 const ICON_ID: &str = "ai.storyteller.tooncraft";
@@ -538,5 +655,58 @@ mod tests {
         assert!(parity_ci_check(&doc(block, &short_row)).is_err(), "row with missing cells");
         assert!(parity_ci_check(&doc(block, "## One\n\nno table here\n")).is_err(), "no rows");
         assert!(parity_ci_check(ROWS).is_err(), "markers missing");
+    }
+}
+
+#[cfg(test)]
+mod catalog_tests {
+    use super::*;
+
+    const HEAD: &str = "# Clean room: test\n@id\tlanguage.name\tDeutsch\n";
+
+    fn check(rows: &str) -> (usize, usize, Vec<String>) {
+        let known: std::collections::BTreeSet<&str> = ["Save", "Open…", "Layer {name}", "Line\\nbreak"].into_iter().collect();
+        check_catalog("de", &format!("{HEAD}{rows}"), &known)
+    }
+
+    #[test]
+    fn a_good_catalog_has_no_problems() {
+        let (rows, stale, problems) = check(
+            "\tSave\tSpeichern\n\tOpen…\tÖffnen…\n\tLayer {name}\tEbene {name}\n\tLine\\nbreak\tZeile\\numbruch\n\tGone\tWeg\n@plural\t{n} page|{n} pages\t{n} Seite|{n} Seiten\n",
+        );
+        assert!(problems.is_empty(), "{problems:?}");
+        assert_eq!((rows, stale), (6, 1), "the row for text the app no longer has is counted, not refused");
+    }
+
+    #[test]
+    fn every_rule_of_the_format_is_checked() {
+        let bad = |rows: &str, needle: &str| {
+            let (_, _, p) = check(rows);
+            assert!(p.iter().any(|m| m.contains(needle)), "{rows:?}: {p:?}");
+        };
+        bad("\tSave\t\n", "empty translation");
+        bad("\tSave\tSpeichern\textra\n", "three tab-separated");
+        bad("\tSave\tA\n\tSave\tB\n", "duplicate");
+        bad("\tLayer {name}\tEbene {title}\n", "placeholders");
+        bad("\tLayer {name}\tEbene\n", "placeholders");
+        bad("\tOpen…\tÖffnen\n", "trailing");
+        bad("\tSave\tSpeichern…\n", "trailing");
+        bad("\tSave\tSpeich\\ern\n", "escapes");
+        let (_, _, p) = check_catalog("de", "@id\tlanguage.name\tDeutsch\n\tSave\tSpeichern\n", &std::collections::BTreeSet::new());
+        assert!(p.iter().any(|m| m.contains("Clean room")));
+        let (_, _, p) = check_catalog("de", "# Clean room: x\n\tSave\tSpeichern\n", &std::collections::BTreeSet::new());
+        assert!(p.iter().any(|m| m.contains("language.name")));
+    }
+
+    #[test]
+    fn placeholders_are_found_in_any_order() {
+        assert_eq!(placeholders("{b} and {a} of {b}"), ["a", "b", "b"]);
+        assert!(placeholders("no braces, a lone { too").is_empty());
+    }
+
+    #[test]
+    fn the_catalogs_in_reach_pass() {
+        let list = source_strings().unwrap();
+        catalogs(&list).unwrap();
     }
 }
