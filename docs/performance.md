@@ -19,6 +19,18 @@ samples per stroke 4 px apart (a quick stroke from a 240 Hz pen), 20 strokes.
 | Chalk 30 px (grain, tilt) | 0.043 ms | 0.045 ms | 0.067 ms |
 | Airbrush 120 px | 0.145 ms | 0.242 ms | 0.310 ms |
 | Eraser 40 px | 0.016 ms | 0.015 ms | 0.037 ms |
+| Ink 6 px with all 25 response mappings on (a curve each) and jitter | 0.017 ms | 0.016 ms | 0.027 ms |
+| Chalk 30 px with the canvas-weave grain | 0.106 ms | 0.112 ms | 0.153 ms |
+| Watercolour 34 px (wet mixing) | 0.211 ms | 0.218 ms | 0.385 ms |
+| Smudge 30 px | 0.085 ms | 0.089 ms | 0.129 ms |
+
+The first five rows are from the idle workstation. The four new rows (brush editor: response curves,
+grain textures, wet brushes) were measured later with the machine heavily loaded by other builds (load
+average about 30 on 24 threads), which roughly doubles every figure: in that same run plain ink was
+0.015 ms, plain chalk 0.099 ms and the eraser 0.036 ms, so read the new rows against those. Evaluating a
+curve for every source on every property adds about 13 % to the ink pen; the canvas-weave grain costs
+about 7 % over paper grain on chalk; the wet brushes cost 2 to 2.5 times the dry ones because they read
+and rewrite the pixels under every dab. Every row is far below the 4.2 ms of a 240 Hz pen sample.
 
 In the app, the status bar shows the time from the first pen sample of a UI frame to the changed
 tiles being queued for upload ("stroke … ms"). Only tiles a stroke touched are re-uploaded
