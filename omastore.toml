@@ -1,0 +1,11 @@
+kind = "app"
+categories = ["Graphics"]
+icon = "assets/app-icon/hicolor/256x256/apps/ai.storyteller.tooncraft.png"
+
+[linux.x86_64]
+asset = "tooncraft-{version}-linux-x86_64.tar.gz"
+exec = "tooncraft-{version}-linux-x86_64/bin/tooncraft"
+
+[linux.aarch64]
+asset = "tooncraft-{version}-linux-aarch64.tar.gz"
+exec = "tooncraft-{version}-linux-aarch64/bin/tooncraft"

@@ -11,6 +11,18 @@ Celsys, Savage Interactive or any other vendor.
 | Asset | Author | Source | Licence | Used for |
 |---|---|---|---|---|
 | `assets/app-icon/tooncraft.svg` | ToonCraft contributors | Original work: draft app icon (flip-book sheets, bouncing ball) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | App icon, README |
+| `assets/app-icon/hicolor/scalable/apps/ai.storyteller.tooncraft.svg` | ToonCraft contributors | Copy of `assets/app-icon/tooncraft.svg` for the hicolor theme | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Linux icon theme |
+| `assets/app-icon/hicolor/16x16/apps/ai.storyteller.tooncraft.png` | ToonCraft contributors | Rendered from `assets/app-icon/tooncraft.svg` by `cargo xtask icons` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Linux icon theme, packages |
+| `assets/app-icon/hicolor/24x24/apps/ai.storyteller.tooncraft.png` | ToonCraft contributors | Rendered from `assets/app-icon/tooncraft.svg` by `cargo xtask icons` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Linux icon theme, packages |
+| `assets/app-icon/hicolor/32x32/apps/ai.storyteller.tooncraft.png` | ToonCraft contributors | Rendered from `assets/app-icon/tooncraft.svg` by `cargo xtask icons` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Linux icon theme, packages |
+| `assets/app-icon/hicolor/48x48/apps/ai.storyteller.tooncraft.png` | ToonCraft contributors | Rendered from `assets/app-icon/tooncraft.svg` by `cargo xtask icons` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Linux icon theme, packages |
+| `assets/app-icon/hicolor/64x64/apps/ai.storyteller.tooncraft.png` | ToonCraft contributors | Rendered from `assets/app-icon/tooncraft.svg` by `cargo xtask icons` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Linux icon theme, packages |
+| `assets/app-icon/hicolor/128x128/apps/ai.storyteller.tooncraft.png` | ToonCraft contributors | Rendered from `assets/app-icon/tooncraft.svg` by `cargo xtask icons` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Linux icon theme, packages |
+| `assets/app-icon/hicolor/256x256/apps/ai.storyteller.tooncraft.png` | ToonCraft contributors | Rendered from `assets/app-icon/tooncraft.svg` by `cargo xtask icons` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Linux icon theme, packages |
+| `assets/app-icon/hicolor/512x512/apps/ai.storyteller.tooncraft.png` | ToonCraft contributors | Rendered from `assets/app-icon/tooncraft.svg` by `cargo xtask icons` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Linux icon theme, packages |
+| `assets/app-icon/tooncraft-1024.png` | ToonCraft contributors | Rendered from `assets/app-icon/tooncraft.svg` by `cargo xtask icons` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Store listings, macOS icon source |
+| `assets/app-icon/tooncraft.ico` | ToonCraft contributors | PNG-in-ICO of the rendered sizes 16–256, by `cargo xtask icons` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Windows installer |
+| `assets/app-icon/tooncraft.icns` | ToonCraft contributors | PNG-in-ICNS of the rendered sizes 16–1024, by `cargo xtask icons` | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | macOS app bundle |
 | `docs/images/tooncraft-onion-skin.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --frame 8 --screenshot`) of the built-in demo shot, code-drawn in `crates/engine/src/demo.rs` | MIT OR Apache-2.0 | README |
 | `docs/images/tooncraft-timeline.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --select 9..14 --light-table --thumbnails --panel camera --frame 14 --screenshot`) of the built-in demo shot | MIT OR Apache-2.0 | README |
 

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <?ifndef HasCraftFontLicences ?>
+  <?define HasCraftFontLicences=0 ?>
+  <?endif?>
+  <Package Name="ToonCraft" Manufacturer="Learning Machines LLC" Version="$(var.Version)" UpgradeCode="BB9E7EC0-C0FF-4233-96DC-AE1D87B19837" Scope="perUserOrMachine" Compressed="yes" Language="1033">
+    <SummaryInformation Description="ToonCraft hand-drawn animation" Manufacturer="Learning Machines LLC" />
+    <?include $(sys.SOURCEFILEDIR)install-policy.wxi?>
+    <!-- Same-version upgrades let successive pre-releases of one X.Y.Z replace each other
+         (MSI versions are numeric, so 1.2.3-rc.1 and 1.2.3-rc.2 are both 1.2.3). -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of ToonCraft is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="TooncraftIcon.ico" SourceFile="$(var.IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="TooncraftIcon.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://getartcraft.com/apps/tooncraft" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://getartcraft.com/apps/tooncraft" />
+    <Property Id="ARPHELPLINK" Value="https://discord.gg/artcraft" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="CraftSuiteFolder" Name="ArtCraft">
+        <Directory Id="INSTALLFOLDER" Name="ToonCraft" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <Feature Id="Main" Title="ToonCraft" Level="1">
+      <?if $(var.HasCraftFontLicences) = 1 ?>
+      <ComponentGroupRef Id="CraftFontLicences" />
+      <?endif?>
+      <ComponentGroupRef Id="TooncraftFiles" />
+    </Feature>
+  <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <UI>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="2" Condition="NOT Installed" />
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" Condition="NOT Installed" />
+    </UI>
+  </Package>
+
+  <Fragment>
+    <?if $(var.HasCraftFontLicences) = 1 ?>
+    <ComponentGroup Id="CraftFontLicences" Directory="INSTALLFOLDER">
+      <Files Include="$(var.DocsDir)\**" />
+    </ComponentGroup>
+    <?endif?>
+    <ComponentGroup Id="TooncraftFiles" Directory="INSTALLFOLDER">
+      <Component Id="TooncraftApp" Guid="A5B6B050-E3F2-48B9-94C8-6A1732FF4295">
+        <File Id="TooncraftNotice" Source="$(var.BinDir)\NOTICE" KeyPath="no" />
+        <File Id="TooncraftExe" Source="$(var.BinDir)\tooncraft.exe" KeyPath="yes">
+          <!-- No Icon here, so the shortcut shows the icon embedded in tooncraft.exe (build.rs). An
+               MSI Icon is cached under %APPDATA%\Microsoft\Installer\{ProductCode}\, and every
+               update is a major upgrade with a new ProductCode that deletes the old folder. A
+               taskbar pin is a copy of this shortcut that the update never touches, so it kept
+               pointing at the deleted file and lost its icon (#1114). The exe's path survives
+               updates; the shortcut is not advertised, so it targets that path and its icon is the
+               exe's own. The Icon above stays for ARPPRODUCTICON (Apps and features). -->
+          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="ToonCraft" Description="ToonCraft hand-drawn animation" WorkingDirectory="INSTALLFOLDER" Advertise="no" />
+        </File>
+
+        <!-- .toon: ToonCraft's own format. -->
+        <ProgId Id="ToonCraft.Shot" Description="ToonCraft Shot" Icon="TooncraftExe" IconIndex="0">
+          <Extension Id="toon" ContentType="application/vnd.storyteller.tooncraft">
+            <Verb Id="open" Command="Open" TargetFile="TooncraftExe" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+
+        <!-- "Open with" registration for ToonCraft shots. -->
+        <RegistryValue Root="HKMU" Key="Software\Classes\Applications\tooncraft.exe" Name="FriendlyAppName" Value="ToonCraft" Type="string" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\Applications\tooncraft.exe\shell\open\command" Value="&quot;[#TooncraftExe]&quot; &quot;%1&quot;" Type="string" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\Applications\tooncraft.exe\SupportedTypes" Name=".toon" Value="" Type="string" />
+
+        <RegistryValue Root="HKMU" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\tooncraft.exe" Value="[#TooncraftExe]" Type="string" />
+      <RegistryValue Root="HKMU" Key="Software\ToonCraft" Name="InstallDir" Value="[INSTALLFOLDER]" Type="string" />
+      </Component>
+
+      <Component Id="TooncraftCli">
+        <File Id="TooncraftCliExe" Source="$(var.BinDir)\tooncraft-cli.exe" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

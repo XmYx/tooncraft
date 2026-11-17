@@ -7,3 +7,8 @@ publish = false
 
 [lints]
 workspace = true
+
+[dependencies]
+# `cargo xtask icons`: render the app icon SVG through craft-svg's bounded resvg renderer.
+craft-svg = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["tree-render"] }
+craft-image-codecs = { workspace = true }

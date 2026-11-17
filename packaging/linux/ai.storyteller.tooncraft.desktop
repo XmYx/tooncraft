@@ -2,13 +2,13 @@
 Type=Application
 Name=ToonCraft
 GenericName=Animation
-Comment=Draw and time hand-drawn, frame-by-frame animation
+Comment=Draw hand-drawn, frame-by-frame animation
 Exec=tooncraft %F
 TryExec=tooncraft
 Icon=ai.storyteller.tooncraft
 Terminal=false
 StartupNotify=true
 StartupWMClass=ai.storyteller.tooncraft
-Categories=Graphics;2DGraphics;RasterGraphics;AudioVideo;
+Categories=Graphics;2DGraphics;RasterGraphics;
 MimeType=application/vnd.storyteller.tooncraft;
-Keywords=animation;frame by frame;hand-drawn;onion skin;flipbook;drawing;
+Keywords=animation;frame by frame;hand-drawn;onion skin;exposure sheet;drawing;

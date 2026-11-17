@@ -1,17 +1,65 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata (software centres, Flathub). Template: package.sh and the Flatpak
+     manifest substitute @VERSION@ and @DATE@ from Cargo.toml and the build date. -->
 <component type="desktop-application">
   <id>ai.storyteller.tooncraft</id>
-  <name>ToonCraft</name>
-  <summary>Hand-drawn, frame-by-frame animation</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT OR Apache-2.0</project_license>
-  <launchable type="desktop-id">ai.storyteller.tooncraft.desktop</launchable>
+  <name>ToonCraft</name>
+  <summary>Draw hand-drawn, frame-by-frame animation</summary>
+  <developer id="ai.storyteller">
+    <name>Learning Machines LLC</name>
+  </developer>
   <description>
-    <p>Draw with pressure-sensitive brushes on a GPU canvas, time drawings on an exposure sheet,
-    flip with onion skin and a light table, colour with a gap-closing paint bucket and export PNG
-    sequences and GIFs.</p>
+    <p>
+      ToonCraft is for hand-drawn, frame-by-frame animation: pressure-sensitive pencils, inks
+      and chalk on a GPU canvas, an exposure sheet for timing, onion skin and a light table, a
+      gap-closing paint bucket, a camera, a soundtrack with its waveform, and export to video,
+      GIF, PNG sequences, layered PSD, OpenRaster and XDTS exposure sheets.
+    </p>
+    <p>
+      Every action is also a command that the command line and scripts can drive.
+    </p>
   </description>
-  <url type="homepage">https://github.com/storytold/tooncraft</url>
+  <launchable type="desktop-id">ai.storyteller.tooncraft.desktop</launchable>
+  <icon type="stock">ai.storyteller.tooncraft</icon>
+  <!-- Only url types known to appstream 0.15 (Ubuntu 22.04, where CI validates): no vcs-browser. -->
+  <url type="homepage">https://getartcraft.com/apps/tooncraft</url>
+  <url type="bugtracker">https://github.com/storytold/tooncraft/issues</url>
+  <url type="help">https://github.com/storytold/tooncraft</url>
+  <url type="contact">https://discord.gg/artcraft</url>
+  <categories>
+    <category>Graphics</category>
+    <category>2DGraphics</category>
+    <category>RasterGraphics</category>
+  </categories>
+  <keywords>
+    <keyword>animation</keyword>
+    <keyword>frame by frame</keyword>
+    <keyword>hand-drawn</keyword>
+    <keyword>onion skin</keyword>
+  </keywords>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Drawing with onion skin, the timeline below</caption>
+      <image type="source" width="2400" height="1500">https://raw.githubusercontent.com/storytold/tooncraft/main/docs/images/tooncraft-onion-skin.png</image>
+    </screenshot>
+  </screenshots>
+  <branding>
+    <color type="primary" scheme_preference="light">#f6b4a8</color>
+    <color type="primary" scheme_preference="dark">#a8392a</color>
+  </branding>
+  <requires>
+    <display_length compare="ge">760</display_length>
+  </requires>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+  <provides>
+    <binary>tooncraft</binary>
+    <mediatype>application/vnd.storyteller.tooncraft</mediatype>
+  </provides>
   <content_rating type="oars-1.1"/>
   <releases>
     <release version="@VERSION@" date="@DATE@"/>

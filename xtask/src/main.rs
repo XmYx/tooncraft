@@ -14,6 +14,8 @@
 //!   (house-rules-rust), from `cargo metadata` (the same list `deny.toml` gives cargo-deny).
 //! - `strings`: extracts every `tl!`/`tlf!` source text into `locales/tooncraft.tsv` (the English
 //!   catalog translators start from); `ci` fails when it is out of date.
+//! - `icons`: render `assets/app-icon/tooncraft.svg` to the hicolor PNGs, the 1024 px PNG, the
+//!   Windows `.ico` and the macOS `.icns` (committed, so packaging needs no tools).
 //! - `bench`: the engine benchmark (`tooncraft-cli bench`, release build).
 //! - `version`: the workspace version.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
@@ -319,6 +321,100 @@ fn strings(write: bool) -> Result<(), String> {
     Ok(())
 }
 
+const ICON_ID: &str = "ai.storyteller.tooncraft";
+const HICOLOR: [u32; 8] = [16, 24, 32, 48, 64, 128, 256, 512];
+
+/// The icon SVG rendered at `size` px, straight RGBA.
+fn render_icon(svg: &[u8], size: u32) -> Result<Vec<u8>, String> {
+    use craft_svg::tree::{self, usvg};
+    let tree = tree::parse(svg, &tree::Limits::default(), &usvg::Options::default()).map_err(|e| format!("icon SVG: {e:?}"))?;
+    let scale = size as f32 / tree.size().width().max(1.0);
+    let pixmap = tree::draw::render(&tree, usvg::Transform::from_scale(scale, scale), size, size, 0, 1 << 30).map_err(|e| format!("icon render: {e:?}"))?;
+    let mut rgba = pixmap.data().to_vec();
+    // tiny-skia pixmaps are premultiplied
+    for px in rgba.as_chunks_mut::<4>().0.iter_mut() {
+        let a = px[3] as u32;
+        if a > 0 && a < 255 {
+            for c in &mut px[..3] {
+                *c = ((*c as u32 * 255 + a / 2) / a).min(255) as u8;
+            }
+        }
+    }
+    Ok(rgba)
+}
+
+fn encode_png(rgba: Vec<u8>, size: u32) -> Result<Vec<u8>, String> {
+    use craft_image_codecs::{ChannelLayout, EncodeOptions, Format, Image, SampleType};
+    let img = Image::from_raw(size, size, ChannelLayout::Rgba, SampleType::U8, rgba).map_err(|e| e.to_string())?;
+    craft_image_codecs::encode(&img, Format::Png, &EncodeOptions::default()).map_err(|e| e.to_string())
+}
+
+/// An ICO whose images are PNGs (read by Windows Vista and later).
+fn ico_file(images: &[(u32, Vec<u8>)]) -> Vec<u8> {
+    let mut out = vec![0, 0, 1, 0];
+    out.extend_from_slice(&(images.len() as u16).to_le_bytes());
+    let mut offset = 6 + 16 * images.len() as u32;
+    for (size, data) in images {
+        let side = if *size >= 256 { 0 } else { *size as u8 };
+        out.extend_from_slice(&[side, side, 0, 0, 1, 0, 32, 0]);
+        out.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        out.extend_from_slice(&offset.to_le_bytes());
+        offset += data.len() as u32;
+    }
+    for (_, data) in images {
+        out.extend_from_slice(data);
+    }
+    out
+}
+
+/// An ICNS whose images are PNGs (macOS 10.7 and later).
+fn icns_file(images: &[([u8; 4], Vec<u8>)]) -> Vec<u8> {
+    let total = 8 + images.iter().map(|(_, d)| 8 + d.len()).sum::<usize>();
+    let mut out = b"icns".to_vec();
+    out.extend_from_slice(&(total as u32).to_be_bytes());
+    for (kind, data) in images {
+        out.extend_from_slice(kind);
+        out.extend_from_slice(&((8 + data.len()) as u32).to_be_bytes());
+        out.extend_from_slice(data);
+    }
+    out
+}
+
+fn icons() -> Result<(), String> {
+    let dir = root().join("assets/app-icon");
+    let svg = std::fs::read(dir.join("tooncraft.svg")).map_err(|e| e.to_string())?;
+    let mut png = std::collections::BTreeMap::new();
+    for size in HICOLOR.into_iter().chain([1024]) {
+        png.insert(size, encode_png(render_icon(&svg, size)?, size)?);
+    }
+    let get = |s: u32| png.get(&s).cloned().ok_or_else(|| format!("no {s} px icon"));
+    let write = |p: PathBuf, b: Vec<u8>| -> Result<(), String> {
+        if let Some(d) = p.parent() {
+            std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&p, b).map_err(|e| format!("{}: {e}", p.display()))
+    };
+    for size in HICOLOR {
+        write(dir.join(format!("hicolor/{size}x{size}/apps/{ICON_ID}.png")), get(size)?)?;
+    }
+    write(dir.join(format!("hicolor/scalable/apps/{ICON_ID}.svg")), svg.clone())?;
+    write(dir.join("tooncraft-1024.png"), get(1024)?)?;
+    let ico: Vec<(u32, Vec<u8>)> = [16, 24, 32, 48, 64, 128, 256].into_iter().map(|s| get(s).map(|d| (s, d))).collect::<Result<_, _>>()?;
+    write(dir.join("tooncraft.ico"), ico_file(&ico))?;
+    let icns = vec![
+        (*b"icp4", get(16)?),
+        (*b"icp5", get(32)?),
+        (*b"icp6", get(64)?),
+        (*b"ic07", get(128)?),
+        (*b"ic08", get(256)?),
+        (*b"ic09", get(512)?),
+        (*b"ic10", get(1024)?),
+    ];
+    write(dir.join("tooncraft.icns"), icns_file(&icns))?;
+    println!("icons: {} hicolor sizes, 1024 px, .ico and .icns in {}", HICOLOR.len(), dir.display());
+    Ok(())
+}
+
 fn ci() -> Result<(), String> {
     cargo(&["fmt", "--all", "--check"])?;
     cargo(&["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"])?;
@@ -342,13 +438,14 @@ fn main() -> ExitCode {
         "progress" => progress(),
         "parity" => parity(write),
         "licenses" => licenses(),
+        "icons" => icons(),
         "strings" => strings(write),
         "bench" => cargo(&["run", "--release", "-p", "tooncraft-cli", "--", "bench"]),
         "version" => {
             println!("{}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
-        _ => Err("usage: cargo xtask <ci|layers|assets|progress|parity [--write]|strings [--write]|licenses|bench|version>".into()),
+        _ => Err("usage: cargo xtask <ci|layers|assets|progress|parity [--write]|strings [--write]|licenses|icons|bench|version>".into()),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
