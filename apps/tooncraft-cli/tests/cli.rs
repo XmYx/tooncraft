@@ -126,11 +126,13 @@ fn timing_commands_from_a_command_file() {
 {"cmd":"set_mark","layer":0,"frame":8,"mark":"key"}
 {"cmd":"add_inbetweens","layer":0,"frame":0,"count":3,"ease":{"kind":"linear"},"guides":false}
 {"cmd":"retime_between_keys","layer":0,"from":0,"to":8,"ease":{"kind":"in"}}
+{"cmd":"resize_canvas","width":96,"height":64,"anchor":[0,0]}
+{"cmd":"crop_canvas","x":8,"y":0,"width":80,"height":48}
 "#,
     )
     .unwrap();
     let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap()]);
     assert!(ok, "{out}");
     let (ok, out) = cli(&["info", shot_s]);
-    assert!(ok && out.contains("\"mark\": \"key\"") && out.contains("\"sheet\": \"##-#-#--#\""), "{out}");
+    assert!(ok && out.contains("\"mark\": \"key\"") && out.contains("\"sheet\": \"##-#-#--#\"") && out.contains("\"size\": [\n    80,\n    48\n  ]"), "{out}");
 }

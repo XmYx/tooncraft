@@ -47,7 +47,7 @@ Status: **Avoided** (by design, with evidence), **Have** (built and tested), **B
 | # | Request | Seen in | Example sources | ToonCraft |
 |---|---|---|---|---|
 | F1 | Audio waveform on the timeline with clean scrubbing for lip sync | ~7 | [krita-artists](https://krita-artists.org/t/seeing-the-audio-file-in-the-timeline/19987) | **Built** (A8); lip-sync assist planned (gap 3) |
-| F2 | Richer onion skin (more frames, per-side colours, drawing-based mode, saved) | ~5 | [OpenToonz wishlist](https://groups.google.com/g/opentoonz_en/c/hNm5fP-J7rM) | **Have**; "hide only the previous frame" and outline mode planned |
+| F2 | Richer onion skin (more frames, per-side colours, drawing-based mode, saved) | ~5 | [OpenToonz wishlist](https://groups.google.com/g/opentoonz_en/c/hNm5fP-J7rM) | **Have**; plus "hide only the previous step" and outline mode |
 | F3 | Lasso / selection / transform inside the animation workflow | ~5 | [Dreams thread](https://redlib.hbubli.cc/r/ProCreate/comments/181in7d/procreate_dreams_everything_its_missing_and) | **Built** (A11) |
 | F4 | Straight-line and shape assist | ~4 | [review](https://thoughtsonthrees.substack.com/p/procreate-dreams-actually-works-now) | **Built:** line, rectangle, ellipse tools; Shift snaps lines to 15° and makes squares / circles |
 | F5 | Perpetual, offline licence | ~5 | [CSP offline demand](https://piunikaweb.com/blog/clip-studio-paint-perpetual-license-users-demand-offline-access) | **Have** (open source) |

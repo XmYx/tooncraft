@@ -26,6 +26,8 @@ pub(crate) enum Part {
     Camera(tooncraft_doc::Camera),
     Folders(Vec<tooncraft_doc::Folder>),
     Pegs(Vec<tooncraft_doc::Peg>),
+    /// The whole project (canvas size changes; tiles are shared, so this is cheap).
+    Whole(Box<Project>),
     Marks(std::collections::BTreeMap<tooncraft_doc::DrawingId, tooncraft_doc::Mark>),
     Tip {
         id: u64,
@@ -47,6 +49,7 @@ impl Entry {
             .map(|p| match p {
                 Part::Tiles { tiles, .. } => tiles.iter().filter(|(_, t)| t.is_some()).count() as u64 * TILE_BYTES as u64,
                 Part::Drawing { surface: Some(s), .. } => s.memory_bytes(),
+                Part::Whole(p) => p.memory_bytes(),
                 _ => 0,
             })
             .sum()
@@ -80,6 +83,7 @@ impl Entry {
                 }
                 Part::Folders(f) => Part::Folders(std::mem::replace(&mut p.folders, f)),
                 Part::Pegs(g) => Part::Pegs(std::mem::replace(&mut p.pegs, g)),
+                Part::Whole(w) => Part::Whole(Box::new(std::mem::replace(p, *w))),
                 Part::Marks(m) => Part::Marks(std::mem::replace(&mut p.marks, m)),
                 Part::Camera(c) => Part::Camera(std::mem::replace(&mut p.camera, c)),
                 Part::Sounds(s, t) => Part::Sounds(std::mem::replace(&mut p.sounds, s), std::mem::replace(&mut p.audio_tracks, t)),

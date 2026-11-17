@@ -32,6 +32,8 @@ tooncraft	Brush {name} loaded
 tooncraft	Camera	
 tooncraft	Cancel	
 tooncraft	Canvas	
+tooncraft	Canvas Size	
+tooncraft	Canvas Size…	
 tooncraft	Canvas: {layer}, frame {frame}	
 tooncraft	Centre X	
 tooncraft	Centre Y	
@@ -63,6 +65,8 @@ tooncraft	Copy Frames
 tooncraft	Could not open {file}: {error}	
 tooncraft	Could not save: {error}	
 tooncraft	Create	
+tooncraft	Crop to Camera	
+tooncraft	Crop to the camera frame at the current frame (no rotation)	
 tooncraft	Current colour: open the Colour panel	
 tooncraft	Custom curve	
 tooncraft	Cut	
@@ -75,6 +79,7 @@ tooncraft	Delete Layer
 tooncraft	Delete Peg	
 tooncraft	Delete frame	
 tooncraft	Delete frame (Shift+Delete)	
+tooncraft	Delete {name}	
 tooncraft	Depth	
 tooncraft	Deselect	
 tooncraft	Detect Mouths from Sound	
@@ -85,9 +90,11 @@ tooncraft	Don’t Save
 tooncraft	Down	
 tooncraft	Drag inside to move, corners to scale, the top knob to rotate	
 tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates	
+tooncraft	Drawing (standard)	
 tooncraft	Drawing at frame {n}: {mark}	
 tooncraft	Drawing duplicated	
 tooncraft	Drawings	
+tooncraft	Drawings are moved, never resampled; paint outside the new canvas is cut (undo brings it back).	
 tooncraft	Drop shadow	
 tooncraft	Duplicate	
 tooncraft	Duplicate Drawing	
@@ -120,6 +127,7 @@ tooncraft	Fade in
 tooncraft	Fade out	
 tooncraft	Fade per step	
 tooncraft	Feather	
+tooncraft	Field Guide	
 tooncraft	File	
 tooncraft	Finish the line where the pen lifts	
 tooncraft	First / last frame	
@@ -150,6 +158,7 @@ tooncraft	Frames
 tooncraft	Frames per second	
 tooncraft	Frames {a}–{b}, {px} px	
 tooncraft	Gamma	
+tooncraft	Give the workspace a name	
 tooncraft	Glow	
 tooncraft	Glow colour	
 tooncraft	Grain	
@@ -171,6 +180,7 @@ tooncraft	Held for {n} frames
 tooncraft	Help	
 tooncraft	Hex	
 tooncraft	Hide Layer	
+tooncraft	Hide the previous step	
 tooncraft	Hold	
 tooncraft	Hold +	
 tooncraft	Hold One Frame Longer	
@@ -200,7 +210,17 @@ tooncraft	Insert Frame in All Layers
 tooncraft	Insert frame	
 tooncraft	Insert frame (Insert)	
 tooncraft	Intensity	
+tooncraft	Keep in place	
+tooncraft	Keep the bottom in place	
+tooncraft	Keep the bottom left in place	
+tooncraft	Keep the bottom right in place	
+tooncraft	Keep the centre in place	
+tooncraft	Keep the left side in place	
 tooncraft	Keep the outside	
+tooncraft	Keep the right side in place	
+tooncraft	Keep the top in place	
+tooncraft	Keep the top left in place	
+tooncraft	Keep the top right in place	
 tooncraft	Key	
 tooncraft	Key at frame {n}	
 tooncraft	Key clip {n} volume here	
@@ -318,6 +338,7 @@ tooncraft	Open…
 tooncraft	Other consonants	
 tooncraft	Outline	
 tooncraft	Outline colour	
+tooncraft	Outlines only	
 tooncraft	Output black	
 tooncraft	Output white	
 tooncraft	Overlay	
@@ -395,6 +416,7 @@ tooncraft	Reset Brush
 tooncraft	Reset Panels	
 tooncraft	Reset Rotation	
 tooncraft	Reset {what}	
+tooncraft	Resize	
 tooncraft	Rest	
 tooncraft	Result blend	
 tooncraft	Reverse Selected Frames	
@@ -407,6 +429,7 @@ tooncraft	Rotate view
 tooncraft	Rotation	
 tooncraft	Round	
 tooncraft	Round (O)	
+tooncraft	Safe Areas	
 tooncraft	Saturation	
 tooncraft	Saturation and brightness	
 tooncraft	Save	
@@ -414,10 +437,12 @@ tooncraft	Save / save as
 tooncraft	Save As…	
 tooncraft	Save New Version	
 tooncraft	Save Preset…	
+tooncraft	Save Workspace	
 tooncraft	Save as shot_v002, shot_v003 … next to the current file (Ctrl+Alt+S)	
 tooncraft	Save new version	
 tooncraft	Save the shot before quitting?	
 tooncraft	Saved brush {name}	
+tooncraft	Saved workspace {name}	
 tooncraft	Saved {file} ({size} KB)	
 tooncraft	Scale 200 %	
 tooncraft	Scale 50 %	
@@ -502,6 +527,7 @@ tooncraft	Tip from Image…
 tooncraft	Tolerance	
 tooncraft	Tone curve	
 tooncraft	Tongue (L TH)	
+tooncraft	Too many saved workspaces	
 tooncraft	ToonCraft found a recovery copy from {when} that is newer than the shot. Open it?	
 tooncraft	ToonCraft shot	
 tooncraft	Top	
@@ -524,6 +550,7 @@ tooncraft	View
 tooncraft	Volume	
 tooncraft	Wide (E)	
 tooncraft	Width	
+tooncraft	Workspaces	
 tooncraft	Wrote {file}	
 tooncraft	XDTS Exposure Sheet with Drawings…	
 tooncraft	Zoom	

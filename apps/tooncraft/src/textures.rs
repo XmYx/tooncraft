@@ -15,6 +15,7 @@ struct Key {
     drawing: DrawingId,
     tile: u32,
     tint: Option<[u8; 3]>,
+    outline: bool,
 }
 
 struct Entry {
@@ -56,19 +57,21 @@ impl TileTextures {
     }
 
     /// The texture for a tile, uploading it when its revision changed.
-    pub fn get(&mut self, ctx: &egui::Context, drawing: DrawingId, index: u32, tile: &Tile, tint: Option<[u8; 3]>) -> TextureId {
-        let key = Key { drawing, tile: index, tint };
+    /// With `outline`, the texture shows only the outline of the tile's paint (onion skin).
+    pub fn get(&mut self, ctx: &egui::Context, drawing: DrawingId, index: u32, tile: &Tile, tint: Option<[u8; 3]>, outline: bool) -> TextureId {
+        let key = Key { drawing, tile: index, tint, outline };
+        let img = |t: &Tile| if outline { image(&tooncraft_raster::reframe::outline(t), tint) } else { image(t, tint) };
         let frame = self.frame;
         if let Some(e) = self.map.get_mut(&key) {
             e.used = frame;
             if e.rev != tile.revision() {
-                e.tex.set(image(tile, tint), OPTIONS);
+                e.tex.set(img(tile), OPTIONS);
                 e.rev = tile.revision();
                 self.uploads += 1;
             }
             return e.tex.id();
         }
-        let tex = ctx.load_texture(format!("tile-{}-{index}-{tint:?}", drawing.0), image(tile, tint), OPTIONS);
+        let tex = ctx.load_texture(format!("tile-{}-{index}-{tint:?}-{outline}", drawing.0), img(tile), OPTIONS);
         let id = tex.id();
         self.uploads += 1;
         self.map.insert(key, Entry { rev: tile.revision(), tex, used: frame });

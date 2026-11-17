@@ -615,3 +615,31 @@ fn marks_presets_smart_retime_and_inbetween_guides() {
     }
     assert_eq!(e.project, before);
 }
+
+#[test]
+fn canvas_resize_and_crop_move_drawings_without_resampling() {
+    let mut e = engine();
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: circle(60.0, 60.0, 20.0) }).unwrap();
+    e.apply(Command::AddPeg { name: "P".into(), parent: None }).unwrap();
+    e.apply(Command::SetCameraKey { frame: 0, x: 160.0, y: 120.0, zoom: 1.0, angle: 0.0 }).unwrap();
+    let before = e.project.clone();
+    let at = |e: &Engine, x, y| e.pick_color(0, x, y);
+    let ring = at(&e, 40, 60);
+    // grow to the right and down, keeping the top left in place
+    e.apply(Command::ResizeCanvas { width: 640, height: 480, anchor: (0.0, 0.0) }).unwrap();
+    assert_eq!((e.project.width(), e.project.height()), (640, 480));
+    assert_eq!(at(&e, 40, 60), ring, "pixels are moved, not resampled");
+    e.undo().unwrap();
+    // centred: everything moves by half the growth, pivots and camera keys too
+    e.apply(Command::ResizeCanvas { width: 420, height: 240, anchor: (0.5, 0.5) }).unwrap();
+    assert_eq!(at(&e, 90, 60), ring);
+    assert_eq!(e.project.pegs[0].pivot, (210.0, 120.0));
+    assert_eq!(e.project.camera.keys[0].x, 210.0);
+    e.undo().unwrap();
+    assert_eq!(e.project, before);
+    e.apply(Command::CropCanvas { x: 30, y: 30, width: 100, height: 80 }).unwrap();
+    assert_eq!(at(&e, 10, 30), ring);
+    assert!(e.apply(Command::CropCanvas { x: 0, y: 0, width: 0, height: 10 }).is_err());
+    e.undo().unwrap();
+    assert_eq!(e.project, before, "undo brings the cut paint back");
+}

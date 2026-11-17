@@ -456,6 +456,21 @@ pub enum Command {
         #[serde(default)]
         collapsed: Option<bool>,
     },
+    /// Change the canvas size; `anchor` (0…1 each way, default the centre) says which part of
+    /// the picture stays put. Drawings are moved, never resampled.
+    ResizeCanvas {
+        width: u32,
+        height: u32,
+        #[serde(default = "centre")]
+        anchor: (f32, f32),
+    },
+    /// Crop the canvas to the rectangle at (`x`, `y`) of `width`×`height` pixels.
+    CropCanvas {
+        x: i64,
+        y: i64,
+        width: u32,
+        height: u32,
+    },
     /// Mark the drawing at the frame as a key, breakdown or inbetween (`None`: no mark).
     SetMark {
         layer: usize,
@@ -621,6 +636,10 @@ pub enum Command {
     },
 }
 
+fn centre() -> (f32, f32) {
+    (0.5, 0.5)
+}
+
 fn yes() -> bool {
     true
 }
@@ -650,6 +669,16 @@ fn edit_layers(e: &mut Engine, label: &str, edit: impl FnOnce(&mut Engine) -> Re
             Err(err)
         }
     }
+}
+
+fn reframe(e: &mut Engine, label: &str, width: u32, height: u32, dx: i64, dy: i64) -> Result<()> {
+    if e.is_stroking() {
+        return Err(EngineError::Busy);
+    }
+    let before = Box::new(e.project.clone());
+    e.project.reframe(width, height, dx, dy)?;
+    e.push(Entry { label: label.into(), parts: vec![Part::Whole(before)] });
+    Ok(())
 }
 
 fn folder_mut<'a>(p: &'a mut tooncraft_doc::Project, name: &str) -> std::result::Result<&'a mut tooncraft_doc::Folder, DocError> {
@@ -1120,6 +1149,13 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.push(Entry { label: "Folder".into(), parts: vec![before] });
             Ok(())
         }
+        Command::ResizeCanvas { width, height, anchor } => {
+            let a = |v: f32| if v.is_finite() { v.clamp(0.0, 1.0) } else { 0.5 };
+            let dx = ((width as f64 - e.project.width() as f64) * a(anchor.0) as f64).round() as i64;
+            let dy = ((height as f64 - e.project.height() as f64) * a(anchor.1) as f64).round() as i64;
+            reframe(e, "Canvas size", width, height, dx, dy)
+        }
+        Command::CropCanvas { x, y, width, height } => reframe(e, "Crop canvas", width, height, -x, -y),
         Command::SetMark { layer, frame, mark } => {
             frame_ok(e, frame)?;
             let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;

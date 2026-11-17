@@ -32,6 +32,8 @@ hand a script can do.
 | `shape` | `layer`, `frame`, `brush`, `shape` (line / rectangle / ellipse), `from`, `to`, `constrain` |
 | `fill_all_frames` | as `fill`, without `frame` |
 | `set_camera_key`, `remove_camera_key`, `set_camera` | `frame`, `x`, `y`, `zoom`, `angle` (degrees); `enabled` |
+| `resize_canvas` | `width`, `height`, `anchor` ([x, y] in 0…1, default centre); drawings move, never resample |
+| `crop_canvas` | `x`, `y`, `width`, `height` |
 | `set_mark` | `layer`, `frame`, `mark` (`key` / `breakdown` / `inbetween`; absent removes it) |
 | `apply_timing` | `layer`, `from`, `to`, `preset` (`{"kind":"even","frames":2}`, `slow_start`, `slow_end`, `slow_both`, `{"kind":"holds","holds":[…]}`) |
 | `retime_between_keys` | `layer`, `from`, `to`, `ease` (keys and breakdowns keep their frames) |

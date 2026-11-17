@@ -8,7 +8,7 @@ use craft_ui::layout::{SplitAxis, SplitSize};
 
 use crate::app::ToonApp;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Pane {
     Canvas,
     Timeline,
