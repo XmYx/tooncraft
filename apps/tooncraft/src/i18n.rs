@@ -78,65 +78,13 @@ pub fn install_fonts(ctx: &egui::Context) {
 mod tests {
     use super::*;
 
-    fn unescape(s: &str) -> String {
-        let mut out = String::new();
-        let mut it = s.chars();
-        while let Some(c) = it.next() {
-            if c == '\\' {
-                match it.next() {
-                    Some('n') => out.push('\n'),
-                    Some('t') => out.push('\t'),
-                    Some(o) => out.push(o),
-                    None => {}
-                }
-            } else {
-                out.push(c);
-            }
-        }
-        out
-    }
-
-    /// The (English, translation) rows of a catalog kept in this repository.
-    fn rows(code: &str) -> Vec<(String, String)> {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../locales").join(code).join("tooncraft.tsv");
-        let text = std::fs::read_to_string(path).unwrap();
-        text.lines()
-            .filter(|l| !l.is_empty() && !l.starts_with('#'))
-            .filter_map(|l| {
-                let c: Vec<&str> = l.split('\t').collect();
-                (c.len() == 3 && c[0].is_empty()).then(|| (unescape(c[1]), unescape(c[2])))
-            })
-            .collect()
-    }
-
     #[test]
-    fn the_catalogs_in_the_repository_are_embedded_and_translate() {
-        for (code, name, save, file) in [("de", "Deutsch", "Speichern", "Datei"), ("es", "Español", "Guardar", "Archivo")] {
-            let lang = I18N.from_code(code).unwrap_or_else(|| panic!("{code} is not offered"));
-            assert_eq!(I18N.t(lang, "Save"), save);
-            assert_eq!(I18N.t(lang, "File"), file);
-            assert_eq!(I18N.name(lang), name);
-            let rows = rows(code);
-            assert!(rows.len() > 250, "{code} has {} rows", rows.len());
-            for (en, tr) in &rows {
-                assert_eq!(I18N.t(lang, en), *tr, "{code}: {en}");
-            }
-            // a text with no translation shows in English
-            assert_eq!(I18N.t(lang, "A text nobody translated"), "A text nobody translated");
-        }
-        assert_eq!(I18N.t(craft_i18n::Lang::EN, "Save"), "Save");
-        // placeholders survive translation
-        let de = I18N.from_code("de").unwrap();
-        assert_eq!(craft_i18n::fmt(I18N.t(de, "Layer {name}"), &[("name", "Tinte")]), "Ebene Tinte");
-    }
-
-    #[test]
-    fn tests_run_in_english_unless_they_ask() {
+    fn tests_run_in_english_whatever_the_machine_speaks() {
         set_language(None);
         assert_eq!(current(), craft_i18n::Lang::EN);
-        set_language(Some("de"));
-        assert_ne!(current(), craft_i18n::Lang::EN);
         set_language(Some("xx"));
         assert_eq!(current(), craft_i18n::Lang::EN, "an unknown language falls back");
+        assert_eq!(I18N.t(craft_i18n::Lang::EN, "Save"), "Save");
+        assert_eq!(craft_i18n::fmt(I18N.t(craft_i18n::Lang::EN, "Layer {name}"), &[("name", "Ink")]), "Layer Ink");
     }
 }

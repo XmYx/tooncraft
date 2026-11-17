@@ -683,26 +683,3 @@ fn nested_folders_fold_lock_clip_and_filter_the_timeline() {
     h.run();
     assert_eq!(crate::layer_tree::rows(h.state()), vec![0]);
 }
-
-#[test]
-fn the_window_can_be_shown_in_german_and_stays_accessible() {
-    let mut h = harness(true);
-    crate::i18n::set_language(Some("de"));
-    h.run();
-    // menus, tools and the canvas name come out translated, with names on every control
-    h.get_by_label("Datei");
-    h.get_by_label("Ansicht");
-    h.get_by_label("Tuschestift (N)");
-    h.get(By::new().role(egui::Role::Canvas).label_contains("Zeichenfläche: Ink, Bild 1"));
-    h.get_by_label("Datei").click();
-    h.run();
-    h.get_by_label("Speichern unter…");
-    h.get_by_label("Beenden");
-    // a keyboard shortcut still works (tool letters are not translated)
-    h.key_press(Key::Escape);
-    h.run();
-    h.key_press(Key::E);
-    h.run();
-    assert_eq!(h.state().tool, Tool::Eraser);
-    crate::i18n::set_language(None);
-}

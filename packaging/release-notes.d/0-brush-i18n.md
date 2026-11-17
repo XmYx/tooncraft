@@ -1,1 +1,0 @@
-- ToonCraft speaks German and Spanish (partly): menus, tools, panels and messages follow the system language; texts not translated yet stay in English.

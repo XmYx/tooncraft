@@ -14,7 +14,7 @@
 //!   (house-rules-rust), from `cargo metadata` (the same list `deny.toml` gives cargo-deny).
 //! - `strings`: extracts every `tl!`/`tlf!` source text into `locales/tooncraft.tsv` (the English
 //!   catalog translators start from); `ci` fails when it is out of date. Also checks the translated
-//!   catalogs `locales/<locale>/tooncraft.tsv` against the craft-i18n catalog format and reports how
+//!   catalogs `locales/<locale>/tooncraft.tsv` (kept here or in a `CRAFT_I18N_DIR` checkout) against the craft-i18n catalog format and reports how
 //!   much of the source each covers.
 //! - `icons`: render `assets/app-icon/tooncraft.svg` to the hicolor PNGs, the 1024 px PNG, the
 //!   Windows `.ico` and the macOS `.icns` (committed, so packaging needs no tools).
@@ -399,9 +399,17 @@ fn check_catalog(code: &str, text: &str, known: &std::collections::BTreeSet<&str
 /// the clean-room header) and report how much of the source catalog each one covers. Rows whose
 /// English text is no longer in the app are reported, never an error: translations may lag the app.
 fn catalogs(source: &[String]) -> Result<(), String> {
-    let locales = root().join("locales");
-    let Ok(entries) = std::fs::read_dir(&locales) else { return Ok(()) };
-    let mut dirs: Vec<PathBuf> = entries.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
+    // Translated catalogs live in storytold/craft-i18n; with `CRAFT_I18N_DIR` set to a checkout its
+    // ToonCraft catalogs are checked, and so is any `locales/<locale>/` directory kept here.
+    let mut roots = vec![root().join("locales")];
+    if let Some(d) = std::env::var_os("CRAFT_I18N_DIR").filter(|d| !d.is_empty()) {
+        roots.push(PathBuf::from(d).join("locales"));
+    }
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    for r in roots {
+        let Ok(entries) = std::fs::read_dir(&r) else { continue };
+        dirs.extend(entries.flatten().map(|e| e.path()).filter(|p| p.is_dir() && p.join("tooncraft.tsv").is_file()));
+    }
     dirs.sort();
     let known: std::collections::BTreeSet<&str> = source.iter().map(String::as_str).collect();
     let mut problems = Vec::new();
@@ -410,11 +418,7 @@ fn catalogs(source: &[String]) -> Result<(), String> {
         if code != code.to_lowercase() {
             problems.push(format!("locales/{code}: locale directories are lowercase"));
         }
-        let file = dir.join("tooncraft.tsv");
-        let Ok(text) = std::fs::read_to_string(&file) else {
-            problems.push(format!("locales/{code}: no tooncraft.tsv"));
-            continue;
-        };
+        let Ok(text) = std::fs::read_to_string(dir.join("tooncraft.tsv")) else { continue };
         let (rows, stale, found) = check_catalog(&code, &text, &known);
         problems.extend(found);
         println!(
@@ -608,7 +612,7 @@ mod tests {
     }
 
     #[test]
-    fn the_shipped_catalogs_pass() {
+    fn the_catalogs_in_reach_pass() {
         let list = source_strings().unwrap();
         catalogs(&list).unwrap();
     }

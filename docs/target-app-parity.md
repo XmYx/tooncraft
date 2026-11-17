@@ -236,7 +236,7 @@ features (video export, effects, audio) and understates it for small ones.
 | Every action reachable by keyboard | — | P | **Ours:** accessibility rule, kittest-tested |
 | Screen reader names for canvas and timeline | — | D | **Ours:** AccessKit nodes for the canvas and every visible timeline cell |
 | Saved workspaces | TV, TB, CSP | M | |
-| Localised UI | all | P | German and Spanish, each with 338 of 525 texts (the menus, tools, panels and messages of the common flows); other languages fall back to English |
+| Localised UI | all | P | craft-i18n ready, English only today |
 | Command-line control | TV | D | **Ours:** every action is an engine command; `tooncraft-cli run` applies JSON-lines command files |
 | MCP / control channel for agents | — | M | **Ours:** planned on craft-control |
 
