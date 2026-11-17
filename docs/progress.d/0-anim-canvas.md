@@ -1,0 +1,1 @@
+- 2026-11-17: Canvas tools: field guide with action- and title-safe areas; canvas resize with anchors and crop to the camera, moving drawings without resampling; saved workspaces; onion skin as outlines and hiding only the previous step.

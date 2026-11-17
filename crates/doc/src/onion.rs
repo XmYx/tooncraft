@@ -35,6 +35,10 @@ pub struct OnionSkin {
     pub mode: OnionMode,
     /// Show onion skin of every visible layer, not just the current one.
     pub all_layers: bool,
+    /// Draw the onion skin as outlines of the paint, not filled silhouettes.
+    pub outline: bool,
+    /// Leave out the nearest step before (keep only the earlier ones).
+    pub hide_previous: bool,
 }
 
 impl Default for OnionSkin {
@@ -50,6 +54,8 @@ impl Default for OnionSkin {
             tinted: true,
             mode: OnionMode::Drawings,
             all_layers: false,
+            outline: false,
+            hide_previous: false,
         }
     }
 }
@@ -142,6 +148,9 @@ pub(crate) fn neighbours(layer: &Layer, frame: u32, length: u32, o: &OnionSkin) 
             }
         }
     }
+    if o.hide_previous {
+        out.retain(|(_, off)| *off != -1);
+    }
     out
 }
 
@@ -181,6 +190,13 @@ mod tests {
         let o = OnionSkin { before: 2, after: 2, ..Default::default() };
         let n = neighbours(&l, 4, 8, &o);
         assert_eq!(n, vec![(DrawingId(2), -1), (DrawingId(1), -2), (DrawingId(4), 1)]);
+    }
+
+    #[test]
+    fn hiding_the_previous_step_keeps_the_earlier_ones() {
+        let l = layer(vec![k(1), H, k(2), H, k(3), X, k(4), H]);
+        let o = OnionSkin { before: 2, after: 1, hide_previous: true, ..Default::default() };
+        assert_eq!(neighbours(&l, 4, 8, &o), vec![(DrawingId(1), -2), (DrawingId(4), 1)]);
     }
 
     #[test]

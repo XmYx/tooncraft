@@ -222,6 +222,8 @@ pub struct ToonApp {
     pub show_camera: bool,
     pub peg_ui: crate::pegs::PegUi,
     pub layer_ui: crate::layer_tree::LayerUi,
+    pub timing_ui: crate::timing_panel::TimingUi,
+    pub canvas_ui: crate::canvas_tools::CanvasUi,
     pub shape: tooncraft_engine::shapes::ShapeKind,
     /// A shape being dragged: (from, to) in canvas pixels.
     pub shape_drag: Option<((f32, f32), (f32, f32))>,
@@ -347,6 +349,8 @@ impl ToonApp {
             show_camera: true,
             peg_ui: Default::default(),
             layer_ui: Default::default(),
+            timing_ui: Default::default(),
+            canvas_ui: crate::canvas_tools::CanvasUi::new(!cfg!(test) && cli.screenshot.is_none()),
             shape: tooncraft_engine::shapes::ShapeKind::Line,
             shape_drag: None,
             fill_every_frame: false,
@@ -1125,6 +1129,7 @@ impl ToonApp {
                 if ui.checkbox(&mut self.light_theme, tl!("Light Theme")).changed() {
                     crate::theme::apply(ui.ctx(), self.light_theme);
                 }
+                crate::canvas_tools::view_menu(self, ui);
                 if ui.button(tl!("Reset Panels")).clicked() {
                     self.workspace = Workspace::default();
                 }
@@ -1419,6 +1424,7 @@ impl ToonApp {
     }
 
     fn dialogs(&mut self, ctx: &egui::Context) {
+        crate::canvas_tools::dialog(self, ctx);
         if let Some(offer) = &self.recovery {
             let (path, when) = (offer.path.clone(), offer.when.clone());
             let mut decided = None;

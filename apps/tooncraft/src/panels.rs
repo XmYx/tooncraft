@@ -623,6 +623,8 @@ pub fn onion(app: &mut ToonApp, ui: &mut egui::Ui) {
             ui.end_row();
         });
         ui.checkbox(&mut o.all_layers, tl!("Onion skin on every visible layer"));
+        ui.checkbox(&mut o.outline, tl!("Outlines only"));
+        ui.checkbox(&mut o.hide_previous, tl!("Hide the previous step"));
         if o != app.engine.project.onion {
             app.engine.project.onion = o.sanitized();
         }

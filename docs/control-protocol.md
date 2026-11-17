@@ -32,6 +32,12 @@ hand a script can do.
 | `shape` | `layer`, `frame`, `brush`, `shape` (line / rectangle / ellipse), `from`, `to`, `constrain` |
 | `fill_all_frames` | as `fill`, without `frame` |
 | `set_camera_key`, `remove_camera_key`, `set_camera` | `frame`, `x`, `y`, `zoom`, `angle` (degrees); `enabled` |
+| `resize_canvas` | `width`, `height`, `anchor` ([x, y] in 0…1, default centre); drawings move, never resample |
+| `crop_canvas` | `x`, `y`, `width`, `height` |
+| `set_mark` | `layer`, `frame`, `mark` (`key` / `breakdown` / `inbetween`; absent removes it) |
+| `apply_timing` | `layer`, `from`, `to`, `preset` (`{"kind":"even","frames":2}`, `slow_start`, `slow_end`, `slow_both`, `{"kind":"holds","holds":[…]}`) |
+| `retime_between_keys` | `layer`, `from`, `to`, `ease` (keys and breakdowns keep their frames) |
+| `add_inbetweens` | `layer`, `frame`, `count` (1–32), `ease`, `guides` (default true) |
 | `add_folder`, `rename_folder`, `set_folder_parent`, `set_folder_lock`, `set_folder_color` | `name` (+ `parent`, `layers`; `to`; `parent`; `locked`; `color`) |
 | `set_layer_clip` | `layer`, `clip` (show only where the layer below has paint) |
 | `add_peg`, `delete_peg`, `rename_peg`, `set_peg_parent`, `set_peg_pivot` | `name`, optional `parent`; `peg` (+ `name`, `parent`, `x`/`y`) |

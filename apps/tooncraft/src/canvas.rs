@@ -46,6 +46,7 @@ fn draw_surface(
     opacity: f32,
     tint: Option<[u8; 3]>,
     t: &tooncraft_doc::Affine,
+    outline: bool,
 ) {
     let o = (opacity.clamp(0.0, 1.0) * 255.0).round() as u8;
     if o == 0 {
@@ -66,7 +67,7 @@ fn draw_surface(
         if !bb.intersects(c.rect) {
             continue;
         }
-        let tex = app_tex.get(ctx, id, index, tile, tint);
+        let tex = app_tex.get(ctx, id, index, tile, tint, outline);
         let (u, v) = ((x1 - x0) as f32 / TILE as f32, (y1 - y0) as f32 / TILE as f32);
         let uvs = [pos2(0.0, 0.0), pos2(u, 0.0), pos2(u, v), pos2(0.0, v)];
         let mut mesh = Mesh::with_texture(tex);
@@ -584,7 +585,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             if let Some(d) = p.drawing_at(li, pin.frame)
                 && let Some(s) = p.drawing(d)
             {
-                draw_surface(tex, &ctx, &c, d, s, p.light_table.opacity, Some(p.light_table.tint), &p.layer_transform(li, pin.frame));
+                draw_surface(tex, &ctx, &c, d, s, p.light_table.opacity, Some(p.light_table.tint), &p.layer_transform(li, pin.frame), false);
             }
         }
     }
@@ -606,7 +607,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
                 } else {
                     Some(p.onion.after_tint)
                 };
-                draw_surface(tex, &ctx, &c, d, s, p.onion.step_opacity(off.unsigned_abs()), tint, &t);
+                draw_surface(tex, &ctx, &c, d, s, p.onion.step_opacity(off.unsigned_abs()), tint, &t, p.onion.outline);
             }
         }
     }
@@ -626,7 +627,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
         if let Some((_, s)) = &app.blend_cache {
-            draw_surface(tex, &ctx, &c, tooncraft_doc::DrawingId(u64::MAX), s, 1.0, None, &tooncraft_doc::Affine::IDENTITY);
+            draw_surface(tex, &ctx, &c, tooncraft_doc::DrawingId(u64::MAX), s, 1.0, None, &tooncraft_doc::Affine::IDENTITY, false);
         }
     } else {
         for (li, layer) in p.layers.iter().enumerate() {
@@ -637,7 +638,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             if let Some(d) = layer.drawing_at(app.frame)
                 && let Some(s) = p.drawing(d)
             {
-                draw_surface(tex, &ctx, &c, d, s, opacity, None, &p.layer_transform(li, app.frame));
+                draw_surface(tex, &ctx, &c, d, s, opacity, None, &p.layer_transform(li, app.frame), false);
             }
         }
     }
@@ -650,6 +651,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         let line: Vec<Pos2> = pts.iter().step_by(2).map(|s| c.screen(s.x, s.y)).collect();
         painter.add(Shape::line(line, Stroke::new(1.5, pal.accent)));
     }
+    crate::canvas_tools::draw_guides(app, &painter, |x, y| c.screen(x, y));
     crate::pegs::draw_path(app, &painter, |x, y| c.screen(x, y), pal.accent);
     // camera frame
     let cam = &app.engine.project.camera;
