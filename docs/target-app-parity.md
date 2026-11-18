@@ -486,8 +486,8 @@ Weight: 4
 | Pen input in Wayland-native windows | all | M | M | |
 | Pen eraser end switches tool | TV CS | D | S | |
 | Pen side buttons mapped to actions | TV CS | M | S | |
-| Touch gestures: pinch zoom and twist, taps for undo and redo | CS PD | P | S | Pinch and twist; no tap gestures |
-| Palm rejection while the pen is near | CS PD | M | S | |
+| Touch gestures: pinch zoom and twist, taps for undo and redo | CS PD | D | S | Pinch and twist; a two-finger tap undoes and a three-finger tap redoes (the stroke the first finger began is dropped) |
+| Palm rejection while the pen is near | CS PD | P | S | Touches are ignored while the pen is seen and for 1.2 s after; the pen is seen through the tablet reader (X11, Xwayland, macOS), so not yet on Windows or Wayland-native windows |
 | Global pressure curve and calibration | TV CS PD | M | S | |
 | End-to-end stroke latency measured | — | P | S | Engine latency per sample is measured; input-to-screen is not |
 | iPad and Android tablet builds | CS PD | O | XL | Out of scope: the suite targets desktop Linux, macOS and Windows |

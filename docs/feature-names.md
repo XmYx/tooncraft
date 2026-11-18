@@ -49,6 +49,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Dynamics, Curve, Scatter, Jitter, Tip shape, Roundness, Tip angle | Generic brush words; our wording for the per-input response curves | Use |
 | Grain texture, Grain from Image, Canvas weave, Speckle, Clouds | Descriptive | Use |
 | Wet mixing, Colour pickup, Watercolour, Smudge, Smear fade | Generic painting words | Use (common) |
+| Two-finger tap (undo), three-finger tap (redo), palm rejection | Generic touch terms | Use (common) |
 | Markers, Add Marker, Next Marker, Timecode, Ping-pong, Play Selection, Zoom In / Out, Drawing names, Set Name, Show {name} here | Generic timeline words (marker, timecode and ping-pong are standard terms) | Use (common) |
 | Sound, Import Sound, Start Sound Here | Generic | Use |
 | XDTS Exposure Sheet with Drawings | File format name (rule 3) | Use |
