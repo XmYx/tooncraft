@@ -40,17 +40,17 @@ impl State {
 /// The frame readout for the transport: `12 / 48`, or the timecode.
 pub fn position_text(app: &ToonApp) -> String {
     let (len, fps) = (app.engine.project.length(), app.engine.project.fps());
-    if app.tl.timecode { format!("{}  {}", timecode(app.frame, fps), tlf!("of {total}", total = timecode(len.saturating_sub(1), fps))) } else { format!("{:>4} / {}", app.frame + 1, len) }
+    if app.tl.timecode {
+        format!("{}  {}", timecode(app.frame, fps), tlf!("of {total}", total = timecode(len.saturating_sub(1), fps)))
+    } else {
+        format!("{:>4} / {}", app.frame + 1, len)
+    }
 }
 
 /// Buttons after the loop button: ping-pong, the timecode switch, zoom.
 pub fn transport(app: &mut ToonApp, ui: &mut Ui) {
     let pp = app.playback.ping_pong;
-    if ui
-        .selectable_label(pp, tl!("Ping-pong"))
-        .on_hover_text(tl!("Play forward, then backward, then forward again"))
-        .clicked()
-    {
+    if ui.selectable_label(pp, tl!("Ping-pong")).on_hover_text(tl!("Play forward, then backward, then forward again")).clicked() {
         app.playback.ping_pong = !pp;
     }
     let selected = app.has_range();
@@ -102,7 +102,11 @@ pub fn paint_flags(app: &ToonApp, painter: &egui::Painter, ruler: Rect, frames_l
         let x = frames_left + (f - first) as f32 * cell_w;
         let pole = [pos2(x + 1.0, ruler.top() + 1.0), pos2(x + 1.0, ruler.bottom() - 1.0)];
         painter.line_segment(pole, egui::Stroke::new(1.5, colour));
-        painter.add(egui::Shape::convex_polygon(vec![pos2(x + 1.0, ruler.top() + 1.0), pos2(x + 8.0, ruler.top() + 4.5), pos2(x + 1.0, ruler.top() + 8.0)], colour, egui::Stroke::NONE));
+        painter.add(egui::Shape::convex_polygon(
+            vec![pos2(x + 1.0, ruler.top() + 1.0), pos2(x + 8.0, ruler.top() + 4.5), pos2(x + 1.0, ruler.top() + 8.0)],
+            colour,
+            egui::Stroke::NONE,
+        ));
     }
 }
 
@@ -222,7 +226,11 @@ pub fn names(app: &mut ToonApp, ui: &mut Ui) {
     }
     ui.horizontal_wrapped(|ui| {
         for n in named {
-            if ui.button(tlf!("Show {name} here", name = n)).on_hover_text(tl!("Show this drawing at the current frame, leaving the frames after it as they are")).clicked() {
+            if ui
+                .button(tlf!("Show {name} here", name = n))
+                .on_hover_text(tl!("Show this drawing at the current frame, leaving the frames after it as they are"))
+                .clicked()
+            {
                 app.run(Command::ExposeNamed { layer, frame, name: n });
             }
         }
