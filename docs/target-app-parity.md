@@ -150,7 +150,7 @@ Weight: 9
 | Wet paint: colour pickup, mixing and dilution | TV CS PD | P | L | Watercolour brush and colour pickup on any brush; no dilution or drying |
 | Watercolour edges: darkening and bleeding | TV CS PD | M | M | |
 | Smudge brush | all | D | M | Drags the layer's colour along the stroke; one undo step |
-| Blur and soften brush | TV CS PD | M | S | |
+| Blur and soften brush | TV CS PD | D | S | The Blur and Fine blur brushes (the smudge brush at full pickup): each pixel moves towards its neighbourhood's mean |
 | Thick paint with depth and lighting (impasto) | TV CS PD | M | L | |
 | Dual tips (a second tip or texture masking the first) | CS PD | M | M | |
 | Scatter and spray brushes (many dabs per step) | TV CS PD | M | M | |
@@ -242,7 +242,7 @@ Weight: 7
 | Linked colour styles (change a swatch, every fill using it updates) | TB CS | M | L | |
 | HSV picker with keyboard fields | all | P | S | No behaviour test yet |
 | Colour wheel, sliders and harmony modes | TV CS PD | M | S | |
-| Recent colours | TV CS PD | M | S | |
+| Recent colours | TV CS PD | D | S | The last 16 colours painted with, newest first, in the Colour panel |
 | Lock transparency (paint only where there is paint) | all | D | S | Per layer; brushes (also wet ones) only recolour paint, fills are refused |
 | Paint behind existing paint | TV CS | D | S | Brush option "Behind" (not for wet brushes); the fill already paints under |
 | Recolour line art across drawings | TV TB CS | M | M | |
@@ -469,7 +469,7 @@ Weight: 5
 | Command search | TB CS | M | S | |
 | Custom tool palettes and radial menus | TV CS PD | M | S | |
 | Second view of the same shot and a navigator | TV TB CS | M | M | |
-| Undo history panel | TV CS | M | S | |
+| Undo history panel | TV CS | D | S | A panel listing every step; click one to go there (undo or redo as needed) |
 | Preferences dialog | all | P | S | Settings live in menus; no single dialog |
 | Translated interface | all | P | M | craft-i18n catalogs are validated; English is the only shipped language |
 | Every action reachable from the keyboard | — | P | M | **Ours:** the accessibility rule; kittest-tested for the main flows |

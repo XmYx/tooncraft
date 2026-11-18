@@ -188,6 +188,8 @@ pub struct ToonApp {
     /// Straight RGBA drawing colour.
     pub color: [u8; 4],
     pub swatches: Vec<[u8; 3]>,
+    /// Colours painted with, newest first.
+    pub recent: Vec<[u8; 3]>,
     pub fill: FillOptions,
     pub fill_reference: FillReference,
     /// Pressure used for a mouse (no pen).
@@ -316,6 +318,7 @@ impl ToonApp {
             tool: Tool::Pencil,
             brushes,
             color: [28, 26, 40, 255],
+            recent: Vec::new(),
             swatches: vec![
                 [28, 26, 40],
                 [90, 86, 110],
@@ -451,8 +454,18 @@ impl ToonApp {
 
     /// Apply a command, reporting errors in the status bar. Returns success.
     pub fn run(&mut self, cmd: Command) -> bool {
+        let painted = match &cmd {
+            Command::Stroke { brush, .. } | Command::Shape { brush, .. } => Some(brush.color),
+            Command::Fill { color, .. } | Command::FillAllFrames { color, .. } => Some(*color),
+            _ => None,
+        };
         match self.engine.apply(cmd) {
-            Ok(()) => true,
+            Ok(()) => {
+                if let Some(c) = painted {
+                    crate::history_panel::note_colour(&mut self.recent, c);
+                }
+                true
+            }
             Err(e) => {
                 self.set_status(e.to_string());
                 false
@@ -1083,6 +1096,9 @@ impl ToonApp {
                 let r = self.engine.redo_label().map(|l| tlf!("Redo {action}", action = l)).unwrap_or_else(|| tl!("Redo").to_string());
                 if ui.add_enabled(self.engine.can_redo(), egui::Button::new(r)).clicked() {
                     self.redo();
+                }
+                if ui.button(tl!("Undo History")).clicked() {
+                    self.workspace.raise(Pane::History);
                 }
                 ui.separator();
                 if ui.button(tl!("Select All")).clicked() {

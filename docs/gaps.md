@@ -155,7 +155,7 @@ against the new rows.
 
 - **L1** (rank 3, now 3 h) Layer operations. Landed: duplicate, merge down / visible / flatten, 24 blend modes, copy properties. Row left: Reference layers chosen per tool (the fill reference is current or all visible).
 - **L2** (rank 5, 16 h, +1.60 points) Painted layer masks and adjustment layers. Rows: Painted layer masks; Adjustment layers acting on everything below.
-- **C1** (rank 11, 12 h, +0.93 points) Palettes: named palettes in the shot, palette files, colour wheel and sliders, recent colours, picker test. Rows: Colour swatches; Palette files: save, load, import common formats; HSV picker with keyboard fields; Colour wheel, sliders and harmony modes; Recent colours.
+- **C1** (rank 11, 12 h, +0.93 points) Palettes: named palettes in the shot, palette files, colour wheel and sliders, recent colours, picker test. Landed: recent colours. Rows: Colour swatches; Palette files: save, load, import common formats; HSV picker with keyboard fields; Colour wheel, sliders and harmony modes; Recent colours.
 - **C4** (rank 36, 33 h, +1.40 points) Colour management and 16-bit drawings. Rows: Colour management: working space, profiles, soft proof; 16-bit colour drawings.
 - **C3** (rank 37, 62 h, +2.57 points) Ink and paint: linked line and paint layers, auto-paint across drawings, linked colour styles, recolour line art. Rows: Linked line and paint layers; Paint the same regions across drawings automatically; Linked colour styles (change a swatch, every fill using it updates); Recolour line art across drawings.
 
@@ -187,7 +187,7 @@ against the new rows.
 - **B1** (rank 20, 3 h, +0.18 points) Colour jitter per dab and per stroke. Rows: Colour jitter per dab and per stroke (hue, saturation, value).
 - **B5** (rank 29, 8 h, +0.36 points) ABR brush import. Rows: Import of Photoshop ABR brushes.
 - **B3** (rank 39, 60 h, +2.34 points) Brush depth: impasto, dual tips, scatter, pattern and ribbon, animated tips, brush blend modes. Rows: Thick paint with depth and lighting (impasto); Dual tips (a second tip or texture masking the first); Scatter and spray brushes (many dabs per step); Pattern and ribbon brushes (an image repeated along the stroke); Animated brushes (a tip that changes per dab or per frame); Brush blend modes (paint as multiply, behind, and so on).
-- **B2** (rank 40, 23.5 h, +0.90 points) Wet media depth: dilution and drying, watercolour edges, blur brush. Rows: Wet paint: colour pickup, mixing and dilution; Watercolour edges: darkening and bleeding; Blur and soften brush.
+- **B2** (rank 40, 23.5 h, +0.90 points) Wet media depth: dilution and drying, watercolour edges, blur brush. Rows: Wet paint: colour pickup, mixing and dilution; Watercolour edges: darkening and bleeding. Landed: blur brush.
 - **B4** (rank 46, 29 h, +0.90 points) GPU brushes, measured real time at 500–1000 px. Rows: Brush rendering on the GPU; Brushes at large sizes stay real time.
 
 ## UI and input
@@ -195,7 +195,7 @@ against the new rows.
 - **I3** (rank 1, 1.5 h, +0.20 points) Input-to-screen latency measured. Rows: End-to-end stroke latency measured.
 - **I2** (rank 2, 4.5 h, +0.60 points) Touch: tap gestures and palm rejection. Rows: Touch gestures: pinch zoom and twist, taps for undo and redo; Palm rejection while the pen is near.
 - **I1** (rank 4, 18.5 h, +1.98 points) Pen everywhere: Windows tilt, Wayland-native pen, side buttons, barrel rotation, pressure curve. Rows: Pen pressure and tilt on Windows; Pen input in Wayland-native windows; Pen side buttons mapped to actions; Pen barrel rotation as an input; Global pressure curve and calibration.
-- **X1** (rank 10, 18.5 h, +1.53 points) UI polish: command search, tool palettes and radial menus, undo history panel, preferences dialog, docking tests, keyboard reach. Rows: Command search; Custom tool palettes and radial menus; Undo history panel; Preferences dialog; Dockable panels: move, tab, float; Every action reachable from the keyboard.
+- **X1** (rank 10, 18.5 h, +1.53 points) UI polish: command search, tool palettes and radial menus, undo history panel, preferences dialog, docking tests, keyboard reach. Landed: undo history panel. Rows: Command search; Custom tool palettes and radial menus; Preferences dialog; Dockable panels: move, tab, float; Every action reachable from the keyboard.
 - **X3** (rank 14, 4 h, +0.28 points) Shipped translations. Rows: Translated interface.
 - **X2** (rank 15, 8 h, +0.56 points) Second view of the shot and a navigator. Rows: Second view of the same shot and a navigator.
 

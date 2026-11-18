@@ -185,6 +185,27 @@ impl Engine {
         Ok(())
     }
 
+    /// The history as labels, oldest first: the steps that can be undone, then the steps that
+    /// can be redone (nearest first). `undo_labels().len()` is the current position.
+    pub fn history(&self) -> (Vec<&str>, Vec<&str>) {
+        (self.undo.iter().map(|e| e.label.as_str()).collect(), self.redo.iter().rev().map(|e| e.label.as_str()).collect())
+    }
+
+    /// Move through the history until `position` steps are applied (0 is the shot as it was
+    /// opened, or before the oldest step still remembered). Undoes or redoes as needed, one step
+    /// at a time; stops at the first error. Returns the position reached.
+    pub fn go_to_step(&mut self, position: usize) -> Result<usize> {
+        let total = self.undo.len() + self.redo.len();
+        let position = position.min(total);
+        while self.undo.len() > position {
+            self.undo()?;
+        }
+        while self.undo.len() < position {
+            self.redo()?;
+        }
+        Ok(self.undo.len())
+    }
+
     pub(crate) fn push(&mut self, entry: Entry) {
         if entry.parts.is_empty() {
             return;
@@ -387,6 +408,8 @@ impl Engine {
     }
 }
 
+#[cfg(test)]
+mod history_tests;
 #[cfg(test)]
 mod layerops_tests;
 #[cfg(test)]

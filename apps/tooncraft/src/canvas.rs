@@ -123,6 +123,7 @@ fn begin(app: &mut ToonApp, s: Sample) {
     }
     match app.engine.begin_stroke(app.layer, app.frame, brush) {
         Ok(()) => {
+            crate::history_panel::note_colour(&mut app.recent, brush.color);
             app.stroke_start = Some(Instant::now());
             let _ = app.engine.stroke_to(Sample { time: 0.0, ..s });
         }
@@ -237,7 +238,15 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             let t0 = Instant::now();
             let mut fed = false;
             let mut force: Option<f32> = None;
+            // a press that lands on a menu, a popup or a floating window above the canvas is
+            // that widget's click, not a stroke
+            let covered = |pos: &Pos2| ui.ctx().layer_id_at(*pos).is_some_and(|l| l != ui.layer_id());
             for ev in events {
+                if let Event::PointerButton { pos, pressed: true, .. } | Event::Touch { pos, phase: TouchPhase::Start, .. } = &ev
+                    && covered(pos)
+                {
+                    continue;
+                }
                 match ev {
                     Event::Touch { pos, force: f, phase, .. } => {
                         force = f.filter(|v| v.is_finite()).map(|v| v.clamp(0.0, 1.0));

@@ -322,6 +322,10 @@ impl Stroke {
     /// brush width of travel, not per dab, so the look does not change with the spacing.
     fn add_wet(&mut self, surface: &mut Surface, dab: &Dab, (x0, y0, x1, y1): (i64, i64, i64, i64)) {
         let smudge = self.brush.kind == BrushKind::Smudge;
+        if smudge && self.brush.wet.pickup >= 1.0 {
+            self.add_blur(surface, dab, (x0, y0, x1, y1));
+            return;
+        }
         let step = self.brush.spacing.clamp(0.02, 1.0);
         let rate = |p: f32| 1.0 - (1.0 - p.clamp(0.0, 0.999)).powf(step);
         let avg = average_under(surface, dab);
@@ -382,6 +386,96 @@ impl Stroke {
                             px[i + 3] = a0;
                         }
                         // keep the pixel a valid premultiplied colour
+                        let alpha = px[i + 3];
+                        for c in 0..3 {
+                            px[i + c] = px[i + c].min(alpha);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// One dab of the blur: the smudge brush at full pickup. Every pixel under the dab moves
+    /// towards the mean of its own neighbourhood (a box 0.6 of the dab's radius wide), so
+    /// edges soften in place and nothing is carried along the stroke. The strength is per brush
+    /// width of travel, like the other wet brushes.
+    fn add_blur(&mut self, surface: &mut Surface, dab: &Dab, (x0, y0, x1, y1): (i64, i64, i64, i64)) {
+        let r = ((dab.radius * 0.3).round() as i64).clamp(1, 8);
+        let (w, h) = ((x1 - x0 + 1) as usize, (y1 - y0 + 1) as usize);
+        let (pw, ph) = (w + 2 * r as usize, h + 2 * r as usize);
+        // the region with a margin, premultiplied, as floats
+        let mut padded = vec![[0.0f32; 4]; pw * ph];
+        for py in 0..ph {
+            for px in 0..pw {
+                let p = surface.pixel(x0 - r + px as i64, y0 - r + py as i64);
+                padded[py * pw + px] = [p[0] as f32, p[1] as f32, p[2] as f32, p[3] as f32];
+            }
+        }
+        // box blur: along the rows, then down the columns, with running sums
+        let win = (2 * r + 1) as f32;
+        let mut rows = vec![[0.0f32; 4]; w * ph];
+        for py in 0..ph {
+            let mut sum = [0.0f32; 4];
+            for px in 0..(2 * r as usize) {
+                for c in 0..4 {
+                    sum[c] += padded[py * pw + px][c];
+                }
+            }
+            for x in 0..w {
+                let add = padded[py * pw + x + 2 * r as usize];
+                for c in 0..4 {
+                    sum[c] += add[c];
+                    rows[py * w + x][c] = sum[c] / win;
+                    sum[c] -= padded[py * pw + x][c];
+                }
+            }
+        }
+        let mut blurred = vec![[0.0f32; 4]; w * h];
+        for x in 0..w {
+            let mut sum = [0.0f32; 4];
+            for py in 0..(2 * r as usize) {
+                for c in 0..4 {
+                    sum[c] += rows[py * w + x][c];
+                }
+            }
+            for y in 0..h {
+                let add = rows[(y + 2 * r as usize) * w + x];
+                for c in 0..4 {
+                    sum[c] += add[c];
+                    blurred[y * w + x][c] = sum[c] / win;
+                    sum[c] -= rows[y * w + x][c];
+                }
+            }
+        }
+        let (sin, cos) = dab.angle.sin_cos();
+        let t = TILE as i64;
+        // softening is much slower than smearing for the same travel: three times the strength
+        let step = (self.brush.spacing.clamp(0.02, 1.0) * 3.0).min(1.0);
+        let opacity = self.brush.opacity;
+        let salt = self.dabs;
+        for ty in y0 / t..=y1 / t {
+            for tx in x0 / t..=x1 / t {
+                let Some(index) = surface.tile_index(tx as u32, ty as u32) else { continue };
+                let Some(tile) = surface.tile_mut(index) else { continue };
+                let px = tile.bytes_mut();
+                let (bx, by) = (tx * t, ty * t);
+                for y in y0.max(by)..=y1.min(by + t - 1) {
+                    for x in x0.max(bx)..=x1.min(bx + t - 1) {
+                        let a = dab.coverage(x, y, &self.shape, cos, sin) * opacity;
+                        if a <= 0.0 {
+                            continue;
+                        }
+                        let d = 1.0 - (1.0 - a.min(0.999)).powf(step);
+                        let i = (((y - by) * t + (x - bx)) * 4) as usize;
+                        let target = blurred[(y - y0) as usize * w + (x - x0) as usize];
+                        let dither = hash01(salt, (x as u64) << 20 ^ y as u64);
+                        for c in 0..4 {
+                            let cur = px[i + c] as f32;
+                            let v = cur + (target[c] - cur) * d;
+                            // a pixel that is already its neighbourhood's mean stays as it is
+                            px[i + c] = if (v - cur).abs() < 0.02 { px[i + c] } else { (v + dither).floor().clamp(0.0, 255.0) as u8 };
+                        }
                         let alpha = px[i + 3];
                         for c in 0..3 {
                             px[i + c] = px[i + c].min(alpha);
