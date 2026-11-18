@@ -46,7 +46,9 @@ fn merge(app: &mut ToonApp, cmd: Command, lands_on: Option<usize>) {
 pub fn buttons(app: &mut ToonApp, ui: &mut Ui) {
     let layer = app.layer;
     ui.horizontal_wrapped(|ui| {
-        if ui.button(tl!("Duplicate")).on_hover_text(tl!("Copy the layer with its drawings, just above it")).clicked() && app.run(Command::DuplicateLayer { layer }) {
+        if ui.button(tl!("Duplicate Layer")).on_hover_text(tl!("Copy the layer with its drawings, just above it")).clicked()
+            && app.run(Command::DuplicateLayer { layer })
+        {
             app.layer += 1;
         }
         if ui.add_enabled(layer > 0, egui::Button::new(tl!("Merge Down"))).on_hover_text(tl!("Merge the layer into the one below it")).clicked() {
@@ -69,8 +71,15 @@ pub fn properties(app: &mut ToonApp, ui: &mut Ui) {
     if ui.checkbox(&mut lock, tl!("Lock transparency")).on_hover_text(tl!("Strokes only recolour paint that is already on the layer")).changed() {
         app.run(Command::SetLayerLockAlpha { layer: li, lock });
     }
-    let others: Vec<(usize, String)> =
-        app.engine.project.layers.iter().enumerate().filter(|(i, _)| *i != li).map(|(i, l)| (i, crate::layer_tree::path_name(&app.engine.project, l))).collect();
+    let others: Vec<(usize, String)> = app
+        .engine
+        .project
+        .layers
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i != li)
+        .map(|(i, l)| (i, crate::layer_tree::path_name(&app.engine.project, l)))
+        .collect();
     ui.horizontal(|ui| {
         let l = ui.label(tl!("Copy look from"));
         let mut from = None;

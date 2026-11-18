@@ -92,8 +92,8 @@ fn merge_down_bakes_blend_mode_and_opacity() {
     for (f, expected) in shown.iter().enumerate() {
         assert_eq!(&frame_image(&e, f as u32), expected, "frame {f} looks the same after the merge");
     }
-    // frames 0..3 were a hold underneath and a hold above: one merged drawing, held
-    assert_eq!(sheet(&l.cells).chars().take(3).collect::<String>(), "#..".to_string().replace('#', "#"));
+    // frame 0 has both drawings; frames 1 and 2 are the red hold on its own
+    assert_eq!(sheet(&l.cells).chars().take(3).collect::<String>(), "##-");
     e.undo().unwrap();
     assert_eq!(e.project, before);
     e.redo().unwrap();
@@ -136,17 +136,21 @@ fn merge_down_refuses_what_it_cannot_keep_true() {
 }
 
 #[test]
-fn merge_down_inside_a_folder_applies_the_folder_once() {
+fn merge_down_inside_a_folder_keeps_the_folder_and_wants_it_opaque() {
     let mut e = two();
     e.apply(Command::SetLayerFolder { layer: 0, folder: Some("F".into()) }).unwrap();
     e.apply(Command::SetLayerFolder { layer: 1, folder: Some("F".into()) }).unwrap();
     e.apply(Command::SetFolder { name: "F".into(), visible: None, opacity: Some(0.5), collapsed: None }).unwrap();
+    assert!(matches!(e.apply(Command::MergeDown { layer: 1 }), Err(EngineError::Merge(_))), "folder opacity is per layer, so a merge would differ");
+    e.apply(Command::SetFolder { name: "F".into(), visible: None, opacity: Some(1.0), collapsed: None }).unwrap();
     let shown: Vec<Vec<u8>> = (0..6).map(|f| frame_image(&e, f)).collect();
     e.apply(Command::MergeDown { layer: 1 }).unwrap();
     assert_eq!(e.project.layers[0].folder.as_deref(), Some("F"));
     for (f, expected) in shown.iter().enumerate() {
         assert_eq!(&frame_image(&e, f as u32), expected, "frame {f}");
     }
+    e.undo().unwrap();
+    assert_eq!(e.project.layers.len(), 2);
 }
 
 #[test]
@@ -230,15 +234,7 @@ fn locked_transparency_recolours_only_existing_paint_and_survives_save() {
         }
     }
     // a fill would add paint: refused
-    let r = e.apply(Command::Fill {
-        layer: 0,
-        frame: 0,
-        x: 5,
-        y: 5,
-        color: [0, 255, 0, 255],
-        options: Default::default(),
-        reference: Default::default(),
-    });
+    let r = e.apply(Command::Fill { layer: 0, frame: 0, x: 5, y: 5, color: [0, 255, 0, 255], options: Default::default(), reference: Default::default() });
     assert!(matches!(r, Err(EngineError::TransparencyLocked(_))), "{r:?}");
     // saved and reloaded
     let bytes = tooncraft_format::to_bytes(&e.project).unwrap();

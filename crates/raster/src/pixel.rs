@@ -280,9 +280,7 @@ pub fn blend(dst: [u8; 4], src: [u8; 4], mode: BlendMode) -> [u8; 4] {
     }
     let sa = src[3] as f32 / 255.0;
     let da = dst[3] as f32 / 255.0;
-    let straight = |p: [u8; 4], a: f32| -> [f32; 3] {
-        if a > 0.0 { [0, 1, 2].map(|k| (p[k] as f32 / 255.0 / a).min(1.0)) } else { [0.0; 3] }
-    };
+    let straight = |p: [u8; 4], a: f32| -> [f32; 3] { if a > 0.0 { [0, 1, 2].map(|k| (p[k] as f32 / 255.0 / a).min(1.0)) } else { [0.0; 3] } };
     let (du, su) = (straight(dst, da), straight(src, sa));
     let mixed = mode.mix(du, su);
     let mut out = [0u8; 4];

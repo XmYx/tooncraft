@@ -394,7 +394,7 @@ impl Stroke {
 
     /// Finish the stroke; returns the tiles as they were before it (the undo record).
     pub fn end(self, surface: &mut Surface) -> TileSnapshot {
-        if self.brush.kind == BrushKind::Eraser || self.wet {
+        if self.brush.kind == BrushKind::Eraser || self.wet || self.brush.compose == Compose::KeepAlpha {
             surface.prune();
         }
         surface.take_capture()

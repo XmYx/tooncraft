@@ -112,7 +112,12 @@ fn signature(p: &Project, frame: u32) -> Signature {
             let t = p.layer_transform(li, frame);
             let effects = tooncraft_fx::is_active(&l.effects);
             // effect keys move with the frame, so such layers are never "the same" as another frame
-            (l.drawing_at(frame).map(|d| d.0 + if effects { (frame as u64 + 1) << 40 } else { 0 }), visible, opacity.to_bits(), [t.a, t.b, t.c, t.d, t.tx, t.ty].map(f32::to_bits))
+            (
+                l.drawing_at(frame).map(|d| d.0 + if effects { (frame as u64 + 1) << 40 } else { 0 }),
+                visible,
+                opacity.to_bits(),
+                [t.a, t.b, t.c, t.d, t.tx, t.ty].map(f32::to_bits),
+            )
         })
         .collect()
 }
@@ -162,6 +167,11 @@ pub(crate) fn merge(e: &mut Engine, kind: Merge) -> Result<()> {
         let (a, b) = (p.layer(set[0])?, p.layer(set[1])?);
         if a.folder != b.folder {
             return Err(refuse("the two layers are in different folders"));
+        }
+        // a folder's opacity is applied to each of its layers on its own, so a merged layer under
+        // it would look different where the two overlap
+        if p.effective(a).1 != a.opacity {
+            return Err(refuse("the folder is not at full opacity: set it to 100 % first"));
         }
     }
 

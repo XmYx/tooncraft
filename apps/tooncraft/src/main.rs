@@ -18,6 +18,8 @@ mod color;
 mod dock;
 mod effects_panel;
 mod frame_cache;
+#[cfg(test)]
+mod gaps_ui_tests;
 mod icons;
 mod keys;
 mod layer_ops;
