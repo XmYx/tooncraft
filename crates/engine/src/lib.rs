@@ -22,6 +22,7 @@ pub mod lipsync;
 pub mod paging;
 pub mod playback;
 pub mod preset;
+pub mod preview;
 pub mod select;
 pub mod shapes;
 mod undo;
@@ -225,9 +226,12 @@ impl Engine {
             return Err(EngineError::Busy);
         }
         let (drawing, created) = self.ensure_drawing(layer, frame)?;
-        let tip = brush.tip.and_then(|id| self.project.tips.get(&id).cloned());
+        let images = tooncraft_brush::Images {
+            tip: brush.tip.and_then(|id| self.project.tips.get(&id).cloned()),
+            grain: brush.grain_image.and_then(|id| self.project.tips.get(&id).cloned()),
+        };
         let surface = self.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
-        let stroke = Stroke::begin_with_tip(surface, brush, tip);
+        let stroke = Stroke::begin_with(surface, brush, images);
         self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke });
         Ok(())
     }

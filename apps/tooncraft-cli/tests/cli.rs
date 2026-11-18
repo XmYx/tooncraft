@@ -190,3 +190,27 @@ fn export_webp_tga_tiff_and_layered_frames() {
     assert!(!cli(&["export", s, "--webp", &d("c.webp"), "--quality", "300", "--lossy"]).0);
     assert!(!cli(&["export", s, "--tga", &d("tga2"), "--range", "9..2"]).0);
 }
+
+#[test]
+fn brush_files_make_inspect_and_preview() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-brush-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("wash.toonbrush");
+    let (ok, out) = cli(&["brush", "make", "watercolour", file.to_str().unwrap(), "--name", "Wash"]);
+    assert!(ok, "{out}");
+    let (ok, out) = cli(&["brush", "info", file.to_str().unwrap()]);
+    assert!(ok && out.contains("\"name\": \"Wash\"") && out.contains("\"kind\": \"watercolour\"") && out.contains("\"pickup\""), "{out}");
+    // the dynamics are listed as mappings, curve included
+    assert!(out.contains("\"target\": \"size\"") && out.contains("\"source\": \"pressure\""), "{out}");
+    let png = dir.join("wash.png");
+    let (ok, out) = cli(&["brush", "preview", file.to_str().unwrap(), png.to_str().unwrap(), "--size", "200x60"]);
+    assert!(ok, "{out}");
+    let bytes = std::fs::read(&png).unwrap();
+    assert_eq!(&bytes[..4], b"\x89PNG");
+    // bad input is an error, not a panic
+    assert!(!cli(&["brush", "make", "nonsense", file.to_str().unwrap()]).0);
+    assert!(!cli(&["brush", "info", dir.join("missing.toonbrush").to_str().unwrap()]).0);
+    std::fs::write(&file, b"junk").unwrap();
+    assert!(!cli(&["brush", "info", file.to_str().unwrap()]).0);
+    assert!(!cli(&["brush", "preview", file.to_str().unwrap(), png.to_str().unwrap(), "--size", "1x1"]).0);
+}

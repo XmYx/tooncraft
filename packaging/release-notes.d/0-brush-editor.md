@@ -1,0 +1,3 @@
+- Brush editor: response curves for pressure, tilt, speed, direction and randomness on size, opacity, flow, scatter and angle; tip roundness and angle; jitter; grain textures from built-in patterns or your own images; a live stroke preview in the Brush panel, all usable from the keyboard.
+- Two new brushes, Watercolour (W) and Smudge (K), and wet mixing for any brush.
+- `.toonbrush` files carry the new settings and grain images; older files still open. `tooncraft-cli brush` makes, inspects and previews them.

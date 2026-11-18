@@ -567,6 +567,56 @@ fn image_tip_strokes_and_undo() {
 }
 
 #[test]
+fn grain_images_come_from_files_and_survive_save_undo_and_commands() {
+    let dir = scratch("grain");
+    std::fs::create_dir_all(&dir).unwrap();
+    // a 2 px stripe image: light stripes are peaks
+    let mut img = tooncraft_raster::RgbaImage::transparent(8, 8);
+    for y in 0..8 {
+        for x in 0..8 {
+            let v = if x % 2 == 0 { 255 } else { 0 };
+            img.set_pixel(x, y, [v, v, v, 255]);
+        }
+    }
+    let path = dir.join("stripes.png");
+    std::fs::write(&path, tooncraft_format::encode_png(&img).unwrap()).unwrap();
+    let mut e = engine();
+    e.apply(Command::AddGrainFromImage { id: 3, path: path.to_string_lossy().into_owned() }).unwrap();
+    assert_eq!(e.project.tips.get(&3).map(|t| (t.width, t.height)), Some((8, 8)));
+    // the command file can say everything about the brush in JSON, including the new settings
+    let brush: Brush = serde_json::from_str(
+        r#"{"kind":"chalk","size":26,"grain":1.0,"grain_kind":"image","grain_image":3,"grain_scale":1.0,"hardness":1.0,"roundness":0.5,"angle":30,
+            "dynamics":{"response":{"size":{"pressure":{"amount":0.5,"curve":[[0,0],[0.5,0.8],[1,1]]}},"scatter":{"random":{"amount":0.2}}}},
+            "smoothing":{"average":0.0}}"#,
+    )
+    .unwrap();
+    assert_eq!(brush.grain_image, Some(3));
+    let samples: Vec<Sample> = (0..30).map(|i| Sample::at(60.0 + i as f32 * 2.0, 100.0, 0.3, i as f64 * 0.01)).collect();
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush, samples: samples.clone() }).unwrap();
+    let drawn = |e: &Engine, x: u32| 255 - e.pick_color(0, x, 100)[0];
+    let (even, odd): (u32, u32) = (60..110).fold((0, 0), |(a, b), x| if x % 2 == 0 { (a + drawn(&e, x) as u32, b) } else { (a, b + drawn(&e, x) as u32) });
+    // light pressure reveals only the peaks: the even (light) columns are inked, the odd ones are not
+    assert!(even > odd * 3, "peaks {even} valleys {odd}");
+    // the grain image is saved with the shot
+    let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
+    assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap().tips, e.project.tips);
+    // wet strokes are one undo step too
+    let before = e.project.clone();
+    let wet = Brush { kind: BrushKind::Smudge, size: 30.0, ..Brush::preset(BrushKind::Smudge) };
+    e.apply(Command::Stroke {
+        layer: 0,
+        frame: 0,
+        brush: wet,
+        samples: (0..20).map(|i| Sample::at(70.0 + i as f32 * 3.0, 100.0, 1.0, i as f64 * 0.01)).collect(),
+    })
+    .unwrap();
+    assert_ne!(e.project, before);
+    e.undo().unwrap();
+    assert_eq!(e.project, before);
+    assert!(e.apply(Command::AddGrainFromImage { id: 4, path: dir.join("missing.png").to_string_lossy().into_owned() }).is_err());
+}
+
+#[test]
 fn interchange_round_trips_through_other_apps_formats() {
     let dir = scratch("interop");
     std::fs::create_dir_all(&dir).unwrap();

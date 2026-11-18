@@ -12,16 +12,20 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+mod curve;
 mod dab;
 mod grain;
+mod response;
 mod stabilizer;
 mod stroke;
 mod tip;
 
+pub use curve::{Curve, MAX_POINTS, MIN_GAP};
 pub use dab::Dab;
-pub use grain::paper_grain;
+pub use grain::{GrainKind, builtin_grain, paper_grain};
+pub use response::{Dynamics, Inputs, Mapping, Response, Source, Target, hash01};
 pub use stabilizer::Stabilizer;
-pub use stroke::{Stroke, StrokeEngine, paint};
+pub use stroke::{Images, Stroke, StrokeEngine, paint, paint_with};
 pub use tip::{MAX_TIP_SIDE, Tip};
 
 use serde::{Deserialize, Serialize};
@@ -44,14 +48,36 @@ pub enum BrushKind {
     Chalk,
     /// Removes pixels; soft or hard by hardness.
     Eraser,
+    /// Wet paint: soft, translucent, and it mixes with the colour already on the layer.
+    Watercolour,
+    /// Drags the colour already on the layer along the stroke; paints nothing of its own.
+    Smudge,
 }
 
 impl BrushKind {
-    pub const ALL: [BrushKind; 5] = [BrushKind::Pencil, BrushKind::Ink, BrushKind::Airbrush, BrushKind::Chalk, BrushKind::Eraser];
+    pub const ALL: [BrushKind; 7] =
+        [BrushKind::Pencil, BrushKind::Ink, BrushKind::Airbrush, BrushKind::Chalk, BrushKind::Eraser, BrushKind::Watercolour, BrushKind::Smudge];
 
     /// Coverage accumulates (true) or takes the maximum (false).
     pub fn builds_up(self) -> bool {
         matches!(self, BrushKind::Airbrush)
+    }
+
+    /// Stable id used in file names and command files.
+    pub fn id(self) -> &'static str {
+        match self {
+            BrushKind::Pencil => "pencil",
+            BrushKind::Ink => "ink",
+            BrushKind::Airbrush => "airbrush",
+            BrushKind::Chalk => "chalk",
+            BrushKind::Eraser => "eraser",
+            BrushKind::Watercolour => "watercolour",
+            BrushKind::Smudge => "smudge",
+        }
+    }
+
+    pub fn from_id(id: &str) -> Option<BrushKind> {
+        BrushKind::ALL.into_iter().find(|k| k.id() == id)
     }
 }
 
@@ -74,25 +100,19 @@ impl Default for Smoothing {
     }
 }
 
-/// How input maps to dab size, opacity and shape.
+/// Wet mixing: the brush takes up colour from the layer under it as it goes.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct Dynamics {
-    /// 0 … 1: how much pressure scales the size.
-    pub pressure_size: f32,
-    /// 0 … 1: how much pressure scales the opacity.
-    pub pressure_opacity: f32,
-    /// 0 … 1: how much pen tilt flattens and turns the dab.
-    pub tilt: f32,
-    /// -1 … 1: positive thins the line when drawing fast, negative thickens it.
-    pub velocity_size: f32,
-    /// Smallest size as a fraction of the brush size (at zero pressure).
-    pub min_size: f32,
+pub struct Wet {
+    /// 0 … 1. On a painting brush: how fast the brush colour mixes with the layer's colour (0 is
+    /// off, the brush paints its own colour). On the smudge brush: how fast it lets go of the
+    /// colour it carries and reloads from the layer (low values drag long smears).
+    pub pickup: f32,
 }
 
-impl Default for Dynamics {
+impl Default for Wet {
     fn default() -> Self {
-        Self { pressure_size: 0.8, pressure_opacity: 0.2, tilt: 0.0, velocity_size: 0.0, min_size: 0.15 }
+        Self { pickup: 0.0 }
     }
 }
 
@@ -109,13 +129,23 @@ pub struct Brush {
     pub flow: f32,
     /// 0 (soft edge) … 1 (hard edge).
     pub hardness: f32,
+    /// Tip shape: minor over major axis, 0.1 (a thin blade) … 1 (round).
+    pub roundness: f32,
+    /// Tip shape: rotation in degrees, -180 … 180.
+    pub angle: f32,
     /// Distance between dabs as a fraction of the diameter.
     pub spacing: f32,
     /// 0 … 1: how much paper grain shapes the dabs.
     pub grain: f32,
-    /// Grain feature size in pixels.
+    /// Grain feature size in pixels (for an image, canvas pixels per image pixel).
     pub grain_scale: f32,
+    /// Which texture the grain uses.
+    pub grain_kind: GrainKind,
+    /// The grain image (its id in the project's tip table) when `grain_kind` is `Image`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grain_image: Option<u64>,
     pub dynamics: Dynamics,
+    pub wet: Wet,
     pub smoothing: Smoothing,
     /// Straight (not premultiplied) RGBA.
     pub color: [u8; 4],
@@ -139,10 +169,15 @@ impl Brush {
             opacity: 1.0,
             flow: 1.0,
             hardness: 0.9,
+            roundness: 1.0,
+            angle: 0.0,
             spacing: 0.12,
             grain: 0.0,
             grain_scale: 2.0,
+            grain_kind: GrainKind::Paper,
+            grain_image: None,
             dynamics: Dynamics::default(),
+            wet: Wet::default(),
             smoothing: Smoothing::default(),
             color: [24, 22, 30, 255],
             tip: None,
@@ -153,29 +188,46 @@ impl Brush {
                 size: 5.0,
                 hardness: 1.0,
                 spacing: 0.08,
-                dynamics: Dynamics { pressure_size: 1.0, pressure_opacity: 0.0, min_size: 0.08, velocity_size: 0.25, ..Dynamics::default() },
+                dynamics: Dynamics::linear(1.0, 0.0, 0.25, 0.08),
                 smoothing: Smoothing { average: 0.5, ..Smoothing::default() },
                 ..base
             },
-            BrushKind::Airbrush => Brush {
-                size: 60.0,
-                hardness: 0.0,
-                flow: 0.08,
-                spacing: 0.08,
-                opacity: 0.8,
-                dynamics: Dynamics { pressure_size: 0.2, pressure_opacity: 0.8, ..Dynamics::default() },
-                ..base
-            },
+            BrushKind::Airbrush => {
+                Brush { size: 60.0, hardness: 0.0, flow: 0.08, spacing: 0.08, opacity: 0.8, dynamics: Dynamics::linear(0.2, 0.8, 0.0, 0.15), ..base }
+            }
             BrushKind::Chalk => Brush {
                 size: 18.0,
                 hardness: 0.6,
                 grain: 0.85,
                 grain_scale: 3.0,
                 spacing: 0.1,
-                dynamics: Dynamics { pressure_size: 0.4, pressure_opacity: 0.4, tilt: 0.6, ..Dynamics::default() },
+                dynamics: Dynamics { tilt: 0.6, ..Dynamics::linear(0.4, 0.4, 0.0, 0.15) },
                 ..base
             },
-            BrushKind::Eraser => Brush { size: 24.0, hardness: 0.8, dynamics: Dynamics { pressure_size: 0.5, ..Dynamics::default() }, ..base },
+            BrushKind::Eraser => Brush { size: 24.0, hardness: 0.8, dynamics: Dynamics::linear(0.5, 0.2, 0.0, 0.15), ..base },
+            BrushKind::Watercolour => Brush {
+                size: 34.0,
+                hardness: 0.35,
+                flow: 0.3,
+                spacing: 0.07,
+                opacity: 0.9,
+                grain: 0.4,
+                grain_scale: 3.0,
+                grain_kind: GrainKind::Clouds,
+                dynamics: Dynamics::linear(0.3, 0.6, 0.0, 0.15),
+                wet: Wet { pickup: 0.45 },
+                smoothing: Smoothing { average: 0.4, ..Smoothing::default() },
+                ..base
+            },
+            BrushKind::Smudge => Brush {
+                size: 30.0,
+                hardness: 0.3,
+                flow: 0.55,
+                spacing: 0.06,
+                dynamics: Dynamics::linear(0.3, 0.0, 0.0, 0.15),
+                wet: Wet { pickup: 0.3 },
+                ..base
+            },
         }
     }
 
@@ -190,16 +242,19 @@ impl Brush {
             opacity: f(self.opacity, 0.0, 1.0, p.opacity),
             flow: f(self.flow, 0.01, 1.0, p.flow),
             hardness: f(self.hardness, 0.0, 1.0, p.hardness),
+            roundness: f(self.roundness, 0.1, 1.0, p.roundness),
+            angle: if self.angle.is_finite() { (self.angle + 180.0).rem_euclid(360.0) - 180.0 } else { p.angle },
             spacing: f(self.spacing, 0.02, 2.0, p.spacing),
             grain: f(self.grain, 0.0, 1.0, p.grain),
             grain_scale: f(self.grain_scale, 0.5, 64.0, p.grain_scale),
+            grain_kind: self.grain_kind,
+            grain_image: self.grain_image,
             dynamics: Dynamics {
-                pressure_size: f(self.dynamics.pressure_size, 0.0, 1.0, p.dynamics.pressure_size),
-                pressure_opacity: f(self.dynamics.pressure_opacity, 0.0, 1.0, p.dynamics.pressure_opacity),
                 tilt: f(self.dynamics.tilt, 0.0, 1.0, p.dynamics.tilt),
-                velocity_size: f(self.dynamics.velocity_size, -1.0, 1.0, p.dynamics.velocity_size),
                 min_size: f(self.dynamics.min_size, 0.01, 1.0, p.dynamics.min_size),
+                response: self.dynamics.response.sanitized(),
             },
+            wet: Wet { pickup: f(self.wet.pickup, 0.0, 1.0, p.wet.pickup) },
             smoothing: Smoothing {
                 average: f(self.smoothing.average, 0.0, 1.0, p.smoothing.average),
                 string: f(self.smoothing.string, 0.0, 500.0, p.smoothing.string),

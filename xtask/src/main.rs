@@ -8,9 +8,10 @@
 //!   `ATTRIBUTION.md`.
 //! - `progress`: RFC-0017 fragments in `docs/progress.d/` are well formed (one non-empty entry
 //!   per file, no duplicates); prints them joined, newest first.
-//! - `parity`: counts the status column of `docs/target-app-parity.md`; `--write` updates the
-//!   headline block between the `parity:` markers. `ci` validates the rows strictly but only warns
-//!   when that generated block is stale (feature PRs flip rows; a maintainer refreshes the block).
+//! - `parity`: scores `docs/target-app-parity.md` (row parity, effort parity per area and the
+//!   headline weighted parity, see `parity.rs`); `--write` updates the block between the `parity:`
+//!   markers. `ci` validates the rows strictly but only warns when that generated block is stale
+//!   (feature PRs flip rows; a maintainer refreshes the block).
 //! - `licenses`: every dependency's licence expression is satisfiable from the suite allowlist
 //!   (house-rules-rust), from `cargo metadata` (the same list `deny.toml` gives cargo-deny).
 //! - `strings`: extracts every `tl!`/`tlf!` source text into `locales/tooncraft.tsv` (the English
@@ -23,6 +24,8 @@
 //! - `version`: the workspace version.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
+
+mod parity;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -135,85 +138,29 @@ fn progress() -> Result<(), String> {
     Ok(())
 }
 
-/// Scores the feature tables of `docs/target-app-parity.md` and renders the headline block.
-///
-/// Strict on purpose: inside a `| Feature | Refs | Status | ... |` table every row needs all its
-/// cells and a status of D, P or M, and every row belongs to an area (`## ` heading). A row that
-/// breaks this is an error naming the line, never silently skipped.
-fn parity_block(text: &str) -> Result<String, String> {
-    let (mut d, mut p, mut m) = (0u32, 0u32, 0u32);
-    let mut areas: Vec<(String, u32, u32, u32)> = Vec::new();
-    let mut in_table = false;
-    for (n, line) in text.lines().enumerate() {
-        let n = n + 1;
-        if let Some(h) = line.strip_prefix("## ") {
-            areas.push((h.to_string(), 0, 0, 0));
-            in_table = false;
-            continue;
-        }
-        if !line.starts_with('|') {
-            in_table = false;
-            continue;
-        }
-        let cols: Vec<&str> = line.split('|').map(str::trim).collect();
-        if cols.get(1) == Some(&"Feature") && cols.get(3) == Some(&"Status") {
-            in_table = true;
-            continue;
-        }
-        if !in_table || cols.get(1).is_some_and(|c| c.starts_with("---")) {
-            continue;
-        }
-        if cols.len() < 5 {
-            return Err(format!("line {n}: a feature row needs Feature, Refs, Status and Ours cells"));
-        }
-        let Some(a) = areas.last_mut() else { return Err(format!("line {n}: feature row outside an area")) };
-        match cols[3] {
-            "D" => {
-                d += 1;
-                a.1 += 1;
-            }
-            "P" => {
-                p += 1;
-                a.2 += 1;
-            }
-            "M" => {
-                m += 1;
-                a.3 += 1;
-            }
-            other => return Err(format!("line {n}: status {other:?} must be D, P or M")),
-        }
+const PARITY_START: &str = "<!-- parity:start -->\n";
+const PARITY_END: &str = "<!-- parity:end -->";
+
+/// The byte range of the generated block inside the map, between the `parity:` markers.
+fn parity_block_range(text: &str) -> Result<(usize, usize), String> {
+    let (Some(a), Some(b)) = (text.find(PARITY_START), text.find(PARITY_END)) else { return Err("parity markers missing".into()) };
+    if a + PARITY_START.len() > b {
+        return Err("parity markers out of order".into());
     }
-    let rows = d + p + m;
-    if rows == 0 {
-        return Err("no feature rows found in docs/target-app-parity.md".into());
-    }
-    let score = |d: u32, p: u32, m: u32| (d as f64 + p as f64 * 0.5) / (d + p + m).max(1) as f64 * 100.0;
-    let mut block = String::from("| | Value | Kind |\n|---|---|---|\n");
-    block.push_str(&format!(
-        "| Feature rows | {rows} | measured |\n| Done (D) | {d} | measured |\n| Partial (P) | {p} | measured |\n| Missing (M) | {m} | measured |\n"
-    ));
-    block.push_str(&format!("| Parity score, (D + ½·P) / rows | {:.0} % | measured |\n", score(d, p, m)));
-    for (name, ad, ap, am) in &areas {
-        if ad + ap + am > 0 {
-            block.push_str(&format!("| {name} | {:.0} % ({ad} D, {ap} P, {am} M) | measured |\n", score(*ad, *ap, *am)));
-        }
-    }
-    Ok(block)
+    Ok((a + PARITY_START.len(), b))
 }
 
 fn parity(write: bool) -> Result<(), String> {
     let path = root().join("docs/target-app-parity.md");
     let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let block = parity_block(&text)?;
+    let block = parity::score(&text)?.block();
     print!("{block}");
+    let (a, b) = parity_block_range(&text)?;
     if write {
-        let start = "<!-- parity:start -->\n";
-        let end = "<!-- parity:end -->";
-        let (Some(a), Some(b)) = (text.find(start), text.find(end)) else { return Err("parity markers missing".into()) };
-        let new = format!("{}{start}{block}{}", &text[..a], &text[b..]);
+        let new = format!("{}{block}{}", &text[..a], &text[b..]);
         std::fs::write(&path, new).map_err(|e| e.to_string())?;
         println!("wrote {}", path.display());
-    } else if !text.contains(&block) {
+    } else if text[a..b] != block {
         return Err("the parity headline is out of date: run `cargo xtask parity --write`".into());
     }
     Ok(())
@@ -224,14 +171,9 @@ fn parity(write: bool) -> Result<(), String> {
 /// concurrent PRs, so committing the block there would make them all conflict. A maintainer
 /// refreshes it separately with `cargo xtask parity --write`.
 fn parity_ci_check(text: &str) -> Result<Option<String>, String> {
-    let block = parity_block(text)?;
-    let start = "<!-- parity:start -->\n";
-    let end = "<!-- parity:end -->";
-    let (Some(a), Some(b)) = (text.find(start), text.find(end)) else { return Err("parity markers missing".into()) };
-    if a + start.len() > b {
-        return Err("parity markers out of order".into());
-    }
-    if text[a + start.len()..b] == block {
+    let block = parity::score(text)?.block();
+    let (a, b) = parity_block_range(text)?;
+    if text[a..b] == block {
         return Ok(None);
     }
     Ok(Some(
@@ -624,9 +566,9 @@ fn main() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use super::{parity_block, parity_ci_check};
+    use super::parity_ci_check;
 
-    const ROWS: &str = "## One\n\n| Feature | Refs | Status | Ours |\n|---|---|---|---|\n| a | all | D | |\n| b | TV | P | |\n| c | TV | M | |\n";
+    const ROWS: &str = "## One\n\nWeight: 2\n\n| Feature | Refs | Status | Size | Notes |\n|---|---|---|---|---|\n| a | all | D | S | |\n| b | TV | P | M | |\n| c | TV | M | L | |\n";
 
     fn doc(block: &str, rows: &str) -> String {
         format!("# Map\n\n<!-- parity:start -->\n{block}<!-- parity:end -->\n\n{rows}")
@@ -634,14 +576,14 @@ mod tests {
 
     #[test]
     fn fresh_block_is_silent() {
-        let block = parity_block(ROWS).unwrap_or_default();
+        let block = crate::parity::score(ROWS).map(|r| r.block()).unwrap_or_default();
         assert!(!block.is_empty());
         assert_eq!(parity_ci_check(&doc(&block, ROWS)), Ok(None));
     }
 
     #[test]
     fn stale_block_warns_but_does_not_fail() {
-        let stale = doc("| | Value | Kind |\n|---|---|---|\n| Feature rows | 1 | measured |\n", ROWS);
+        let stale = doc("| | Value | Kind |\n|---|---|---|\n| In-scope feature rows | 1 | counted |\n", ROWS);
         let checked = parity_ci_check(&stale);
         assert!(matches!(&checked, Ok(Some(w)) if w.contains("out of date")), "{checked:?}");
     }
@@ -651,10 +593,16 @@ mod tests {
         let block = "x\n";
         let bad_status = ROWS.replace("| b | TV | P |", "| b | TV | Q |");
         assert!(parity_ci_check(&doc(block, &bad_status)).is_err(), "bad status");
-        let short_row = ROWS.replace("| b | TV | P | |", "| b | TV |");
+        let bad_size = ROWS.replace("| b | TV | P | M |", "| b | TV | P | big |");
+        assert!(parity_ci_check(&doc(block, &bad_size)).is_err(), "bad size");
+        let short_row = ROWS.replace("| b | TV | P | M | |", "| b | TV |");
         assert!(parity_ci_check(&doc(block, &short_row)).is_err(), "row with missing cells");
+        let no_weight = ROWS.replace("Weight: 2\n", "");
+        assert!(parity_ci_check(&doc(block, &no_weight)).is_err(), "area without a weight");
         assert!(parity_ci_check(&doc(block, "## One\n\nno table here\n")).is_err(), "no rows");
         assert!(parity_ci_check(ROWS).is_err(), "markers missing");
+        let reversed = format!("<!-- parity:end -->\n<!-- parity:start -->\n{ROWS}");
+        assert!(parity_ci_check(&reversed).is_err(), "markers out of order");
     }
 }
 

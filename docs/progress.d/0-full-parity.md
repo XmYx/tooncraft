@@ -1,0 +1,1 @@
+- 2026-11-18: the parity map now lists the full reference products in 18 weighted areas with S/M/L/XL effort sizes and D/X/P/M/O statuses re-checked against the code; `cargo xtask parity` prints row parity, effort parity per area and the headline weighted parity (39.0 %, rows 51.7 %), and `docs/gaps.md` is a ranked plan toward 90 % (about 965 hours)

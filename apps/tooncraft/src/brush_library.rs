@@ -99,6 +99,8 @@ fn category_label(c: &str) -> String {
         "Airbrushes" => tl!("Airbrushes").to_string(),
         "Chalks" => tl!("Chalks").to_string(),
         "Erasers" => tl!("Erasers").to_string(),
+        "Watercolours" => tl!("Watercolours").to_string(),
+        "Smudges" => tl!("Smudges").to_string(),
         "My brushes" => tl!("My brushes").to_string(),
         other => other.to_string(),
     }
@@ -121,6 +123,12 @@ fn builtin_name(n: &str) -> String {
         "Wide chalk" => tl!("Wide chalk").to_string(),
         "Hard eraser" => tl!("Hard eraser").to_string(),
         "Soft eraser" => tl!("Soft eraser").to_string(),
+        "Watercolour" => tl!("Watercolour").to_string(),
+        "Smudge" => tl!("Smudge").to_string(),
+        "Wet wash" => tl!("Wet wash").to_string(),
+        "Dry wash" => tl!("Dry wash").to_string(),
+        "Soft smudge" => tl!("Soft smudge").to_string(),
+        "Hard smudge" => tl!("Hard smudge").to_string(),
         other => other.to_string(),
     }
 }
@@ -137,7 +145,7 @@ pub fn use_brush(app: &mut ToonApp, id: &str) {
     match &entry.source {
         tooncraft_engine::library::Source::Builtin(b) => {
             let kind = b.kind;
-            *app.brush_mut(kind) = tooncraft_brush::Brush { color: app.color, ..*b };
+            *app.brush_mut(kind) = tooncraft_brush::Brush { color: app.color, ..**b };
             if let Some(t) = Tool::ALL.into_iter().find(|t| t.brush() == Some(kind)) {
                 app.tool = t;
             }
@@ -184,6 +192,8 @@ fn kind_label(k: BrushKind) -> String {
         "Airbrush" => tl!("Airbrush"),
         "Chalk" => tl!("Chalk"),
         "Eraser" => tl!("Eraser"),
+        "Watercolour" => tl!("Watercolour"),
+        "Smudge" => tl!("Smudge"),
         other => return other.to_string(),
     }
     .to_string()
