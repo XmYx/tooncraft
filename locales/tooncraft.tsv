@@ -7,6 +7,8 @@ tooncraft	Add
 tooncraft	Add Current Brush	
 tooncraft	Add Current Colour	
 tooncraft	Add Inbetweens	
+tooncraft	Add Marker	
+tooncraft	Add Marker Here	
 tooncraft	Add Peg	
 tooncraft	Add Shake Here	
 tooncraft	Add Sound…	
@@ -126,6 +128,7 @@ tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates
 tooncraft	Drawing (standard)	
 tooncraft	Drawing at frame {n}: {mark}	
 tooncraft	Drawing duplicated	
+tooncraft	Drawing names	
 tooncraft	Drawings	
 tooncraft	Drawings are moved, never resampled; paint outside the new canvas is cut (undo brings it back).	
 tooncraft	Drop shadow	
@@ -202,6 +205,8 @@ tooncraft	Frame ruler
 tooncraft	Frame {frame} / {total}	
 tooncraft	Frame {n} (between keys)	
 tooncraft	Frame {n} has no drawing	
+tooncraft	Frame {n}, {tc}: {text}	
+tooncraft	Frame {n}: {text}	
 tooncraft	Frames	
 tooncraft	Frames per second	
 tooncraft	Frames {a}–{b}, {px} px	
@@ -339,6 +344,11 @@ tooncraft	Lock {name}
 tooncraft	Look at	
 tooncraft	Loop playback	
 tooncraft	Luminosity	
+tooncraft	Marker	
+tooncraft	Marker added at frame {n}	
+tooncraft	Marker at frame {n}: {text}	
+tooncraft	Marker removed from frame {n}	
+tooncraft	Markers	
 tooncraft	Matte	
 tooncraft	Matte: keep inside	
 tooncraft	Matte: keep outside	
@@ -372,6 +382,7 @@ tooncraft	Mute clip {n}
 tooncraft	Mute {track}	
 tooncraft	My brushes	
 tooncraft	Name	
+tooncraft	Name of this drawing	
 tooncraft	Name, category or kind	
 tooncraft	New	
 tooncraft	New Drawing	
@@ -385,16 +396,22 @@ tooncraft	New grain every frame
 tooncraft	New layer above the current one	
 tooncraft	New shot	
 tooncraft	Next Frame	
+tooncraft	Next Marker	
 tooncraft	Next frame	
 tooncraft	Next panel	
+tooncraft	No drawings have names yet	
+tooncraft	No earlier marker	
 tooncraft	No effects on this layer.	
+tooncraft	No later marker	
 tooncraft	No mark	
+tooncraft	No markers yet	
 tooncraft	No next drawing	
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
 tooncraft	No sound in this shot.	
 tooncraft	None	
 tooncraft	Normal	
 tooncraft	Not a matte	
+tooncraft	Note for frame {n}	
 tooncraft	Nothing copied yet	
 tooncraft	Nudge the selection (Shift: 10 px)	
 tooncraft	Offset X	
@@ -456,11 +473,15 @@ tooncraft	Pin This Frame
 tooncraft	Pin frame to the light table	
 tooncraft	Pin light	
 tooncraft	Pin this frame to the light table (Shift+L)	
+tooncraft	Ping-pong	
 tooncraft	Pivot X	
 tooncraft	Pivot Y	
 tooncraft	Pixels	
 tooncraft	Play	
 tooncraft	Play / stop	
+tooncraft	Play Selection	
+tooncraft	Play forward, then backward, then forward again	
+tooncraft	Play only the selected frames (select a range of frames in the exposure sheet first)	
 tooncraft	Play the soundtrack	
 tooncraft	Point {n} in	
 tooncraft	Point {n} out	
@@ -471,6 +492,7 @@ tooncraft	Pressure used when drawing with a mouse
 tooncraft	Previous / next frame	
 tooncraft	Previous / next frame (timeline: move)	
 tooncraft	Previous Frame	
+tooncraft	Previous Marker	
 tooncraft	Previous frame	
 tooncraft	ProRes 422 HQ (MOV)…	
 tooncraft	ProRes 4444 with Alpha (MOV)…	
@@ -499,6 +521,8 @@ tooncraft	Redo {action}
 tooncraft	Reload Library	
 tooncraft	Remove	
 tooncraft	Remove Key	
+tooncraft	Remove Marker	
+tooncraft	Remove Marker Here	
 tooncraft	Remove Sound	
 tooncraft	Remove clip {n}	
 tooncraft	Remove clip {n} volume key	
@@ -560,6 +584,7 @@ tooncraft	Select All
 tooncraft	Select frames	
 tooncraft	Select tool, select all	
 tooncraft	Set Key	
+tooncraft	Set Name	
 tooncraft	Shadow colour	
 tooncraft	Shake the camera for 12 frames from the current frame	
 tooncraft	Shakes	
@@ -572,15 +597,20 @@ tooncraft	Show
 tooncraft	Show Layer	
 tooncraft	Show a mouth drawing at the current frame, then press its “Use” button.	
 tooncraft	Show drawing thumbnails in the cells	
+tooncraft	Show fewer, wider frames (Alt+=)	
 tooncraft	Show layers labelled	
+tooncraft	Show more frames (Alt+-, or Ctrl and the wheel)	
 tooncraft	Show one frame longer (+)	
 tooncraft	Show one frame shorter (−)	
 tooncraft	Show onion skin	
 tooncraft	Show pinned frames	
 tooncraft	Show the camera frame	
+tooncraft	Show the position as HH:MM:SS:FF instead of a frame number	
+tooncraft	Show this drawing at the current frame, leaving the frames after it as they are	
 tooncraft	Show this layer only where the layer below has paint	
 tooncraft	Show {category} brushes	
 tooncraft	Show {layer}	
+tooncraft	Show {name} here	
 tooncraft	Silence below	
 tooncraft	Size	
 tooncraft	Size jitter	
@@ -642,6 +672,7 @@ tooncraft	This layer
 tooncraft	Threshold	
 tooncraft	Thumbnails	
 tooncraft	Tilt	
+tooncraft	Timecode	
 tooncraft	Timeline	
 tooncraft	Timing	
 tooncraft	Timing preset	
@@ -675,6 +706,7 @@ tooncraft	Unlock Transparency
 tooncraft	Unpin This Frame	
 tooncraft	Unsaved changes	
 tooncraft	Up	
+tooncraft	Update Marker	
 tooncraft	Use brush {name}	
 tooncraft	Use for {mouth}	
 tooncraft	Video (MP4, H.264)…	
@@ -707,6 +739,7 @@ tooncraft	hold
 tooncraft	locked	
 tooncraft	none	
 tooncraft	not set	
+tooncraft	of {total}	
 tooncraft	stroke {ms} ms	
 tooncraft	{done} steps, {undone} to redo	
 tooncraft	{drawings} drawings ({unused} not exposed)	

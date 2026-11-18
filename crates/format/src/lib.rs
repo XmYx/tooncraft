@@ -163,6 +163,22 @@ struct ProjectJson {
     pegs: Vec<tooncraft_doc::Peg>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     marks: Vec<MarkEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    markers: Vec<MarkerEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    names: Vec<NameEntry>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct NameEntry {
+    drawing: DrawingId,
+    name: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct MarkerEntry {
+    frame: u32,
+    text: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -202,6 +218,8 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             folders: p.folders.clone(),
             pegs: p.pegs.clone(),
             marks: p.marks.iter().map(|(d, m)| MarkEntry { drawing: *d, mark: *m }).collect(),
+            markers: p.markers.iter().map(|(f, t)| MarkerEntry { frame: *f, text: t.clone() }).collect(),
+            names: p.drawing_names.iter().map(|(d, n)| NameEntry { drawing: *d, name: n.clone() }).collect(),
         },
         drawings: Vec::new(),
         soundtrack: None,
@@ -358,6 +376,14 @@ fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::P
     }
     p.camera = pj.camera.sanitized(p.width(), p.height());
     p.set_pegs(pj.pegs);
+    for n in pj.names.into_iter().take(tooncraft_doc::MAX_MARKERS) {
+        // a name for a missing drawing, or a repeated name, is dropped
+        let _ = p.set_drawing_name(n.drawing, &n.name);
+    }
+    for m in pj.markers.into_iter().take(tooncraft_doc::MAX_MARKERS) {
+        // hostile files: bad frames and over-long notes are dropped or cut
+        let _ = p.set_marker(m.frame, &m.text);
+    }
     p.marks = pj.marks.into_iter().filter(|m| p.drawing(m.drawing).is_some()).map(|m| (m.drawing, m.mark)).collect();
     p.set_folders(
         pj.folders

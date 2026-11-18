@@ -1,0 +1,1 @@
+- 2026-11-18: Timeline polish: frame markers with notes (ruler flags, a list with timecodes, next / previous marker from the keyboard, saved in the shot), ping-pong playback and Play Selection, a timecode readout (HH:MM:SS:FF), timeline zoom (buttons, Alt+= / Alt+-, Ctrl+wheel), and drawing names with substitution by name.

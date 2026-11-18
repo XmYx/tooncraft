@@ -8,6 +8,8 @@
 pub struct Playback {
     pub playing: bool,
     pub looping: bool,
+    /// Play forward to the end of the range and back again, instead of jumping back to the start.
+    pub ping_pong: bool,
     /// First frame of the range.
     pub start: u32,
     /// One past the last frame of the range.
@@ -19,7 +21,7 @@ pub struct Playback {
 
 impl Default for Playback {
     fn default() -> Self {
-        Self { playing: false, looping: true, start: 0, end: 1, anchor_time: 0.0, anchor_frame: 0 }
+        Self { playing: false, looping: true, ping_pong: false, start: 0, end: 1, anchor_time: 0.0, anchor_frame: 0 }
     }
 }
 
@@ -39,7 +41,7 @@ impl Playback {
 
     /// The frame to show at clock time `now`. Stops at the end of the range unless looping.
     pub fn frame(&mut self, now: f64, fps: u32) -> u32 {
-        let (f, still) = frame_at(now - self.anchor_time, fps, self.start, self.end, self.anchor_frame, self.looping);
+        let (f, still) = frame_at_mode(now - self.anchor_time, fps, self.start, self.end, self.anchor_frame, self.looping, self.ping_pong);
         if !still {
             self.playing = false;
         }
@@ -57,6 +59,30 @@ impl Playback {
 /// The frame shown `elapsed` seconds after starting at `from` within `start..end`.
 /// Returns the frame and whether playback continues.
 pub fn frame_at(elapsed: f64, fps: u32, start: u32, end: u32, from: u32, looping: bool) -> (u32, bool) {
+    frame_at_mode(elapsed, fps, start, end, from, looping, false)
+}
+
+/// Like [`frame_at`], with ping-pong: forward to the last frame, back to the first (neither end
+/// frame is shown twice in a row), and on. Without `looping` it plays there and back once and
+/// stops on the first frame.
+pub fn frame_at_mode(elapsed: f64, fps: u32, start: u32, end: u32, from: u32, looping: bool, ping_pong: bool) -> (u32, bool) {
+    let len = end.saturating_sub(start).max(1) as u64;
+    if !ping_pong || len < 2 {
+        return frame_at_plain(elapsed, fps, start, end, from, looping);
+    }
+    let elapsed = if elapsed.is_finite() { elapsed.max(0.0) } else { 0.0 };
+    let advanced = (elapsed * fps.max(1) as f64).floor().min(1e15) as u64;
+    let offset = from.saturating_sub(start) as u64 + advanced;
+    let period = 2 * (len - 1);
+    if !looping && offset >= period {
+        return (start, false);
+    }
+    let m = offset % period;
+    let step = if m < len { m } else { period - m };
+    (start + step as u32, true)
+}
+
+fn frame_at_plain(elapsed: f64, fps: u32, start: u32, end: u32, from: u32, looping: bool) -> (u32, bool) {
     let len = end.saturating_sub(start).max(1) as u64;
     let elapsed = if elapsed.is_finite() { elapsed.max(0.0) } else { 0.0 };
     let advanced = (elapsed * fps.max(1) as f64).floor().min(1e15) as u64;
@@ -82,6 +108,33 @@ mod tests {
         assert_eq!(frame_at(2.5, 24, 0, 48, 0, false), (47, false));
         assert_eq!(frame_at(0.5, 12, 10, 20, 15, true), (11, true));
         assert_eq!(frame_at(f64::NAN, 12, 0, 5, 3, true), (3, true));
+    }
+
+    #[test]
+    fn ping_pong_goes_there_and_back() {
+        // a 5 frame range at 1 fps: 0 1 2 3 4 3 2 1 | 0 1 ...
+        let at = |t: f64, looping: bool| frame_at_mode(t, 1, 0, 5, 0, looping, true);
+        let seen: Vec<u32> = (0..10).map(|t| at(t as f64, true).0).collect();
+        assert_eq!(seen, vec![0, 1, 2, 3, 4, 3, 2, 1, 0, 1]);
+        assert!((0..40).all(|t| at(t as f64, true).1), "a looping ping-pong never stops");
+        // not looping: there and back once, then it stops on the first frame
+        assert_eq!(at(7.0, false), (1, true));
+        assert_eq!(at(8.0, false), (0, false));
+        assert_eq!(at(80.0, false), (0, false));
+        // starting in the middle goes forward first
+        assert_eq!(frame_at_mode(0.0, 1, 0, 5, 3, true, true), (3, true));
+        assert_eq!(frame_at_mode(1.0, 1, 0, 5, 3, true, true), (4, true));
+        assert_eq!(frame_at_mode(2.0, 1, 0, 5, 3, true, true), (3, true));
+        // a one-frame range and hostile numbers do not divide by zero or panic
+        assert_eq!(frame_at_mode(5.0, 24, 7, 8, 7, true, true), (7, true));
+        assert_eq!(frame_at_mode(f64::NAN, 24, 0, 5, 2, true, true), (2, true));
+        assert!(frame_at_mode(f64::INFINITY, 24, 0, 5, 2, true, true).1);
+        assert_eq!(frame_at_mode(1.0, 0, 0, 0, 0, false, true).0, 0, "an empty range and a zero rate");
+        // the player uses it
+        let mut p = Playback { ping_pong: true, ..Default::default() };
+        p.play(0.0, 0, 0, 5);
+        assert_eq!(p.frame(5.0, 1), 3);
+        assert!(p.playing);
     }
 
     #[test]
