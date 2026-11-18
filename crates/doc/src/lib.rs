@@ -12,6 +12,7 @@
 pub mod camera;
 mod exposure;
 pub mod guides;
+pub mod markers;
 mod onion;
 pub mod paging;
 pub mod peg;
@@ -21,6 +22,7 @@ pub mod timing;
 
 pub use camera::{Camera, CameraKey, Shake};
 pub use exposure::{Cell, ExposureError};
+pub use markers::{MAX_MARKER_TEXT, MAX_MARKERS, MAX_NAME, parse_timecode, timecode};
 pub use onion::{LightTable, OnionMode, OnionSkin, Pin};
 pub use peg::{Ease, Peg, PegId, PegKey};
 pub use render::{RenderOptions, render_camera, render_frame, render_region};
@@ -70,6 +72,14 @@ pub enum DocError {
     TooManyLayers,
     #[error("a project can have at most {MAX_DRAWINGS} drawings")]
     TooManyDrawings,
+    #[error("a shot can have at most {} markers", markers::MAX_MARKERS)]
+    TooManyMarkers,
+    #[error("there is no drawing {0}")]
+    NoDrawingId(u64),
+    #[error("another drawing is already called “{0}”")]
+    NameInUse(String),
+    #[error("no drawing is called “{0}”")]
+    NoDrawingNamed(String),
     #[error("frame rate {0} is outside {MIN_FPS}…{MAX_FPS}")]
     BadFps(u32),
     #[error("layer {0} is locked")]
@@ -314,6 +324,10 @@ pub struct Project {
     pub pegs: Vec<Peg>,
     /// Key, breakdown and inbetween marks of drawings (see [`timing`]).
     pub marks: BTreeMap<DrawingId, Mark>,
+    /// Notes on frames (0-based), see [`markers`].
+    pub markers: BTreeMap<u32, String>,
+    /// Names of drawings, to expose them again by name (see [`markers`]).
+    pub drawing_names: BTreeMap<DrawingId, String>,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -335,6 +349,8 @@ impl PartialEq for Project {
             && self.tips == o.tips
             && self.pegs == o.pegs
             && self.marks == o.marks
+            && self.markers == o.markers
+            && self.drawing_names == o.drawing_names
     }
 }
 
@@ -368,6 +384,8 @@ impl Project {
             tips: BTreeMap::new(),
             pegs: Vec::new(),
             marks: BTreeMap::new(),
+            markers: BTreeMap::new(),
+            drawing_names: BTreeMap::new(),
             next_drawing: 1,
             next_layer: 1,
         };
@@ -395,6 +413,8 @@ impl Project {
             tips: BTreeMap::new(),
             pegs: Vec::new(),
             marks: BTreeMap::new(),
+            markers: BTreeMap::new(),
+            drawing_names: BTreeMap::new(),
             next_drawing: 1,
             next_layer: 1,
         };

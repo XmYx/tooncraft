@@ -131,7 +131,7 @@ against the new rows.
 ## Timeline and animation
 
 - **O1** (rank 6, 18.5 h, +1.70 points) Onion depth: all-layer test, per-layer settings, exact frames, shift and trace, rolling flipping. Rows: Onion on the current layer or on all layers; Onion settings per layer; Pick the exact relative frames shown; Shift and trace: move or turn a pinned frame without changing it; Rolling and flipping between chosen drawings from the keyboard.
-- **T1** (rank 8, 9 h, +0.82 points) Timeline polish: substitution by name, frame markers, ping-pong, timecode, timeline zoom. Rows: Drawing substitution: expose any existing drawing by name; Frame markers and notes; Play range, loop and ping-pong; Frame rate change and timecode display; Timeline zoom and scroll.
+- **T1** (rank 8) Timeline polish: landed (frame markers, ping-pong and play selection, timecode, timeline zoom, drawing names and substitution).
 - **K1** (rank 24, 44 h, +2.40 points) Camera depth: path editing, depth of field, several cameras and cuts, free 3D camera. Rows: Camera path editing on the canvas; Depth of field by layer depth; Several cameras and camera cuts in a shot; Free 3D camera over a layered scene.
 - **T4** (rank 25, 33 h, +1.64 points) Graph editor for keyed values and live transform recording. Rows: Graph editor for keyed values; Record transforms live while playing.
 - **T2** (rank 32, 25 h, +1.09 points) Vertical exposure sheet view. Rows: Vertical exposure sheet view.

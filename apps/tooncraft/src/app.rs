@@ -223,6 +223,8 @@ pub struct ToonApp {
     pub canvas_focus_request: bool,
     /// Timeline scroll offset (frames, layers).
     pub timeline_scroll: egui::Vec2,
+    /// Timeline zoom, timecode switch and the marker note being typed.
+    pub tl: crate::timeline_extras::State,
     /// The other corner of the exposure-sheet selection (layer, frame); the current cell is the
     /// first corner. `None`: just the current cell.
     pub sel_anchor: Option<(usize, u32)>,
@@ -365,6 +367,7 @@ impl ToonApp {
             bench_done: false,
             canvas_focus_request: false,
             timeline_scroll: egui::Vec2::ZERO,
+            tl: Default::default(),
             sel_anchor: None,
             cell_clipboard: None,
             last_stroke_end: None,
@@ -1353,6 +1356,21 @@ impl ToonApp {
         {
             self.tool = t;
             self.set_status(tlf!("{tool} selected", tool = t.label()));
+        }
+        if hit("marker.toggle") {
+            crate::timeline_extras::toggle_here(self);
+        }
+        if hit("marker.next") {
+            crate::timeline_extras::jump(self, true);
+        }
+        if hit("marker.prev") {
+            crate::timeline_extras::jump(self, false);
+        }
+        if hit("timeline.zoom_in") {
+            self.tl.zoom_by(1.25);
+        }
+        if hit("timeline.zoom_out") {
+            self.tl.zoom_by(0.8);
         }
         if hit("library.find") {
             self.workspace.raise(Pane::Library);

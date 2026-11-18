@@ -285,12 +285,12 @@ Weight: 9
 | Cut, copy and paste cells | all | D | S | **Ours:** paste linked or as new drawings, in place or inserting |
 | Thumbnails in timeline cells | TV PD | D | S | |
 | Drawings kept when no longer exposed | TB | D | S | Purging them is undoable |
-| Drawing substitution: expose any existing drawing by name | TV TB CS | P | S | Linked paste re-exposes a drawing anywhere; no pick-by-name in the cell |
+| Drawing substitution: expose any existing drawing by name | TV TB CS | D | S | Name a drawing, then show it at any frame of any layer by name; only that frame changes |
 | Vertical exposure sheet view | TV TB | M | L | |
-| Frame markers and notes | TV TB | M | S | |
-| Play range, loop and ping-pong | all | P | S | Loop and the selected range; no ping-pong |
-| Frame rate change and timecode display | all | P | S | Frame rate per shot; frame numbers only |
-| Timeline zoom and scroll | all | P | S | Scroll only |
+| Frame markers and notes | TV TB | D | S | A note per frame: ruler flags, a list with timecodes, next / previous by keyboard, saved in the shot |
+| Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames |
+| Frame rate change and timecode display | all | D | S | Frame rate per shot; the position and the marker list show HH:MM:SS:FF (non-drop-frame) |
+| Timeline zoom and scroll | all | D | S | Zoom buttons, Alt+= and Alt+-, Ctrl and the wheel or a pinch; scroll as before |
 | Graph editor for keyed values | TB CS PD | M | L | Per-key easing and a two-handle curve; no curve view |
 | Several shots or scenes in one project | TV TB | M | L | |
 | Nested sequences (a shot or symbol inside a shot) | TB CS PD | M | L | |
