@@ -26,6 +26,7 @@ pub mod preset;
 pub mod preview;
 pub mod select;
 pub mod shapes;
+pub mod touch;
 mod undo;
 
 pub use command::{Command, FillReference, sheet};
@@ -152,6 +153,11 @@ impl Engine {
 
     pub fn redo_label(&self) -> Option<&str> {
         self.redo.last().map(|e| e.label.as_str())
+    }
+
+    /// Steps that can be redone.
+    pub fn redo_len(&self) -> usize {
+        self.redo.len()
     }
 
     pub fn undo_len(&self) -> usize {

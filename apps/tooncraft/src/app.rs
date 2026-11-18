@@ -233,6 +233,8 @@ pub struct ToonApp {
     /// Copied cells, one row per layer (bottom first).
     pub cell_clipboard: Option<Vec<Vec<tooncraft_doc::Cell>>>,
     pub tablet: crate::tablet::Tablet,
+    /// Touch gestures (two-finger tap undoes, three-finger tap redoes) and palm rejection.
+    pub touch: tooncraft_engine::touch::Touch,
     /// The canvas selection (canvas pixels), on the current drawing.
     pub selection: Option<Vec<(f32, f32)>>,
     pub select_mode: SelectMode,
@@ -391,6 +393,7 @@ impl ToonApp {
             xform: None,
             pixel_clipboard: None,
             last_frame: 0,
+            touch: Default::default(),
             tablet: if cfg!(test) { crate::tablet::Tablet::default() } else { crate::tablet::Tablet::start(ctx) },
         };
         if let Some(name) = &cli.panel {

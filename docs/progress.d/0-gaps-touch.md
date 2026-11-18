@@ -1,0 +1,1 @@
+- 2026-11-18: Touch: a quick two-finger tap undoes and a three-finger tap redoes (a second finger drops the stroke the first began, so pinching never leaves a dot), and touches are ignored while the pen is seen and for 1.2 s after it leaves (palm rejection).

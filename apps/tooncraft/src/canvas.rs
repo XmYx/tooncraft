@@ -141,11 +141,62 @@ fn end(app: &mut ToonApp) {
     app.stroke_start = None;
 }
 
+/// Feed the frame's touch events to the gesture recogniser: a quick two-finger tap undoes, a
+/// three-finger tap redoes, a second finger turns a one-finger stroke into a gesture (the stroke
+/// is dropped), and touches while the pen is near are palms. Returns the indices of the events
+/// to ignore.
+fn touch_gestures(app: &mut ToonApp, ui: &egui::Ui, events: &[Event], rect: Rect) -> Vec<usize> {
+    use tooncraft_engine::touch::{Gesture, Phase};
+    let now = ui.input(|i| i.time);
+    if app.tablet.pen().is_some() {
+        app.touch.pen_seen(now);
+    }
+    let mut rejected = Vec::new();
+    let mut began = false;
+    for (i, ev) in events.iter().enumerate() {
+        let Event::Touch { id, phase, pos, .. } = ev else { continue };
+        let phase = match phase {
+            TouchPhase::Start => Phase::Start,
+            TouchPhase::Move => Phase::Move,
+            TouchPhase::End => Phase::End,
+            TouchPhase::Cancel => Phase::Cancel,
+        };
+        // a finger that began outside the canvas is none of its business (unknown fingers are ignored)
+        if phase == Phase::Start && !rect.contains(*pos) {
+            continue;
+        }
+        let v = app.touch.event(now, id.0, phase, (pos.x, pos.y));
+        if v.rejected {
+            rejected.push(i);
+        }
+        if v.gesture_begun {
+            began = true;
+            if app.engine.is_stroking() {
+                app.engine.cancel_stroke();
+                app.stroke_start = None;
+            }
+        }
+        match v.gesture {
+            Some(Gesture::Undo) => app.undo(),
+            Some(Gesture::Redo) => app.redo(),
+            None => {}
+        }
+    }
+    if began {
+        // fingers that arrived together are a gesture, not a stroke: nothing else this frame
+        // (including the pointer events made from the first finger) may start drawing
+        rejected =
+            (0..events.len()).filter(|&i| matches!(events.get(i), Some(Event::Touch { .. } | Event::PointerButton { .. } | Event::PointerMoved(_)))).collect();
+    }
+    rejected
+}
+
 fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Response) {
     let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
     let (events, mods, hover, space, scroll, zoom, multi) =
         ui.input(|i| (i.events.clone(), i.modifiers, i.pointer.hover_pos(), i.key_down(Key::Space), i.smooth_scroll_delta, i.zoom_delta(), i.multi_touch()));
     let hovered = hover.is_some_and(|h| rect.contains(h));
+    let rejected = touch_gestures(app, ui, &events, rect);
     // view: wheel zooms about the pointer, Alt+wheel rotates, pinch zooms and twists
     if hovered && !app.engine.is_stroking() {
         if let Some(h) = hover {
@@ -241,7 +292,17 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             // a press that lands on a menu, a popup or a floating window above the canvas is
             // that widget's click, not a stroke
             let covered = |pos: &Pos2| ui.ctx().layer_id_at(*pos).is_some_and(|l| l != ui.layer_id());
-            for ev in events {
+            for (ei, ev) in events.into_iter().enumerate() {
+                // a palm is not a pen: its touches, and the pointer events the window system makes
+                // from them, draw nothing
+                if rejected.contains(&ei) {
+                    continue;
+                }
+                if let Event::PointerButton { pos, .. } | Event::PointerMoved(pos) = &ev
+                    && app.touch.palm_at((pos.x, pos.y), 3.0)
+                {
+                    continue;
+                }
                 if let Event::PointerButton { pos, pressed: true, .. } | Event::Touch { pos, phase: TouchPhase::Start, .. } = &ev
                     && covered(pos)
                 {

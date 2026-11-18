@@ -193,7 +193,7 @@ against the new rows.
 ## UI and input
 
 - **I3** (rank 1, 1.5 h, +0.20 points) Input-to-screen latency measured. Rows: End-to-end stroke latency measured.
-- **I2** (rank 2, 4.5 h, +0.60 points) Touch: tap gestures and palm rejection. Rows: Touch gestures: pinch zoom and twist, taps for undo and redo; Palm rejection while the pen is near.
+- **I2** (rank 2) Touch: landed (tap gestures; palm rejection while the pen is seen). Row left as P: pen proximity on Windows and Wayland-native windows, which comes with item I1.
 - **I1** (rank 4, 18.5 h, +1.98 points) Pen everywhere: Windows tilt, Wayland-native pen, side buttons, barrel rotation, pressure curve. Rows: Pen pressure and tilt on Windows; Pen input in Wayland-native windows; Pen side buttons mapped to actions; Pen barrel rotation as an input; Global pressure curve and calibration.
 - **X1** (rank 10, 18.5 h, +1.53 points) UI polish: command search, tool palettes and radial menus, undo history panel, preferences dialog, docking tests, keyboard reach. Landed: undo history panel. Rows: Command search; Custom tool palettes and radial menus; Preferences dialog; Dockable panels: move, tab, float; Every action reachable from the keyboard.
 - **X3** (rank 14, 4 h, +0.28 points) Shipped translations. Rows: Translated interface.

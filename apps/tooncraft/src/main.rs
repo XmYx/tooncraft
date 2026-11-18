@@ -42,6 +42,8 @@ mod timeline_extras;
 mod timeline_ui_tests;
 mod timing_panel;
 #[cfg(test)]
+mod touch_ui_tests;
+#[cfg(test)]
 mod ui_tests;
 mod view;
 
