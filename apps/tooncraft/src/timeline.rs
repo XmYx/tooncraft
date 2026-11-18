@@ -93,7 +93,6 @@ fn transport(app: &mut ToonApp, ui: &mut egui::Ui) {
         }
         ui.separator();
         ui.label(egui::RichText::new(crate::timeline_extras::position_text(app)).monospace());
-        crate::timeline_extras::transport(app, ui);
         ui.separator();
         let mut fps = app.engine.project.fps();
         let l = ui.label(tl!("fps"));
@@ -152,6 +151,7 @@ fn transport(app: &mut ToonApp, ui: &mut egui::Ui) {
             app.run(Command::TogglePin { layer, frame });
         }
     });
+    ui.horizontal_wrapped(|ui| crate::timeline_extras::transport(app, ui));
 }
 
 fn cell_text(cell: Cell) -> String {
