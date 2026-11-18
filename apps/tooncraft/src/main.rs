@@ -36,6 +36,8 @@ mod theme;
 mod timeline;
 mod timing_panel;
 #[cfg(test)]
+mod touch_ui_tests;
+#[cfg(test)]
 mod ui_tests;
 mod view;
 
