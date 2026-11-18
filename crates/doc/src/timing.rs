@@ -221,6 +221,7 @@ mod tests {
             peg: None,
             depth: 0.0,
             clip: false,
+            lock_alpha: false,
             effects: Vec::new(),
             opacity_keys: Vec::new(),
             matte: None,

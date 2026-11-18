@@ -139,6 +139,9 @@ pub struct Layer {
     /// has paint.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub clip: bool,
+    /// Transparency is locked: strokes only recolour paint that is already there.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub lock_alpha: bool,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
 }
@@ -577,6 +580,7 @@ impl Project {
                 matte: None,
                 mouth_chart: BTreeMap::new(),
                 clip: false,
+                lock_alpha: false,
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );

@@ -12,6 +12,8 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+#[cfg(test)]
+mod compose_tests;
 mod curve;
 mod dab;
 mod grain;
@@ -79,6 +81,27 @@ impl BrushKind {
     pub fn from_id(id: &str) -> Option<BrushKind> {
         BrushKind::ALL.into_iter().find(|k| k.id() == id)
     }
+}
+
+/// Where a brush puts its paint relative to what is already on the layer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Compose {
+    /// On top of the existing paint.
+    #[default]
+    Normal,
+    /// Under the existing paint: only fills the gaps.
+    Behind,
+    /// Only recolours paint that is already there: the layer's transparency is locked.
+    KeepAlpha,
+}
+
+impl Compose {
+    pub const ALL: [Compose; 3] = [Compose::Normal, Compose::Behind, Compose::KeepAlpha];
+}
+
+fn is_normal_compose(c: &Compose) -> bool {
+    *c == Compose::Normal
 }
 
 /// How samples are smoothed before they become dabs.
@@ -152,6 +175,9 @@ pub struct Brush {
     /// An image tip (its id in the project's tips) instead of the round dab.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<u64>,
+    /// On top of, under, or only over the existing paint.
+    #[serde(skip_serializing_if = "is_normal_compose")]
+    pub compose: Compose,
 }
 
 impl Default for Brush {
@@ -181,6 +207,7 @@ impl Brush {
             smoothing: Smoothing::default(),
             color: [24, 22, 30, 255],
             tip: None,
+            compose: Compose::Normal,
         };
         match kind {
             BrushKind::Pencil => Brush { size: 3.5, hardness: 0.7, grain: 0.55, grain_scale: 1.6, opacity: 0.9, ..base },
@@ -262,6 +289,7 @@ impl Brush {
             },
             color: self.color,
             tip: self.tip,
+            compose: self.compose,
         }
     }
 }

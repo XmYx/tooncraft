@@ -423,6 +423,7 @@ pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
             app.renaming = Some((app.layer, name));
         }
     });
+    crate::layer_ops::buttons(app, ui);
     ui.separator();
     let mut cmds = Vec::new();
     let mut select = None;
@@ -482,6 +483,23 @@ pub fn blend_name(b: tooncraft_doc::BlendMode) -> String {
         Darken => tl!("Darken"),
         Lighten => tl!("Lighten"),
         Add => tl!("Add"),
+        ColorDodge => tl!("Colour dodge"),
+        ColorBurn => tl!("Colour burn"),
+        HardLight => tl!("Hard light"),
+        SoftLight => tl!("Soft light"),
+        Difference => tl!("Difference"),
+        Exclusion => tl!("Exclusion"),
+        LinearBurn => tl!("Linear burn"),
+        LinearLight => tl!("Linear light"),
+        VividLight => tl!("Vivid light"),
+        PinLight => tl!("Pin light"),
+        HardMix => tl!("Hard mix"),
+        Subtract => tl!("Subtract"),
+        Divide => tl!("Divide"),
+        Hue => tl!("Hue"),
+        Saturation => tl!("Saturation"),
+        Colour => tl!("Colour"),
+        Luminosity => tl!("Luminosity"),
     }
     .to_string()
 }
@@ -534,6 +552,7 @@ fn layer_properties(app: &mut ToonApp, ui: &mut egui::Ui) {
         }
         ui.end_row();
     });
+    crate::layer_ops::properties(app, ui);
     crate::layer_tree::folders(app, ui);
 }
 
@@ -570,6 +589,7 @@ pub fn layer_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     if ui.button(if lock { tl!("Unlock Layer") } else { tl!("Lock Layer") }).clicked() {
         app.run(Command::SetLayer { layer, visible: None, locked: Some(!lock), opacity: None });
     }
+    crate::layer_ops::menu(app, ui);
 }
 
 /// The Onion Skin panel, with the light table.

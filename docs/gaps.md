@@ -153,10 +153,9 @@ against the new rows.
 
 ## Colour and layers
 
-- **L1** (rank 3, 13.5 h, +1.80 points) Layer operations: duplicate, merge and flatten, the full blend-mode set, copy properties, reference layers. Rows: Duplicate a layer; Merge down, merge visible and flatten; Blend modes; Layer properties copied between layers; Reference layers chosen per tool.
+- **L1** (rank 3, now 3 h) Layer operations. Landed: duplicate, merge down / visible / flatten, 24 blend modes, copy properties. Row left: Reference layers chosen per tool (the fill reference is current or all visible).
 - **L2** (rank 5, 16 h, +1.60 points) Painted layer masks and adjustment layers. Rows: Painted layer masks; Adjustment layers acting on everything below.
 - **C1** (rank 11, 12 h, +0.93 points) Palettes: named palettes in the shot, palette files, colour wheel and sliders, recent colours, picker test. Rows: Colour swatches; Palette files: save, load, import common formats; HSV picker with keyboard fields; Colour wheel, sliders and harmony modes; Recent colours.
-- **C2** (rank 12, 6 h, +0.47 points) Lock transparency and paint behind. Rows: Lock transparency (paint only where there is paint); Paint behind existing paint.
 - **C4** (rank 36, 33 h, +1.40 points) Colour management and 16-bit drawings. Rows: Colour management: working space, profiles, soft proof; 16-bit colour drawings.
 - **C3** (rank 37, 62 h, +2.57 points) Ink and paint: linked line and paint layers, auto-paint across drawings, linked colour styles, recolour line art. Rows: Linked line and paint layers; Paint the same regions across drawings automatically; Linked colour styles (change a swatch, every fill using it updates); Recolour line art across drawings.
 
