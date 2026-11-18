@@ -180,6 +180,7 @@ mod tests {
             matte: None,
             mouth_chart: Default::default(),
             clip: false,
+            lock_alpha: false,
             cells,
         }
     }

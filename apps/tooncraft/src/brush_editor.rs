@@ -101,6 +101,10 @@ fn shape(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
         let l = ui.label(tl!("Tip angle"));
         ui.add(egui::Slider::new(&mut b.angle, -180.0..=180.0).max_decimals(0).suffix("°")).labelled_by(l.id);
         ui.end_row();
+        if kind != BrushKind::Eraser {
+            crate::layer_ops::compose_combo(ui, &mut b.compose);
+            ui.end_row();
+        }
     });
 }
 

@@ -1,4 +1,5 @@
-//! Exports: PNG sequence, animated GIF (craft-gif) and OpenRaster for one frame (craft-ora).
+//! Exports: PNG, TGA and TIFF sequences, animated GIF (craft-gif), animated and still WebP
+//! (craft-webp, craft-image-codecs) and OpenRaster for one frame (craft-ora).
 
 use std::path::{Path, PathBuf};
 
@@ -292,4 +293,190 @@ mod tests {
         assert_eq!(gif_delays(24, 24).iter().map(|v| *v as u32).sum::<u32>(), 100);
         assert!(gif_delays(100, 5).iter().all(|d| *d >= 2), "browsers slow down delays under 2 cs");
     }
+}
+
+// ----- WebP, TGA and TIFF -----
+
+/// How a WebP is encoded.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WebpOptions {
+    /// Lossless (VP8L) keeps every pixel; lossy (VP8) is much smaller.
+    pub lossless: bool,
+    /// Lossy quality, 0 … 100.
+    pub quality: u8,
+}
+
+impl Default for WebpOptions {
+    fn default() -> Self {
+        Self { lossless: true, quality: 80 }
+    }
+}
+
+/// Most compressed bytes an animated WebP may hold in memory while it is assembled.
+const MAX_WEBP_BYTES: usize = 1 << 30;
+
+/// Frame times in milliseconds for frames at `fps`, spreading the rounding so the total stays
+/// exact (24 fps: 41, 42, 42, 41, …).
+pub fn frame_delays_ms(fps: u32, frames: u32) -> Vec<u32> {
+    let fps = fps.max(1) as u64;
+    (0..frames as u64).map(|i| (((i + 1) * 1000 + fps / 2) / fps - (i * 1000 + fps / 2) / fps).max(1) as u32).collect()
+}
+
+fn codec_err(e: impl std::fmt::Display) -> ExportError {
+    ExportError::Encode(e.to_string())
+}
+
+fn straight_image(img: &tooncraft_raster::RgbaImage, alpha: bool) -> Result<craft_image_codecs::Image> {
+    use craft_image_codecs::{ChannelLayout, Image, SampleType};
+    let rgba = img.to_straight();
+    if alpha {
+        Image::from_raw(img.width, img.height, ChannelLayout::Rgba, SampleType::U8, rgba).map_err(codec_err)
+    } else {
+        let rgb: Vec<u8> = rgba.as_chunks::<4>().0.iter().flat_map(|p| [p[0], p[1], p[2]]).collect();
+        Image::from_raw(img.width, img.height, ChannelLayout::Rgb, SampleType::U8, rgb).map_err(codec_err)
+    }
+}
+
+/// One frame (through the camera) as a still WebP.
+pub fn webp_frame(p: &Project, frame: u32, path: &Path, o: WebpOptions, paper: bool) -> Result<()> {
+    if frame >= p.length() {
+        return Err(ExportError::Range(frame, frame.saturating_add(1)));
+    }
+    let img = tooncraft_doc::render_camera(p, frame, RenderOptions { paper, ..Default::default() });
+    let eo = craft_image_codecs::EncodeOptions { webp_lossless: o.lossless, webp_quality: o.quality.min(100), ..Default::default() };
+    let bytes = craft_image_codecs::encode(&straight_image(&img, !paper)?, craft_image_codecs::Format::WebP, &eo).map_err(codec_err)?;
+    craft_atomic::atomic_write(path, &bytes).map_err(|e| ExportError::Io(path.display().to_string(), e))
+}
+
+/// The payload of the first chunk called `id` in a RIFF/WebP file.
+fn riff_chunk<'a>(file: &'a [u8], id: &[u8; 4]) -> Option<&'a [u8]> {
+    let mut at = 12usize;
+    while at + 8 <= file.len() {
+        let size = u32::from_le_bytes(file.get(at + 4..at + 8)?.try_into().ok()?) as usize;
+        let body = file.get(at + 8..at + 8 + size)?;
+        if &file[at..at + 4] == id {
+            return Some(body);
+        }
+        at += 8 + size + (size & 1);
+    }
+    None
+}
+
+/// Write an animated WebP that loops forever. Frames are encoded one at a time; a frame equal to
+/// the one before it only extends that frame's time, so held drawings cost nothing.
+pub fn webp_animated(p: &Project, path: &Path, o: ExportOptions, opt: WebpOptions, mut progress: impl FnMut(u32)) -> Result<()> {
+    o.check(p)?;
+    let (w, h) = (p.width(), p.height());
+    if !opt.lossless && (w > 16383 || h > 16383) {
+        return Err(ExportError::Encode("lossy WebP is at most 16383 pixels a side; use lossless".into()));
+    }
+    let delays = frame_delays_ms(p.fps(), o.end - o.start);
+    enum Coded {
+        Lossless(Vec<u8>),
+        Lossy(Vec<u8>, Option<Vec<u8>>),
+    }
+    let mut frames: Vec<(Coded, u32)> = Vec::new();
+    let mut last: Option<Vec<u8>> = None;
+    let mut bytes = 0usize;
+    let mut any_alpha = false;
+    for (i, f) in (o.start..o.end).enumerate() {
+        let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: o.paper, ..Default::default() });
+        let rgba = img.to_straight();
+        let ms = delays.get(i).copied().unwrap_or(42);
+        if last.as_deref() == Some(rgba.as_slice())
+            && let Some(prev) = frames.last_mut()
+        {
+            prev.1 = prev.1.saturating_add(ms).min((1 << 24) - 1);
+            progress(f);
+            continue;
+        }
+        let alpha_used = rgba.as_chunks::<4>().0.iter().any(|px| px[3] != 255);
+        any_alpha |= alpha_used;
+        let coded = if opt.lossless {
+            let eo = craft_image_codecs::EncodeOptions { webp_lossless: true, ..Default::default() };
+            let still = craft_image_codecs::encode(&straight_image(&img, true)?, craft_image_codecs::Format::WebP, &eo).map_err(codec_err)?;
+            let vp8l = riff_chunk(&still, b"VP8L").ok_or_else(|| ExportError::Encode("the WebP encoder made no lossless frame".into()))?;
+            bytes += vp8l.len();
+            Coded::Lossless(vp8l.to_vec())
+        } else {
+            let params = craft_video::vp8::Vp8Params { quality: opt.quality.min(100), loop_filter: None };
+            let vp8 = craft_video::vp8::encode_rgba(&rgba, w, h, &params).map_err(codec_err)?.data;
+            let alpha: Vec<u8> = rgba.iter().skip(3).step_by(4).copied().collect();
+            let alpha = alpha_used.then_some(alpha);
+            bytes += vp8.len() + alpha.as_ref().map_or(0, Vec::len);
+            Coded::Lossy(vp8, alpha)
+        };
+        if bytes > MAX_WEBP_BYTES {
+            return Err(ExportError::Encode("the animation is too large to assemble; export a shorter range".into()));
+        }
+        frames.push((coded, ms));
+        last = Some(rgba);
+        progress(f);
+    }
+    let list: Vec<craft_webp::anim::AnimFrame> = frames
+        .iter()
+        .map(|(c, ms)| craft_webp::anim::AnimFrame {
+            x: 0,
+            y: 0,
+            width: w,
+            height: h,
+            duration_ms: *ms,
+            blend: false,
+            dispose_to_background: false,
+            payload: match c {
+                Coded::Lossless(b) => craft_webp::anim::Payload::Lossless { vp8l: b },
+                Coded::Lossy(b, a) => craft_webp::anim::Payload::Lossy { vp8: b, alpha: a.as_deref() },
+            },
+        })
+        .collect();
+    let opts = craft_webp::anim::AnimOptions { loop_count: 0, alpha: any_alpha, ..Default::default() };
+    let bytes = craft_webp::anim::animation(w, h, &list, &opts).map_err(codec_err)?;
+    craft_atomic::atomic_write(path, &bytes).map_err(|e| ExportError::Io(path.display().to_string(), e))
+}
+
+/// Write one file per frame: `<dir>/<prefix>_0001.<ext>`, each made by `encode` from the frame
+/// rendered through the camera. Returns the files written.
+fn frame_files(
+    p: &Project,
+    dir: &Path,
+    prefix: &str,
+    ext: &str,
+    o: ExportOptions,
+    mut progress: impl FnMut(u32),
+    encode: impl Fn(&tooncraft_raster::RgbaImage, bool) -> Result<Vec<u8>>,
+) -> Result<Vec<PathBuf>> {
+    o.check(p)?;
+    std::fs::create_dir_all(dir).map_err(|e| ExportError::Io(dir.display().to_string(), e))?;
+    let digits = (o.end.max(1).ilog10() + 1).max(4) as usize;
+    let mut out = Vec::new();
+    for f in o.start..o.end {
+        let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: o.paper, ..Default::default() });
+        let bytes = encode(&img, !o.paper)?;
+        let path = dir.join(format!("{prefix}_{:0digits$}.{ext}", f + 1));
+        craft_atomic::atomic_write(&path, &bytes).map_err(|e| ExportError::Io(path.display().to_string(), e))?;
+        out.push(path);
+        progress(f);
+    }
+    Ok(out)
+}
+
+/// `<dir>/<prefix>_0001.tga`, … run-length encoded Targa files (with alpha when the paper is off).
+pub fn tga_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, progress: impl FnMut(u32)) -> Result<Vec<PathBuf>> {
+    frame_files(p, dir, prefix, "tga", o, progress, |img, alpha| {
+        let rgba = img.to_straight();
+        if alpha {
+            craft_tga::encode(img.width, img.height, craft_tga::Layout::Rgba, &rgba).map_err(codec_err)
+        } else {
+            let rgb: Vec<u8> = rgba.as_chunks::<4>().0.iter().flat_map(|p| [p[0], p[1], p[2]]).collect();
+            craft_tga::encode(img.width, img.height, craft_tga::Layout::Rgb, &rgb).map_err(codec_err)
+        }
+    })
+}
+
+/// `<dir>/<prefix>_0001.tif`, … TIFF files, LZW-compressed (with alpha when the paper is off).
+pub fn tiff_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, progress: impl FnMut(u32)) -> Result<Vec<PathBuf>> {
+    frame_files(p, dir, prefix, "tif", o, progress, |img, alpha| {
+        let eo = craft_image_codecs::EncodeOptions { tiff_compression: craft_image_codecs::TiffCompression::Lzw, ..Default::default() };
+        craft_image_codecs::encode(&straight_image(img, alpha)?, craft_image_codecs::Format::Tiff, &eo).map_err(codec_err)
+    })
 }

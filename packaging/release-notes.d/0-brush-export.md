@@ -1,0 +1,1 @@
+- Export animated WebP (lossless or lossy, with transparency) and single WebP images, TGA and TIFF image sequences, and a layered PSD or PSB of many frames with one layer group per frame.

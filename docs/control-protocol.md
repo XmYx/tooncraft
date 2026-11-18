@@ -45,7 +45,9 @@ hand a script can do.
 | `set_peg_key`, `remove_peg_key` | `peg`, `frame`, `x`, `y`, `angle` (degrees), `scale_x`, `scale_y`, `skew` (degrees), `ease` (`{"kind":"linear"}`, `in`, `out`, `in_out`, `hold`, or `{"kind":"curve","x1","y1","x2","y2"}`) |
 | `set_layer_peg`, `set_layer_depth` | `layer`, `peg` (absent: off the peg); `depth` (0 the drawing plane, above 0 further away) |
 | `add_camera_shake`, `remove_camera_shake` | `shake` (`from`, `to`, `amplitude` px, `rotation` degrees, `frequency` per frame, `fade` frames, `seed`); `index` |
-| `set_layer_blend`, `set_layer_color`, `set_layer_folder`, `set_folder` | blend mode; colour; folder name; folder `visible`, `opacity`, `collapsed` |
+| `set_layer_blend`, `set_layer_color`, `set_layer_folder`, `set_folder` | blend mode (24: `normal`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `add`, `color_dodge`, `color_burn`, `hard_light`, `soft_light`, `difference`, `exclusion`, `linear_burn`, `linear_light`, `vivid_light`, `pin_light`, `hard_mix`, `subtract`, `divide`, `hue`, `saturation`, `colour`, `luminosity`); colour; folder name; folder `visible`, `opacity`, `collapsed` |
+| `duplicate_layer`, `merge_down`, `merge_visible`, `flatten` | `layer`; `layer`; none; none (merges bake blend, opacity, pegs, mattes and effects; they refuse locked, hidden or matte-split layers) |
+| `copy_layer_properties`, `set_layer_lock_alpha` | `from`, `to` (opacity and keys, blend, colour, folder, peg, depth, effects); `layer`, `lock` |
 | `add_tip`, `add_tip_from_image` | `id`, `name`, `width`, `height`, `alpha`; or `id`, `path` |
 | `add_effect` | `layer`, `effect` (`enabled`, `kind` with a `type` such as `blur`, `drop_shadow`, `levels`, `mask`, `colour_key`, and its parameters, `keys`, `blend`, `mix`), optional `index` |
 | `set_effect`, `edit_effect`, `set_effect_key`, `remove_effect_key` | `layer`, `index`; `effect`; `frame` and `value` (`edit_effect` keys the frame when the effect has keys); `value` optional for `set_effect_key` |

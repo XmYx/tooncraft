@@ -243,8 +243,8 @@ Weight: 7
 | HSV picker with keyboard fields | all | P | S | No behaviour test yet |
 | Colour wheel, sliders and harmony modes | TV CS PD | M | S | |
 | Recent colours | TV CS PD | M | S | |
-| Lock transparency (paint only where there is paint) | all | M | S | |
-| Paint behind existing paint | TV CS | M | S | |
+| Lock transparency (paint only where there is paint) | all | D | S | Per layer; brushes (also wet ones) only recolour paint, fills are refused |
+| Paint behind existing paint | TV CS | D | S | Brush option "Behind" (not for wet brushes); the fill already paints under |
 | Recolour line art across drawings | TV TB CS | M | M | |
 | Colour management: working space, profiles, soft proof | TV CS | M | M | |
 | 16-bit colour drawings | TV CS | M | L | |
@@ -258,16 +258,16 @@ Weight: 6
 | Animation layers with their own exposures | all | D | S | |
 | Add, delete, rename and reorder layers | all | D | S | |
 | Layer visibility, lock and opacity | all | D | S | |
-| Duplicate a layer | all | M | S | |
-| Merge down, merge visible and flatten | all | M | S | |
-| Blend modes | all | P | S | Normal, multiply, screen, overlay, darken, lighten, add; the references have about 25 |
+| Duplicate a layer | all | D | S | With private copies of its drawings, one undo step |
+| Merge down, merge visible and flatten | all | D | S | Rendered through the compositor, so blend, opacity keys, pegs, mattes and effects are baked in |
+| Blend modes | all | D | S | 24 modes: the separable ones and hue, saturation, colour, luminosity (W3C formulas) |
 | Nested folders with show, lock, fold and opacity | all | D | S | |
 | Clipping layers | TV CS PD | D | S | Several clipping layers on one base |
 | Colour labels with a layer filter | TV TB | D | S | |
 | Painted layer masks | TV TB CS PD | M | M | |
 | Adjustment layers acting on everything below | CS PD | M | M | Effects act on their own layer only |
 | Reference layers chosen per tool | TB CS | M | S | The fill reference is current or all visible |
-| Layer properties copied between layers | TV CS | M | S | |
+| Layer properties copied between layers | TV CS | D | S | Opacity and keys, blend, colour, folder, peg, depth, effects |
 
 ## Timeline and exposure sheet
 
@@ -413,14 +413,14 @@ Weight: 7
 | Native project save and open | all | D | S | |
 | PNG sequence export | all | D | S | |
 | GIF export | TV CS PD | D | S | |
-| Animated PNG and WebP export | TV CS | P | S | Animated PNG; no WebP |
+| Animated PNG and WebP export | TV CS | D | S | Animated PNG; animated and still WebP, lossless or lossy, with alpha |
 | MP4 (H.264) export | all | D | M | Through craft-video and craft-media; no external tools |
 | ProRes with alpha | TV TB | D | M | 4444 with alpha, 422 HQ |
 | Video export carries the soundtrack | all | D | S | |
 | Per-layer PNG sequences | TV TB | D | S | |
 | Layered PSD of a frame | TV CS | D | S | Through craft-psd |
-| Multi-frame layered PSD and PSB | TV CS | M | S | |
-| TGA, TIFF and JPEG sequences | TV TB CS | M | S | |
+| Multi-frame layered PSD and PSB | TV CS | D | S | One file with a group per frame (PSD, or PSB for large canvases) |
+| TGA, TIFF and JPEG sequences | TV TB CS | P | S | TGA and TIFF sequences; no JPEG |
 | OpenEXR sequences, with layers | TV TB | M | M | |
 | More video codecs: H.265, VP9 or AV1, MOV H.264 | TV CS PD | M | M | |
 | OpenRaster frame export | TV | D | S | |

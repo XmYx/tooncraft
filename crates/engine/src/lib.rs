@@ -17,6 +17,7 @@ pub mod export;
 mod import;
 pub mod inbetween;
 mod interchange;
+mod layerops;
 pub mod library;
 pub mod lipsync;
 pub mod paging;
@@ -70,6 +71,10 @@ pub enum EngineError {
     TooManyEffects,
     #[error("that change does not fit this effect")]
     EffectMismatch,
+    #[error("cannot merge: {0}")]
+    Merge(String),
+    #[error("layer “{0}” has its transparency locked, so it cannot take a fill")]
+    TransparencyLocked(String),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
@@ -226,6 +231,8 @@ impl Engine {
             return Err(EngineError::Busy);
         }
         let (drawing, created) = self.ensure_drawing(layer, frame)?;
+        // a layer with its transparency locked only takes paint where there is paint
+        let brush = if self.project.layer(layer)?.lock_alpha { Brush { compose: tooncraft_brush::Compose::KeepAlpha, ..brush } } else { brush };
         let images = tooncraft_brush::Images {
             tip: brush.tip.and_then(|id| self.project.tips.get(&id).cloned()),
             grain: brush.grain_image.and_then(|id| self.project.tips.get(&id).cloned()),
@@ -340,6 +347,11 @@ impl Engine {
         reference: FillReference,
     ) -> Result<Option<Vec<Part>>> {
         self.check_unlocked(layer)?;
+        if let Ok(l) = self.project.layer(layer)
+            && l.lock_alpha
+        {
+            return Err(EngineError::TransparencyLocked(l.name.clone()));
+        }
         let (w, h) = (self.project.width(), self.project.height());
         if x >= w || y >= h {
             return Ok(None);
@@ -375,6 +387,8 @@ impl Engine {
     }
 }
 
+#[cfg(test)]
+mod layerops_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

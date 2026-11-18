@@ -158,6 +158,40 @@ fn boardcraft_board_imports_as_layout() {
 }
 
 #[test]
+fn export_webp_tga_tiff_and_layered_frames() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-export-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let shot = dir.join("shot.toon");
+    let s = shot.to_str().unwrap();
+    assert!(cli(&["demo", s, "--size", "160x90"]).0);
+    let d = |n: &str| dir.join(n).to_str().unwrap().to_string();
+    let (ok, out) = cli(&["export", s, "--webp", &d("a.webp"), "--range", "1..4"]);
+    assert!(ok, "{out}");
+    let bytes = std::fs::read(dir.join("a.webp")).unwrap();
+    assert_eq!(&bytes[..4], b"RIFF");
+    assert!(bytes.windows(4).any(|w| w == b"ANIM"), "animated");
+    let (ok, out) = cli(&["export", s, "--webp", &d("b.webp"), "--range", "1..4", "--lossy", "--quality", "70", "--transparent"]);
+    assert!(ok, "{out}");
+    assert!(cli(&["export", s, "--webp-frame", &d("still.webp"), "--frame", "3"]).0);
+    assert_eq!(&std::fs::read(dir.join("still.webp")).unwrap()[8..12], b"WEBP");
+    let (ok, out) = cli(&["export", s, "--tga", &d("tga"), "--range", "1..3"]);
+    assert!(ok && out.contains("3 TGA files"), "{out}");
+    assert!(dir.join("tga/frame_0002.tga").is_file());
+    let (ok, out) = cli(&["export", s, "--tiff", &d("tif"), "--range", "2..3"]);
+    assert!(ok && out.contains("2 TIFF files"), "{out}");
+    let (ok, out) = cli(&["export", s, "--psd-frames", &d("all.psd"), "--range", "1..3"]);
+    assert!(ok && out.contains("3 frames"), "{out}");
+    let psd = std::fs::read(dir.join("all.psd")).unwrap();
+    assert_eq!(&psd[..4], b"8BPS");
+    assert_eq!(&psd[4..6], &[0, 1]);
+    assert!(cli(&["export", s, "--psd-frames", &d("all.psb"), "--psb", "--range", "1..2"]).0);
+    assert_eq!(&std::fs::read(dir.join("all.psb")).unwrap()[4..6], &[0, 2]);
+    // bad input is an error
+    assert!(!cli(&["export", s, "--webp", &d("c.webp"), "--quality", "300", "--lossy"]).0);
+    assert!(!cli(&["export", s, "--tga", &d("tga2"), "--range", "9..2"]).0);
+}
+
+#[test]
 fn brush_files_make_inspect_and_preview() {
     let dir = std::env::temp_dir().join(format!("tooncraft-cli-brush-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();

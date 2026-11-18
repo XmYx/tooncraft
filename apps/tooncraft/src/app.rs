@@ -727,6 +727,36 @@ impl ToonApp {
                 .set_file_name(format!("{name}.png"))
                 .save_file()
                 .map(|f| export::apng(&self.engine.project, &f, o, |_| {}).map(|_| tlf!("Exported {file}", file = f.display())).map_err(|e| e.to_string())),
+            "webp" | "webp-lossy" => rfd::FileDialog::new().add_filter("WebP", &["webp"]).set_file_name(format!("{name}.webp")).save_file().map(|f| {
+                let opt = export::WebpOptions { lossless: kind == "webp", quality: 80 };
+                export::webp_animated(&self.engine.project, &f, o, opt, |_| {}).map(|_| tlf!("Exported {file}", file = f.display())).map_err(|e| e.to_string())
+            }),
+            "webp-frame" => {
+                rfd::FileDialog::new().add_filter("WebP", &["webp"]).set_file_name(format!("{name}-{}.webp", self.frame + 1)).save_file().map(|f| {
+                    export::webp_frame(&self.engine.project, self.frame, &f, export::WebpOptions::default(), o.paper)
+                        .map(|_| tlf!("Exported {file}", file = f.display()))
+                        .map_err(|e| e.to_string())
+                })
+            }
+            "tga" => rfd::FileDialog::new().set_title(tl!("Folder for the TGA frames")).pick_folder().map(|d| {
+                export::tga_sequence(&self.engine.project, &d, &name, o, |_| {})
+                    .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
+                    .map_err(|e| e.to_string())
+            }),
+            "tiff" => rfd::FileDialog::new().set_title(tl!("Folder for the TIFF frames")).pick_folder().map(|d| {
+                export::tiff_sequence(&self.engine.project, &d, &name, o, |_| {})
+                    .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
+                    .map_err(|e| e.to_string())
+            }),
+            "psd-frames" | "psb-frames" => {
+                let ext = if kind == "psb-frames" { "psb" } else { "psd" };
+                rfd::FileDialog::new().add_filter("PSD", &[ext]).set_file_name(format!("{name}.{ext}")).save_file().map(|f| {
+                    tooncraft_interop::psd::export_frames(&self.engine.project, o.start, o.end, kind == "psb-frames")
+                        .map_err(|e| e.to_string())
+                        .and_then(|b| std::fs::write(&f, b).map_err(|e| e.to_string()))
+                        .map(|_| tlf!("Exported {file}", file = f.display()))
+                })
+            }
             "prores4444" | "prores422" => rfd::FileDialog::new().add_filter("MOV", &["mov"]).set_file_name(format!("{name}.mov")).save_file().map(|f| {
                 tooncraft_interop::prores::export_mov(&self.engine.project, &f, o.start, o.end, kind == "prores4444")
                     .map(|_| tlf!("Exported {file}", file = f.display()))
@@ -996,6 +1026,15 @@ impl ToonApp {
                     if ui.button(tl!("Animated PNG…")).clicked() {
                         self.export("apng");
                     }
+                    if ui.button(tl!("Animated WebP…")).clicked() {
+                        self.export("webp");
+                    }
+                    if ui.button(tl!("Animated WebP, Lossy…")).clicked() {
+                        self.export("webp-lossy");
+                    }
+                    if ui.button(tl!("WebP Image, Current Frame…")).clicked() {
+                        self.export("webp-frame");
+                    }
                     ui.separator();
                     if ui.button(tl!("ProRes 4444 with Alpha (MOV)…")).clicked() {
                         self.export("prores4444");
@@ -1008,6 +1047,18 @@ impl ToonApp {
                     }
                     if ui.button(tl!("Layered PSD, Current Frame…")).clicked() {
                         self.export("psd");
+                    }
+                    if ui.button(tl!("Layered PSD, All Frames…")).clicked() {
+                        self.export("psd-frames");
+                    }
+                    if ui.button(tl!("Layered PSB, All Frames…")).clicked() {
+                        self.export("psb-frames");
+                    }
+                    if ui.button(tl!("TGA Sequence…")).clicked() {
+                        self.export("tga");
+                    }
+                    if ui.button(tl!("TIFF Sequence…")).clicked() {
+                        self.export("tiff");
                     }
                     if ui.button(tl!("XDTS Exposure Sheet with Drawings…")).clicked() {
                         self.export("levels");
