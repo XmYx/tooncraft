@@ -2,7 +2,7 @@
 
 use super::*;
 use tooncraft_brush::{BrushKind, Smoothing};
-use tooncraft_doc::{BlendMode, Cell, RenderOptions};
+use tooncraft_doc::{BlendMode, RenderOptions};
 
 fn engine() -> Engine {
     Engine::new(Project::new("Ops", 160, 120, 12, 6).unwrap())
@@ -262,7 +262,8 @@ fn layer_commands_work_from_command_files() {
     ];
     for c in cmds {
         let parsed: Command = serde_json::from_str(c).unwrap();
-        assert_eq!(serde_json::to_string(&parsed).unwrap().contains("\"cmd\""), true);
+        let again: Command = serde_json::from_str(&serde_json::to_string(&parsed).unwrap()).unwrap();
+        assert_eq!(again, parsed, "{c} round-trips");
     }
     let mut e = engine();
     for c in &cmds[..4] {
@@ -271,7 +272,6 @@ fn layer_commands_work_from_command_files() {
     assert_eq!(e.project.layers[0].blend, BlendMode::HardMix);
     assert!(e.project.layers[1].lock_alpha);
     assert!(serde_json::from_str::<Command>(r#"{"cmd":"set_layer_blend","layer":0,"blend":"nonsense"}"#).is_err());
-    let _ = Cell::Blank;
 }
 
 #[test]
