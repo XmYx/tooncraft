@@ -495,6 +495,29 @@ pub enum Command {
         #[serde(default)]
         mark: Option<Mark>,
     },
+    /// Name the drawing shown at the frame, so it can be exposed again by name (an empty name
+    /// removes it).
+    SetDrawingName {
+        layer: usize,
+        frame: u32,
+        name: String,
+    },
+    /// Show the drawing called `name` at the frame (a substitution: only this frame changes),
+    /// on any layer.
+    ExposeNamed {
+        layer: usize,
+        frame: u32,
+        name: String,
+    },
+    /// Put a note on a frame (an empty `text` removes the marker).
+    SetMarker {
+        frame: u32,
+        text: String,
+    },
+    /// Remove the marker on a frame.
+    RemoveMarker {
+        frame: u32,
+    },
     /// Re-time `from..=to` with a timing preset (each drawing held as the preset says).
     ApplyTiming {
         layer: usize,
@@ -1187,6 +1210,44 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
                 None => e.project.marks.remove(&d),
             };
             e.push(Entry { label: "Mark drawing".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::SetDrawingName { layer, frame, name } => {
+            frame_ok(e, frame)?;
+            let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;
+            let before = Part::Names(e.project.drawing_names.clone());
+            e.project.set_drawing_name(d, &name)?;
+            e.push(Entry { label: "Name drawing".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::ExposeNamed { layer, frame, name } => edit_layers(e, "Expose drawing", |e| {
+            e.check_unlocked(layer)?;
+            frame_ok(e, frame)?;
+            let id = e.project.drawing_by_name(&name).ok_or_else(|| DocError::NoDrawingNamed(name.clone()))?;
+            let len = e.project.length();
+            let l = e.project.layer_mut(layer)?;
+            let next_is_hold = frame + 1 < len && matches!(l.cells.get(frame as usize + 1), Some(Cell::Hold));
+            let old = l.drawing_at(frame);
+            l.set_key(frame, id);
+            // only this frame changes: the rest of the hold it cut keeps showing the old drawing
+            if next_is_hold && let Some(old) = old.filter(|o| *o != id) {
+                l.set_key(frame + 1, old);
+            }
+            Ok(())
+        }),
+        Command::SetMarker { frame, text } => {
+            let before = Part::Markers(e.project.markers.clone());
+            e.project.set_marker(frame, &text)?; // refuses before changing anything
+            e.push(Entry { label: "Marker".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::RemoveMarker { frame } => {
+            if !e.project.markers.contains_key(&frame) {
+                return Ok(());
+            }
+            let before = Part::Markers(e.project.markers.clone());
+            e.project.markers.remove(&frame);
+            e.push(Entry { label: "Remove marker".into(), parts: vec![before] });
             Ok(())
         }
         Command::ApplyTiming { layer, from, to, preset } => edit_layers(e, "Timing preset", |e| {

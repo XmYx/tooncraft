@@ -54,6 +54,8 @@ hand a script can do.
 | `set_layer_matte` | `layer`, `matte` (`inside` / `outside`; absent: a normal layer) |
 | `add_layer` | `name`, optional `index` |
 | `delete_layer` / `rename_layer` / `move_layer` / `set_layer` | `layer` (+ `name`, `from`/`to`, `visible`/`locked`/`opacity`) |
+| `set_marker`, `remove_marker` | `frame`, `text` (empty removes it, 500 characters at most); `frame` |
+| `set_drawing_name`, `expose_named` | `layer`, `frame`, `name` (names the drawing shown there; names are unique ignoring case); `layer`, `frame`, `name` (show that drawing at the frame, only that frame changes) |
 | `set_length`, `set_fps`, `set_paper`, `set_onion`, `toggle_pin`, `set_light_table`, `purge_unused` | as named |
 
 Example:

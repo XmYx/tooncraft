@@ -92,7 +92,8 @@ fn transport(app: &mut ToonApp, ui: &mut egui::Ui) {
             app.playback.looping = !app.playback.looping;
         }
         ui.separator();
-        ui.label(egui::RichText::new(format!("{:>4} / {}", app.frame + 1, len)).monospace());
+        ui.label(egui::RichText::new(crate::timeline_extras::position_text(app)).monospace());
+        crate::timeline_extras::transport(app, ui);
         ui.separator();
         let mut fps = app.engine.project.fps();
         let l = ui.label(tl!("fps"));
@@ -199,6 +200,7 @@ fn grid_keys(app: &mut ToonApp, ui: &egui::Ui) {
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     transport(app, ui);
     let (CELL_W, ROW_H) = if app.thumbnails { (46.0, 42.0) } else { (CELL_W0, ROW_H0) };
+    let CELL_W = CELL_W * app.tl.zoom;
     ui.add_space(2.0);
     let area = ui.available_rect_before_wrap();
     if area.width() < 40.0 || area.height() < RULER_H + 4.0 {
@@ -231,6 +233,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let grid_rect = Rect::from_min_max(pos2(area.left(), area.top()), area.max);
     let grid = ui.interact(grid_rect, grid_id(), Sense::click_and_drag());
     if grid.hovered() {
+        crate::timeline_extras::wheel_zoom(app, ui);
         let d = ui.input(|i| i.smooth_scroll_delta);
         if ui.input(|i| i.modifiers.shift) {
             row0 = (row0 as f32 - d.y / ROW_H).clamp(0.0, n_layers.saturating_sub(1) as f32) as usize;
@@ -273,9 +276,17 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             painter.add(egui::Shape::convex_polygon(vec![pos2(x, y - 4.0), pos2(x + 4.0, y), pos2(x, y + 4.0), pos2(x - 4.0, y)], pal.accent, Stroke::NONE));
         }
     }
+    crate::timeline_extras::paint_flags(app, &painter, ruler, frames_area.left(), first, visible_cols, CELL_W, pal.accent);
     // scrub on the ruler (click or drag)
     let ruler_resp = ui.interact(ruler, grid_id().with("ruler"), Sense::click_and_drag());
     ruler_resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Slider, true, tl!("Frame ruler")));
+    let ruler_resp = match ruler_resp.hover_pos().map(|p| first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64) {
+        Some(f) if f >= 0 => match crate::timeline_extras::note_at(app, f as u32) {
+            Some(text) => ruler_resp.on_hover_text(tlf!("Frame {n}: {text}", n = f + 1, text = text)),
+            None => ruler_resp,
+        },
+        _ => ruler_resp,
+    };
     if (ruler_resp.dragged() || ruler_resp.clicked())
         && let Some(p) = ruler_resp.interact_pointer_pos()
     {
@@ -618,6 +629,7 @@ pub fn frame_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     if ui.add_enabled(!app.engine.project.sounds.is_empty(), egui::Button::new(tl!("Start Sound Here"))).clicked() {
         app.run(Command::MoveSound { offset: frame as i32, index: 0 });
     }
+    crate::timeline_extras::menu(app, ui);
     if ui.button(tl!("Focus Exposure Sheet")).clicked() {
         ui.memory_mut(|m| m.request_focus(grid_id()));
     }

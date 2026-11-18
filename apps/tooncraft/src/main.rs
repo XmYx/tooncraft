@@ -31,7 +31,10 @@ mod tablet;
 mod textures;
 mod theme;
 mod timeline;
+mod timeline_extras;
 mod timing_panel;
+#[cfg(test)]
+mod timeline_ui_tests;
 #[cfg(test)]
 mod ui_tests;
 mod view;
