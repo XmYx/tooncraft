@@ -980,6 +980,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "craft-tga"
+version = "0.1.0"
+source = "git+https://github.com/storytold/craft-libs?rev=0649a07aa11834fa5bd7052c8b97a861db532a22#0649a07aa11834fa5bd7052c8b97a861db532a22"
+dependencies = [
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "craft-tiff"
 version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=0649a07aa11834fa5bd7052c8b97a861db532a22#0649a07aa11834fa5bd7052c8b97a861db532a22"
@@ -1015,6 +1023,15 @@ version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=0649a07aa11834fa5bd7052c8b97a861db532a22#0649a07aa11834fa5bd7052c8b97a861db532a22"
 dependencies = [
  "craft-media",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "craft-webp"
+version = "0.1.0"
+source = "git+https://github.com/storytold/craft-libs?rev=0649a07aa11834fa5bd7052c8b97a861db532a22#0649a07aa11834fa5bd7052c8b97a861db532a22"
+dependencies = [
+ "craft-video",
  "thiserror 2.0.21",
 ]
 
@@ -4142,7 +4159,9 @@ dependencies = [
  "craft-image-codecs",
  "craft-media",
  "craft-ora",
+ "craft-tga",
  "craft-video",
+ "craft-webp",
  "craft-zip",
  "proptest",
  "serde",

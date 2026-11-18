@@ -413,14 +413,14 @@ Weight: 7
 | Native project save and open | all | D | S | |
 | PNG sequence export | all | D | S | |
 | GIF export | TV CS PD | D | S | |
-| Animated PNG and WebP export | TV CS | P | S | Animated PNG; no WebP |
+| Animated PNG and WebP export | TV CS | D | S | Animated PNG; animated and still WebP, lossless or lossy, with alpha |
 | MP4 (H.264) export | all | D | M | Through craft-video and craft-media; no external tools |
 | ProRes with alpha | TV TB | D | M | 4444 with alpha, 422 HQ |
 | Video export carries the soundtrack | all | D | S | |
 | Per-layer PNG sequences | TV TB | D | S | |
 | Layered PSD of a frame | TV CS | D | S | Through craft-psd |
-| Multi-frame layered PSD and PSB | TV CS | M | S | |
-| TGA, TIFF and JPEG sequences | TV TB CS | M | S | |
+| Multi-frame layered PSD and PSB | TV CS | D | S | One file with a group per frame (PSD, or PSB for large canvases) |
+| TGA, TIFF and JPEG sequences | TV TB CS | P | S | TGA and TIFF sequences; no JPEG |
 | OpenEXR sequences, with layers | TV TB | M | M | |
 | More video codecs: H.265, VP9 or AV1, MOV H.264 | TV CS PD | M | M | |
 | OpenRaster frame export | TV | D | S | |

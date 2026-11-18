@@ -178,6 +178,104 @@ fn exports_write_files() {
     assert!(a.windows(4).any(|w| w == b"acTL"), "animated PNG");
 }
 
+fn drawn_shot() -> Engine {
+    let mut e = engine();
+    for f in [0u32, 1, 2] {
+        e.apply(Command::Stroke { layer: 0, frame: f, brush: ink(), samples: circle(60.0 + f as f32 * 40.0, 120.0, 30.0) }).unwrap();
+    }
+    // frame 4 holds frame 3's drawing, so an animation can merge the two
+    e.apply(Command::ExtendHold { layer: 0, frame: 2 }).unwrap();
+    e
+}
+
+fn rendered(e: &Engine, f: u32, paper: bool) -> Vec<u8> {
+    tooncraft_doc::render_camera(&e.project, f, tooncraft_doc::RenderOptions { paper, ..Default::default() }).to_straight()
+}
+
+#[test]
+fn webp_stills_and_animations_decode_back() {
+    use crate::export::{WebpOptions, frame_delays_ms, webp_animated, webp_frame};
+    let e = drawn_shot();
+    let dir = scratch("webp");
+    std::fs::create_dir_all(&dir).unwrap();
+    // a still, with and without the paper (alpha), lossless: every pixel comes back
+    for paper in [true, false] {
+        let path = dir.join(format!("still-{paper}.webp"));
+        webp_frame(&e.project, 1, &path, WebpOptions::default(), paper).unwrap();
+        let img = craft_image_codecs::decode(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!((img.width(), img.height()), (320, 240));
+        let got = img.to_rgba8();
+        let want = rendered(&e, 1, paper);
+        assert_eq!(got.len(), want.len());
+        // fully transparent pixels may lose their colour; compare what is visible
+        assert!(
+            got.as_chunks::<4>().0.iter().zip(want.as_chunks::<4>().0).all(|(a, b)| a[3] == b[3] && (a[3] == 0 || a == b)),
+            "lossless still, paper {paper}"
+        );
+    }
+    assert!(webp_frame(&e.project, 8, &dir.join("x.webp"), WebpOptions::default(), true).is_err());
+    // timing: the delays add up to the shot's length exactly
+    assert_eq!(frame_delays_ms(24, 24).iter().sum::<u32>(), 1000);
+    assert_eq!(frame_delays_ms(12, 4).iter().sum::<u32>(), 333);
+    assert!(frame_delays_ms(1000, 10).iter().all(|d| *d >= 1));
+    // lossless animation: the held frame is merged into the one before it
+    let o = ExportOptions { start: 0, end: 4, paper: false };
+    let path = dir.join("anim.webp");
+    webp_animated(&e.project, &path, o, WebpOptions::default(), |_| {}).unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    assert!(craft_image_codecs::webp_is_animated(&bytes));
+    let frames = craft_image_codecs::decode_webp_frames(&bytes, &craft_image_codecs::DecodeOptions::default()).unwrap();
+    assert_eq!(frames.len(), 3, "frames 3 and 4 are the same picture");
+    assert_eq!(frames.iter().map(|f| f.delay_ms).sum::<u32>(), 333);
+    for (i, f) in frames.iter().enumerate() {
+        let got = f.image.to_rgba8();
+        let want = rendered(&e, i as u32, false);
+        assert!(got.as_chunks::<4>().0.iter().zip(want.as_chunks::<4>().0).all(|(a, b)| a[3] == b[3] && (a[3] == 0 || a == b)), "frame {i}");
+    }
+    // lossy animation with the paper: close to the render, and much smaller than lossless
+    let lossy = dir.join("lossy.webp");
+    webp_animated(&e.project, &lossy, ExportOptions { paper: true, ..o }, WebpOptions { lossless: false, quality: 90 }, |_| {}).unwrap();
+    let bytes = std::fs::read(&lossy).unwrap();
+    let frames = craft_image_codecs::decode_webp_frames(&bytes, &craft_image_codecs::DecodeOptions::default()).unwrap();
+    assert_eq!(frames.len(), 3);
+    let (got, want) = (frames[1].image.to_rgba8(), rendered(&e, 1, true));
+    let err: u64 = got.as_chunks::<4>().0.iter().zip(want.as_chunks::<4>().0).map(|(a, b)| (0..3).map(|c| a[c].abs_diff(b[c]) as u64).sum::<u64>()).sum();
+    assert!(err as f64 / (got.len() / 4) as f64 / 3.0 < 6.0, "mean error {}", err as f64 / (got.len() / 4) as f64 / 3.0);
+    assert!(webp_animated(&e.project, &dir.join("bad.webp"), ExportOptions { start: 5, end: 2, paper: true }, WebpOptions::default(), |_| {}).is_err());
+}
+
+#[test]
+fn tga_and_tiff_sequences_decode_back() {
+    use crate::export::{tga_sequence, tiff_sequence};
+    let e = drawn_shot();
+    let dir = scratch("tga-tiff");
+    for paper in [true, false] {
+        let o = ExportOptions { start: 1, end: 4, paper };
+        let tga = tga_sequence(&e.project, &dir.join(format!("tga-{paper}")), "shot", o, |_| {}).unwrap();
+        let tif = tiff_sequence(&e.project, &dir.join(format!("tif-{paper}")), "shot", o, |_| {}).unwrap();
+        assert_eq!(tga.len(), 3);
+        assert!(tga[0].ends_with("shot_0002.tga") && tif[2].ends_with("shot_0004.tif"));
+        for (i, f) in (1..4u32).enumerate() {
+            let want = rendered(&e, f, paper);
+            let pic = craft_tga::decode(&std::fs::read(&tga[i]).unwrap(), &craft_tga::Limits::default()).unwrap();
+            assert_eq!((pic.width, pic.height), (320, 240));
+            assert_eq!(pic.has_alpha, !paper);
+            assert!(
+                pic.rgba.as_chunks::<4>().0.iter().zip(want.as_chunks::<4>().0).all(|(a, b)| a[3] == b[3] && (a[3] == 0 || a == b)),
+                "TGA frame {f}, paper {paper}"
+            );
+            let img = craft_image_codecs::decode(&std::fs::read(&tif[i]).unwrap()).unwrap();
+            let got = img.to_rgba8();
+            assert!(
+                got.as_chunks::<4>().0.iter().zip(want.as_chunks::<4>().0).all(|(a, b)| a[3] == b[3] && (a[3] == 0 || a == b)),
+                "TIFF frame {f}, paper {paper}"
+            );
+        }
+    }
+    assert!(tga_sequence(&e.project, &dir, "x", ExportOptions { start: 3, end: 2, paper: true }, |_| {}).is_err());
+    assert!(tiff_sequence(&e.project, &dir, "x", ExportOptions { start: 0, end: 99, paper: true }, |_| {}).is_err());
+}
+
 #[test]
 fn commands_are_json() {
     let c: Command =

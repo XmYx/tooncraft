@@ -805,3 +805,24 @@ fn long_shots_page_drawings_out_while_playing() {
     let after = tooncraft_doc::render_frame(&h.state().engine.project, 5, tooncraft_doc::RenderOptions::default());
     assert_eq!(before, after, "paged drawings read back unchanged");
 }
+
+#[test]
+fn export_menu_offers_webp_tga_tiff_and_layered_frames() {
+    let mut h = harness(true);
+    h.run();
+    h.get_by_label("File").click();
+    h.run();
+    h.get_by_label("Export").click();
+    h.run();
+    for label in [
+        "Animated WebP…",
+        "Animated WebP, Lossy…",
+        "WebP Image, Current Frame…",
+        "Layered PSD, All Frames…",
+        "Layered PSB, All Frames…",
+        "TGA Sequence…",
+        "TIFF Sequence…",
+    ] {
+        h.get(By::new().role(egui::Role::Button).label(label));
+    }
+}

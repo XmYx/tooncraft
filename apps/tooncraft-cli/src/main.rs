@@ -7,6 +7,8 @@
 //! tooncraft-cli info <file.toon>
 //! tooncraft-cli run <file.toon> <commands.jsonl | ->      apply JSON-lines commands, then save
 //! tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
+//! tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
+//! tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
 //! tooncraft-cli check <file.toon>                          interrupted saves, backup, load check
 //! tooncraft-cli bench [--json]                             stroke latency, fill, compositing, save
 //! tooncraft-cli brush (make <kind> <file> | info <file> | preview <file> <png> [--size WxH])
@@ -33,6 +35,8 @@ const USAGE: &str = "usage:
   tooncraft-cli info <file.toon>
   tooncraft-cli run <file.toon> <commands.jsonl | ->
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
   tooncraft-cli check <file.toon>
   tooncraft-cli scrub <file.toon>          step through every frame; time and memory (TOONCRAFT_PAGE_BUDGET_MB)
   tooncraft-cli bench [--json]
@@ -70,6 +74,12 @@ impl Args {
                         | "levels"
                         | "layers"
                         | "prores"
+                        | "webp"
+                        | "webp-frame"
+                        | "tga"
+                        | "tiff"
+                        | "psd-frames"
+                        | "quality"
                         | "prores-layers"
                         | "wav"
                         | "mouth-sheet"
@@ -172,6 +182,14 @@ fn range(a: &Args, p: &Project) -> Result<ExportOptions, String> {
         o.paper = false;
     }
     Ok(o)
+}
+
+fn webp_options(a: &Args) -> Result<export::WebpOptions, String> {
+    let quality = num(a.flag("quality"), 80)?;
+    if quality > 100 {
+        return Err("--quality is 0 to 100".into());
+    }
+    Ok(export::WebpOptions { lossless: !a.has("lossy"), quality: quality as u8 })
 }
 
 fn run() -> Result<(), String> {
@@ -312,6 +330,26 @@ fn run() -> Result<(), String> {
             } else if let Some(file) = rest.flag("prores") {
                 tooncraft_interop::prores::export_mov(&e.project, Path::new(file), o.start, o.end, rest.has("alpha")).map_err(|e| e.to_string())?;
                 println!("wrote {file}");
+            } else if let Some(file) = rest.flag("webp") {
+                export::webp_animated(&e.project, Path::new(file), o, webp_options(&rest)?, progress).map_err(|e| e.to_string())?;
+                eprintln!();
+                println!("wrote {file}");
+            } else if let Some(file) = rest.flag("webp-frame") {
+                let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
+                export::webp_frame(&e.project, frame, Path::new(file), webp_options(&rest)?, o.paper).map_err(|e| e.to_string())?;
+                println!("wrote {file}");
+            } else if let Some(dir) = rest.flag("tga") {
+                let files = export::tga_sequence(&e.project, Path::new(dir), "frame", o, progress).map_err(|e| e.to_string())?;
+                eprintln!();
+                println!("wrote {} TGA files to {dir}", files.len());
+            } else if let Some(dir) = rest.flag("tiff") {
+                let files = export::tiff_sequence(&e.project, Path::new(dir), "frame", o, progress).map_err(|e| e.to_string())?;
+                eprintln!();
+                println!("wrote {} TIFF files to {dir}", files.len());
+            } else if let Some(file) = rest.flag("psd-frames") {
+                let bytes = tooncraft_interop::psd::export_frames(&e.project, o.start, o.end, rest.has("psb")).map_err(|e| e.to_string())?;
+                std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
+                println!("wrote {file} ({} frames, one layer group each)", o.end - o.start);
             } else if let Some(file) = rest.flag("ora") {
                 let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
                 export::ora_frame(&e.project, frame, Path::new(file)).map_err(|e| e.to_string())?;
