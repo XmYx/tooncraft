@@ -83,6 +83,8 @@ pub fn builtin() -> Vec<(String, &'static str, Brush)> {
         b("Wet wash", "Watercolours", Brush { size: 70.0, flow: 0.2, hardness: 0.2, wet: tooncraft_brush::Wet { pickup: 0.6 }, ..p(BrushKind::Watercolour) }),
         b("Dry wash", "Watercolours", Brush { size: 40.0, flow: 0.35, grain: 0.7, wet: tooncraft_brush::Wet { pickup: 0.15 }, ..p(BrushKind::Watercolour) }),
         b("Soft smudge", "Smudges", Brush { size: 50.0, hardness: 0.1, flow: 0.4, ..p(BrushKind::Smudge) }),
+        b("Blur", "Smudges", Brush { size: 40.0, hardness: 0.3, flow: 1.0, wet: tooncraft_brush::Wet { pickup: 1.0 }, ..p(BrushKind::Smudge) }),
+        b("Fine blur", "Smudges", Brush { size: 14.0, hardness: 0.5, flow: 1.0, wet: tooncraft_brush::Wet { pickup: 1.0 }, ..p(BrushKind::Smudge) }),
         b("Hard smudge", "Smudges", Brush { size: 16.0, hardness: 0.8, flow: 0.8, wet: tooncraft_brush::Wet { pickup: 0.15 }, ..p(BrushKind::Smudge) }),
     ]
 }

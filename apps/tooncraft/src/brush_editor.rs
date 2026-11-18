@@ -227,7 +227,7 @@ fn grain(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
 fn wet(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
     let b = app.brush_mut(kind);
     let (label, hint) = if kind == BrushKind::Smudge {
-        (tl!("Smear fade"), tl!("How quickly the smear lets go of the colour it carries: low values drag long smears"))
+        (tl!("Smear fade"), tl!("How quickly the smear lets go of the colour it carries: low values drag long smears, 1 only softens (a blur)"))
     } else {
         (tl!("Colour pickup"), tl!("How much the colour already on the layer mixes into the paint; 0 keeps the paint pure"))
     };

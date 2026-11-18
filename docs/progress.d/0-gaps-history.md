@@ -1,0 +1,1 @@
+- 2026-11-18: An Undo History panel (every step, click to go there, also from Edit), a Recent colours strip in the Colour panel, and Blur and Fine blur brushes (the smudge brush at full pickup softens in place instead of dragging); a click on a menu or popup above the canvas no longer starts a stroke under it.

@@ -194,6 +194,8 @@ pub fn colour(app: &mut ToonApp, ui: &mut egui::Ui) {
             app.swatches.push([app.color[0], app.color[1], app.color[2]]);
         }
         ui.separator();
+        crate::history_panel::recent(app, ui);
+        ui.separator();
         ui.horizontal(|ui| {
             ui.label(tl!("Paper"));
             let mut pc = app.engine.project.paper.color;

@@ -84,6 +84,7 @@ tooncraft	Colour dodge
 tooncraft	Colour key	
 tooncraft	Colour picker	
 tooncraft	Colour pickup	
+tooncraft	Colours you paint with show up here	
 tooncraft	Copied	
 tooncraft	Copied {frames} frames from {layers} layers	
 tooncraft	Copy / cut / paste frames	
@@ -213,6 +214,7 @@ tooncraft	Gamma
 tooncraft	Give the workspace a name	
 tooncraft	Glow	
 tooncraft	Glow colour	
+tooncraft	Go back to just after this step	
 tooncraft	Grain	
 tooncraft	Grain from Image…	
 tooncraft	Grain image	
@@ -250,7 +252,7 @@ tooncraft	Hold each mouth at least
 tooncraft	Hold one frame longer / shorter	
 tooncraft	Hold −	
 tooncraft	How much the colour already on the layer mixes into the paint; 0 keeps the paint pure	
-tooncraft	How quickly the smear lets go of the colour it carries: low values drag long smears	
+tooncraft	How quickly the smear lets go of the colour it carries: low values drag long smears, 1 only softens (a blur)	
 tooncraft	Hue	
 tooncraft	Hue and saturation	
 tooncraft	Image	
@@ -505,6 +507,8 @@ tooncraft	Re-time Layer
 tooncraft	Re-time the selected frames (or the whole layer)	
 tooncraft	Re-timed on {n}s; no drawing was deleted	
 tooncraft	Recent	
+tooncraft	Recent colour #{hex}	
+tooncraft	Recent colours	
 tooncraft	Recover	
 tooncraft	Recover unsaved work	
 tooncraft	Recovered; save to keep it	
@@ -512,6 +516,7 @@ tooncraft	Rectangle
 tooncraft	Red	
 tooncraft	Redid {action}	
 tooncraft	Redo	
+tooncraft	Redo up to here	
 tooncraft	Redo {action}	
 tooncraft	Reload Library	
 tooncraft	Remove	
@@ -638,11 +643,15 @@ tooncraft	Speckle
 tooncraft	Speed	
 tooncraft	Spray	
 tooncraft	Spread under lines	
+tooncraft	Start	
+tooncraft	Start (now)	
 tooncraft	Start Sound Here	
 tooncraft	Starts at frame	
 tooncraft	Steady line	
 tooncraft	Steady line (px)	
 tooncraft	Step by	
+tooncraft	Step {n}: {label}	
+tooncraft	Step {n}: {label} (now)	
 tooncraft	Stop	
 tooncraft	Straight line from the last stroke	
 tooncraft	Strength	
@@ -689,6 +698,8 @@ tooncraft	Trim start
 tooncraft	Undid {action}	
 tooncraft	Undo	
 tooncraft	Undo / redo	
+tooncraft	Undo History	
+tooncraft	Undo everything still remembered	
 tooncraft	Undo {action}	
 tooncraft	Unlock Layer	
 tooncraft	Unlock Transparency	
@@ -705,6 +716,7 @@ tooncraft	Volume
 tooncraft	Watercolour	
 tooncraft	Watercolours	
 tooncraft	WebP Image, Current Frame…	
+tooncraft	Went to step {n}	
 tooncraft	Wet mixing	
 tooncraft	Wet wash	
 tooncraft	Wide (E)	
@@ -729,6 +741,7 @@ tooncraft	none
 tooncraft	not set	
 tooncraft	of {total}	
 tooncraft	stroke {ms} ms	
+tooncraft	{done} steps, {undone} to redo	
 tooncraft	{drawings} drawings ({unused} not exposed)	
 tooncraft	{fps} fps playback · {ms} ms/frame	
 tooncraft	{layer}, frame {frame}	

@@ -13,6 +13,8 @@
 #![forbid(unsafe_code)]
 
 #[cfg(test)]
+mod blur_tests;
+#[cfg(test)]
 mod compose_tests;
 mod curve;
 mod dab;
