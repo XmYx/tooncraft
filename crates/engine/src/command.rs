@@ -451,6 +451,29 @@ pub enum Command {
         layer: usize,
         blend: tooncraft_doc::BlendMode,
     },
+    /// Lock a layer's transparency: strokes only recolour paint that is already there.
+    SetLayerLockAlpha {
+        layer: usize,
+        lock: bool,
+    },
+    /// A copy of the layer (with its own drawings) just above it.
+    DuplicateLayer {
+        layer: usize,
+    },
+    /// Merge the layer into the one below it (blend mode, opacity and effects baked in).
+    MergeDown {
+        layer: usize,
+    },
+    /// Merge every visible layer into one.
+    MergeVisible,
+    /// Merge every visible layer into one and remove the hidden ones.
+    Flatten,
+    /// Copy opacity (and keys), blend mode, label colour, folder, peg, depth and effects from
+    /// one layer to another.
+    CopyLayerProperties {
+        from: usize,
+        to: usize,
+    },
     /// The layer's label colour (`None`: no colour).
     SetLayerColor {
         layer: usize,
@@ -1135,6 +1158,15 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.blend = blend;
             Ok(())
         }),
+        Command::SetLayerLockAlpha { layer, lock } => edit_layers(e, "Lock transparency", |e| {
+            e.project.layer_mut(layer)?.lock_alpha = lock;
+            Ok(())
+        }),
+        Command::DuplicateLayer { layer } => crate::layerops::duplicate(e, layer),
+        Command::MergeDown { layer } => crate::layerops::merge(e, crate::layerops::Merge::Down(layer)),
+        Command::MergeVisible => crate::layerops::merge(e, crate::layerops::Merge::Visible),
+        Command::Flatten => crate::layerops::merge(e, crate::layerops::Merge::Flatten),
+        Command::CopyLayerProperties { from, to } => edit_layers(e, "Copy layer properties", |e| crate::layerops::copy_properties(e, from, to)),
         Command::SetLayerColor { layer, color } => edit_layers(e, "Layer colour", |e| {
             e.project.layer_mut(layer)?.color = color;
             Ok(())

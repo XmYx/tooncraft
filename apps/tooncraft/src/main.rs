@@ -20,6 +20,7 @@ mod effects_panel;
 mod frame_cache;
 mod icons;
 mod keys;
+mod layer_ops;
 mod layer_tree;
 mod lipsync_panel;
 mod panels;

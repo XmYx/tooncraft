@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tooncraft_raster::{Surface, TILE, TILE_PIXELS, Tile, TileSnapshot, over, premultiply, scale_alpha};
 
 use crate::dab::Shape;
-use crate::{Brush, BrushKind, Dab, GrainKind, Inputs, Sample, Source, Stabilizer, Target, hash01};
+use crate::{Brush, BrushKind, Compose, Dab, GrainKind, Inputs, Sample, Source, Stabilizer, Target, hash01};
 
 /// Turns input samples into evenly spaced dabs with the brush's dynamics applied.
 ///
@@ -264,6 +264,7 @@ impl Stroke {
         let t = TILE as i64;
         let opacity = (self.brush.opacity * 255.0).round().clamp(0.0, 255.0) as u32;
         let eraser = self.brush.kind == BrushKind::Eraser;
+        let compose = self.brush.compose;
         let build = self.brush.kind.builds_up();
         for ty in y0 / t..=y1 / t {
             for tx in x0 / t..=x1 / t {
@@ -298,7 +299,15 @@ impl Stroke {
                             }
                             None => [0; 4],
                         };
-                        let out = if eraser { scale_alpha(base, 255 - k) } else { over(base, scale_alpha(self.color, k)) };
+                        let paint = scale_alpha(self.color, k);
+                        let out = match (eraser, compose) {
+                            (true, Compose::Normal) => scale_alpha(base, 255 - k),
+                            // erasing "behind" or inside a locked layer changes nothing sensible
+                            (true, _) => base,
+                            (false, Compose::Normal) => over(base, paint),
+                            (false, Compose::Behind) => over(paint, base),
+                            (false, Compose::KeepAlpha) => keep_alpha(base, paint),
+                        };
                         px[i..i + 4].copy_from_slice(&out);
                     }
                 }
@@ -356,12 +365,21 @@ impl Stroke {
                         }
                         let d = 1.0 - (1.0 - a.min(0.999)).powf(step);
                         let i = (((y - by) * t + (x - bx)) * 4) as usize;
+                        let locked_alpha = (self.brush.compose == Compose::KeepAlpha).then_some(px[i + 3]);
                         // an unbiased rounding keeps slow blends moving
                         let dither = hash01(salt, (x as u64) << 20 ^ y as u64);
                         for c in 0..4 {
                             let cur = px[i + c] as f32;
                             let v = if smudge { cur + (load[c] * 255.0 - cur) * d } else { cur * (1.0 - load[3] * d) + load[c] * 255.0 * d };
                             px[i + c] = (v + dither).floor().clamp(0.0, 255.0) as u8;
+                        }
+                        if let Some(a0) = locked_alpha {
+                            // the layer's transparency is locked: keep the old alpha, rescale the colour
+                            let a1 = px[i + 3].max(1) as f32;
+                            for c in 0..3 {
+                                px[i + c] = (px[i + c] as f32 * a0 as f32 / a1).round().min(a0 as f32) as u8;
+                            }
+                            px[i + 3] = a0;
                         }
                         // keep the pixel a valid premultiplied colour
                         let alpha = px[i + 3];
@@ -381,6 +399,18 @@ impl Stroke {
         }
         surface.take_capture()
     }
+}
+
+/// `paint` laid over `base` with the alpha of `base` unchanged (premultiplied in and out).
+fn keep_alpha(base: [u8; 4], paint: [u8; 4]) -> [u8; 4] {
+    if base[3] == 0 || paint[3] == 0 {
+        return base;
+    }
+    let mixed = over(base, paint);
+    // the colour the pixel would have, at the pixel's own alpha
+    let scale = base[3] as f32 / mixed[3].max(1) as f32;
+    let c = |v: u8| ((v as f32 * scale).round().min(base[3] as f32)) as u8;
+    [c(mixed[0]), c(mixed[1]), c(mixed[2]), base[3]]
 }
 
 /// The mean of the premultiplied colours under a dab (13 sample points inside its radius).
