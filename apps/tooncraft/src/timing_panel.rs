@@ -59,6 +59,10 @@ fn stretch(app: &ToonApp) -> Option<(u32, u32, Vec<u32>)> {
 }
 
 pub fn panel(app: &mut ToonApp, ui: &mut egui::Ui) {
+    egui::ScrollArea::vertical().id_salt("timing-scroll").auto_shrink([false, false]).show(ui, |ui| panel_body(app, ui));
+}
+
+fn panel_body(app: &mut ToonApp, ui: &mut egui::Ui) {
     let (li, frame) = (app.layer, app.frame);
     let p = &app.engine.project;
     let current = p.drawing_at(li, frame);
@@ -131,6 +135,8 @@ pub fn panel(app: &mut ToonApp, ui: &mut egui::Ui) {
             app.run(Command::ApplyTiming { layer: li, from, to, preset });
         }
     });
+    crate::timeline_extras::names(app, ui);
+    crate::timeline_extras::section(app, ui);
 }
 
 /// The selected frames on the current layer, else the whole shot.

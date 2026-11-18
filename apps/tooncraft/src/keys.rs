@@ -38,6 +38,11 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("brush.smaller", "Smaller brush", "["),
     ("brush.bigger", "Bigger brush", "]"),
     ("library.find", "Find brush", "Ctrl+B"),
+    ("marker.toggle", "Add or remove a marker on this frame", "Shift+M"),
+    ("marker.next", "Next marker", "Alt+."),
+    ("marker.prev", "Previous marker", "Alt+,"),
+    ("timeline.zoom_in", "Zoom the timeline in", "Alt+="),
+    ("timeline.zoom_out", "Zoom the timeline out", "Alt+-"),
 ];
 
 pub fn label(id: &str) -> String {

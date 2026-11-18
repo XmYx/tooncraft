@@ -29,6 +29,10 @@ pub(crate) enum Part {
     /// The whole project (canvas size changes; tiles are shared, so this is cheap).
     Whole(Box<Project>),
     Marks(std::collections::BTreeMap<tooncraft_doc::DrawingId, tooncraft_doc::Mark>),
+    /// Frame markers.
+    Markers(std::collections::BTreeMap<u32, String>),
+    /// Drawing names.
+    Names(std::collections::BTreeMap<tooncraft_doc::DrawingId, String>),
     Tip {
         id: u64,
         tip: Option<std::sync::Arc<tooncraft_brush::Tip>>,
@@ -85,6 +89,8 @@ impl Entry {
                 Part::Pegs(g) => Part::Pegs(std::mem::replace(&mut p.pegs, g)),
                 Part::Whole(w) => Part::Whole(Box::new(std::mem::replace(p, *w))),
                 Part::Marks(m) => Part::Marks(std::mem::replace(&mut p.marks, m)),
+                Part::Markers(m) => Part::Markers(std::mem::replace(&mut p.markers, m)),
+                Part::Names(m) => Part::Names(std::mem::replace(&mut p.drawing_names, m)),
                 Part::Camera(c) => Part::Camera(std::mem::replace(&mut p.camera, c)),
                 Part::Sounds(s, t) => Part::Sounds(std::mem::replace(&mut p.sounds, s), std::mem::replace(&mut p.audio_tracks, t)),
                 Part::Fps(fps) => {
