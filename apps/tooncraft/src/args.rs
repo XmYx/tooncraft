@@ -9,7 +9,8 @@ Options:
   --frame <N>                start on frame N (1-based)
   --screenshot <PNG>         render the window once to PNG and quit
   --panel <NAME>             bring a panel to the front (timeline, layers, brush, colour, onion, camera,
-                             pegs, library, effects, sound, lipsync, timing, history)
+                             pegs, library, effects, sound, lipsync, timing, history,
+                             curves)
   --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size
   --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet
   --vertical                 show the exposure sheet down the page

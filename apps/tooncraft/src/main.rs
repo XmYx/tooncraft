@@ -22,6 +22,9 @@ mod colour_tools;
 mod colour_ui_tests;
 mod command_search;
 mod context_menus;
+mod curves;
+#[cfg(test)]
+mod curves_ui_tests;
 mod dock;
 mod draw_aids;
 #[cfg(test)]
