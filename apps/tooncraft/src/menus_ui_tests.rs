@@ -14,7 +14,7 @@ use crate::args::Cli;
 fn harness() -> Harness<'static, ToonApp> {
     let ctx = egui::Context::default();
     let app = ToonApp::with_context(&ctx, Cli::default()).without_autosave();
-    let mut h = Harness::builder().with_size(vec2(1600.0, 1000.0)).with_accessibility_check(true).build_ui_state(
+    let mut h = Harness::builder().with_size(vec2(1600.0, 1000.0)).with_accessibility_check(true).with_max_steps(8).build_ui_state(
         |ui, app: &mut ToonApp| {
             let ctx = ui.ctx().clone();
             app.tick(&ctx);

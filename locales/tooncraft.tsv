@@ -8,6 +8,7 @@ tooncraft	 s
 tooncraft	0: four, or more for a long shot	
 tooncraft	A copy of the clip starting at the current frame	
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
+tooncraft	A new shot (Ctrl+N)	
 tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
 tooncraft	About ToonCraft	
 tooncraft	Actual Size	
@@ -620,9 +621,11 @@ tooncraft	Opacity
 tooncraft	Opacity here	
 tooncraft	Opacity jitter	
 tooncraft	Opacity per step	
+tooncraft	Open	
 tooncraft	Open (A I)	
 tooncraft	Open Palette…	
 tooncraft	Open Stack…	
+tooncraft	Open a shot (Ctrl+O)	
 tooncraft	OpenEXR Sequence	
 tooncraft	OpenEXR Sequence…	
 tooncraft	OpenRaster, Current Frame	
@@ -688,8 +691,11 @@ tooncraft	Play / stop
 tooncraft	Play Around	
 tooncraft	Play Selection	
 tooncraft	Play forward, then backward, then forward again	
+tooncraft	Play from	
 tooncraft	Play only the selected frames (select a range of frames in the exposure sheet first)	
+tooncraft	Play or stop (Enter)	
 tooncraft	Play the soundtrack	
+tooncraft	Play to	
 tooncraft	Playback loops back after this frame	
 tooncraft	Playback speed; the sound plays only at 100 %	
 tooncraft	Playback starts here	
@@ -746,6 +752,8 @@ tooncraft	Rectangle
 tooncraft	Red	
 tooncraft	Redid {action}	
 tooncraft	Redo	
+tooncraft	Redo (Ctrl+Shift+Z)	
+tooncraft	Redo step	
 tooncraft	Redo up to here	
 tooncraft	Redo {action}	
 tooncraft	Reference	
@@ -811,6 +819,7 @@ tooncraft	Save Stack…
 tooncraft	Save Workspace	
 tooncraft	Save as shot_v002, shot_v003 … next to the current file (Ctrl+Alt+S)	
 tooncraft	Save new version	
+tooncraft	Save the shot (Ctrl+S)	
 tooncraft	Save the shot before quitting?	
 tooncraft	Save this layer's effects to a file (.toonfx)	
 tooncraft	Saved brush {name}	
@@ -986,12 +995,15 @@ tooncraft	Track {n}
 tooncraft	Transform Selection	
 tooncraft	Trim start	
 tooncraft	Turbulence	
+tooncraft	Type a frame number to go there	
 tooncraft	Undid {action}	
 tooncraft	Undo	
+tooncraft	Undo (Ctrl+Z)	
 tooncraft	Undo / redo	
 tooncraft	Undo History	
 tooncraft	Undo everything still remembered	
 tooncraft	Undo memory	
+tooncraft	Undo step	
 tooncraft	Undo {action}	
 tooncraft	Unlock Layer	
 tooncraft	Unlock Transparency	
@@ -1023,6 +1035,7 @@ tooncraft	Whole shot (1 to {n})
 tooncraft	Wide (E)	
 tooncraft	Wide chalk	
 tooncraft	Width	
+tooncraft	Workspace	
 tooncraft	Workspaces	
 tooncraft	Wrote {file}	
 tooncraft	XDTS Exposure Sheet with Drawings	
@@ -1053,6 +1066,7 @@ tooncraft	of {total}
 tooncraft	stroke {ms} ms	
 tooncraft	the file is too large	
 tooncraft	to	
+tooncraft	x {x}  y {y}	
 tooncraft	{done} steps, {undone} to redo	
 tooncraft	{drawings} drawings ({unused} not exposed)	
 tooncraft	{drawing} (held)	

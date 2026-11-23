@@ -700,6 +700,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     };
     ui.ctx().accesskit_node_builder(resp.id, |n| n.set_description(desc.to_string()));
     handle_input(app, ui, rect, &resp);
+    app.pointer = resp.hover_pos().map(|h| {
+        let c = to_picture(app, rect, h);
+        (c.x.floor() as i64, c.y.floor() as i64)
+    });
     crate::draw_aids::track_stroke(app, ui.ctx());
     // right-click menu; "Pick Colour Here" picks where it was opened
     let menu_at = canvas_id().with("menu-at");

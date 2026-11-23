@@ -226,6 +226,8 @@ pub struct ToonApp {
     pub export_memory: crate::export_dialog::Memory,
     /// Find Command.
     pub find: crate::command_search::State,
+    /// The canvas pixel under the pointer, for the status line.
+    pub pointer: Option<(i64, i64)>,
     /// Frames chosen for flipping (in order of the shot, at most [`MAX_FLIP`]).
     pub flip: Vec<u32>,
     pub show_shortcuts: bool,
@@ -382,6 +384,7 @@ impl ToonApp {
             export_memory: Default::default(),
             find: Default::default(),
             flip: Vec::new(),
+            pointer: None,
             show_shortcuts: false,
             show_about: false,
             confirm_close: false,
@@ -1155,6 +1158,7 @@ impl ToonApp {
         self.textures.begin_frame();
         self.shortcuts(&ctx);
         egui::Panel::top("menu").show(ui, |ui| self.menu_bar(ui));
+        egui::Panel::top("top-bar").show(ui, |ui| crate::top_bar::show(self, ui));
         egui::Panel::top("tool-options").show(ui, |ui| crate::panels::tool_options(self, ui));
         egui::Panel::bottom("status").show(ui, |ui| self.status_bar(ui));
         egui::Panel::left("tools").exact_size(46.0).resizable(false).show(ui, |ui| crate::panels::toolbar(self, ui));
@@ -1188,6 +1192,10 @@ impl ToonApp {
             };
             ui.label(drawing);
             ui.separator();
+            if let Some((x, y)) = self.pointer {
+                ui.label(tlf!("x {x}  y {y}", x = x, y = y));
+                ui.separator();
+            }
             ui.label(self.tool.label());
             let c = self.color;
             let (r, swatch) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
