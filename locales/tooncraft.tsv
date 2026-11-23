@@ -20,6 +20,7 @@ tooncraft	Add All to Palette
 tooncraft	Add Area	
 tooncraft	Add Current Brush	
 tooncraft	Add Current Colour	
+tooncraft	Add Frames to Library	
 tooncraft	Add Inbetweens	
 tooncraft	Add Layer Above	
 tooncraft	Add Marker	
@@ -112,6 +113,7 @@ tooncraft	Choose a brush tool to change its settings.
 tooncraft	Choose a layer	
 tooncraft	Choose frames to flip first (Ctrl+Alt+Enter on each)	
 tooncraft	Choose…	
+tooncraft	Chosen: {name}	
 tooncraft	Cinema 2K, 24 fps	
 tooncraft	Cinema 4K, 24 fps	
 tooncraft	Clean ink	
@@ -212,12 +214,14 @@ tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates
 tooncraft	Drawing	
 tooncraft	Drawing (standard)	
 tooncraft	Drawing Layer	
+tooncraft	Drawing Library	
 tooncraft	Drawing at frame {n}: {mark}	
 tooncraft	Drawing duplicated	
 tooncraft	Drawing names	
 tooncraft	Drawing thumbnails in the cells	
 tooncraft	Drawing {id}	
 tooncraft	Drawing {id}, {name}	
+tooncraft	Drawing {n}	
 tooncraft	Drawings	
 tooncraft	Drawings are moved, never resampled; paint outside the new canvas is cut (undo brings it back).	
 tooncraft	Drawings no frame shows	
@@ -433,6 +437,8 @@ tooncraft	Input white
 tooncraft	Insert	
 tooncraft	Insert Frame	
 tooncraft	Insert Frame in All Layers	
+tooncraft	Insert Item	
+tooncraft	Insert Item Linked	
 tooncraft	Insert frame	
 tooncraft	Insert frame (Insert)	
 tooncraft	Intensity	
@@ -554,6 +560,8 @@ tooncraft	Mouth chart of {layer}
 tooncraft	Mouth sheet	
 tooncraft	Mouths keyed from the sound; edit them in the exposure sheet	
 tooncraft	Move / scale / rotate the selection	
+tooncraft	Move Item Down	
+tooncraft	Move Item Up	
 tooncraft	Move Layer Down	
 tooncraft	Move Layer Up	
 tooncraft	Move X	
@@ -583,7 +591,9 @@ tooncraft	New drawing
 tooncraft	New drawing (Shift+N)	
 tooncraft	New drawings between this drawing and the next, placed along the spacing	
 tooncraft	New grain every frame	
+tooncraft	New item	
 tooncraft	New layer above the current one	
+tooncraft	New name	
 tooncraft	New shot	
 tooncraft	New shot frame rate	
 tooncraft	New shot height	
@@ -601,6 +611,7 @@ tooncraft	No Mark
 tooncraft	No command matches	
 tooncraft	No drawing here to swap	
 tooncraft	No drawings have names yet	
+tooncraft	No drawings yet: select frames on the timeline and add them.	
 tooncraft	No earlier drawing on this layer	
 tooncraft	No earlier marker	
 tooncraft	No effects on this layer.	
@@ -630,6 +641,7 @@ tooncraft	Offset X
 tooncraft	Offset Y	
 tooncraft	On fours	
 tooncraft	On ones	
+tooncraft	On the current layer at the current frame, as new drawings	
 tooncraft	On threes	
 tooncraft	On top	
 tooncraft	On twos	
@@ -809,6 +821,7 @@ tooncraft	Remove Sound
 tooncraft	Remove Unused Drawings	
 tooncraft	Remove clip {n}	
 tooncraft	Remove clip {n} volume key	
+tooncraft	Remove from Library	
 tooncraft	Remove from Palette	
 tooncraft	Remove opacity key	
 tooncraft	Remove point	
@@ -818,6 +831,7 @@ tooncraft	Remove {name} from favourites
 tooncraft	Remove {name} key	
 tooncraft	Removed {count} unused drawings	
 tooncraft	Rename	
+tooncraft	Rename Item	
 tooncraft	Rename Layer…	
 tooncraft	Repaint	
 tooncraft	Repeat Selected Frames	
@@ -927,6 +941,7 @@ tooncraft	Show this window at start
 tooncraft	Show {category} brushes	
 tooncraft	Show {layer}	
 tooncraft	Show {name} here	
+tooncraft	Shows the item's own drawings: drawing on one changes every linked use	
 tooncraft	Shrink	
 tooncraft	Shrink Selection	
 tooncraft	Silence below	
@@ -1137,6 +1152,7 @@ tooncraft	{key} was taken from “{command}”
 tooncraft	{layer}, frame {frame}	
 tooncraft	{layer}, frame {frame}: {cell}	
 tooncraft	{name} (missing)	
+tooncraft	{name} ({n} frames)	
 tooncraft	{name} and {n} more	
 tooncraft	{name} is a favourite	
 tooncraft	{name} is no longer a favourite	
