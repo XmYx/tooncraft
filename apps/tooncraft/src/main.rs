@@ -61,6 +61,7 @@ mod timeline_extras;
 #[cfg(test)]
 mod timeline_ui_tests;
 mod timing_panel;
+mod top_bar;
 #[cfg(test)]
 mod touch_ui_tests;
 #[cfg(test)]

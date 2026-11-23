@@ -490,13 +490,13 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 |---|---|---|---|---|
 | Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | P | M | Same family of layout; tool settings sit in a bar above the canvas, not in a properties panel |
 | Start screen with recent shots and a new-shot form | TB | M | S | ToonCraft opens straight into a blank shot |
-| Named workspaces picked from a bar | TB | P | S | Drawing, Timing, Ink and Paint and Exposure Sheet, plus saved ones, in View ▸ Workspaces; no picker in a bar (`--layout`) |
+| Named workspaces picked from a bar | TB | D | S | The Workspace picker in the top bar (Drawing, Timing, Ink and Paint, Exposure Sheet); saved ones in View ▸ Workspaces (`--layout`) |
 | Compositing workspace with a node view | TB | M | XL | No node view |
 | Scripting workspace with a script editor and log | TB | M | L | No scripting panels |
 | Panels that can be closed and added back | TB | P | S | Tabs move and float through craft-ui docking; no close button or panel list to add one back |
 | Many tabs in one stack stay readable | TB | P | S | Names shorten when a stack holds many tabs |
 | Dark theme and a light theme | TB | D | S | Contrast tested |
-| Status line: zoom, drawing, tool, frame, pointer position, colour | TB | P | S | Zoom, layer, drawing, tool and colour; no pointer position |
+| Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Frame, layer, drawing, canvas pixel under the pointer, tool, colour, zoom |
 | Top menus for play, drawing, scene and windows | TB | P | M | File, Edit, Frame, Layer, View, Help carry those commands |
 | File menu with recent files | TB | P | S | No recent list |
 | Edit menu with selection and transform items | TB | D | S | Undo and redo with names, Preferences, select, invert, grow and shrink, transform submenu |
@@ -504,7 +504,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Play commands with speed | TB | D | S | Frame menu and timeline: play, step, in and out, speed, Play Around |
 | A Windows menu listing every panel | TB | M | S | A panel is raised from its tab, `--panel` or Find Command |
 | Tool bar with flyouts for related tools | TB | D | S | Grouped buttons with a corner mark; right-click or press and hold for the group |
-| Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | M | M | Transport and frame fields sit in the timeline header |
+| Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | New, Open, Save, undo, redo, workspace, play, the frame typed to go there, play from and to, frame rate and length |
 | Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | The strip above the canvas, with onion settings on right-click |
 | Brush properties: preset list with previews | TB | D | S | Preset picker with sample strokes, Revert |
 | Brush editor | TB | D | S | The Brush panel, every control keyboard-reachable |

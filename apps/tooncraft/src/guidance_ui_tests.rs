@@ -14,7 +14,7 @@ use crate::args::Cli;
 fn harness() -> Harness<'static, ToonApp> {
     let ctx = egui::Context::default();
     let app = ToonApp::with_context(&ctx, Cli::default()).without_autosave();
-    let mut h = Harness::builder().with_size(vec2(1700.0, 1050.0)).with_accessibility_check(true).build_ui_state(
+    let mut h = Harness::builder().with_size(vec2(1700.0, 1050.0)).with_accessibility_check(true).with_max_steps(8).build_ui_state(
         |ui, app: &mut ToonApp| {
             let ctx = ui.ctx().clone();
             app.tick(&ctx);
@@ -427,4 +427,37 @@ fn launch_options_open_windows_layouts_and_tools() {
         let app = ToonApp::with_context(&ctx, cli.clone()).without_autosave();
         assert!(check(&app), "{cli:?}");
     }
+}
+
+fn type_number(h: &mut Harness<'static, ToonApp>, label: &str, text: &str) {
+    h.get(By::new().label(label).role(egui::Role::SpinButton)).click();
+    h.run();
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.run();
+    h.get(By::new().label(label).role(egui::Role::SpinButton)).type_text(text);
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+}
+
+#[test]
+fn the_top_bar_goes_to_a_typed_frame_sets_the_play_range_and_picks_a_workspace() {
+    let mut h = harness();
+    type_number(&mut h, "Frame", "12");
+    assert_eq!(h.state().frame, 11);
+    type_number(&mut h, "Play from", "5");
+    type_number(&mut h, "Play to", "9");
+    assert_eq!(h.state().tl.range, Some((4, 8)));
+    assert_eq!(crate::timeline_extras::play_span(h.state()), (4, 9));
+    h.get(By::new().role(egui::Role::ComboBox).label("Workspace")).click();
+    h.run();
+    h.get_by_label("Exposure Sheet").click();
+    h.run();
+    assert!(h.state().tl.vertical);
+    h.get(By::new().role(egui::Role::Button).label("Undo step"));
+    // the status line shows the canvas pixel under the pointer
+    let c = h.get(By::new().role(egui::Role::Canvas).label_contains("Canvas")).rect().center();
+    h.hover_at(c);
+    h.run();
+    assert!(h.state().pointer.is_some());
 }

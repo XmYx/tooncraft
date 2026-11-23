@@ -95,19 +95,7 @@ fn transport(app: &mut ToonApp, ui: &mut egui::Ui) {
         ui.separator();
         ui.label(egui::RichText::new(crate::timeline_extras::position_text(app)).monospace());
         ui.separator();
-        let mut fps = app.engine.project.fps();
-        let l = ui.label(tl!("fps"));
-        if ui.add(egui::DragValue::new(&mut fps).range(tooncraft_doc::MIN_FPS..=tooncraft_doc::MAX_FPS)).labelled_by(l.id).changed() {
-            app.run(Command::SetFps { fps });
-        }
-        let mut frames = len;
-        let l = ui.label(tl!("Frames"));
-        let r = ui.add(egui::DragValue::new(&mut frames).range(1..=tooncraft_doc::MAX_FRAMES)).labelled_by(l.id);
-        if r.changed() && frames != len {
-            app.run(Command::SetLength { frames });
-            app.clamp_selection();
-        }
-        ui.separator();
+        // the frame rate and the shot length are in the top bar
         let (layer, frame) = (app.layer, app.frame);
         if ui.button(tl!("New")).on_hover_text(tl!("New drawing (Shift+N)")).clicked() {
             app.run(Command::NewDrawing { layer, frame });

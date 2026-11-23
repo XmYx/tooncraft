@@ -1,0 +1,1 @@
+- 2026-11-23: A top bar under the menus: New, Open, Save, undo and redo, a workspace picker, play, the current frame (typed to go there), play-from and play-to frames, frame rate and length; the status line shows the canvas pixel under the pointer.

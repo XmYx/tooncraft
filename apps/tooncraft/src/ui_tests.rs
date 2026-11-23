@@ -16,7 +16,7 @@ fn harness(demo: bool) -> Harness<'static, ToonApp> {
 fn harness_sized(demo: bool, size: egui::Vec2) -> Harness<'static, ToonApp> {
     let ctx = egui::Context::default();
     let app = ToonApp::with_context(&ctx, Cli { demo, ..Default::default() }).without_autosave();
-    Harness::builder().with_size(size).with_accessibility_check(true).build_ui_state(
+    Harness::builder().with_size(size).with_accessibility_check(true).with_max_steps(8).build_ui_state(
         |ui, app: &mut ToonApp| {
             let ctx = ui.ctx().clone();
             app.tick(&ctx);
