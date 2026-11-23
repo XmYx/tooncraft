@@ -82,6 +82,8 @@ pub enum EngineError {
     Merge(String),
     #[error("layer “{0}” has its transparency locked, so it cannot take a fill")]
     TransparencyLocked(String),
+    #[error("there is no swatch {1} in palette {0}")]
+    NoSwatch(usize, usize),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
@@ -454,6 +456,8 @@ impl Engine {
 mod history_tests;
 #[cfg(test)]
 mod layerops_tests;
+#[cfg(test)]
+mod swatch_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

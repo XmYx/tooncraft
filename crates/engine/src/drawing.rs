@@ -258,42 +258,101 @@ pub fn snap_to(p: (f32, f32), xs: &[f32], ys: &[f32], reach: f32) -> (f32, f32) 
 /// own opacity. One undo step; nothing to change is not an error (and no step).
 pub(crate) fn recolour(e: &mut Engine, layer: usize, from: [u8; 3], to: [u8; 3], tolerance: u8) -> Result<()> {
     e.check_unlocked(layer)?;
+    let drawings = layer_drawings(e, layer)?;
+    let near = |p: [u8; 4]| {
+        let u = unpremultiply(p);
+        u[3] > 0 && (0..3).all(|k| u[k].abs_diff(from[k]) <= tolerance)
+    };
+    let parts = recolour_drawings(e, &drawings, near, to);
+    if !parts.is_empty() {
+        e.push(Entry { label: "Recolour".into(), parts });
+    }
+    Ok(())
+}
+
+/// The drawings a layer shows, each once, in frame order.
+fn layer_drawings(e: &Engine, layer: usize) -> Result<Vec<tooncraft_doc::DrawingId>> {
     let l = e.project.layer(layer)?;
     let mut drawings: Vec<tooncraft_doc::DrawingId> = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
     for f in 0..e.project.length() {
         if let Some(d) = l.drawing_at(f)
-            && !drawings.contains(&d)
+            && seen.insert(d)
         {
             drawings.push(d);
         }
     }
-    let near = |p: [u8; 4]| p[3] > 0 && (0..3).all(|k| p[k].abs_diff(from[k]) <= tolerance);
+    Ok(drawings)
+}
+
+/// In `drawings`, give the pixels `near` accepts (it sees premultiplied pixels) the colour `to`,
+/// keeping their opacity. Returns the undo parts (empty when nothing matched). Tiles without a
+/// match are only read, so the work is one pass over the drawings' painted tiles.
+fn recolour_drawings(e: &mut Engine, drawings: &[tooncraft_doc::DrawingId], near: impl Fn([u8; 4]) -> bool, to: [u8; 3]) -> Vec<Part> {
     let mut parts = Vec::new();
     for d in drawings {
-        let Some(s) = e.project.drawing_mut(d) else { continue };
+        let Some(s) = e.project.drawing_mut(*d) else { continue };
         let indices: Vec<u32> = s.tiles().map(|(i, _)| i).collect();
         s.begin_capture();
         for i in indices {
-            let hit = s.tile(i).is_some_and(|t| t.bytes().as_chunks::<4>().0.iter().any(|p| near(unpremultiply(*p))));
+            let hit = s.tile(i).is_some_and(|t| t.bytes().as_chunks::<4>().0.iter().any(|p| near(*p)));
             if !hit {
                 continue;
             }
             let Some(t) = s.tile_mut(i) else { continue };
             for px in t.bytes_mut().as_chunks_mut::<4>().0 {
-                let u = unpremultiply(*px);
-                if near(u) {
-                    *px = premultiply([to[0], to[1], to[2], u[3]]);
+                if near(*px) {
+                    *px = premultiply([to[0], to[1], to[2], px[3]]);
                 }
             }
         }
         let tiles = s.take_capture();
         if !tiles.is_empty() {
-            parts.push(Part::Tiles { drawing: d, tiles });
+            parts.push(Part::Tiles { drawing: *d, tiles });
         }
     }
-    if !parts.is_empty() {
-        e.push(Entry { label: "Recolour".into(), parts });
+    parts
+}
+
+/// Change swatch `swatch` of the shot's palette `palette` (its name when given, and its colour).
+/// With `update_paint`, the paint in the old colour on every unlocked layer takes the new colour
+/// (matched exactly, opacity kept), so fills made from the swatch follow it. One undo step for
+/// the swatch and the paint together.
+pub(crate) fn edit_swatch(e: &mut Engine, palette: usize, swatch: usize, rgb: [u8; 3], name: Option<String>, update_paint: bool) -> Result<()> {
+    let old = e.project.palettes.get(palette).and_then(|p| p.swatches.get(swatch)).map(|s| s.rgb).ok_or(EngineError::NoSwatch(palette, swatch))?;
+    let before = e.project.palettes.clone();
+    let mut parts = Vec::new();
+    if update_paint && old != rgb {
+        let mut drawings = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        for i in 0..e.project.layers.len() {
+            if e.check_unlocked(i).is_err() {
+                continue;
+            }
+            for d in layer_drawings(e, i)? {
+                if seen.insert(d) {
+                    drawings.push(d);
+                }
+            }
+        }
+        // the old colour as it is stored at each pixel's opacity (premultiplied, ±1 for rounding),
+        // so the soft edges of a fill in that colour follow it too
+        let near = |p: [u8; 4]| {
+            let want = premultiply([old[0], old[1], old[2], p[3]]);
+            p[3] > 0 && (0..3).all(|k| p[k].abs_diff(want[k]) <= 1)
+        };
+        parts = recolour_drawings(e, &drawings, near, rgb);
     }
+    let mut v = before.clone();
+    if let Some(s) = v.get_mut(palette).and_then(|p| p.swatches.get_mut(swatch)) {
+        s.rgb = rgb;
+        if let Some(n) = name {
+            s.name = n;
+        }
+    }
+    e.project.palettes = tooncraft_doc::palette::sanitize_all(v);
+    parts.insert(0, Part::Palettes(before));
+    e.push(Entry { label: "Change swatch".into(), parts });
     Ok(())
 }
 

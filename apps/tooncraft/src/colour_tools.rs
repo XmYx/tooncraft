@@ -17,6 +17,19 @@ pub struct State {
     pub recolour_from: [u8; 3],
     pub recolour_tolerance: u8,
     pub wheel: bool,
+    /// The floating picker window is open.
+    pub window: bool,
+    /// The swatch being edited: (shot palette index, swatch index, name, colour, update the paint).
+    pub edit: Option<SwatchEdit>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SwatchEdit {
+    pub palette: usize,
+    pub swatch: usize,
+    pub name: String,
+    pub rgb: [u8; 3],
+    pub update_paint: bool,
 }
 
 impl State {
@@ -204,6 +217,10 @@ pub fn palettes(app: &mut ToonApp, ui: &mut Ui) {
             }
             if app.colour.current > 0 {
                 resp.context_menu(|ui| {
+                    if ui.button(tl!("Edit Swatch…")).clicked() {
+                        app.colour.edit = Some(SwatchEdit { palette: app.colour.current - 1, swatch: i, name: s.name.clone(), rgb: s.rgb, update_paint: true });
+                        ui.close();
+                    }
                     if ui.button(tl!("Remove from Palette")).clicked() {
                         remove = Some(i);
                         ui.close();
@@ -213,7 +230,7 @@ pub fn palettes(app: &mut ToonApp, ui: &mut Ui) {
         }
     });
     if let Some(c) = chosen {
-        app.color = [c[0], c[1], c[2], 255];
+        set_rgb(app, [c[0], c[1], c[2]]);
     }
     if let Some(i) = remove {
         let pi = app.colour.current - 1;
@@ -228,6 +245,96 @@ pub fn palettes(app: &mut ToonApp, ui: &mut Ui) {
     if ui.button(tl!("Add Current Colour")).on_hover_text(tl!("To the palette shown (on Basic, a new shot palette)")).clicked() {
         let c = [app.color[0], app.color[1], app.color[2]];
         add_colour(app, c);
+    }
+    swatch_editor(app, ui);
+}
+
+/// Set the current colour, keeping its opacity.
+pub fn set_rgb(app: &mut ToonApp, rgb: [u8; 3]) {
+    app.color = [rgb[0], rgb[1], rgb[2], app.color[3]];
+}
+
+/// The current colour's own opacity (brushes and fills paint with it, times the brush opacity).
+pub fn opacity(app: &mut ToonApp, ui: &mut Ui) {
+    ui.horizontal(|ui| {
+        let l = ui.label(tl!("Colour opacity"));
+        let mut pct = (app.color[3] as f32 / 255.0 * 100.0).round();
+        if ui.add(egui::Slider::new(&mut pct, 0.0..=100.0).suffix(" %").max_decimals(0)).labelled_by(l.id).changed() {
+            app.color[3] = (pct.clamp(0.0, 100.0) / 100.0 * 255.0).round() as u8;
+        }
+    });
+}
+
+/// The swatch editor under the palette: name, colour, and whether the paint in the old colour
+/// follows. Apply runs `EditSwatch` (one undo step).
+fn swatch_editor(app: &mut ToonApp, ui: &mut Ui) {
+    let Some(mut ed) = app.colour.edit.take() else { return };
+    let mut keep = true;
+    ui.group(|ui| {
+        ui.label(tl!("Edit swatch"));
+        ui.horizontal(|ui| {
+            let l = ui.label(tl!("Swatch name"));
+            ui.add(egui::TextEdit::singleline(&mut ed.name).desired_width(160.0)).labelled_by(l.id);
+        });
+        crate::color::picker(ui, "swatch-edit", &mut ed.rgb);
+        ui.checkbox(&mut ed.update_paint, tl!("Update paint in this colour"))
+            .on_hover_text(tl!("Every unlocked layer: paint in the old colour takes the new one"));
+        ui.horizontal(|ui| {
+            if ui.button(tl!("Apply")).clicked() {
+                let cmd =
+                    Command::EditSwatch { palette: ed.palette, swatch: ed.swatch, rgb: ed.rgb, name: Some(ed.name.clone()), update_paint: ed.update_paint };
+                if app.run(cmd) {
+                    app.set_status(tl!("Swatch changed"));
+                }
+                keep = false;
+            }
+            if ui.button(tl!("Cancel")).clicked() {
+                keep = false;
+            }
+        });
+    });
+    if keep {
+        app.colour.edit = Some(ed);
+    }
+}
+
+/// The floating colour picker: the picker, the colour's opacity and the palette shown.
+pub fn picker_window(app: &mut ToonApp, ctx: &egui::Context) {
+    if !app.colour.window {
+        return;
+    }
+    let mut open = true;
+    egui::Window::new(tl!("Colour Picker")).id(egui::Id::unique("colour-picker-window")).open(&mut open).resizable(false).default_width(260.0).show(
+        ctx,
+        |ui| {
+            let mut rgb = [app.color[0], app.color[1], app.color[2]];
+            if crate::color::picker(ui, "window-colour", &mut rgb) {
+                set_rgb(app, rgb);
+            }
+            opacity(app, ui);
+            ui.separator();
+            let p = shown(app);
+            ui.label(tlf!("Palette: {name}", name = p.name));
+            let mut chosen = None;
+            ui.horizontal_wrapped(|ui| {
+                for s in &p.swatches {
+                    let label = if s.name.is_empty() {
+                        tlf!("Swatch #{hex}", hex = hex3(s.rgb))
+                    } else {
+                        tlf!("Swatch {name}, #{hex}", name = s.name, hex = hex3(s.rgb))
+                    };
+                    if swatch_button(ui, s.rgb, label).clicked() {
+                        chosen = Some(s.rgb);
+                    }
+                }
+            });
+            if let Some(c) = chosen {
+                set_rgb(app, c);
+            }
+        },
+    );
+    if !open {
+        app.colour.window = false;
     }
 }
 
@@ -331,7 +438,7 @@ pub fn harmonies(app: &mut ToonApp, ui: &mut Ui) {
             }
         }
         if let Some(c) = chosen {
-            app.color = [c[0], c[1], c[2], 255];
+            set_rgb(app, [c[0], c[1], c[2]]);
         }
     });
 }

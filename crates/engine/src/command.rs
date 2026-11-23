@@ -109,6 +109,18 @@ pub enum Command {
     SetPalettes {
         palettes: Vec<tooncraft_doc::palette::Palette>,
     },
+    /// Change a swatch of the shot's palette `palette` (0-based): its colour, and its name when
+    /// given. `update_paint` (default true): paint in the old colour on every unlocked layer takes
+    /// the new one, opacity kept. One undo step.
+    EditSwatch {
+        palette: usize,
+        swatch: usize,
+        rgb: [u8; 3],
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default = "yes")]
+        update_paint: bool,
+    },
     /// In every drawing of the layer, give the pixels close to `from` (within `tolerance` per
     /// channel) the colour `to`, keeping their opacity (antialiased edges stay soft). One undo
     /// step.
@@ -945,6 +957,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.touch();
             Ok(())
         }
+        Command::EditSwatch { palette, swatch, rgb, name, update_paint } => crate::drawing::edit_swatch(e, palette, swatch, rgb, name, update_paint),
         Command::RecolourLayer { layer, from, to, tolerance } => crate::drawing::recolour(e, layer, from, to, tolerance),
         Command::SetSymmetry { symmetry } => {
             e.project.symmetry = symmetry.sanitized();

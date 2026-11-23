@@ -55,6 +55,8 @@ mod selection_ui_tests;
 mod sheet;
 mod sound;
 mod sound_panel;
+#[cfg(test)]
+mod swatch_ui_tests;
 mod tablet;
 mod textures;
 mod theme;
