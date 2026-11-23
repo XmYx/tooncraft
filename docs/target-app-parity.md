@@ -292,7 +292,7 @@ Weight: 9
 | Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames |
 | Frame rate change and timecode display | all | D | S | Frame rate per shot; the position and the marker list show HH:MM:SS:FF (non-drop-frame) |
 | Timeline zoom and scroll | all | D | S | Zoom buttons, Alt+= and Alt+-, Ctrl and the wheel or a pinch; scroll as before |
-| Graph editor for keyed values | TB CS PD | M | L | Per-key easing and a two-handle curve; no curve view |
+| Graph editor for keyed values | TB CS PD | P | L | The Curves panel plots each peg value against frames: drag keys in time and value (one undo step, Escape cancels), move them from the keyboard, ease many keys at once, drag the two ease handles. Camera, opacity and effect keys still edit in their own panels |
 | Several shots or scenes in one project | TV TB | M | L | |
 | Nested sequences (a shot or symbol inside a shot) | TB CS PD | M | L | |
 | Record transforms live while playing | PD | M | M | |
@@ -489,20 +489,20 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
 | Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | P | M | Same family of layout; tool settings sit in a bar above the canvas, not in a properties panel |
-| Start screen with recent shots and a new-shot form | TB | M | S | ToonCraft opens straight into a blank shot |
+| Start screen with recent shots and a new-shot form | TB | D | S | With no shot to open: a new-shot form with size presets, the recent shots (missing ones marked), Open… and the demo shot; waits for a recovery offer to be answered; turn it off in Preferences (`--open start` shows it) |
 | Named workspaces picked from a bar | TB | D | S | The Workspace picker in the top bar (Drawing, Timing, Ink and Paint, Exposure Sheet); saved ones in View ▸ Workspaces (`--layout`) |
 | Compositing workspace with a node view | TB | M | XL | No node view |
 | Scripting workspace with a script editor and log | TB | M | L | No scripting panels |
-| Panels that can be closed and added back | TB | P | S | Tabs move and float through craft-ui docking; no close button or panel list to add one back |
+| Panels that can be closed and added back | TB | D | S | Every panel but the canvas closes from its tab; the Window menu puts it back where it was (`panels_ui_tests`) |
 | Many tabs in one stack stay readable | TB | P | S | Names shorten when a stack holds many tabs |
 | Dark theme and a light theme | TB | D | S | Contrast tested |
 | Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Frame, layer, drawing, canvas pixel under the pointer, tool, colour, zoom |
-| Top menus for play, drawing, scene and windows | TB | P | M | File, Edit, Frame, Layer, View, Help carry those commands |
-| File menu with recent files | TB | P | S | No recent list |
+| Top menus for play, drawing, scene and windows | TB | D | M | File, Edit, Frame, Layer, Drawing, Play, Scene, View, Window, Help |
+| File menu with recent files | TB | D | S | File ▸ Open Recent: the last 12 shots opened or saved, newest first, missing ones marked, Clear Recent Shots |
 | Edit menu with selection and transform items | TB | D | S | Undo and redo with names, Preferences, select, invert, grow and shrink, transform submenu |
 | View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | |
 | Play commands with speed | TB | D | S | Frame menu and timeline: play, step, in and out, speed, Play Around |
-| A Windows menu listing every panel | TB | M | S | A panel is raised from its tab, `--panel` or Find Command |
+| A Windows menu listing every panel | TB | D | S | Window: every panel with a tick when open, and Reset Panels |
 | Tool bar with flyouts for related tools | TB | D | S | Grouped buttons with a corner mark; right-click or press and hold for the group |
 | Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | New, Open, Save, undo, redo, workspace, play, the frame typed to go there, play from and to, frame rate and length |
 | Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | The strip above the canvas, with onion settings on right-click |
@@ -528,11 +528,11 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Light table on the canvas | TB | D | S | |
 | Camera frame and safe areas | TB | D | S | |
 | Separate drawing, reference and perspective views | TB | M | M | One canvas |
-| Curve editor | TB | M | L | |
+| Curve editor | TB | D | L | The Curves panel beside the timeline: value buttons, the graph with keys, other values faintly behind, an ease box with handles and typed values (`--panel curves`) |
 | Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
 | Library window for drawings | TB | M | L | The library holds brushes only |
 | Preferences, shortcut editor with search, playback speed | TB | D | S | (`--open preferences`, `--open shortcuts`) |
-| Scene settings in one window | TB | P | S | Canvas size and frame rate are set in separate places |
+| Scene settings in one window | TB | D | S | Scene ▸ Scene Settings: size with presets, frame rate, length and duration, loop, ping-pong and speed (`--open scene`) |
 | Export dialog with range, size and options | TB | D | S | (`--open export`) |
 | Import dialog with options | TB | D | S | After picking images: a new layer, one layer per file name, or the current layer; hold; fit, actual size or fill; premultiplied colours |
 

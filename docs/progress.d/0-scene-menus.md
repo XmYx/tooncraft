@@ -1,0 +1,1 @@
+- 2026-11-23: Drawing, Play and Scene menus, and a Scene Settings window with the size and its presets, frame rate, length and duration, loop, ping-pong and playback speed in one place.

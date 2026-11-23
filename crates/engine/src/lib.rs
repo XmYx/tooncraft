@@ -14,6 +14,8 @@ pub mod burnin;
 #[cfg(test)]
 mod cells_tests;
 mod command;
+#[cfg(test)]
+mod curves_tests;
 pub mod demo;
 pub mod drawing;
 #[cfg(test)]

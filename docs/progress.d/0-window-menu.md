@@ -1,0 +1,1 @@
+- 2026-11-23: A Window menu listing every panel with a tick when it is open; panels other than the canvas can be closed from their tab and come back where they were.
