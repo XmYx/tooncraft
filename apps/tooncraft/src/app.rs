@@ -224,6 +224,8 @@ pub struct ToonApp {
     /// Recent shots (File ▸ Open Recent, the start window).
     pub recent_files: crate::start_screen::Recent,
     pub start: crate::start_screen::Start,
+    /// The Scene Settings window, while open.
+    pub scene_form: Option<crate::scene_menus::SceneForm>,
     /// The Export dialog, and its last choices per shot.
     pub export_dialog: Option<crate::export_dialog::Dialog>,
     pub export_memory: crate::export_dialog::Memory,
@@ -386,6 +388,7 @@ impl ToonApp {
             light_theme: cli.light,
             renaming: None,
             new_shot: None,
+            scene_form: None,
             preferences: crate::preferences::State::new(!cfg!(test) && cli.screenshot.is_none()),
             recent_files: crate::start_screen::Recent::new(!cfg!(test) && cli.screenshot.is_none() && cli.bench_playback.is_none()),
             start: Default::default(),
@@ -452,6 +455,7 @@ impl ToonApp {
             Some("shortcuts") => app.show_shortcuts = true,
             Some("find") => app.find.open = true,
             Some("new-shot") => app.new_shot = Some(app.new_shot_defaults()),
+            Some("scene") => crate::scene_menus::open_settings(&mut app),
             Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
             _ => {}
         }
@@ -1493,6 +1497,9 @@ impl ToonApp {
             });
             ui.menu_button(tl!("Frame"), |ui| crate::timeline::frame_menu(self, ui));
             ui.menu_button(tl!("Layer"), |ui| crate::panels::layer_menu(self, ui));
+            ui.menu_button(tl!("Drawing"), |ui| crate::scene_menus::drawing_menu(self, ui));
+            ui.menu_button(tl!("Play"), |ui| crate::scene_menus::play_menu(self, ui));
+            ui.menu_button(tl!("Scene"), |ui| crate::scene_menus::scene_menu(self, ui));
             ui.menu_button(tl!("View"), |ui| {
                 let vp = self.workspace.canvas_rect;
                 let canvas = egui::vec2(self.engine.project.width() as f32, self.engine.project.height() as f32);
@@ -1537,6 +1544,7 @@ impl ToonApp {
                     self.workspace = Workspace::default();
                 }
             });
+            ui.menu_button(tl!("Window"), |ui| crate::dock::window_menu(self, ui));
             ui.menu_button(tl!("Help"), |ui| {
                 if ui.button(tl!("Find Command…")).clicked() {
                     self.find.open = true;
@@ -1705,6 +1713,7 @@ impl ToonApp {
             || self.export_dialog.is_some()
             || self.preferences.open
             || self.start.open
+            || self.scene_form.is_some()
         {
             return;
         }
@@ -1907,6 +1916,7 @@ impl ToonApp {
         crate::import_dialog::window(self, ctx);
         crate::export_dialog::window(self, ctx);
         crate::preferences::window(self, ctx);
+        crate::scene_menus::window(self, ctx);
         crate::canvas_tools::dialog(self, ctx);
         if let Some(offer) = &self.recovery {
             let (path, when) = (offer.path.clone(), offer.when.clone());
