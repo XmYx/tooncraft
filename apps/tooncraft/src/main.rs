@@ -37,6 +37,7 @@ mod history_panel;
 #[cfg(test)]
 mod history_ui_tests;
 mod icons;
+mod import_dialog;
 mod keys;
 mod layer_ops;
 mod layer_tree;
@@ -47,6 +48,7 @@ mod panels;
 mod pegs;
 mod pipeline;
 mod preferences;
+mod scene_presets;
 mod selection_tools;
 #[cfg(test)]
 mod selection_ui_tests;
@@ -61,6 +63,7 @@ mod timeline_extras;
 #[cfg(test)]
 mod timeline_ui_tests;
 mod timing_panel;
+mod top_bar;
 #[cfg(test)]
 mod touch_ui_tests;
 #[cfg(test)]

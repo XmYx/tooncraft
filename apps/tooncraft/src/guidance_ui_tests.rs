@@ -14,7 +14,7 @@ use crate::args::Cli;
 fn harness() -> Harness<'static, ToonApp> {
     let ctx = egui::Context::default();
     let app = ToonApp::with_context(&ctx, Cli::default()).without_autosave();
-    let mut h = Harness::builder().with_size(vec2(1700.0, 1050.0)).with_accessibility_check(true).build_ui_state(
+    let mut h = Harness::builder().with_size(vec2(1700.0, 1050.0)).with_accessibility_check(true).with_max_steps(8).build_ui_state(
         |ui, app: &mut ToonApp| {
             let ctx = ui.ctx().clone();
             app.tick(&ctx);
@@ -410,4 +410,94 @@ fn a_layer_can_have_its_own_onion_settings() {
     h.run();
     assert!(h.state().engine.project.layers[0].onion.is_some_and(|o| o.outline), "the layer's own settings changed");
     assert!(!h.state().engine.project.onion.outline, "the shot's did not");
+}
+
+#[test]
+fn launch_options_open_windows_layouts_and_tools() {
+    for (cli, check) in [
+        (Cli { open: Some("preferences".into()), ..Cli::default() }, &(|a: &ToonApp| a.preferences.open) as &dyn Fn(&ToonApp) -> bool),
+        (Cli { open: Some("export".into()), ..Cli::default() }, &|a: &ToonApp| a.export_dialog.is_some()),
+        (Cli { open: Some("find".into()), ..Cli::default() }, &|a: &ToonApp| a.find.open),
+        (Cli { open: Some("new-shot".into()), ..Cli::default() }, &|a: &ToonApp| a.new_shot.is_some()),
+        (Cli { layout: Some("sheet".into()), ..Cli::default() }, &|a: &ToonApp| a.tl.vertical),
+        (Cli { vertical: true, ..Cli::default() }, &|a: &ToonApp| a.tl.vertical),
+        (Cli { tool: Some("gradient".into()), ..Cli::default() }, &|a: &ToonApp| a.tool == Tool::Gradient),
+    ] {
+        let ctx = egui::Context::default();
+        let app = ToonApp::with_context(&ctx, cli.clone()).without_autosave();
+        assert!(check(&app), "{cli:?}");
+    }
+}
+
+fn type_number(h: &mut Harness<'static, ToonApp>, label: &str, text: &str) {
+    h.get(By::new().label(label).role(egui::Role::SpinButton)).click();
+    h.run();
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.run();
+    h.get(By::new().label(label).role(egui::Role::SpinButton)).type_text(text);
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+}
+
+#[test]
+fn the_top_bar_goes_to_a_typed_frame_sets_the_play_range_and_picks_a_workspace() {
+    let mut h = harness();
+    type_number(&mut h, "Frame", "12");
+    assert_eq!(h.state().frame, 11);
+    type_number(&mut h, "Play from", "5");
+    type_number(&mut h, "Play to", "9");
+    assert_eq!(h.state().tl.range, Some((4, 8)));
+    assert_eq!(crate::timeline_extras::play_span(h.state()), (4, 9));
+    h.get(By::new().role(egui::Role::ComboBox).label("Workspace")).click();
+    h.run();
+    h.get_by_label("Exposure Sheet").click();
+    h.run();
+    assert!(h.state().tl.vertical);
+    h.get(By::new().role(egui::Role::Button).label("Undo step"));
+    // the status line shows the canvas pixel under the pointer
+    let c = h.get(By::new().role(egui::Role::Canvas).label_contains("Canvas")).rect().center();
+    h.hover_at(c);
+    h.run();
+    assert!(h.state().pointer.is_some());
+}
+
+#[test]
+fn the_import_window_offers_layers_hold_and_placement() {
+    let mut h = harness();
+    let dir = std::env::temp_dir().join(format!("tooncraft-import-ui-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut paths = Vec::new();
+    for name in ["walk_01.png", "walk_02.png", "run_01.png"] {
+        let img = tooncraft_raster::RgbaImage::filled(8, 8, [0, 0, 0, 255]);
+        let p = dir.join(name);
+        std::fs::write(&p, tooncraft_format::encode_png(&img).unwrap()).unwrap();
+        paths.push(p.to_string_lossy().into_owned());
+    }
+    h.state_mut().import_dialog = Some(crate::import_dialog::Dialog::new(paths));
+    h.run();
+    h.get(By::new().role(egui::Role::RadioButton).label("One layer per file name")).click();
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Placement"));
+    h.get(By::new().role(egui::Role::Button).label("Import")).click();
+    h.run();
+    assert!(h.state().import_dialog.is_none());
+    let names: Vec<String> = h.state().engine.project.layers.iter().map(|l| l.name.clone()).collect();
+    assert!(names.contains(&"walk".to_string()) && names.contains(&"run".to_string()), "{names:?}");
+    assert_eq!(h.state().engine.undo_label(), Some("Import images"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn new_shot_offers_size_and_rate_presets() {
+    let mut h = harness();
+    h.state_mut().new_shot = Some(h.state().new_shot_defaults());
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Size preset")).click();
+    h.run();
+    h.get(By::new().label_contains("Cinema 4K, 24 fps")).click();
+    h.run();
+    let n = h.state().new_shot.clone().expect("still open");
+    assert_eq!((n.width, n.height, n.fps), (4096, 2160, 24));
+    h.get(By::new().role(egui::Role::Button).label("Save as Preset"));
 }

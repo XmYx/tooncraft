@@ -14,7 +14,7 @@ use crate::args::Cli;
 fn harness() -> Harness<'static, ToonApp> {
     let ctx = egui::Context::default();
     let app = ToonApp::with_context(&ctx, Cli::default()).without_autosave();
-    let mut h = Harness::builder().with_size(vec2(1600.0, 1000.0)).with_accessibility_check(true).build_ui_state(
+    let mut h = Harness::builder().with_size(vec2(1600.0, 1000.0)).with_accessibility_check(true).with_max_steps(8).build_ui_state(
         |ui, app: &mut ToonApp| {
             let ctx = ui.ctx().clone();
             app.tick(&ctx);
@@ -184,4 +184,38 @@ fn the_onion_toggle_has_quick_settings_and_its_reach_is_on_the_ruler() {
     assert!(h.state().engine.project.onion.outline);
     h.state_mut().engine.project.onion.enabled = false;
     assert_eq!(crate::timeline::onion_span(h.state()), None);
+}
+
+#[test]
+fn swap_drawings_and_open_the_menus_from_the_keyboard() {
+    let mut h = harness();
+    let (a, b) = two_drawings(&mut h);
+    // focus the sheet on frame 2 (A's hold) and swap to the next drawing by key
+    h.get(By::new().role(egui::Role::Cell).label_contains(&cell_label(&h, 2))).click();
+    h.run();
+    h.key_press_modifiers(Modifiers::COMMAND | Modifiers::ALT, Key::ArrowDown);
+    h.run();
+    assert_eq!(h.state().engine.project.drawing_at(0, 0), Some(b), "the whole exposure shows B");
+    h.key_press_modifiers(Modifiers::COMMAND | Modifiers::ALT, Key::ArrowUp);
+    h.run();
+    assert_eq!(h.state().engine.project.drawing_at(0, 1), Some(a), "and back");
+    // Shift+F10 opens the cell's menu
+    h.key_press_modifiers(Modifiers::SHIFT, Key::F10);
+    h.run();
+    h.run();
+    h.get_by_label("Swap Drawing");
+    h.key_press(Key::Escape);
+    h.run();
+    // the Menu key opens the canvas menu when the canvas has the focus
+    h.key_press(Key::F6);
+    h.run();
+    assert!(h.ctx.memory(|m| m.has_focus(crate::canvas::canvas_id())));
+    h.key_press(Key::Menu);
+    h.run();
+    h.run();
+    h.get_by_label("Pick Colour Here");
+    // a blank cell has nothing to swap
+    h.state_mut().frame = 6;
+    h.state_mut().swap_step(true);
+    assert_eq!(h.state().engine.undo_label(), Some("Swap drawing"));
 }

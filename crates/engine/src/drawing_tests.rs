@@ -184,3 +184,28 @@ fn selection_rings_skew_distort_and_wand() {
     assert_eq!(m.count(), 200 * 100, "the fill covers the whole drawing");
     assert!(crate::select::wand(&e, 0, 0, 9_999, 10, 30, false).is_none());
 }
+
+#[test]
+fn the_wand_can_select_one_colour_everywhere() {
+    let mut e = engine();
+    let red = [200, 20, 20, 255];
+    // two red squares apart
+    for (x0, x1) in [(10.0, 30.0), (150.0, 170.0)] {
+        e.apply(Command::PathShape {
+            layer: 0,
+            frame: 0,
+            brush: ink(),
+            points: vec![(x0, 10.0), (x1, 10.0), (x1, 30.0), (x0, 30.0)],
+            closed: true,
+            curve: false,
+            outline: false,
+            fill: Some(red),
+        })
+        .unwrap();
+    }
+    let one = crate::select::wand_with(&e, 0, 0, 20, 20, 10, false, true).expect("contiguous");
+    let all = crate::select::wand_with(&e, 0, 0, 20, 20, 10, false, false).expect("everywhere");
+    assert!(all.count() >= one.count() * 2 - 10, "{} vs {}", all.count(), one.count());
+    assert!(all.get(160, 20) && !one.get(160, 20));
+    assert!(crate::select::wand_with(&e, 0, 0, 999, 20, 10, false, false).is_none());
+}

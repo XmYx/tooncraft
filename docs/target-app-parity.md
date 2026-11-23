@@ -108,6 +108,7 @@ name appears once per area; an area with rows has a `Weight:` line; an O row giv
 | Effects and compositing | 7 | Finishing inside the app (TVPaint FX, Harmony's node compositing) |
 | Audio and lip-sync | 4 | Needed for dialogue shots; a contained area |
 | Import, export and pipeline | 7 | Getting work in and out is a hard requirement in studios |
+| UI parity with the reference layout | 5 | How close the screens come to the studio layout in the reference captures |
 | Scripting and automation | 4 | Studios automate (TVPaint George, Harmony scripting) |
 | UI and workspace | 5 | Workspace quality decides whether people stay |
 | Tablet and input | 4 | Pen and touch input quality is felt in every stroke |
@@ -174,7 +175,7 @@ Weight: 3
 | Paper and grain library, grain images from files | TV CS PD | D | M | Four built-in grains and tileable grain images saved in the shot |
 | Grain scale, rotation and contrast | TV CS | P | S | Scale only |
 | Texture overlay on a layer or a fill | CS PD | M | S | |
-| Canvas size presets | all | P | S | Four sizes in the new-shot dialog; no user presets |
+| Canvas size presets | all | D | S | Eleven video, cinema, square and portrait presets with their frame rates in New Shot and Canvas Size, the aspect ratio shown, and the user's own saved presets |
 | Canvas resize and crop with anchors | all | D | S | Drawings move whole pixels, never resampled; one undo step |
 | Large canvases (up to 16384 px a side) | TV | D | S | Sparse tiles: empty space costs nothing |
 | Field guide and safe areas | TV TB | D | S | A 12-field guide, action-safe and title-safe frames |
@@ -211,7 +212,7 @@ Weight: 5
 |---|---|---|---|---|
 | Lasso and rectangle selection | all | D | S | |
 | Ellipse selection | all | D | S | The select tool's Ellipse mode |
-| Select by colour with tolerance (magic wand) | all | D | S | Magic Wand mode: tolerance, this drawing or all visible layers |
+| Select by colour with tolerance (magic wand) | all | D | S | Magic Wand mode: tolerance, this drawing or all visible layers, the touching area or that colour everywhere |
 | Add, subtract and intersect selections | all | D | S | A mode option, or Shift (add), Alt (subtract) and both (intersect) while dragging; holes and separate parts stay one selection |
 | Invert, grow, shrink and feather a selection | all | P | S | Invert (Ctrl+Shift+I), grow and shrink by up to 64 px; no feather (selections are hard-edged) |
 | Painted selection masks (quick mask) | TV CS PD | M | M | |
@@ -285,7 +286,7 @@ Weight: 9
 | Cut, copy and paste cells | all | D | S | **Ours:** paste linked or as new drawings, in place or inserting |
 | Thumbnails in timeline cells | TV PD | D | S | |
 | Drawings kept when no longer exposed | TB | D | S | Purging them is undoable |
-| Drawing substitution: expose any existing drawing by name | TV TB CS | D | S | Name a drawing, then show it at any frame of any layer by name; only that frame changes. Also a thumbnail grid of the layer's drawings (a cell's right-click menu, Frame ▸ Swap Drawing) that swaps the whole exposure |
+| Drawing substitution: expose any existing drawing by name | TV TB CS | D | S | Name a drawing, then show it at any frame of any layer by name; only that frame changes. Also a thumbnail grid of the layer's drawings (a cell's right-click menu, Frame ▸ Swap Drawing) that swaps the whole exposure; Ctrl+Alt+Up and Down swap to the previous or next drawing from the keyboard |
 | Vertical exposure sheet view | TV TB | D | L | The timeline's Vertical switch, or the Exposure Sheet layout: layers as columns, frames down the side, the same keys, cell names and right-click menus |
 | Frame markers and notes | TV TB | D | S | A note per frame: ruler flags, a list with timecodes, next / previous by keyboard, saved in the shot |
 | Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames |
@@ -474,6 +475,66 @@ Weight: 5
 | Translated interface | all | P | M | craft-i18n catalogs are validated; English is the only shipped language |
 | Every action reachable from the keyboard | — | P | M | **Ours:** the accessibility rule; kittest-tested for the main flows |
 | Screen reader names for the canvas and the timeline | — | X | S | **Ours:** AccessKit nodes for the canvas and every visible cell |
+
+## UI parity with the reference layout
+
+Weight: 5
+
+How close ToonCraft's screens come to the studio layout studied in the Harmony reference captures
+(`_reference/harmony`, local only): the rows follow that suite's screens, in our own words. Each
+status was checked in the code and a test; a launch option (`--panel`, `--open`, `--layout`,
+`--vertical`, `--tool`, with `--screenshot`) shows the state for a side-by-side comparison where one
+exists. `cargo xtask parity` reports this area's row parity as the UI parity.
+
+| Feature | Refs | Status | Size | Notes |
+|---|---|---|---|---|
+| Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | P | M | Same family of layout; tool settings sit in a bar above the canvas, not in a properties panel |
+| Start screen with recent shots and a new-shot form | TB | M | S | ToonCraft opens straight into a blank shot |
+| Named workspaces picked from a bar | TB | D | S | The Workspace picker in the top bar (Drawing, Timing, Ink and Paint, Exposure Sheet); saved ones in View ▸ Workspaces (`--layout`) |
+| Compositing workspace with a node view | TB | M | XL | No node view |
+| Scripting workspace with a script editor and log | TB | M | L | No scripting panels |
+| Panels that can be closed and added back | TB | P | S | Tabs move and float through craft-ui docking; no close button or panel list to add one back |
+| Many tabs in one stack stay readable | TB | P | S | Names shorten when a stack holds many tabs |
+| Dark theme and a light theme | TB | D | S | Contrast tested |
+| Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Frame, layer, drawing, canvas pixel under the pointer, tool, colour, zoom |
+| Top menus for play, drawing, scene and windows | TB | P | M | File, Edit, Frame, Layer, View, Help carry those commands |
+| File menu with recent files | TB | P | S | No recent list |
+| Edit menu with selection and transform items | TB | D | S | Undo and redo with names, Preferences, select, invert, grow and shrink, transform submenu |
+| View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | |
+| Play commands with speed | TB | D | S | Frame menu and timeline: play, step, in and out, speed, Play Around |
+| A Windows menu listing every panel | TB | M | S | A panel is raised from its tab, `--panel` or Find Command |
+| Tool bar with flyouts for related tools | TB | D | S | Grouped buttons with a corner mark; right-click or press and hold for the group |
+| Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | New, Open, Save, undo, redo, workspace, play, the frame typed to go there, play from and to, frame rate and length |
+| Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | The strip above the canvas, with onion settings on right-click |
+| Brush properties: preset list with previews | TB | D | S | Preset picker with sample strokes, Revert |
+| Brush editor | TB | D | S | The Brush panel, every control keyboard-reachable |
+| Pencil properties: caps and joins | TB | M | S | Size, opacity, smoothing, steady line; no caps or joins |
+| Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
+| Select properties: modes, typed position, size and angle | TB | D | S | Lasso, rectangle, ellipse, wand; add, remove, overlap; X, Y, width, height (proportions kept) and angle typed and applied as one step; flips, skew, distort |
+| Transform tool properties with typed values | TB | P | M | The Pegs panel types key values; no canvas transform tool |
+| Contour, text, rigging and morph tool properties | TB | M | L | Those tools are missing |
+| Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
+| Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue and the brush's opacity |
+| Picker with alpha and a gradient | TB | P | S | The picker is docked in the Colour panel; no alpha in the colour itself |
+| Timeline layer rows with toggles | TB | P | S | Visibility in the row; lock and the rest in the Layers panel and the row's right-click menu |
+| Timeline buttons | TB | D | S | |
+| Selected range highlight | TB | D | S | |
+| Right-click menu on timeline cells | TB | D | S | Swap drawing, marks, hold for, fill empty frames, frame and clipboard commands |
+| Right-click menu on exposure-sheet cells | TB | D | S | The same menu in the vertical sheet |
+| Panel menus (a ☰ button per panel) | TB | M | S | |
+| Vertical exposure sheet | TB | D | M | Layers as columns, frames down the side, the same keys and menus (`--vertical`, `--layout sheet`) |
+| Onion skin on the canvas, tinted before and after | TB | D | S | |
+| Onion panel with a slider per step | TB | D | S | |
+| Light table on the canvas | TB | D | S | |
+| Camera frame and safe areas | TB | D | S | |
+| Separate drawing, reference and perspective views | TB | M | M | One canvas |
+| Curve editor | TB | M | L | |
+| Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
+| Library window for drawings | TB | M | L | The library holds brushes only |
+| Preferences, shortcut editor with search, playback speed | TB | D | S | (`--open preferences`, `--open shortcuts`) |
+| Scene settings in one window | TB | P | S | Canvas size and frame rate are set in separate places |
+| Export dialog with range, size and options | TB | D | S | (`--open export`) |
+| Import dialog with options | TB | D | S | After picking images: a new layer, one layer per file name, or the current layer; hold; fit, actual size or fill; premultiplied colours |
 
 ## Tablet and input
 

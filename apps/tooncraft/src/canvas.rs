@@ -700,6 +700,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     };
     ui.ctx().accesskit_node_builder(resp.id, |n| n.set_description(desc.to_string()));
     handle_input(app, ui, rect, &resp);
+    app.pointer = resp.hover_pos().map(|h| {
+        let c = to_picture(app, rect, h);
+        (c.x.floor() as i64, c.y.floor() as i64)
+    });
     crate::draw_aids::track_stroke(app, ui.ctx());
     // right-click menu; "Pick Colour Here" picks where it was opened
     let menu_at = canvas_id().with("menu-at");
@@ -710,6 +714,18 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     if !app.engine.is_stroking() {
         let at: Option<Pos2> = ui.data(|d| d.get_temp(menu_at));
+        // from the keyboard: Shift+F10 or the Menu key on the focused canvas; colour is picked at the
+        // keyboard pen, or the canvas centre
+        let now = resp.has_focus() && crate::timeline::menu_key(ui);
+        let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
+        let kat = app.keyboard_pen.map(|k| app.view.to_screen(rect, size, pos2(k.x, k.y))).or(Some(rect.center()));
+        crate::timeline::keyboard_menu(ui, &resp, now, |ui| {
+            crate::context_menus::canvas(app, ui, &mut |app| {
+                if let Some(p) = kat {
+                    pick(app, rect, p);
+                }
+            })
+        });
         resp.context_menu(|ui| {
             crate::context_menus::canvas(app, ui, &mut |app| {
                 if let Some(p) = at {

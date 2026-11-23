@@ -226,6 +226,12 @@ pub struct ToonApp {
     pub export_memory: crate::export_dialog::Memory,
     /// Find Command.
     pub find: crate::command_search::State,
+    /// Shot size and rate presets (built-in and the user's own).
+    pub scene_presets: crate::scene_presets::State,
+    /// The import options, after images were picked.
+    pub import_dialog: Option<crate::import_dialog::Dialog>,
+    /// The canvas pixel under the pointer, for the status line.
+    pub pointer: Option<(i64, i64)>,
     /// Frames chosen for flipping (in order of the shot, at most [`MAX_FLIP`]).
     pub flip: Vec<u32>,
     pub show_shortcuts: bool,
@@ -381,7 +387,10 @@ impl ToonApp {
             export_dialog: None,
             export_memory: Default::default(),
             find: Default::default(),
+            import_dialog: None,
+            scene_presets: crate::scene_presets::State::new(!cfg!(test) && cli.screenshot.is_none()),
             flip: Vec::new(),
+            pointer: None,
             show_shortcuts: false,
             show_about: false,
             confirm_close: false,
@@ -429,6 +438,18 @@ impl ToonApp {
         if let Some(name) = &cli.panel {
             app.workspace.raise(Pane::from_name(name));
         }
+        if let Some(t) = cli.tool.as_deref().and_then(|n| Tool::ALL.into_iter().find(|t| t.id() == n)) {
+            app.tool = t;
+        }
+        match cli.open.as_deref() {
+            Some("preferences") => app.preferences.open = true,
+            Some("export") => crate::export_dialog::open(&mut app, "mp4"),
+            Some("shortcuts") => app.show_shortcuts = true,
+            Some("find") => app.find.open = true,
+            Some("new-shot") => app.new_shot = Some(app.new_shot_defaults()),
+            Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
+            _ => {}
+        }
         if cli.demo && cli.screenshot.is_some() {
             app.engine.project.onion.before = 2;
             app.engine.project.onion.after = 2;
@@ -441,6 +462,19 @@ impl ToonApp {
         crate::preferences::apply_live(&mut app);
         crate::preferences::apply_tool_defaults(&mut app);
         app.thumbnails = cli.thumbnails || app.preferences.prefs.thumbnails;
+        // launch options win over the preferences
+        if let Some(l) = cli.layout.as_deref().and_then(crate::canvas_tools::layout_by_name) {
+            app.workspace.layout = l;
+            app.tl.vertical = cli.layout.as_deref() == Some("sheet");
+        }
+        if cli.vertical {
+            app.tl.vertical = true;
+        }
+        if cli.layout.is_some()
+            && let Some(name) = &cli.panel
+        {
+            app.workspace.raise(Pane::from_name(name));
+        }
         if cli.light_table {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
@@ -669,7 +703,7 @@ impl ToonApp {
     /// Add `path` as a reference layer at the bottom (see [`Self::import_reference`]).
     pub fn add_reference(&mut self, path: &str) -> bool {
         let hold = self.engine.project.length();
-        if !self.run(Command::ImportImages { paths: vec![path.to_string()], frame: 0, hold, name: tl!("Reference").to_string() }) {
+        if !self.run(Command::ImportImages { paths: vec![path.to_string()], frame: 0, hold, name: tl!("Reference").to_string(), options: Default::default() }) {
             return false;
         }
         let top = self.engine.project.layers.len().saturating_sub(1);
@@ -684,19 +718,35 @@ impl ToonApp {
         let Some(files) = rfd::FileDialog::new().add_filter(tl!("Images"), &["png", "jpg", "jpeg", "webp", "tif", "tiff", "bmp", "gif"]).pick_files() else {
             return;
         };
-        let mut paths: Vec<String> = files.iter().map(|f| f.to_string_lossy().into_owned()).collect();
-        paths.sort();
-        let n = paths.len();
-        let frame = self.frame;
-        if self.run(Command::ImportImages { paths, frame, hold: 1, name: tl!("Imported").to_string() }) {
-            self.layer = self.engine.project.layers.len().saturating_sub(1);
-            self.set_status(tlf!("Imported {count} images", count = n));
-        }
+        let paths: Vec<String> = files.iter().map(|f| f.to_string_lossy().into_owned()).collect();
+        // the options come next, then the import
+        self.import_dialog = Some(crate::import_dialog::Dialog::new(paths));
     }
 
     pub fn go_to(&mut self, frame: i64) {
         let len = self.engine.project.length() as i64;
         self.frame = frame.rem_euclid(len.max(1)) as u32;
+    }
+
+    /// Show the next (or previous) of the layer's drawings in the current exposure, in the order
+    /// they first appear; round and round. A blank frame has nothing to swap.
+    pub fn swap_step(&mut self, forward: bool) {
+        let (layer, frame) = (self.layer, self.frame);
+        let Some(current) = self.engine.project.layers.get(layer).and_then(|l| l.drawing_at(frame)) else {
+            self.set_status(tl!("No drawing here to swap"));
+            return;
+        };
+        let all = crate::context_menus::layer_drawings(self, layer);
+        let Some(i) = all.iter().position(|d| *d == current) else { return };
+        if all.len() < 2 {
+            self.set_status(tl!("The layer has no other drawing"));
+            return;
+        }
+        let j = if forward { (i + 1) % all.len() } else { (i + all.len() - 1) % all.len() };
+        let drawing = Some(all[j]);
+        if self.run(Command::SwapDrawing { layer, frame, drawing }) {
+            self.set_status(tlf!("Now showing drawing {id}", id = all[j].0));
+        }
     }
 
     /// Add the current frame to the flip set, or take it out.
@@ -1109,6 +1159,7 @@ impl ToonApp {
         self.textures.begin_frame();
         self.shortcuts(&ctx);
         egui::Panel::top("menu").show(ui, |ui| self.menu_bar(ui));
+        egui::Panel::top("top-bar").show(ui, |ui| crate::top_bar::show(self, ui));
         egui::Panel::top("tool-options").show(ui, |ui| crate::panels::tool_options(self, ui));
         egui::Panel::bottom("status").show(ui, |ui| self.status_bar(ui));
         egui::Panel::left("tools").exact_size(46.0).resizable(false).show(ui, |ui| crate::panels::toolbar(self, ui));
@@ -1142,6 +1193,10 @@ impl ToonApp {
             };
             ui.label(drawing);
             ui.separator();
+            if let Some((x, y)) = self.pointer {
+                ui.label(tlf!("x {x}  y {y}", x = x, y = y));
+                ui.separator();
+            }
             ui.label(self.tool.label());
             let c = self.color;
             let (r, swatch) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
@@ -1619,6 +1674,12 @@ impl ToonApp {
         if hit("select.invert") {
             crate::selection_tools::invert(self);
         }
+        if hit("frame.swap_next") {
+            self.swap_step(true);
+        }
+        if hit("frame.swap_prev") {
+            self.swap_step(false);
+        }
         if hit("flip.toggle") {
             self.toggle_flip();
         }
@@ -1778,6 +1839,7 @@ impl ToonApp {
 
     fn dialogs(&mut self, ctx: &egui::Context) {
         crate::command_search::window(self, ctx);
+        crate::import_dialog::window(self, ctx);
         crate::export_dialog::window(self, ctx);
         crate::preferences::window(self, ctx);
         crate::canvas_tools::dialog(self, ctx);
@@ -1829,13 +1891,8 @@ impl ToonApp {
                     ui.text_edit_singleline(&mut n.name).labelled_by(l.id);
                     ui.end_row();
                     ui.label(tl!("Size"));
-                    ui.horizontal(|ui| {
-                        for (label, w, h) in [("1280×720", 1280, 720), ("1920×1080", 1920, 1080), ("3840×2160", 3840, 2160), ("1080×1080", 1080, 1080)] {
-                            if ui.selectable_label(n.width == w && n.height == h, label).clicked() {
-                                n.width = w;
-                                n.height = h;
-                            }
-                        }
+                    ui.vertical(|ui| {
+                        crate::scene_presets::picker(&mut self.scene_presets, ui, "new-shot", &mut n.width, &mut n.height, Some(&mut n.fps));
                     });
                     ui.end_row();
                     let l = ui.label(tl!("Width"));

@@ -371,7 +371,7 @@ fn run() -> Result<(), String> {
             let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
             let hold = num(rest.flag("hold"), 1)?;
             let name = rest.flag("name").unwrap_or("Imported").to_string();
-            e.apply(Command::ImportImages { paths: images, frame, hold, name }).map_err(|e| e.to_string())?;
+            e.apply(Command::ImportImages { paths: images, frame, hold, name, options: Default::default() }).map_err(|e| e.to_string())?;
             save(&path, &e)
         }
         "import-layers" | "import-gif" | "import-sheet" | "set-sound" => {

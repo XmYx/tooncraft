@@ -7,10 +7,13 @@ tooncraft	 px
 tooncraft	 s	
 tooncraft	0: four, or more for a long shot	
 tooncraft	A copy of the clip starting at the current frame	
+tooncraft	A new layer	
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
+tooncraft	A new shot (Ctrl+N)	
 tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
 tooncraft	About ToonCraft	
 tooncraft	Actual Size	
+tooncraft	Actual size	
 tooncraft	Add	
 tooncraft	Add All to Palette	
 tooncraft	Add Area	
@@ -53,6 +56,7 @@ tooncraft	Animated WebP…
 tooncraft	Antialiased edges keep their softness; one undo step	
 tooncraft	Any colour	
 tooncraft	Apply	
+tooncraft	Apply Box	
 tooncraft	Apply Distort	
 tooncraft	Apply Skew	
 tooncraft	Around	
@@ -107,6 +111,8 @@ tooncraft	Choose a brush tool to change its settings.
 tooncraft	Choose a layer	
 tooncraft	Choose frames to flip first (Ctrl+Alt+Enter on each)	
 tooncraft	Choose…	
+tooncraft	Cinema 2K, 24 fps	
+tooncraft	Cinema 4K, 24 fps	
 tooncraft	Clean ink	
 tooncraft	Clear	
 tooncraft	Clear Drawing	
@@ -139,6 +145,7 @@ tooncraft	Colour picker
 tooncraft	Colour pickup	
 tooncraft	Colour to replace	
 tooncraft	Colours	
+tooncraft	Colours already premultiplied	
 tooncraft	Colours you paint with show up here	
 tooncraft	Comic	
 tooncraft	Command	
@@ -267,6 +274,7 @@ tooncraft	Fill
 tooncraft	Fill Empty Frames	
 tooncraft	Fill only empty areas; a click on paint does nothing	
 tooncraft	Fill the area under the click	
+tooncraft	Fill the canvas	
 tooncraft	Filled	
 tooncraft	Film	
 tooncraft	Find	
@@ -277,6 +285,7 @@ tooncraft	Finish the line where the pen lifts
 tooncraft	First / last frame	
 tooncraft	First frame	
 tooncraft	Fit / actual size	
+tooncraft	Fit inside the canvas	
 tooncraft	Fit to Window	
 tooncraft	Flatten	
 tooncraft	Flatten Layers	
@@ -319,12 +328,16 @@ tooncraft	Frames either side for Play Around
 tooncraft	Frames per second	
 tooncraft	Frames {a}–{b}, {px} px	
 tooncraft	From	
+tooncraft	Full HD, 24 fps	
+tooncraft	Full HD, 25 fps	
+tooncraft	Full HD, 30 fps	
 tooncraft	Full size	
 tooncraft	GIMP palette (.gpl) or Photoshop swatches (.aco)	
 tooncraft	Gamma	
 tooncraft	Gaps	
 tooncraft	General	
 tooncraft	Give an area already painted on this layer a new colour	
+tooncraft	Give the preset a name	
 tooncraft	Give the workspace a name	
 tooncraft	Glow	
 tooncraft	Glow and fringe	
@@ -342,6 +355,7 @@ tooncraft	Green
 tooncraft	Grow	
 tooncraft	Grow Selection	
 tooncraft	Guides on a layer above	
+tooncraft	HD, 24 fps	
 tooncraft	Half size	
 tooncraft	Hand	
 tooncraft	Hand-drawn, frame-by-frame animation. Part of the ArtCraft Crafting Apps.	
@@ -372,6 +386,7 @@ tooncraft	Hold For
 tooncraft	Hold One Frame Longer	
 tooncraft	Hold One Frame Shorter	
 tooncraft	Hold each drawing of the layer until the next one	
+tooncraft	Hold each for	
 tooncraft	Hold each mouth at least	
 tooncraft	Hold one frame longer / shorter	
 tooncraft	Hold the pen still at the end of a stroke to turn it into a clean line or ellipse	
@@ -386,8 +401,10 @@ tooncraft	Hue jitter
 tooncraft	Hue wheel	
 tooncraft	Image	
 tooncraft	Images	
+tooncraft	Import	
 tooncraft	Import Brush…	
 tooncraft	Import Image Sequence…	
+tooncraft	Import Images	
 tooncraft	Import Mouth Sheet…	
 tooncraft	Import Sound…	
 tooncraft	Import from Other Apps	
@@ -411,6 +428,7 @@ tooncraft	Insert Frame in All Layers
 tooncraft	Insert frame	
 tooncraft	Insert frame (Insert)	
 tooncraft	Intensity	
+tooncraft	Into	
 tooncraft	Invert	
 tooncraft	Invert Selection	
 tooncraft	JPEG Sequence	
@@ -418,6 +436,7 @@ tooncraft	JPEG Sequence…
 tooncraft	Jitter	
 tooncraft	Keep Overlap	
 tooncraft	Keep in place	
+tooncraft	Keep proportions	
 tooncraft	Keep the bottom in place	
 tooncraft	Keep the bottom left in place	
 tooncraft	Keep the bottom right in place	
@@ -534,6 +553,7 @@ tooncraft	Move the layer down
 tooncraft	Move the layer up	
 tooncraft	Move {name} down	
 tooncraft	Move {name} up	
+tooncraft	Move, scale and turn the selection to these numbers	
 tooncraft	Multiply	
 tooncraft	Mute clip {n}	
 tooncraft	Mute {track}	
@@ -570,6 +590,7 @@ tooncraft	Next panel
 tooncraft	No Colour	
 tooncraft	No Mark	
 tooncraft	No command matches	
+tooncraft	No drawing here to swap	
 tooncraft	No drawings have names yet	
 tooncraft	No earlier drawing on this layer	
 tooncraft	No earlier marker	
@@ -594,6 +615,7 @@ tooncraft	Now showing drawing {id}
 tooncraft	Nudge the selection (Shift: 10 px)	
 tooncraft	OK	
 tooncraft	Off	
+tooncraft	Off: that colour everywhere in the picture	
 tooncraft	Offset X	
 tooncraft	Offset Y	
 tooncraft	On fours	
@@ -603,6 +625,7 @@ tooncraft	On top
 tooncraft	On twos	
 tooncraft	Once per stroke	
 tooncraft	One colour change for the whole stroke instead of one per dab	
+tooncraft	One layer per file name	
 tooncraft	Onion	
 tooncraft	Onion Skin	
 tooncraft	Onion opacity	
@@ -614,14 +637,17 @@ tooncraft	Onion skin on / off
 tooncraft	Onion skin on every visible layer	
 tooncraft	Onion skin reach after	
 tooncraft	Onion skin reach before	
+tooncraft	Only for files made that way; most are not	
 tooncraft	Only on paint	
 tooncraft	Opacity	
 tooncraft	Opacity here	
 tooncraft	Opacity jitter	
 tooncraft	Opacity per step	
+tooncraft	Open	
 tooncraft	Open (A I)	
 tooncraft	Open Palette…	
 tooncraft	Open Stack…	
+tooncraft	Open a shot (Ctrl+O)	
 tooncraft	OpenEXR Sequence	
 tooncraft	OpenEXR Sequence…	
 tooncraft	OpenRaster, Current Frame	
@@ -682,13 +708,17 @@ tooncraft	Ping-pong
 tooncraft	Pivot X	
 tooncraft	Pivot Y	
 tooncraft	Pixels	
+tooncraft	Placement	
 tooncraft	Play	
 tooncraft	Play / stop	
 tooncraft	Play Around	
 tooncraft	Play Selection	
 tooncraft	Play forward, then backward, then forward again	
+tooncraft	Play from	
 tooncraft	Play only the selected frames (select a range of frames in the exposure sheet first)	
+tooncraft	Play or stop (Enter)	
 tooncraft	Play the soundtrack	
+tooncraft	Play to	
 tooncraft	Playback loops back after this frame	
 tooncraft	Playback speed; the sound plays only at 100 %	
 tooncraft	Playback starts here	
@@ -696,12 +726,14 @@ tooncraft	Point {n} in
 tooncraft	Point {n} out	
 tooncraft	Polygon	
 tooncraft	Polyline	
+tooncraft	Portrait, 30 fps	
 tooncraft	Position jitter	
 tooncraft	Posterise	
 tooncraft	Preferences	
 tooncraft	Preferences not saved: {error}	
 tooncraft	Preferences…	
 tooncraft	Preset	
+tooncraft	Preset name	
 tooncraft	Press a key…	
 tooncraft	Pressure	
 tooncraft	Pressure used when drawing with a mouse	
@@ -745,6 +777,8 @@ tooncraft	Rectangle
 tooncraft	Red	
 tooncraft	Redid {action}	
 tooncraft	Redo	
+tooncraft	Redo (Ctrl+Shift+Z)	
+tooncraft	Redo step	
 tooncraft	Redo up to here	
 tooncraft	Redo {action}	
 tooncraft	Reference	
@@ -808,8 +842,10 @@ tooncraft	Save Palette…
 tooncraft	Save Preset…	
 tooncraft	Save Stack…	
 tooncraft	Save Workspace	
+tooncraft	Save as Preset	
 tooncraft	Save as shot_v002, shot_v003 … next to the current file (Ctrl+Alt+S)	
 tooncraft	Save new version	
+tooncraft	Save the shot (Ctrl+S)	
 tooncraft	Save the shot before quitting?	
 tooncraft	Save this layer's effects to a file (.toonfx)	
 tooncraft	Saved brush {name}	
@@ -873,6 +909,7 @@ tooncraft	Shrink Selection
 tooncraft	Silence below	
 tooncraft	Size	
 tooncraft	Size jitter	
+tooncraft	Size preset	
 tooncraft	Skew	
 tooncraft	Skew along x, degrees	
 tooncraft	Skew along y, degrees	
@@ -911,6 +948,9 @@ tooncraft	Split clip {n} here
 tooncraft	Split opposite	
 tooncraft	Spray	
 tooncraft	Spread under lines	
+tooncraft	Square, 24 fps	
+tooncraft	Standard definition, 25 fps	
+tooncraft	Standard definition, 30 fps	
 tooncraft	Start	
 tooncraft	Start (now)	
 tooncraft	Start Sound Here	
@@ -942,10 +982,12 @@ tooncraft	TIFF Sequence…
 tooncraft	Teeth on lip (F V)	
 tooncraft	Texture	
 tooncraft	The brush follows the pen only when it is further than this: very steady lines	
+tooncraft	The current layer, from this frame	
 tooncraft	The drawings' own colours	
 tooncraft	The flip set holds at most {n} frames	
 tooncraft	The last save of this shot was interrupted and there is no backup.	
 tooncraft	The last save was interrupted and the backup does not open: {error}	
+tooncraft	The layer has no other drawing	
 tooncraft	The selection is too detailed to keep; nothing changed	
 tooncraft	The sheet down the right side, layers as columns	
 tooncraft	The shot has as many palettes as it can hold	
@@ -974,22 +1016,28 @@ tooncraft	To the palette shown (on Basic, a new shot palette)
 tooncraft	Tolerance	
 tooncraft	Tone curve	
 tooncraft	Tongue (L TH)	
+tooncraft	Too many presets	
 tooncraft	Too many saved workspaces	
 tooncraft	Tool	
 tooncraft	ToonCraft found a recovery copy from {when} that is newer than the shot. Open it?	
 tooncraft	ToonCraft shot	
 tooncraft	Top	
+tooncraft	Touching only	
 tooncraft	Track	
 tooncraft	Track {n}	
 tooncraft	Transform Selection	
 tooncraft	Trim start	
 tooncraft	Turbulence	
+tooncraft	Type a frame number to go there	
+tooncraft	UHD, 24 fps	
 tooncraft	Undid {action}	
 tooncraft	Undo	
+tooncraft	Undo (Ctrl+Z)	
 tooncraft	Undo / redo	
 tooncraft	Undo History	
 tooncraft	Undo everything still remembered	
 tooncraft	Undo memory	
+tooncraft	Undo step	
 tooncraft	Undo {action}	
 tooncraft	Unlock Layer	
 tooncraft	Unlock Transparency	
@@ -1021,10 +1069,14 @@ tooncraft	Whole shot (1 to {n})
 tooncraft	Wide (E)	
 tooncraft	Wide chalk	
 tooncraft	Width	
+tooncraft	Width and height must be more than zero	
+tooncraft	Workspace	
 tooncraft	Workspaces	
 tooncraft	Wrote {file}	
+tooncraft	X	
 tooncraft	XDTS Exposure Sheet with Drawings	
 tooncraft	XDTS Exposure Sheet with Drawings…	
+tooncraft	Y	
 tooncraft	Yellow	
 tooncraft	Zoom	
 tooncraft	Zoom In	
@@ -1051,6 +1103,7 @@ tooncraft	of {total}
 tooncraft	stroke {ms} ms	
 tooncraft	the file is too large	
 tooncraft	to	
+tooncraft	x {x}  y {y}	
 tooncraft	{done} steps, {undone} to redo	
 tooncraft	{drawings} drawings ({unused} not exposed)	
 tooncraft	{drawing} (held)	
@@ -1066,6 +1119,7 @@ tooncraft	{name}, {category}, favourite
 tooncraft	{n} brushes	
 tooncraft	{n} frames	
 tooncraft	{n} frames at {w}×{h}	
+tooncraft	{n} images, from frame {frame}	
 tooncraft	{n} keys	
 tooncraft	{tool} selected	
 tooncraft	{tool}; right-click or hold for the other tools of the group	

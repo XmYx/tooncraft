@@ -20,7 +20,7 @@ pub mod drawing;
 mod drawing_tests;
 mod effects;
 pub mod export;
-mod import;
+pub mod import;
 pub mod inbetween;
 mod interchange;
 mod layerops;
