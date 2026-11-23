@@ -215,3 +215,4 @@ A crash mid-stroke loses that stroke (at most one autosave interval of 45 s othe
 - Exposure-sheet and onion-skin logic overlaps with AniCraft's timeline (vector); candidate for a
   shared `craft-exposure` crate. AniCraft's vector strokes are the natural source for item D4.
 - The pen reader (`photocraft-tablet`) belongs in craft-libs as `craft-tablet` (item I1).
+- `craft-palette` reads GIMP palettes but has no writer and no Photoshop `.aco` reader. ToonCraft writes `.gpl` and reads `.aco` in `tooncraft-interop::palette` until craft-palette grows them; both are small and ready to move there.

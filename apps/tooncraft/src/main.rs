@@ -12,14 +12,26 @@ mod app;
 mod args;
 mod brush_editor;
 mod brush_library;
+mod brush_presets;
 mod canvas;
+mod canvas_header;
 mod canvas_tools;
 mod color;
+mod colour_tools;
+#[cfg(test)]
+mod colour_ui_tests;
+mod context_menus;
 mod dock;
+mod draw_aids;
+#[cfg(test)]
+mod drawaids_ui_tests;
 mod effects_panel;
+mod export_dialog;
 mod frame_cache;
 #[cfg(test)]
 mod gaps_ui_tests;
+#[cfg(test)]
+mod guidance_ui_tests;
 mod history_panel;
 #[cfg(test)]
 mod history_ui_tests;
@@ -28,9 +40,16 @@ mod keys;
 mod layer_ops;
 mod layer_tree;
 mod lipsync_panel;
+#[cfg(test)]
+mod menus_ui_tests;
 mod panels;
 mod pegs;
 mod pipeline;
+mod preferences;
+mod selection_tools;
+#[cfg(test)]
+mod selection_ui_tests;
+mod sheet;
 mod sound;
 mod sound_panel;
 mod tablet;

@@ -150,7 +150,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         |p| p.label(),
         |p| p.permissions(),
         |ui, pane| match pane {
-            Pane::Canvas => crate::canvas::show(app, ui),
+            Pane::Canvas => {
+                crate::canvas_header::strip(app, ui);
+                crate::canvas::show(app, ui)
+            }
             Pane::Timeline => crate::timeline::show(app, ui),
             Pane::Colour => crate::panels::colour(app, ui),
             Pane::Brush => crate::panels::brush(app, ui),

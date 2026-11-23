@@ -108,7 +108,7 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
                 } else {
                     s
                 };
-                draw(s, &mut img, (x, y), t.as_ref(), p.onion.step_opacity(off.unsigned_abs()), tint);
+                draw(s, &mut img, (x, y), t.as_ref(), p.onion.offset_opacity(off), tint);
             }
         }
     }

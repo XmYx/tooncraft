@@ -26,6 +26,8 @@ mod tip;
 
 pub use curve::{Curve, MAX_POINTS, MIN_GAP};
 pub use dab::Dab;
+#[cfg(test)]
+mod paint_tests;
 pub use grain::{GrainKind, builtin_grain, paper_grain};
 pub use response::{Dynamics, Inputs, Mapping, Response, Source, Target, hash01};
 pub use stabilizer::Stabilizer;
@@ -96,11 +98,131 @@ pub enum Compose {
     Behind,
     /// Only recolours paint that is already there: the layer's transparency is locked.
     KeepAlpha,
+    /// Darkens like layered ink or marker: the paint's colour times the colour under it.
+    Multiply,
+    /// Lightens: the inverse of multiply.
+    Screen,
+    /// Multiply in the darks, screen in the lights.
+    Overlay,
+    /// Keeps the darker of the paint and the colour under it.
+    Darken,
+    /// Keeps the lighter of the two.
+    Lighten,
+    /// Adds the colours (glows).
+    Add,
 }
 
 impl Compose {
-    pub const ALL: [Compose; 3] = [Compose::Normal, Compose::Behind, Compose::KeepAlpha];
+    pub const ALL: [Compose; 9] = [
+        Compose::Normal,
+        Compose::Behind,
+        Compose::KeepAlpha,
+        Compose::Multiply,
+        Compose::Screen,
+        Compose::Overlay,
+        Compose::Darken,
+        Compose::Lighten,
+        Compose::Add,
+    ];
+
+    /// The blend of the paint colour `s` over the colour under it `b` (straight, 0 … 1), for the
+    /// blend modes; `None` for the paint positions (normal, behind, only on paint).
+    pub fn blend(self, b: f32, s: f32) -> Option<f32> {
+        Some(match self {
+            Compose::Multiply => b * s,
+            Compose::Screen => b + s - b * s,
+            Compose::Overlay => {
+                if b <= 0.5 {
+                    2.0 * b * s
+                } else {
+                    1.0 - 2.0 * (1.0 - b) * (1.0 - s)
+                }
+            }
+            Compose::Darken => b.min(s),
+            Compose::Lighten => b.max(s),
+            Compose::Add => (b + s).min(1.0),
+            Compose::Normal | Compose::Behind | Compose::KeepAlpha => return None,
+        })
+    }
 }
+
+/// Random colour changes, per dab or once per stroke: hue in turns (0 … 0.5), saturation and
+/// brightness (0 … 1) are the most each may move either way.
+#[derive(Clone, Copy, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ColorJitter {
+    pub hue: f32,
+    pub saturation: f32,
+    pub value: f32,
+    /// One change for the whole stroke instead of one per dab.
+    pub per_stroke: bool,
+}
+
+impl ColorJitter {
+    pub fn is_off(&self) -> bool {
+        self.hue == 0.0 && self.saturation == 0.0 && self.value == 0.0
+    }
+
+    pub fn sanitized(self) -> Self {
+        let f = |v: f32, hi: f32| if v.is_finite() { v.clamp(0.0, hi) } else { 0.0 };
+        Self { hue: f(self.hue, 0.5), saturation: f(self.saturation, 1.0), value: f(self.value, 1.0), per_stroke: self.per_stroke }
+    }
+
+    /// `rgb` (straight) moved by the three chances `r` (each 0 … 1, 0.5 is no change).
+    pub fn apply(&self, rgb: [u8; 3], r: [f32; 3]) -> [u8; 3] {
+        let (h, s, v) = rgb_to_hsv(rgb);
+        let h = (h + (r[0] * 2.0 - 1.0) * self.hue).rem_euclid(1.0);
+        let s = (s + (r[1] * 2.0 - 1.0) * self.saturation).clamp(0.0, 1.0);
+        let v = (v + (r[2] * 2.0 - 1.0) * self.value).clamp(0.0, 1.0);
+        hsv_to_rgb(h, s, v)
+    }
+}
+
+/// Straight RGB to hue (turns), saturation and value.
+pub fn rgb_to_hsv(c: [u8; 3]) -> (f32, f32, f32) {
+    let (r, g, b) = (c[0] as f32 / 255.0, c[1] as f32 / 255.0, c[2] as f32 / 255.0);
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let d = max - min;
+    let h = if d <= 0.0 {
+        0.0
+    } else if max == r {
+        ((g - b) / d).rem_euclid(6.0) / 6.0
+    } else if max == g {
+        ((b - r) / d + 2.0) / 6.0
+    } else {
+        ((r - g) / d + 4.0) / 6.0
+    };
+    (h, if max <= 0.0 { 0.0 } else { d / max }, max)
+}
+
+pub fn hsv_to_rgb(h: f32, s: f32, v: f32) -> [u8; 3] {
+    let h6 = h.rem_euclid(1.0) * 6.0;
+    let c = v * s;
+    let x = c * (1.0 - (h6 % 2.0 - 1.0).abs());
+    let (r, g, b) = match h6 as u32 {
+        0 => (c, x, 0.0),
+        1 => (x, c, 0.0),
+        2 => (0.0, c, x),
+        3 => (0.0, x, c),
+        4 => (x, 0.0, c),
+        _ => (c, 0.0, x),
+    };
+    let m = v - c;
+    let q = |f: f32| ((f + m) * 255.0).round().clamp(0.0, 255.0) as u8;
+    [q(r), q(g), q(b)]
+}
+
+fn is_off_jitter(j: &ColorJitter) -> bool {
+    j.is_off()
+}
+
+fn is_one(n: &u8) -> bool {
+    *n == 1
+}
+
+/// Most dabs a brush lays per spacing step (spray brushes).
+pub const MAX_COUNT: u8 = 32;
 
 fn is_normal_compose(c: &Compose) -> bool {
     *c == Compose::Normal
@@ -177,9 +299,15 @@ pub struct Brush {
     /// An image tip (its id in the project's tips) instead of the round dab.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<u64>,
-    /// On top of, under, or only over the existing paint.
+    /// On top of, under, or only over the existing paint, or a blend mode.
     #[serde(skip_serializing_if = "is_normal_compose")]
     pub compose: Compose,
+    /// Random colour changes.
+    #[serde(skip_serializing_if = "is_off_jitter")]
+    pub jitter: ColorJitter,
+    /// Dabs laid at each spacing step, 1 … [`MAX_COUNT`]; with scatter, a spray.
+    #[serde(skip_serializing_if = "is_one")]
+    pub count: u8,
 }
 
 impl Default for Brush {
@@ -210,6 +338,8 @@ impl Brush {
             color: [24, 22, 30, 255],
             tip: None,
             compose: Compose::Normal,
+            jitter: ColorJitter::default(),
+            count: 1,
         };
         match kind {
             BrushKind::Pencil => Brush { size: 3.5, hardness: 0.7, grain: 0.55, grain_scale: 1.6, opacity: 0.9, ..base },
@@ -292,6 +422,8 @@ impl Brush {
             color: self.color,
             tip: self.tip,
             compose: self.compose,
+            jitter: self.jitter.sanitized(),
+            count: self.count.clamp(1, MAX_COUNT),
         }
     }
 }

@@ -87,6 +87,9 @@ pub fn sections(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
     egui::CollapsingHeader::new(tl!("Tip shape")).default_open(true).show(ui, |ui| shape(app, ui, kind));
     egui::CollapsingHeader::new(tl!("Dynamics")).default_open(true).show(ui, |ui| dynamics(app, ui, kind));
     egui::CollapsingHeader::new(tl!("Jitter")).default_open(false).show(ui, |ui| jitter(app, ui, kind));
+    if kind != BrushKind::Eraser {
+        egui::CollapsingHeader::new(tl!("Colour jitter")).default_open(false).show(ui, |ui| colour_jitter(app, ui, kind));
+    }
     egui::CollapsingHeader::new(tl!("Grain texture")).default_open(false).show(ui, |ui| grain(app, ui, kind));
     if kind != BrushKind::Eraser {
         egui::CollapsingHeader::new(tl!("Wet mixing")).default_open(false).show(ui, |ui| wet(app, ui, kind));
@@ -169,7 +172,28 @@ fn jitter(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
             ui.add(egui::Slider::new(&mut m.amount, 0.0..=1.0).max_decimals(2)).labelled_by(l.id);
             ui.end_row();
         }
+        let l = ui.label(tl!("Dabs per step"));
+        ui.add(egui::Slider::new(&mut b.count, 1..=tooncraft_brush::MAX_COUNT))
+            .labelled_by(l.id)
+            .on_hover_text(tl!("More than one, with position jitter, makes a spray"));
+        ui.end_row();
     });
+}
+
+fn colour_jitter(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
+    let b = app.brush_mut(kind);
+    egui::Grid::new("brush-colour-jitter-grid").num_columns(2).spacing(vec2(8.0, 5.0)).show(ui, |ui| {
+        let l = ui.label(tl!("Hue jitter"));
+        ui.add(egui::Slider::new(&mut b.jitter.hue, 0.0..=0.5).max_decimals(2)).labelled_by(l.id);
+        ui.end_row();
+        let l = ui.label(tl!("Saturation jitter"));
+        ui.add(egui::Slider::new(&mut b.jitter.saturation, 0.0..=1.0).max_decimals(2)).labelled_by(l.id);
+        ui.end_row();
+        let l = ui.label(tl!("Brightness jitter"));
+        ui.add(egui::Slider::new(&mut b.jitter.value, 0.0..=1.0).max_decimals(2)).labelled_by(l.id);
+        ui.end_row();
+    });
+    ui.checkbox(&mut b.jitter.per_stroke, tl!("Once per stroke")).on_hover_text(tl!("One colour change for the whole stroke instead of one per dab"));
 }
 
 fn grain(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {

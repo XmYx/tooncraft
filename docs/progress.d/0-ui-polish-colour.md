@@ -1,0 +1,1 @@
+- 2026-11-23: Colour: named palettes kept with the shot, GIMP .gpl open and save, Photoshop .aco open; a hue wheel and colour harmonies; Recolour Layer (one colour becomes another in every drawing, one undo step); the hue, saturation and brightness fields are keyboard-tested.

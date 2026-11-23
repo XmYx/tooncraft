@@ -17,6 +17,8 @@ pub struct Dab {
     pub roundness: f32,
     /// Pressure at this dab (drives grain reveal).
     pub pressure: f32,
+    /// This dab's colour (straight RGB) when colour jitter changed it.
+    pub color: Option<[u8; 3]>,
 }
 
 /// Shape parameters precomputed for a stroke.

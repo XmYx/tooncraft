@@ -184,7 +184,15 @@ impl RgbaImage {
         if long <= max_side || max_side == 0 {
             return self.clone();
         }
-        let f = long.div_ceil(max_side);
+        self.reduced(long.div_ceil(max_side))
+    }
+
+    /// The image `f` times smaller on each side (rounded up), each pixel the average of the block
+    /// it covers. `f` of 0 or 1 is a copy.
+    pub fn reduced(&self, f: u32) -> RgbaImage {
+        if f <= 1 {
+            return self.clone();
+        }
         let (w, h) = (self.width.div_ceil(f).max(1), self.height.div_ceil(f).max(1));
         let mut out = RgbaImage::transparent(w, h);
         for y in 0..h {

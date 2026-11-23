@@ -158,6 +158,40 @@ impl Layer {
         }
     }
 
+    /// Show `drawing` for the whole exposure at `frame` instead of its drawing (a substitution:
+    /// the holds stay). `None` empties the exposure. A blank frame gets the drawing on its own.
+    pub fn swap(&mut self, frame: u32, drawing: Option<DrawingId>) {
+        match (self.exposure_range(frame), drawing) {
+            (Some((start, _)), Some(d)) => self.set_key(start, d),
+            (Some((start, end)), None) => {
+                for c in self.cells.iter_mut().take(end as usize).skip(start as usize) {
+                    *c = Cell::Blank;
+                }
+            }
+            (None, Some(d)) => self.set_key(frame, d),
+            (None, None) => {}
+        }
+    }
+
+    /// Turn every blank frame that follows an exposure into a hold of it, so each drawing is
+    /// shown until the next one. Blank frames before the first drawing stay blank. Returns how
+    /// many frames changed.
+    pub fn fill_empty(&mut self) -> usize {
+        let mut seen = false;
+        let mut n = 0;
+        for c in &mut self.cells {
+            match c {
+                Cell::Key(_) => seen = true,
+                Cell::Blank if seen => {
+                    *c = Cell::Hold;
+                    n += 1;
+                }
+                _ => {}
+            }
+        }
+        n
+    }
+
     /// Make the frame blank; a hold that followed it becomes blank too (the exposure is cut).
     pub fn clear(&mut self, frame: u32) {
         if let Some(c) = self.cells.get_mut(frame as usize) {

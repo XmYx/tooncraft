@@ -15,15 +15,17 @@ pub mod guides;
 pub mod markers;
 mod onion;
 pub mod paging;
+pub mod palette;
 pub mod peg;
 pub mod render;
 pub mod sound;
+pub mod symmetry;
 pub mod timing;
 
 pub use camera::{Camera, CameraKey, Shake};
 pub use exposure::{Cell, ExposureError};
 pub use markers::{MAX_MARKER_TEXT, MAX_MARKERS, MAX_NAME, parse_timecode, timecode};
-pub use onion::{LightTable, OnionMode, OnionSkin, Pin};
+pub use onion::{LightTable, MAX_STEPS as ONION_MAX_STEPS, OnionMode, OnionSkin, Pin};
 pub use peg::{Ease, Peg, PegId, PegKey};
 pub use render::{RenderOptions, render_camera, render_frame, render_region};
 pub use sound::{AudioTrack, Soundtrack, VolumeKey};
@@ -328,6 +330,10 @@ pub struct Project {
     pub markers: BTreeMap<u32, String>,
     /// Names of drawings, to expose them again by name (see [`markers`]).
     pub drawing_names: BTreeMap<DrawingId, String>,
+    /// Symmetry drawing (a drawing aid stored with the shot).
+    pub symmetry: symmetry::Symmetry,
+    /// Named colour palettes of the shot.
+    pub palettes: Vec<palette::Palette>,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -351,6 +357,8 @@ impl PartialEq for Project {
             && self.marks == o.marks
             && self.markers == o.markers
             && self.drawing_names == o.drawing_names
+            && self.symmetry == o.symmetry
+            && self.palettes == o.palettes
     }
 }
 
@@ -376,6 +384,8 @@ impl Project {
             layers: Vec::new(),
             drawings: BTreeMap::new(),
             onion: OnionSkin::default(),
+            symmetry: symmetry::Symmetry::default(),
+            palettes: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
@@ -405,6 +415,8 @@ impl Project {
             layers: Vec::new(),
             drawings: BTreeMap::new(),
             onion: OnionSkin::default(),
+            symmetry: symmetry::Symmetry::default(),
+            palettes: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
@@ -947,7 +959,7 @@ impl Project {
     /// before and positive after, nearest first, never the current drawing.
     pub fn onion_drawings(&self, layer: usize, frame: u32) -> Vec<(DrawingId, i32)> {
         let Some(l) = self.layers.get(layer) else { return Vec::new() };
-        onion::neighbours(l, frame, self.length, &self.onion)
+        onion::neighbours_where(l, frame, self.length, &self.onion, &|d| self.marks.get(&d) == Some(&Mark::Key))
     }
 }
 
