@@ -1473,6 +1473,7 @@ impl ToonApp {
                     self.workspace = Workspace::default();
                 }
             });
+            ui.menu_button(tl!("Window"), |ui| crate::dock::window_menu(self, ui));
             ui.menu_button(tl!("Help"), |ui| {
                 if ui.button(tl!("Find Command…")).clicked() {
                     self.find.open = true;
