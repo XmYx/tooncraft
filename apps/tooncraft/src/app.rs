@@ -32,6 +32,7 @@ pub enum Tool {
     Shape,
     Gradient,
     Hand,
+    Text,
 }
 
 /// How the select tool draws a new selection.
@@ -65,7 +66,7 @@ pub enum XformKind {
 }
 
 impl Tool {
-    pub const ALL: [Tool; 13] = [
+    pub const ALL: [Tool; 14] = [
         Tool::Pencil,
         Tool::Ink,
         Tool::Airbrush,
@@ -79,6 +80,7 @@ impl Tool {
         Tool::Shape,
         Tool::Gradient,
         Tool::Hand,
+        Tool::Text,
     ];
 
     pub fn brush(self) -> Option<BrushKind> {
@@ -109,6 +111,7 @@ impl Tool {
             Tool::Shape => tl!("Shapes"),
             Tool::Gradient => tl!("Gradient"),
             Tool::Hand => tl!("Hand"),
+            Tool::Text => tl!("Text"),
         }
         .to_string()
     }
@@ -129,6 +132,7 @@ impl Tool {
             Tool::Shape => "shape",
             Tool::Gradient => "gradient",
             Tool::Hand => "hand",
+            Tool::Text => "text",
         }
     }
 }
@@ -438,6 +442,7 @@ impl ToonApp {
         if let Some(name) = &cli.panel {
             app.workspace.raise(Pane::from_name(name));
         }
+        crate::text_tool::register_fonts(&mut app);
         if let Some(t) = cli.tool.as_deref().and_then(|n| Tool::ALL.into_iter().find(|t| t.id() == n)) {
             app.tool = t;
         }

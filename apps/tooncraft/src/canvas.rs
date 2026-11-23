@@ -267,6 +267,10 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
             crate::draw_aids::gradient_input(app, at, resp);
         }
+        Tool::Text => {
+            let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            crate::text_tool::input(app, at, resp);
+        }
         Tool::Hand => {}
         _ if mods.alt => {
             if resp.clicked()
@@ -653,6 +657,7 @@ fn keyboard_pen(app: &mut ToonApp, ui: &egui::Ui, resp: &egui::Response) {
                 app.color = [col[0], col[1], col[2], 255];
             }
             Tool::Hand => {}
+            Tool::Text => crate::text_tool::start(app, (pen.x, pen.y)),
             _ if pen.down => {
                 end(app);
                 pen.down = false;
@@ -816,6 +821,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
     draw_selection(&painter, app, &c, pal);
     crate::draw_aids::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    crate::text_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
     // the bucket's gap-closing reach, as a ring around the pointer
     if app.tool == Tool::Fill
         && !app.aids.lasso_fill
@@ -851,6 +857,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             painter.text(*p0 + vec2(4.0, 3.0), egui::Align2::LEFT_TOP, tl!("Camera"), egui::FontId::proportional(12.0), col);
         }
     }
+    // the text box being typed floats over the canvas
+    let (view, size) = (c.view, c.size);
+    crate::text_tool::edit_box(app, ui.ctx(), rect, &|x, y| view.to_screen(rect, size, pos2(x, y)));
     // cursors
     if let Some(k) = app.keyboard_pen {
         let at = c.screen(k.x, k.y);

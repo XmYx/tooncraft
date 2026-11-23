@@ -197,7 +197,7 @@ Weight: 7
 | Perspective rulers with vanishing points | TV CS PD | M | M | |
 | Grid display and snapping strokes to it | TV TB CS | P | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it; freehand strokes do not |
 | Snap the end of a stroke to a clean line or ellipse when held | CS PD | D | S | Hold to straighten: hold the pen still for half a second and a rough line or loop becomes a clean line or ellipse |
-| Text tool | TV TB CS | M | M | |
+| Text tool | TV TB CS | D | M | Text tool (T): click or Enter at the keyboard pen places a box, type, Ctrl+Enter paints it as one undo step; font, size, alignment, line and letter spacing; shaped through craft-font-catalog, so kerning and joined scripts follow the font; `text` command for scripts (`tooncraft-cli run --font`). Text is pixels once placed |
 | Clone stamp | TV CS | M | S | |
 | Reference image viewer with eyedropper | TV CS PD | M | S | |
 | Vector stroke layers (strokes kept as editable curves) | TB CS | M | XL | Harmony and Clip Studio draw on vector layers by default |
@@ -512,7 +512,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
 | Select properties: modes, typed position, size and angle | TB | D | S | Lasso, rectangle, ellipse, wand; add, remove, overlap; X, Y, width, height (proportions kept) and angle typed and applied as one step; flips, skew, distort |
 | Transform tool properties with typed values | TB | P | M | The Pegs panel types key values; no canvas transform tool |
-| Contour, text, rigging and morph tool properties | TB | M | L | Those tools are missing |
+| Contour, text, rigging and morph tool properties | TB | P | L | Text tool properties: font, size, alignment, line and letter spacing; the contour, rigging and morph tools are missing |
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
 | Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue and the brush's opacity |
 | Picker with alpha and a gradient | TB | P | S | The picker is docked in the Colour panel; no alpha in the colour itself |

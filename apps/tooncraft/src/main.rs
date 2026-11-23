@@ -56,6 +56,9 @@ mod sheet;
 mod sound;
 mod sound_panel;
 mod tablet;
+mod text_tool;
+#[cfg(test)]
+mod text_ui_tests;
 mod textures;
 mod theme;
 mod timeline;

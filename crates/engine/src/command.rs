@@ -123,6 +123,17 @@ pub enum Command {
     SetSymmetry {
         symmetry: tooncraft_doc::symmetry::Symmetry,
     },
+    /// Paint text into the drawing (one undo step): `x`, `y` is the anchor at the top of the
+    /// first line (its left edge, centre or right edge by the alignment).
+    Text {
+        layer: usize,
+        frame: u32,
+        text: String,
+        x: f32,
+        y: f32,
+        #[serde(default)]
+        style: crate::text::TextStyle,
+    },
     /// Start a new, empty drawing at the frame.
     NewDrawing {
         layer: usize,
@@ -950,6 +961,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.symmetry = symmetry.sanitized();
             e.touch();
             Ok(())
+        }
+        Command::Text { layer, frame, text, x, y, style } => {
+            frame_ok(e, frame)?;
+            crate::text::paint_text(e, layer, frame, &text, (x, y), &style)
         }
         Command::NewDrawing { layer, frame } => {
             e.check_unlocked(layer)?;

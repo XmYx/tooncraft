@@ -39,6 +39,8 @@ tooncraft	After
 tooncraft	After, step {n}	
 tooncraft	Airbrush	
 tooncraft	Airbrushes	
+tooncraft	Align left	
+tooncraft	Align right	
 tooncraft	All	
 tooncraft	All visible layers	
 tooncraft	Amount	
@@ -99,6 +101,7 @@ tooncraft	Canvas Size…
 tooncraft	Canvas weave	
 tooncraft	Canvas: {layer}, frame {frame}	
 tooncraft	Category	
+tooncraft	Centre	
 tooncraft	Centre X	
 tooncraft	Centre Y	
 tooncraft	Chalk	
@@ -124,6 +127,7 @@ tooncraft	Clear frame (Delete)
 tooncraft	Clear {mouth}	
 tooncraft	Click an area to select the pixels like it	
 tooncraft	Click the canvas to pick a colour (Alt+click with any brush)	
+tooncraft	Click the canvas to place text; Enter places it at the keyboard pen	
 tooncraft	Click to place points; Enter or double-click finishes	
 tooncraft	Clip to Layer Below	
 tooncraft	Clip to the layer below	
@@ -219,6 +223,7 @@ tooncraft	Drawings
 tooncraft	Drawings are moved, never resampled; paint outside the new canvas is cut (undo brings it back).	
 tooncraft	Dream	
 tooncraft	Drop shadow	
+tooncraft	Drop the text (Escape)	
 tooncraft	Dry chalk	
 tooncraft	Dry wash	
 tooncraft	Duplicate	
@@ -311,6 +316,7 @@ tooncraft	Folder for the exposure sheet and drawings
 tooncraft	Folder for the layer sequences	
 tooncraft	Folder {name}	
 tooncraft	Folder {n}	
+tooncraft	Font	
 tooncraft	For review copies: a bar along the bottom of every frame	
 tooncraft	Format	
 tooncraft	Four-way	
@@ -483,6 +489,7 @@ tooncraft	Layers from PSD or OpenRaster…
 tooncraft	Layers merged	
 tooncraft	Length	
 tooncraft	Length (0: to the end)	
+tooncraft	Letter spacing	
 tooncraft	Levels	
 tooncraft	Licensed under the MIT License or the Apache License 2.0.	
 tooncraft	Light Table	
@@ -495,6 +502,7 @@ tooncraft	Light wrap
 tooncraft	Lighten	
 tooncraft	Lightness	
 tooncraft	Line	
+tooncraft	Line spacing	
 tooncraft	Linear	
 tooncraft	Linear burn	
 tooncraft	Linear light	
@@ -595,6 +603,7 @@ tooncraft	No drawings have names yet
 tooncraft	No earlier drawing on this layer	
 tooncraft	No earlier marker	
 tooncraft	No effects on this layer.	
+tooncraft	No font is available	
 tooncraft	No later drawing on this layer	
 tooncraft	No later marker	
 tooncraft	No mark	
@@ -674,6 +683,7 @@ tooncraft	PNG Sequence…
 tooncraft	Paint	
 tooncraft	Paint bucket	
 tooncraft	Paint on top of the drawing, behind it (only filling gaps), or only where there is already paint	
+tooncraft	Paint the text into the drawing (Ctrl+Enter)	
 tooncraft	Palette	
 tooncraft	Palette {name} added ({n} colours)	
 tooncraft	Palette {n}	
@@ -708,6 +718,7 @@ tooncraft	Ping-pong
 tooncraft	Pivot X	
 tooncraft	Pivot Y	
 tooncraft	Pixels	
+tooncraft	Place Text	
 tooncraft	Placement	
 tooncraft	Play	
 tooncraft	Play / stop	
@@ -980,6 +991,9 @@ tooncraft	TGA Sequence…
 tooncraft	TIFF Sequence	
 tooncraft	TIFF Sequence…	
 tooncraft	Teeth on lip (F V)	
+tooncraft	Text	
+tooncraft	Text dropped	
+tooncraft	Text placed	
 tooncraft	Texture	
 tooncraft	The brush follows the pen only when it is further than this: very steady lines	
 tooncraft	The current layer, from this frame	
@@ -1029,6 +1043,7 @@ tooncraft	Transform Selection
 tooncraft	Trim start	
 tooncraft	Turbulence	
 tooncraft	Type a frame number to go there	
+tooncraft	Type the text; Ctrl+Enter places it, Escape drops it	
 tooncraft	UHD, 24 fps	
 tooncraft	Undid {action}	
 tooncraft	Undo	

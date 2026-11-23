@@ -38,6 +38,9 @@ craft-palette = { git = "https://github.com/storytold/craft-libs", rev = "0649a0
 craft-audio = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["decode-native", "peaks", "aac-encode", "pcm-encode"] }
 craft-keymap = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", features = ["egui"] }
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
+craft-font-catalog = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false }
+# text shaping, the same crate and version craft-font-catalog shapes with
+harfrust = "0.13"
 
 # foundation
 thiserror = "2"

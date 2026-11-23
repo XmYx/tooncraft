@@ -47,6 +47,8 @@ pub struct DrawAids {
     pub gradient_drag: Option<((f32, f32), (f32, f32))>,
     pub snap_grid: bool,
     pub hold_straighten: bool,
+    /// The text tool's style and the text box being typed (`text_tool`).
+    pub text: crate::text_tool::TextTool,
     /// Points of the live stroke (for the recogniser) and when the pen last moved.
     stroke: Vec<(f32, f32)>,
     still_since: Option<(Instant, (f32, f32))>,
@@ -65,6 +67,7 @@ impl Default for DrawAids {
             gradient_drag: None,
             snap_grid: false,
             hold_straighten: true,
+            text: Default::default(),
             stroke: Vec::new(),
             still_since: None,
         }
