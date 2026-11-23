@@ -226,6 +226,8 @@ pub struct ToonApp {
     pub export_memory: crate::export_dialog::Memory,
     /// Find Command.
     pub find: crate::command_search::State,
+    /// Shot size and rate presets (built-in and the user's own).
+    pub scene_presets: crate::scene_presets::State,
     /// The import options, after images were picked.
     pub import_dialog: Option<crate::import_dialog::Dialog>,
     /// The canvas pixel under the pointer, for the status line.
@@ -386,6 +388,7 @@ impl ToonApp {
             export_memory: Default::default(),
             find: Default::default(),
             import_dialog: None,
+            scene_presets: crate::scene_presets::State::new(!cfg!(test) && cli.screenshot.is_none()),
             flip: Vec::new(),
             pointer: None,
             show_shortcuts: false,
@@ -1888,13 +1891,8 @@ impl ToonApp {
                     ui.text_edit_singleline(&mut n.name).labelled_by(l.id);
                     ui.end_row();
                     ui.label(tl!("Size"));
-                    ui.horizontal(|ui| {
-                        for (label, w, h) in [("1280×720", 1280, 720), ("1920×1080", 1920, 1080), ("3840×2160", 3840, 2160), ("1080×1080", 1080, 1080)] {
-                            if ui.selectable_label(n.width == w && n.height == h, label).clicked() {
-                                n.width = w;
-                                n.height = h;
-                            }
-                        }
+                    ui.vertical(|ui| {
+                        crate::scene_presets::picker(&mut self.scene_presets, ui, "new-shot", &mut n.width, &mut n.height, Some(&mut n.fps));
                     });
                     ui.end_row();
                     let l = ui.label(tl!("Width"));

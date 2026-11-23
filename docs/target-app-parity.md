@@ -175,7 +175,7 @@ Weight: 3
 | Paper and grain library, grain images from files | TV CS PD | D | M | Four built-in grains and tileable grain images saved in the shot |
 | Grain scale, rotation and contrast | TV CS | P | S | Scale only |
 | Texture overlay on a layer or a fill | CS PD | M | S | |
-| Canvas size presets | all | P | S | Four sizes in the new-shot dialog; no user presets |
+| Canvas size presets | all | D | S | Eleven video, cinema, square and portrait presets with their frame rates in New Shot and Canvas Size, the aspect ratio shown, and the user's own saved presets |
 | Canvas resize and crop with anchors | all | D | S | Drawings move whole pixels, never resampled; one undo step |
 | Large canvases (up to 16384 px a side) | TV | D | S | Sparse tiles: empty space costs nothing |
 | Field guide and safe areas | TV TB | D | S | A 12-field guide, action-safe and title-safe frames |

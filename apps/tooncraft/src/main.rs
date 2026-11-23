@@ -48,6 +48,7 @@ mod panels;
 mod pegs;
 mod pipeline;
 mod preferences;
+mod scene_presets;
 mod selection_tools;
 #[cfg(test)]
 mod selection_ui_tests;

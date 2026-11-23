@@ -1,0 +1,1 @@
+- 2026-11-23: Shot presets: New Shot and Canvas Size offer eleven size and frame-rate presets with the aspect ratio, and the user can save their own (kept per user; a damaged presets file is skipped).

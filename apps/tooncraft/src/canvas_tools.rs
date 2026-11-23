@@ -223,6 +223,7 @@ pub fn dialog(app: &mut ToonApp, ctx: &egui::Context) {
     let mut open = true;
     let mut apply = None;
     egui::Window::new(tl!("Canvas Size")).collapsible(false).resizable(false).open(&mut open).show(ctx, |ui| {
+        crate::scene_presets::picker(&mut app.scene_presets, ui, "canvas-size", &mut w, &mut h, None);
         egui::Grid::new("canvas-size").num_columns(2).spacing(vec2(8.0, 5.0)).show(ui, |ui| {
             let l = ui.label(tl!("Width"));
             ui.add(egui::DragValue::new(&mut w).range(16..=tooncraft_raster::MAX_SIDE).suffix(" px")).labelled_by(l.id);
