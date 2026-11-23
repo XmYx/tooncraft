@@ -493,16 +493,16 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Named workspaces picked from a bar | TB | D | S | The Workspace picker in the top bar (Drawing, Timing, Ink and Paint, Exposure Sheet); saved ones in View ▸ Workspaces (`--layout`) |
 | Compositing workspace with a node view | TB | M | XL | No node view |
 | Scripting workspace with a script editor and log | TB | M | L | No scripting panels |
-| Panels that can be closed and added back | TB | P | S | Tabs move and float through craft-ui docking; no close button or panel list to add one back |
+| Panels that can be closed and added back | TB | D | S | Every panel but the canvas closes from its tab; the Window menu puts it back where it was (`panels_ui_tests`) |
 | Many tabs in one stack stay readable | TB | P | S | Names shorten when a stack holds many tabs |
 | Dark theme and a light theme | TB | D | S | Contrast tested |
 | Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Frame, layer, drawing, canvas pixel under the pointer, tool, colour, zoom |
-| Top menus for play, drawing, scene and windows | TB | P | M | File, Edit, Frame, Layer, View, Help carry those commands |
+| Top menus for play, drawing, scene and windows | TB | D | M | File, Edit, Frame, Layer, Drawing, Play, Scene, View, Window, Help |
 | File menu with recent files | TB | P | S | No recent list |
 | Edit menu with selection and transform items | TB | D | S | Undo and redo with names, Preferences, select, invert, grow and shrink, transform submenu |
 | View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | |
 | Play commands with speed | TB | D | S | Frame menu and timeline: play, step, in and out, speed, Play Around |
-| A Windows menu listing every panel | TB | M | S | A panel is raised from its tab, `--panel` or Find Command |
+| A Windows menu listing every panel | TB | D | S | Window: every panel with a tick when open, and Reset Panels |
 | Tool bar with flyouts for related tools | TB | D | S | Grouped buttons with a corner mark; right-click or press and hold for the group |
 | Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | New, Open, Save, undo, redo, workspace, play, the frame typed to go there, play from and to, frame rate and length |
 | Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | The strip above the canvas, with onion settings on right-click |
@@ -532,7 +532,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
 | Library window for drawings | TB | M | L | The library holds brushes only |
 | Preferences, shortcut editor with search, playback speed | TB | D | S | (`--open preferences`, `--open shortcuts`) |
-| Scene settings in one window | TB | P | S | Canvas size and frame rate are set in separate places |
+| Scene settings in one window | TB | D | S | Scene ▸ Scene Settings: size with presets, frame rate, length and duration, loop, ping-pong and speed (`--open scene`) |
 | Export dialog with range, size and options | TB | D | S | (`--open export`) |
 | Import dialog with options | TB | D | S | After picking images: a new layer, one layer per file name, or the current layer; hold; fit, actual size or fill; premultiplied colours |
 

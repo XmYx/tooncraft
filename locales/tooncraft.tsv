@@ -130,6 +130,7 @@ tooncraft	Clip to Layer Below
 tooncraft	Clip to the layer below	
 tooncraft	Clip volume here	
 tooncraft	Clip {n}: {name}	
+tooncraft	Close	
 tooncraft	Close gaps	
 tooncraft	Close gaps by default	
 tooncraft	Close gaps up to about {n} px	
@@ -220,6 +221,7 @@ tooncraft	Drawing {id}
 tooncraft	Drawing {id}, {name}	
 tooncraft	Drawings	
 tooncraft	Drawings are moved, never resampled; paint outside the new canvas is cut (undo brings it back).	
+tooncraft	Drawings no frame shows	
 tooncraft	Dream	
 tooncraft	Drop shadow	
 tooncraft	Dry chalk	
@@ -230,6 +232,7 @@ tooncraft	Duplicate Layer
 tooncraft	Duplicate clip {n} here	
 tooncraft	Duplicate drawing	
 tooncraft	Duplicate drawing (Shift+D)	
+tooncraft	Duration	
 tooncraft	Dynamics	
 tooncraft	Dynamics for {target}	
 tooncraft	Each drawing on {n}s	
@@ -251,6 +254,7 @@ tooncraft	Erase Selection
 tooncraft	Eraser	
 tooncraft	Erasers	
 tooncraft	Every drawing of the layer	
+tooncraft	Every panel back in its first place	
 tooncraft	Exclusion	
 tooncraft	Export	
 tooncraft	Export Mouth Sheet…	
@@ -286,6 +290,7 @@ tooncraft	Find Command…
 tooncraft	Fine liner	
 tooncraft	Finish the line where the pen lifts	
 tooncraft	First / last frame	
+tooncraft	First Frame	
 tooncraft	First frame	
 tooncraft	Fit / actual size	
 tooncraft	Fit inside the canvas	
@@ -318,6 +323,7 @@ tooncraft	For review copies: a bar along the bottom of every frame
 tooncraft	Format	
 tooncraft	Four-way	
 tooncraft	Frame	
+tooncraft	Frame rate	
 tooncraft	Frame ruler	
 tooncraft	Frame {frame} / {total}	
 tooncraft	Frame {n} (between keys)	
@@ -466,6 +472,7 @@ tooncraft	Label colour of {name}
 tooncraft	Large	
 tooncraft	Lasso	
 tooncraft	Lasso fill	
+tooncraft	Last Frame	
 tooncraft	Last frame	
 tooncraft	Layer	
 tooncraft	Layer above / below	
@@ -724,6 +731,7 @@ tooncraft	Play only the selected frames (select a range of frames in the exposur
 tooncraft	Play or stop (Enter)	
 tooncraft	Play the soundtrack	
 tooncraft	Play to	
+tooncraft	Playback	
 tooncraft	Playback loops back after this frame	
 tooncraft	Playback speed; the sound plays only at 100 %	
 tooncraft	Playback starts here	
@@ -796,6 +804,7 @@ tooncraft	Remove Key
 tooncraft	Remove Marker	
 tooncraft	Remove Marker Here	
 tooncraft	Remove Sound	
+tooncraft	Remove Unused Drawings	
 tooncraft	Remove clip {n}	
 tooncraft	Remove clip {n} volume key	
 tooncraft	Remove from Palette	
@@ -817,6 +826,7 @@ tooncraft	Reset Panels
 tooncraft	Reset Rotation	
 tooncraft	Reset {what}	
 tooncraft	Resize	
+tooncraft	Resize keeping any part of the picture in place, or crop to the camera	
 tooncraft	Rest	
 tooncraft	Restore Defaults	
 tooncraft	Result blend	
@@ -862,6 +872,9 @@ tooncraft	Scale 50 %
 tooncraft	Scale X	
 tooncraft	Scale Y	
 tooncraft	Scatter	
+tooncraft	Scene	
+tooncraft	Scene Settings	
+tooncraft	Scene Settings…	
 tooncraft	Screen	
 tooncraft	Search brushes	
 tooncraft	Select	
@@ -996,6 +1009,7 @@ tooncraft	The layer has no other drawing
 tooncraft	The selection is too detailed to keep; nothing changed	
 tooncraft	The sheet down the right side, layers as columns	
 tooncraft	The shot has as many palettes as it can hold	
+tooncraft	The size changes around the centre; Canvas Size… keeps another part in place. Each change is one undo step.	
 tooncraft	Thicken lines	
 tooncraft	This frame	
 tooncraft	This layer	
@@ -1078,6 +1092,7 @@ tooncraft	Wide (E)
 tooncraft	Wide chalk	
 tooncraft	Width	
 tooncraft	Width and height must be more than zero	
+tooncraft	Window	
 tooncraft	Workspace	
 tooncraft	Workspaces	
 tooncraft	Wrote {file}	
@@ -1129,6 +1144,7 @@ tooncraft	{n} frames
 tooncraft	{n} frames at {w}×{h}	
 tooncraft	{n} images, from frame {frame}	
 tooncraft	{n} keys	
+tooncraft	{seconds} s	
 tooncraft	{tool} selected	
 tooncraft	{tool}; right-click or hold for the other tools of the group	
 tooncraft	{w}×{h} · {fps} fps	
