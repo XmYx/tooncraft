@@ -411,3 +411,20 @@ fn a_layer_can_have_its_own_onion_settings() {
     assert!(h.state().engine.project.layers[0].onion.is_some_and(|o| o.outline), "the layer's own settings changed");
     assert!(!h.state().engine.project.onion.outline, "the shot's did not");
 }
+
+#[test]
+fn launch_options_open_windows_layouts_and_tools() {
+    for (cli, check) in [
+        (Cli { open: Some("preferences".into()), ..Cli::default() }, &(|a: &ToonApp| a.preferences.open) as &dyn Fn(&ToonApp) -> bool),
+        (Cli { open: Some("export".into()), ..Cli::default() }, &|a: &ToonApp| a.export_dialog.is_some()),
+        (Cli { open: Some("find".into()), ..Cli::default() }, &|a: &ToonApp| a.find.open),
+        (Cli { open: Some("new-shot".into()), ..Cli::default() }, &|a: &ToonApp| a.new_shot.is_some()),
+        (Cli { layout: Some("sheet".into()), ..Cli::default() }, &|a: &ToonApp| a.tl.vertical),
+        (Cli { vertical: true, ..Cli::default() }, &|a: &ToonApp| a.tl.vertical),
+        (Cli { tool: Some("gradient".into()), ..Cli::default() }, &|a: &ToonApp| a.tool == Tool::Gradient),
+    ] {
+        let ctx = egui::Context::default();
+        let app = ToonApp::with_context(&ctx, cli.clone()).without_autosave();
+        assert!(check(&app), "{cli:?}");
+    }
+}
