@@ -497,7 +497,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Many tabs in one stack stay readable | TB | P | S | Names shorten when a stack holds many tabs |
 | Dark theme and a light theme | TB | D | S | Contrast tested |
 | Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Frame, layer, drawing, canvas pixel under the pointer, tool, colour, zoom |
-| Top menus for play, drawing, scene and windows | TB | P | M | File, Edit, Frame, Layer, View, Window, Help; play, drawing and scene commands sit in Frame and Layer |
+| Top menus for play, drawing, scene and windows | TB | D | M | File, Edit, Frame, Layer, Drawing, Play, Scene, View, Window, Help |
 | File menu with recent files | TB | P | S | No recent list |
 | Edit menu with selection and transform items | TB | D | S | Undo and redo with names, Preferences, select, invert, grow and shrink, transform submenu |
 | View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | |
@@ -532,7 +532,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
 | Library window for drawings | TB | P | L | The Drawing Library panel: the shot's reusable drawings with thumbnails, names and lengths; add the selected frames, insert as copies or linked, rename, reorder, remove; no library shared between shots yet |
 | Preferences, shortcut editor with search, playback speed | TB | D | S | (`--open preferences`, `--open shortcuts`) |
-| Scene settings in one window | TB | P | S | Canvas size and frame rate are set in separate places |
+| Scene settings in one window | TB | D | S | Scene ▸ Scene Settings: size with presets, frame rate, length and duration, loop, ping-pong and speed (`--open scene`) |
 | Export dialog with range, size and options | TB | D | S | (`--open export`) |
 | Import dialog with options | TB | D | S | After picking images: a new layer, one layer per file name, or the current layer; hold; fit, actual size or fill; premultiplied colours |
 
