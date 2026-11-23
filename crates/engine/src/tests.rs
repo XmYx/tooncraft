@@ -841,7 +841,7 @@ fn boardcraft_board_becomes_a_layout() {
 fn export_scale_loop_and_digits() {
     let e = Engine::new(tooncraft_doc::Project::new("Scale", 64, 48, 12, 3).unwrap());
     let dir = std::env::temp_dir().join(format!("tooncraft-scale-{}", std::process::id()));
-    let o = ExportOptions { start: 0, end: 3, paper: true, scale: 2, loop_forever: false, digits: 6 };
+    let o = ExportOptions { start: 0, end: 3, paper: true, scale: 2, loop_forever: false, digits: 6, burn_in: false };
     assert_eq!(o.size(&e.project), (32, 24));
     let files = png_sequence(&e.project, &dir, "s", o, |_| {}).unwrap();
     assert!(files[0].ends_with("s_000001.png"), "{:?}", files[0]);
@@ -855,5 +855,43 @@ fn export_scale_loop_and_digits() {
     assert!(png_sequence(&e.project, &dir, "x", ExportOptions { scale: 0, ..o }, |_| {}).is_err());
     assert!(png_sequence(&e.project, &dir, "x", ExportOptions { scale: 99, ..o }, |_| {}).is_err());
     assert!(png_sequence(&e.project, &dir, "x", ExportOptions { digits: 200, ..o }, |_| {}).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn jpeg_and_exr_sequences_and_transparent_png() {
+    use crate::export::{ExportOptions, exr_sequence, jpeg_sequence, png_sequence};
+    let mut e = Engine::new(tooncraft_doc::Project::new("Seq", 32, 24, 12, 2).unwrap());
+    e.apply(Command::Fill { layer: 0, frame: 0, x: 2, y: 2, color: [200, 30, 30, 255], options: Default::default(), reference: Default::default() }).unwrap();
+    e.apply(Command::NewDrawing { layer: 0, frame: 1 }).unwrap();
+    let dir = std::env::temp_dir().join(format!("tooncraft-seq-{}", std::process::id()));
+    let o = ExportOptions { start: 0, end: 2, paper: false, ..Default::default() };
+    let j = jpeg_sequence(&e.project, &dir, "j", o, 85, |_| {}).unwrap();
+    assert_eq!(j.len(), 2);
+    assert_eq!(&std::fs::read(&j[0]).unwrap()[..2], &[0xFF, 0xD8], "a JPEG");
+    let x = exr_sequence(&e.project, &dir, "x", o, |_| {}).unwrap();
+    assert_eq!(&std::fs::read(&x[0]).unwrap()[..4], &[0x76, 0x2F, 0x31, 0x01], "an OpenEXR file");
+    // without the paper, an empty frame is fully transparent in the PNG
+    let p = png_sequence(&e.project, &dir, "p", o, |_| {}).unwrap();
+    let img = craft_image_codecs::decode(&std::fs::read(&p[1]).unwrap()).unwrap();
+    let rgba = img.to_rgba8();
+    assert!(rgba.as_chunks::<4>().0.iter().all(|px| px[3] == 0), "transparent background");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn burn_ins_mark_the_bottom_of_exported_frames() {
+    use crate::export::{ExportOptions, png_sequence};
+    let e = Engine::new(tooncraft_doc::Project::new("Review", 320, 180, 24, 2).unwrap());
+    let dir = std::env::temp_dir().join(format!("tooncraft-burn-{}", std::process::id()));
+    let o = ExportOptions { start: 0, end: 1, paper: true, burn_in: true, ..Default::default() };
+    let f = png_sequence(&e.project, &dir, "b", o, |_| {}).unwrap();
+    let img = craft_image_codecs::decode(&std::fs::read(&f[0]).unwrap()).unwrap().to_rgba8();
+    let px = |x: usize, y: usize| {
+        let i = (y * 320 + x) * 4;
+        [img[i], img[i + 1], img[i + 2]]
+    };
+    assert!(px(200, 176)[0] < 150, "the bottom bar is dark");
+    assert!(px(200, 20)[0] > 200, "the paper above is untouched");
     let _ = std::fs::remove_dir_all(&dir);
 }

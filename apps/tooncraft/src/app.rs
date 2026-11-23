@@ -224,6 +224,8 @@ pub struct ToonApp {
     /// The Export dialog, and its last choices per shot.
     pub export_dialog: Option<crate::export_dialog::Dialog>,
     pub export_memory: crate::export_dialog::Memory,
+    /// Find Command.
+    pub find: crate::command_search::State,
     pub show_shortcuts: bool,
     pub show_about: bool,
     pub confirm_close: bool,
@@ -376,6 +378,7 @@ impl ToonApp {
             preferences: crate::preferences::State::new(!cfg!(test) && cli.screenshot.is_none()),
             export_dialog: None,
             export_memory: Default::default(),
+            find: Default::default(),
             show_shortcuts: false,
             show_about: false,
             confirm_close: false,
@@ -874,6 +877,21 @@ impl ToonApp {
                     .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
                     .map_err(|e| e.to_string())
             }),
+            "otio" => rfd::FileDialog::new().add_filter("OpenTimelineIO", &["otio"]).set_file_name(format!("{name}.otio")).save_file().map(|f| {
+                craft_atomic::atomic_write(&f, tooncraft_interop::otio::to_json(&self.engine.project).as_bytes())
+                    .map(|_| tlf!("Exported {file}", file = f.display()))
+                    .map_err(|e| e.to_string())
+            }),
+            "jpeg" => rfd::FileDialog::new().set_title(tl!("Folder for the JPEG frames")).pick_folder().map(|d| {
+                export::jpeg_sequence(&self.engine.project, &d, &name, o, 90, |_| {})
+                    .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
+                    .map_err(|e| e.to_string())
+            }),
+            "exr" => rfd::FileDialog::new().set_title(tl!("Folder for the OpenEXR frames")).pick_folder().map(|d| {
+                export::exr_sequence(&self.engine.project, &d, &name, o, |_| {})
+                    .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
+                    .map_err(|e| e.to_string())
+            }),
             "tiff" => rfd::FileDialog::new().set_title(tl!("Folder for the TIFF frames")).pick_folder().map(|d| {
                 export::tiff_sequence(&self.engine.project, &d, &name, o, |_| {})
                     .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
@@ -1213,6 +1231,20 @@ impl ToonApp {
                     if ui.button(tl!("TGA Sequence…")).clicked() {
                         crate::export_dialog::open(self, "tga");
                     }
+                    if ui
+                        .button(tl!("Edit Decisions (OpenTimelineIO)…"))
+                        .on_hover_text(tl!("A track per layer and a clip per exposure, for editing and pipeline tools"))
+                        .clicked()
+                    {
+                        let o = tooncraft_engine::export::ExportOptions::whole(&self.engine.project);
+                        self.export_with("otio", o);
+                    }
+                    if ui.button(tl!("JPEG Sequence…")).clicked() {
+                        crate::export_dialog::open(self, "jpeg");
+                    }
+                    if ui.button(tl!("OpenEXR Sequence…")).clicked() {
+                        crate::export_dialog::open(self, "exr");
+                    }
                     if ui.button(tl!("TIFF Sequence…")).clicked() {
                         crate::export_dialog::open(self, "tiff");
                     }
@@ -1351,6 +1383,9 @@ impl ToonApp {
                 }
             });
             ui.menu_button(tl!("Help"), |ui| {
+                if ui.button(tl!("Find Command…")).clicked() {
+                    self.find.open = true;
+                }
                 if ui.button(tl!("Keyboard Shortcuts")).clicked() {
                     self.show_shortcuts = true;
                 }
@@ -1531,6 +1566,12 @@ impl ToonApp {
                     && !(canvas_focused && (id == "frame.play" || (id == "frame.clear" && self.keyboard_pen.is_some_and(|p| p.down))))
             })
         };
+        // commands picked in Find Command run like their shortcuts
+        let mut hits = hits;
+        hits.append(&mut self.find.pending);
+        if hits.iter().any(|h| h == "app.find_command") {
+            self.find.open = true;
+        }
         let hit = |id: &str| hits.iter().any(|h| h == id);
         let picked = Tool::ALL.into_iter().find(|t| hit(&format!("tool.{}", t.id())));
         if let Some(t) = picked
@@ -1691,6 +1732,7 @@ impl ToonApp {
     }
 
     fn dialogs(&mut self, ctx: &egui::Context) {
+        crate::command_search::window(self, ctx);
         crate::export_dialog::window(self, ctx);
         crate::preferences::window(self, ctx);
         crate::canvas_tools::dialog(self, ctx);

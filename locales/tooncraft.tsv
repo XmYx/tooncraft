@@ -7,6 +7,7 @@ tooncraft	 px
 tooncraft	 s	
 tooncraft	0: four, or more for a long shot	
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
+tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
 tooncraft	About ToonCraft	
 tooncraft	Actual Size	
 tooncraft	Add	
@@ -81,6 +82,7 @@ tooncraft	Brush preview: a stroke drawn with the current settings
 tooncraft	Brush settings reverted	
 tooncraft	Brush {name} loaded	
 tooncraft	Brushes	
+tooncraft	Burn in the shot, frame and timecode	
 tooncraft	By	
 tooncraft	Camera	
 tooncraft	Cancel	
@@ -135,6 +137,7 @@ tooncraft	Colour to replace
 tooncraft	Colours	
 tooncraft	Colours you paint with show up here	
 tooncraft	Comic	
+tooncraft	Command	
 tooncraft	Copied	
 tooncraft	Copied {frames} frames from {layers} layers	
 tooncraft	Copies	
@@ -220,6 +223,7 @@ tooncraft	Ease in and out
 tooncraft	Ease out	
 tooncraft	Ease to next key	
 tooncraft	Edit	
+tooncraft	Edit Decisions (OpenTimelineIO)…	
 tooncraft	Edit the curve of {source}	
 tooncraft	Effect stack	
 tooncraft	Effects	
@@ -260,6 +264,8 @@ tooncraft	Fill the area under the click
 tooncraft	Filled	
 tooncraft	Film	
 tooncraft	Find	
+tooncraft	Find Command	
+tooncraft	Find Command…	
 tooncraft	Fine liner	
 tooncraft	Finish the line where the pen lifts	
 tooncraft	First / last frame	
@@ -280,6 +286,8 @@ tooncraft	Flow jitter
 tooncraft	Focus Exposure Sheet	
 tooncraft	Fold {name}	
 tooncraft	Folder	
+tooncraft	Folder for the JPEG frames	
+tooncraft	Folder for the OpenEXR frames	
 tooncraft	Folder for the PNG frames	
 tooncraft	Folder for the TGA frames	
 tooncraft	Folder for the TIFF frames	
@@ -287,6 +295,7 @@ tooncraft	Folder for the exposure sheet and drawings
 tooncraft	Folder for the layer sequences	
 tooncraft	Folder {name}	
 tooncraft	Folder {n}	
+tooncraft	For review copies: a bar along the bottom of every frame	
 tooncraft	Format	
 tooncraft	Four-way	
 tooncraft	Frame	
@@ -395,6 +404,8 @@ tooncraft	Insert frame (Insert)
 tooncraft	Intensity	
 tooncraft	Invert	
 tooncraft	Invert Selection	
+tooncraft	JPEG Sequence	
+tooncraft	JPEG Sequence…	
 tooncraft	Jitter	
 tooncraft	Keep Overlap	
 tooncraft	Keep in place	
@@ -549,6 +560,7 @@ tooncraft	Next frame
 tooncraft	Next panel	
 tooncraft	No Colour	
 tooncraft	No Mark	
+tooncraft	No command matches	
 tooncraft	No drawings have names yet	
 tooncraft	No earlier drawing on this layer	
 tooncraft	No earlier marker	
@@ -601,6 +613,8 @@ tooncraft	Opacity per step
 tooncraft	Open (A I)	
 tooncraft	Open Palette…	
 tooncraft	Open Stack…	
+tooncraft	OpenEXR Sequence	
+tooncraft	OpenEXR Sequence…	
 tooncraft	OpenRaster, Current Frame	
 tooncraft	OpenRaster, Current Frame…	
 tooncraft	Opened {file}	
@@ -1005,6 +1019,7 @@ tooncraft	Zoom Out
 tooncraft	Zoom blur	
 tooncraft	Zoom in / out	
 tooncraft	a command or a key, like Ctrl+Z	
+tooncraft	a name or a key	
 tooncraft	and	
 tooncraft	becomes the current colour	
 tooncraft	blank	

@@ -20,6 +20,8 @@ pub fn formats() -> Vec<(&'static str, String)> {
         ("png", tl!("PNG Sequence").to_string()),
         ("tga", tl!("TGA Sequence").to_string()),
         ("tiff", tl!("TIFF Sequence").to_string()),
+        ("jpeg", tl!("JPEG Sequence").to_string()),
+        ("exr", tl!("OpenEXR Sequence").to_string()),
         ("prores4444", tl!("ProRes 4444 with Alpha (MOV)").to_string()),
         ("prores422", tl!("ProRes 422 HQ (MOV)").to_string()),
         ("layers", tl!("PNG Sequence per Layer").to_string()),
@@ -43,12 +45,12 @@ pub struct Caps {
 }
 
 pub fn caps(kind: &str) -> Caps {
-    let ours = matches!(kind, "mp4" | "gif" | "apng" | "webp" | "webp-lossy" | "png" | "tga" | "tiff");
+    let ours = matches!(kind, "mp4" | "gif" | "apng" | "webp" | "webp-lossy" | "png" | "tga" | "tiff" | "jpeg" | "exr");
     Caps {
         range: ours || matches!(kind, "prores4444" | "prores422" | "layers" | "psd-frames" | "psb-frames"),
         scale: ours,
         gif_loop: kind == "gif",
-        digits: matches!(kind, "png" | "tga" | "tiff"),
+        digits: matches!(kind, "png" | "tga" | "tiff" | "jpeg" | "exr"),
     }
 }
 
@@ -71,6 +73,7 @@ pub struct Dialog {
     pub paper: bool,
     pub loop_forever: bool,
     pub digits: u8,
+    pub burn_in: bool,
 }
 
 pub fn scale_name(s: u32) -> String {
@@ -94,6 +97,7 @@ impl Dialog {
             paper: app.engine.project.paper.export,
             loop_forever: true,
             digits: 0,
+            burn_in: false,
         }
     }
 
@@ -121,6 +125,7 @@ impl Dialog {
             scale: if c.scale { self.scale.clamp(1, tooncraft_engine::export::MAX_SCALE) } else { 1 },
             loop_forever: self.loop_forever,
             digits: if c.digits { self.digits.min(9) } else { 0 },
+            burn_in: c.scale && self.burn_in,
         }
     }
 }
@@ -188,6 +193,12 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
             ui.label("");
             ui.checkbox(&mut d.paper, tl!("Include the paper"));
             ui.end_row();
+            if c.scale {
+                ui.label("");
+                ui.checkbox(&mut d.burn_in, tl!("Burn in the shot, frame and timecode"))
+                    .on_hover_text(tl!("For review copies: a bar along the bottom of every frame"));
+                ui.end_row();
+            }
             if c.gif_loop {
                 ui.label("");
                 ui.checkbox(&mut d.loop_forever, tl!("Loop"));

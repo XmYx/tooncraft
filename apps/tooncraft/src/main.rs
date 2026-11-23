@@ -20,6 +20,7 @@ mod color;
 mod colour_tools;
 #[cfg(test)]
 mod colour_ui_tests;
+mod command_search;
 mod context_menus;
 mod dock;
 mod draw_aids;
