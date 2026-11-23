@@ -212,7 +212,7 @@ Weight: 5
 |---|---|---|---|---|
 | Lasso and rectangle selection | all | D | S | |
 | Ellipse selection | all | D | S | The select tool's Ellipse mode |
-| Select by colour with tolerance (magic wand) | all | D | S | Magic Wand mode: tolerance, this drawing or all visible layers |
+| Select by colour with tolerance (magic wand) | all | D | S | Magic Wand mode: tolerance, this drawing or all visible layers, the touching area or that colour everywhere |
 | Add, subtract and intersect selections | all | D | S | A mode option, or Shift (add), Alt (subtract) and both (intersect) while dragging; holes and separate parts stay one selection |
 | Invert, grow, shrink and feather a selection | all | P | S | Invert (Ctrl+Shift+I), grow and shrink by up to 64 px; no feather (selections are hard-edged) |
 | Painted selection masks (quick mask) | TV CS PD | M | M | |
@@ -510,7 +510,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Brush editor | TB | D | S | The Brush panel, every control keyboard-reachable |
 | Pencil properties: caps and joins | TB | M | S | Size, opacity, smoothing, steady line; no caps or joins |
 | Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
-| Select properties: modes, typed position, size and angle | TB | P | S | Lasso, rectangle, ellipse, wand; add, remove, overlap; flips, skew, distort; no typed position or size |
+| Select properties: modes, typed position, size and angle | TB | D | S | Lasso, rectangle, ellipse, wand; add, remove, overlap; X, Y, width, height (proportions kept) and angle typed and applied as one step; flips, skew, distort |
 | Transform tool properties with typed values | TB | P | M | The Pegs panel types key values; no canvas transform tool |
 | Contour, text, rigging and morph tool properties | TB | M | L | Those tools are missing |
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |

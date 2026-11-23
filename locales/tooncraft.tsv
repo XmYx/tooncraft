@@ -56,6 +56,7 @@ tooncraft	Animated WebP…
 tooncraft	Antialiased edges keep their softness; one undo step	
 tooncraft	Any colour	
 tooncraft	Apply	
+tooncraft	Apply Box	
 tooncraft	Apply Distort	
 tooncraft	Apply Skew	
 tooncraft	Around	
@@ -428,6 +429,7 @@ tooncraft	JPEG Sequence…
 tooncraft	Jitter	
 tooncraft	Keep Overlap	
 tooncraft	Keep in place	
+tooncraft	Keep proportions	
 tooncraft	Keep the bottom in place	
 tooncraft	Keep the bottom left in place	
 tooncraft	Keep the bottom right in place	
@@ -544,6 +546,7 @@ tooncraft	Move the layer down
 tooncraft	Move the layer up	
 tooncraft	Move {name} down	
 tooncraft	Move {name} up	
+tooncraft	Move, scale and turn the selection to these numbers	
 tooncraft	Multiply	
 tooncraft	Mute clip {n}	
 tooncraft	Mute {track}	
@@ -605,6 +608,7 @@ tooncraft	Now showing drawing {id}
 tooncraft	Nudge the selection (Shift: 10 px)	
 tooncraft	OK	
 tooncraft	Off	
+tooncraft	Off: that colour everywhere in the picture	
 tooncraft	Offset X	
 tooncraft	Offset Y	
 tooncraft	On fours	
@@ -1003,6 +1007,7 @@ tooncraft	Tool
 tooncraft	ToonCraft found a recovery copy from {when} that is newer than the shot. Open it?	
 tooncraft	ToonCraft shot	
 tooncraft	Top	
+tooncraft	Touching only	
 tooncraft	Track	
 tooncraft	Track {n}	
 tooncraft	Transform Selection	
@@ -1048,11 +1053,14 @@ tooncraft	Whole shot (1 to {n})
 tooncraft	Wide (E)	
 tooncraft	Wide chalk	
 tooncraft	Width	
+tooncraft	Width and height must be more than zero	
 tooncraft	Workspace	
 tooncraft	Workspaces	
 tooncraft	Wrote {file}	
+tooncraft	X	
 tooncraft	XDTS Exposure Sheet with Drawings	
 tooncraft	XDTS Exposure Sheet with Drawings…	
+tooncraft	Y	
 tooncraft	Yellow	
 tooncraft	Zoom	
 tooncraft	Zoom In	

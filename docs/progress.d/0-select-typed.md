@@ -1,0 +1,1 @@
+- 2026-11-23: Selection: X, Y, width, height (proportions kept) and angle typed in the Select options and applied as one transform; the magic wand can select one colour everywhere in the picture ("Touching only" off).

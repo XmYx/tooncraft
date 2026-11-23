@@ -156,3 +156,36 @@ fn skew_distort_resample_and_rings_follow_a_move() {
     assert_eq!(h.state().engine.undo_label(), Some("Distort"));
     assert!(h.state().sel.distort.is_none());
 }
+
+#[test]
+fn typed_box_moves_and_scales_the_selection_and_the_wand_can_go_global() {
+    let mut h = harness();
+    h.state_mut().run(Command::Fill { layer: 0, frame: 0, x: 5, y: 5, color: [20, 20, 20, 255], options: Default::default(), reference: Default::default() });
+    crate::selection_tools::set_rings(h.state_mut(), vec![sq(100.0, 100.0, 300.0, 200.0)]);
+    h.run();
+    assert_eq!(h.state().sel.typed, [100.0, 100.0, 200.0, 100.0, 0.0], "the fields read the box");
+    // a new place and twice the width; proportions keep the height in step
+    {
+        let app = h.state_mut();
+        app.sel.typed[0] = 400.0;
+        app.sel.typed[1] = 50.0;
+    }
+    h.get(By::new().role(egui::Role::SpinButton).label("Width")).click();
+    h.run();
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.get(By::new().role(egui::Role::SpinButton).label("Width")).type_text("400");
+    h.key_press(Key::Enter);
+    h.run();
+    assert_eq!(h.state().sel.typed[3], 200.0, "keep proportions doubled the height too");
+    h.get_by_label("Apply Box").click();
+    h.run();
+    assert_eq!(h.state().engine.undo_label(), Some("Transform"));
+    let (x, y, w, hh) = crate::selection_tools::bbox(h.state().selection.as_ref().unwrap());
+    assert!((x - 400.0).abs() < 0.5 && (y - 50.0).abs() < 0.5 && (w - 400.0).abs() < 0.5 && (hh - 200.0).abs() < 0.5, "{x} {y} {w} {hh}");
+    // the wand: "Touching only" off selects that colour everywhere
+    h.state_mut().select_mode = SelectMode::Wand;
+    h.run();
+    h.get(By::new().role(egui::Role::CheckBox).label("Touching only")).click();
+    h.run();
+    assert!(!h.state().sel.contiguous);
+}
