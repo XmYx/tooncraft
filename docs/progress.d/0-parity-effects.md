@@ -1,0 +1,1 @@
+- 2026-11-23: Effects: gradient map, posterise, black and white, vignette, colour fringe, ripple, wave, turbulence and smooth lines; five built-in looks added in one step; effect stacks saved to and opened from .toonfx files.

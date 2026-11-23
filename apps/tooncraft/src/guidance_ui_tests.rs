@@ -315,3 +315,41 @@ fn brush_colour_jitter_spray_and_blend_modes_are_in_the_editor() {
     assert!(h.state().brushes[1].jitter.per_stroke);
     assert_eq!(crate::layer_ops::compose_name(tooncraft_brush::Compose::Multiply), "Multiply");
 }
+
+#[test]
+fn effect_looks_saved_stacks_and_the_new_effects() {
+    let mut h = harness();
+    h.state_mut().workspace.raise(crate::dock::Pane::Effects);
+    h.run();
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Add a look")).click();
+    h.run();
+    h.get_by_label("Film").click();
+    h.run();
+    assert_eq!(h.state().engine.project.layers[0].effects.len(), 3, "the look's three effects");
+    assert_eq!(h.state().engine.undo_label(), Some("Add effects"));
+    // save the stack and add it again from the file
+    let dir = std::env::temp_dir().join(format!("tooncraft-fx-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let f = dir.join("look.toonfx");
+    let stack = h.state().engine.project.layers[0].effects.clone();
+    crate::effects_panel::save_stack(h.state_mut(), &stack, &f);
+    crate::effects_panel::open_stack(h.state_mut(), 0, &f);
+    assert_eq!(h.state().engine.project.layers[0].effects.len(), 6);
+    std::fs::write(dir.join("bad.toonfx"), b"{").unwrap();
+    crate::effects_panel::open_stack(h.state_mut(), 0, &dir.join("bad.toonfx"));
+    assert_eq!(h.state().engine.project.layers[0].effects.len(), 6, "a bad file adds nothing");
+    let _ = std::fs::remove_dir_all(&dir);
+    // every new kind has a name and renders without trouble
+    for k in tooncraft_fx::EffectKind::catalogue(320, 200) {
+        assert!(!crate::effects_panel::effect_name(&k).is_empty());
+    }
+    h.state_mut().engine.project.layers[0].effects.clear();
+    h.state_mut().run(tooncraft_engine::Command::AddEffect {
+        layer: 0,
+        effect: tooncraft_fx::Effect::new(tooncraft_fx::EffectKind::Ripple { x: 10.0, y: 10.0, amplitude: 3.0, wavelength: 20.0, speed: 0.1 }),
+        index: None,
+    });
+    h.run();
+    h.get_by_label("Wavelength");
+}

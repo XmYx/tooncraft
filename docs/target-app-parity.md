@@ -371,16 +371,16 @@ Weight: 7
 | Matte layers (keep inside or outside) | TV TB | D | S | |
 | Colour key | TV TB | D | S | Tolerance and soft edge |
 | Soft masks from shapes | TV TB PD | P | S | Rectangle and ellipse, keyframable; no drawn mask shapes |
-| Line thickening and smoothing | TV | P | S | Thicken and thin; no smoothing of jagged lines |
-| Gradient map, posterise and threshold | TV TB PD | P | S | Alpha threshold only |
+| Line thickening and smoothing | TV | D | S | Thicken and thin, and Smooth lines (jagged edges rebuilt smooth) |
+| Gradient map, posterise and threshold | TV TB PD | D | S | Gradient map (dark to light colour), posterise (2 to 64 levels), black and white by brightness, and the alpha threshold |
 | Motion blur from movement | TV TB | M | M | |
-| Distortions: ripple, wave, turbulence, displacement | TV TB | M | M | |
-| Lens looks: vignette, chromatic aberration, flares | TV TB PD | M | S | |
+| Distortions: ripple, wave, turbulence, displacement | TV TB | P | M | Ripple, wave and turbulence, animated over frames; no displacement by another layer |
+| Lens looks: vignette, chromatic aberration, flares | TV TB PD | P | S | Vignette and colour fringe; no flares |
 | Tone and highlight from mattes, lighting from normals | TV TB | M | L | |
 | Particles (rain, snow, sparks) | TV TB | M | L | |
 | Time effects: trails, frame blending, time remap | TV TB PD | M | M | |
 | Transitions between cuts | TV TB PD | M | S | |
-| Effect presets and saved stacks | TV TB | M | S | |
+| Effect presets and saved stacks | TV TB | D | S | Five built-in looks added as one undo step; any layer's stack saved to and opened from a .toonfx file |
 | Node compositing graph | TB | M | XL | |
 
 ## Audio and lip-sync
