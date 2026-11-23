@@ -487,3 +487,17 @@ fn the_import_window_offers_layers_hold_and_placement() {
     assert_eq!(h.state().engine.undo_label(), Some("Import images"));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn new_shot_offers_size_and_rate_presets() {
+    let mut h = harness();
+    h.state_mut().new_shot = Some(h.state().new_shot_defaults());
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Size preset")).click();
+    h.run();
+    h.get(By::new().label_contains("Cinema 4K, 24 fps")).click();
+    h.run();
+    let n = h.state().new_shot.clone().expect("still open");
+    assert_eq!((n.width, n.height, n.fps), (4096, 2160, 24));
+    h.get(By::new().role(egui::Role::Button).label("Save as Preset"));
+}
