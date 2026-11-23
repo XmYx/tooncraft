@@ -211,6 +211,51 @@ pub(crate) fn edit(e: &mut Engine, index: usize, label: &str, f: impl FnOnce(&mu
     Ok(())
 }
 
+/// Cut the clip at `index` in two at shot frame `frame`: the first part ends there, the second
+/// starts there with the rest of the sound. A frame outside the clip is refused.
+pub(crate) fn split(e: &mut Engine, index: usize, frame: i32) -> Result<()> {
+    if e.project.sounds.len() >= MAX_SOUNDS {
+        return Err(EngineError::Import(format!("a shot can have at most {MAX_SOUNDS} sound clips")));
+    }
+    let fps = e.project.fps().max(1) as f64;
+    let clip = e.project.sounds.get(index).ok_or(EngineError::NoSound(index))?.clone();
+    let t = (frame - clip.offset) as f64 / fps;
+    if t <= 0.0 || clip.length.is_some_and(|l| t >= l) {
+        return Err(EngineError::Import("the split frame is not inside the clip".into()));
+    }
+    let (old, tracks) = (e.project.sounds.clone(), e.project.audio_tracks.clone());
+    let mut first = clip.clone();
+    first.length = Some(t);
+    first.fade_out = 0.0;
+    let mut second = clip;
+    second.offset = frame;
+    second.trim_start += t;
+    second.length = second.length.map(|l| l - t);
+    second.fade_in = 0.0;
+    e.project.sounds[index] = first.sanitized();
+    e.project.sounds.insert(index + 1, second.sanitized());
+    record(e, "Split sound", old, tracks);
+    Ok(())
+}
+
+/// A copy of the clip at `index` starting at shot frame `offset`.
+pub(crate) fn duplicate(e: &mut Engine, index: usize, offset: i32) -> Result<()> {
+    if e.project.sounds.len() >= MAX_SOUNDS {
+        return Err(EngineError::Import(format!("a shot can have at most {MAX_SOUNDS} sound clips")));
+    }
+    let mut copy = e.project.sounds.get(index).ok_or(EngineError::NoSound(index))?.clone();
+    let shift = offset.saturating_sub(copy.offset);
+    copy.offset = offset;
+    // volume keys follow the clip
+    for k in &mut copy.volume_keys {
+        k.frame = (k.frame as i64 + shift as i64).max(0) as u32;
+    }
+    let (old, tracks) = (e.project.sounds.clone(), e.project.audio_tracks.clone());
+    e.project.sounds.insert(index + 1, copy.sanitized());
+    record(e, "Duplicate sound", old, tracks);
+    Ok(())
+}
+
 pub(crate) fn remove(e: &mut Engine, index: usize) -> Result<()> {
     if index >= e.project.sounds.len() {
         return Err(EngineError::NoSound(index));

@@ -310,6 +310,13 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         }
     }
     crate::timeline_extras::paint_flags(app, &painter, ruler, frames_area.left(), first, visible_cols, CELL_W, pal.accent);
+    // frames chosen for flipping: a dot on the ruler
+    for &f in &app.flip {
+        if f >= first && f < first + visible_cols {
+            let x = frames_area.left() + (f - first) as f32 * CELL_W + CELL_W * 0.5;
+            painter.circle_filled(pos2(x, ruler.top() + 5.0), 2.5, pal.accent);
+        }
+    }
     // the in and out range: a band along the top of the ruler
     if let Some((a, b)) = app.tl.range {
         let x0 = (frames_area.left() + (a as f32 - first as f32) * CELL_W).max(frames_area.left());
@@ -782,6 +789,15 @@ pub fn frame_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     if ui.button(tl!("Next Drawing")).clicked() {
         app.step_drawing(true);
+    }
+    if ui.button(tl!("Add to or Remove from Flip Set")).clicked() {
+        app.toggle_flip();
+    }
+    if ui.add_enabled(!app.flip.is_empty(), egui::Button::new(tl!("Flip to Next Chosen Frame"))).clicked() {
+        app.flip_step(true);
+    }
+    if ui.add_enabled(!app.flip.is_empty(), egui::Button::new(tl!("Clear Flip Set"))).clicked() {
+        app.flip.clear();
     }
     if ui.button(tl!("Previous Key Drawing")).clicked() {
         app.step_key(false);

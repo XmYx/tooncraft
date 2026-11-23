@@ -96,6 +96,13 @@ fn clip(app: &mut ToonApp, ui: &mut egui::Ui, i: usize) {
         {
             app.run(cmd);
         }
+        let here = app.frame as i32;
+        if ui.small_button(tlf!("Split clip {n} here", n = i + 1)).on_hover_text(tl!("Cut the clip in two at the current frame")).clicked() {
+            app.run(Command::SplitSound { index: i, frame: here });
+        }
+        if ui.small_button(tlf!("Duplicate clip {n} here", n = i + 1)).on_hover_text(tl!("A copy of the clip starting at the current frame")).clicked() {
+            app.run(Command::DuplicateSound { index: i, offset: here });
+        }
         if ui.small_button(tlf!("Remove clip {n}", n = i + 1)).clicked() {
             app.run(Command::RemoveSound { index: i });
         }
