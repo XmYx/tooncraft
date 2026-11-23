@@ -267,6 +267,92 @@ pub fn would_loop(pegs: &[Peg], id: PegId, parent: PegId) -> bool {
     false
 }
 
+/// What a drag on the canvas does to a peg.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PegDrag {
+    /// Move by the drag.
+    Move,
+    /// Scale both ways about the pivot by how much further the pointer is from it.
+    Scale,
+    /// Turn about the pivot by the angle the pointer swept.
+    Rotate,
+}
+
+/// The transform of everything above `id` (its parent chain) at `frame`.
+fn parent_chain(pegs: &[Peg], id: PegId, frame: u32) -> Affine {
+    match pegs.iter().find(|p| p.id == id).and_then(|p| p.parent) {
+        Some(parent) => chain(pegs, parent, frame),
+        None => Affine::IDENTITY,
+    }
+}
+
+/// Where the peg's pivot is on the canvas at `frame`.
+pub fn pivot_on_canvas(pegs: &[Peg], id: PegId, frame: u32) -> Option<(f32, f32)> {
+    let p = pegs.iter().find(|p| p.id == id)?;
+    Some(chain(pegs, id, frame).apply(p.pivot.0, p.pivot.1))
+}
+
+/// The key a canvas drag from `from` to `to` (canvas pixels) makes on peg `id` at `frame`,
+/// starting from the peg's value there. `None` when the peg is missing, the parent chain cannot
+/// be inverted, or the drag is too close to the pivot to measure.
+pub fn dragged_key(pegs: &[Peg], id: PegId, frame: u32, kind: PegDrag, from: (f32, f32), to: (f32, f32)) -> Option<PegKey> {
+    let p = pegs.iter().find(|p| p.id == id)?;
+    let finite = |v: (f32, f32)| v.0.is_finite() && v.1.is_finite();
+    if !finite(from) || !finite(to) {
+        return None;
+    }
+    let mut k = p.at(frame);
+    k.frame = frame;
+    let parent = parent_chain(pegs, id, frame);
+    let inv = parent.inverse()?;
+    match kind {
+        PegDrag::Move => {
+            let (ax, ay) = inv.apply(from.0, from.1);
+            let (bx, by) = inv.apply(to.0, to.1);
+            k.x += bx - ax;
+            k.y += by - ay;
+        }
+        PegDrag::Scale | PegDrag::Rotate => {
+            let c = pivot_on_canvas(pegs, id, frame)?;
+            let (a, b) = ((from.0 - c.0, from.1 - c.1), (to.0 - c.0, to.1 - c.1));
+            let (la, lb) = (a.0.hypot(a.1), b.0.hypot(b.1));
+            if la < 1.0 || lb < 1.0 {
+                return None;
+            }
+            if kind == PegDrag::Scale {
+                let r = lb / la;
+                k.scale_x *= r;
+                k.scale_y *= r;
+            } else {
+                let mut turn = (b.1.atan2(b.0) - a.1.atan2(a.0)).to_degrees();
+                if turn > 180.0 {
+                    turn -= 360.0;
+                } else if turn < -180.0 {
+                    turn += 360.0;
+                }
+                // a mirrored parent turns the other way
+                if parent.a * parent.d - parent.b * parent.c < 0.0 {
+                    turn = -turn;
+                }
+                k.angle += turn;
+            }
+        }
+    }
+    Some(k.sanitized())
+}
+
+/// The pivot (in the peg's own space) that puts the pivot under the canvas point `at` at
+/// `frame`. The drawing keeps its place where the peg is not turned or scaled; where it is, it
+/// now turns and scales about the new point.
+pub fn pivot_under(pegs: &[Peg], id: PegId, frame: u32, at: (f32, f32)) -> Option<(f32, f32)> {
+    let p = pegs.iter().find(|p| p.id == id)?;
+    let inv = parent_chain(pegs, id, frame).inverse()?;
+    let k = p.at(frame);
+    let (x, y) = inv.apply(at.0, at.1);
+    let f = |v: f32| if v.is_finite() { v.clamp(-1.0e6, 1.0e6) } else { 0.0 };
+    Some((f(x - k.x), f(y - k.y)))
+}
+
 /// Repair pegs read from a file: bounded counts, sorted unique keys, unique ids, no loops and no
 /// parents that do not exist.
 pub fn sanitize(mut pegs: Vec<Peg>) -> Vec<Peg> {
@@ -376,6 +462,50 @@ mod tests {
         // a looping chain still terminates
         let looped = vec![peg(1, Some(2)), peg(2, Some(1))];
         assert!(chain(&looped, PegId(1), 0).is_finite());
+    }
+
+    #[test]
+    fn canvas_drags_become_keys_that_match_typed_values() {
+        let mut body = peg(1, None);
+        body.pivot = (100.0, 100.0);
+        body.set_key(PegKey { x: 10.0, ..PegKey::rest(0) });
+        let pegs = vec![body.clone()];
+        // move: the drag distance is the key's change
+        let k = dragged_key(&pegs, PegId(1), 0, PegDrag::Move, (5.0, 5.0), (35.0, -15.0)).unwrap();
+        assert_eq!((k.x, k.y), (40.0, -20.0));
+        // turn a quarter about the pivot (now at 110, 100), clockwise on screen
+        let k = dragged_key(&pegs, PegId(1), 0, PegDrag::Rotate, (160.0, 100.0), (110.0, 150.0)).unwrap();
+        assert!((k.angle - 90.0).abs() < 1e-3, "{}", k.angle);
+        // scale: twice as far from the pivot
+        let k = dragged_key(&pegs, PegId(1), 0, PegDrag::Scale, (130.0, 100.0), (150.0, 100.0)).unwrap();
+        assert!((k.scale_x - 2.0).abs() < 1e-4 && (k.scale_y - 2.0).abs() < 1e-4);
+        assert!(dragged_key(&pegs, PegId(1), 0, PegDrag::Scale, (110.0, 100.0), (150.0, 100.0)).is_none(), "on the pivot");
+        assert!(dragged_key(&pegs, PegId(9), 0, PegDrag::Move, (0.0, 0.0), (1.0, 1.0)).is_none());
+        assert!(dragged_key(&pegs, PegId(1), 0, PegDrag::Move, (f32::NAN, 0.0), (1.0, 1.0)).is_none());
+        // the drag and the same values typed give the same picture
+        let mut typed = body.clone();
+        typed.set_key(PegKey { x: 40.0, y: -20.0, ..PegKey::rest(0) });
+        let mut dragged = body;
+        dragged.set_key(dragged_key(&pegs, PegId(1), 0, PegDrag::Move, (5.0, 5.0), (35.0, -15.0)).unwrap());
+        assert_eq!(typed.at(0), dragged.at(0));
+    }
+
+    #[test]
+    fn a_child_peg_moves_with_the_pointer_under_a_turned_parent() {
+        let mut parent = peg(1, None);
+        parent.set_key(PegKey { angle: 90.0, scale_x: 2.0, scale_y: 2.0, ..PegKey::rest(0) });
+        let child = peg(2, Some(1));
+        let mut pegs = vec![parent, child];
+        let before = chain(&pegs, PegId(2), 0).apply(3.0, 4.0);
+        let k = dragged_key(&pegs, PegId(2), 0, PegDrag::Move, (0.0, 0.0), (20.0, -6.0)).unwrap();
+        pegs[1].set_key(k);
+        let after = chain(&pegs, PegId(2), 0).apply(3.0, 4.0);
+        assert!((after.0 - before.0 - 20.0).abs() < 1e-3 && (after.1 - before.1 + 6.0).abs() < 1e-3, "{before:?} {after:?}");
+        // the pivot lands under the pointer
+        let p = pivot_under(&pegs, PegId(2), 0, (50.0, 60.0)).unwrap();
+        pegs[1].pivot = p;
+        let (x, y) = pivot_on_canvas(&pegs, PegId(2), 0).unwrap();
+        assert!((x - 50.0).abs() < 1e-3 && (y - 60.0).abs() < 1e-3, "{x} {y}");
     }
 
     proptest! {

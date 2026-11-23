@@ -45,6 +45,9 @@ mod lipsync_panel;
 #[cfg(test)]
 mod menus_ui_tests;
 mod panels;
+mod peg_transform;
+#[cfg(test)]
+mod peg_transform_ui_tests;
 mod pegs;
 mod pipeline;
 mod preferences;
