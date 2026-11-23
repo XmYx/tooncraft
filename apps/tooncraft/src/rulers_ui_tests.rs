@@ -57,25 +57,53 @@ fn painted_ys(h: &Harness<'static, ToonApp>) -> Vec<u32> {
         .collect()
 }
 
+/// Press Tab until the widget called `label` has the keyboard focus; false if it never does.
+fn tab_to(h: &mut Harness<'static, ToonApp>, label: &str) -> bool {
+    for _ in 0..80 {
+        if h.query_by_label(label).is_some_and(|n| n.is_focused()) {
+            return true;
+        }
+        h.key_press(Key::Tab);
+        h.run();
+    }
+    false
+}
+
 #[test]
-fn the_rulers_menu_opens_from_the_keyboard_and_adds_a_ruler() {
+fn the_rulers_menu_works_from_the_keyboard() {
     let mut h = harness();
-    h.get_by_label("Rulers").focus();
-    h.run();
+    // the canvas bar's Rulers toggle, reached with Tab
+    assert!(tab_to(&mut h, "Rulers"), "Tab reaches the Rulers toggle");
     h.key_press(Key::Space);
     h.run();
     assert!(h.state().engine.project.rulers.on, "Space turns the rulers on");
     assert!(h.state().engine.project.rulers.grid, "with nothing else to follow, the grid");
+    assert!(h.get_by_label("Rulers").is_focused(), "focus stays on the toggle");
+    // Shift+F10 opens its menu; Tab into it and Space chooses an item
     h.key_press_modifiers(Modifiers::SHIFT, Key::F10);
     h.run();
-    h.get_by_label("Add Straight Ruler").click();
+    assert!(tab_to(&mut h, "Add Straight Ruler"), "Tab reaches the menu items");
+    h.key_press(Key::Space);
     h.run();
     let r = &h.state().engine.project.rulers;
     assert_eq!(r.list.len(), 1);
     assert!(matches!(r.list[0], Ruler::Line { .. }));
-    // typed handle positions
-    assert!(h.query_all_by_label("Point 1 X").count() >= 1);
-    h.get_by_label("Remove All Rulers").click();
+    // the handle fields take the arrow keys
+    let Some(Ruler::Line { a: before, .. }) = h.state().engine.project.rulers.list.first().cloned() else { panic!("a straight ruler") };
+    assert!(tab_to(&mut h, "Point 1 X"), "Tab reaches the typed handle fields");
+    for _ in 0..5 {
+        h.key_press(Key::ArrowUp);
+        h.run();
+    }
+    h.key_press(Key::Enter);
+    h.run();
+    assert!(
+        matches!(h.state().engine.project.rulers.list.first(), Some(Ruler::Line { a, .. }) if a.0 > before.0),
+        "moved by keys: {:?}",
+        h.state().engine.project.rulers.list
+    );
+    assert!(tab_to(&mut h, "Remove All Rulers"));
+    h.key_press(Key::Space);
     h.run();
     assert!(h.state().engine.project.rulers.list.is_empty());
 }
@@ -113,4 +141,29 @@ fn dragging_a_ruler_handle_moves_it_without_painting() {
     let Ruler::Line { a, .. } = h.state().engine.project.rulers.list[0] else { panic!("still a straight ruler") };
     assert!((a.1 - hh * 0.25).abs() < 3.0, "the handle followed the pointer: {a:?}");
     assert_eq!(h.state().engine.undo_len(), 0, "a setting, not an undo step");
+}
+
+#[test]
+fn escape_during_a_handle_drag_puts_the_ruler_back() {
+    let mut h = harness();
+    let (w, hh) = (h.state().engine.project.width() as f32, h.state().engine.project.height() as f32);
+    let start = Ruler::Line { a: (w * 0.25, hh * 0.5), b: (w * 0.75, hh * 0.5) };
+    h.state_mut()
+        .run(tooncraft_engine::Command::SetRulers { rulers: tooncraft_doc::rulers::Rulers { on: true, list: vec![start.clone()], ..Default::default() } });
+    h.run();
+    let from = screen(&h, w * 0.25, hh * 0.5);
+    h.drag_at(from);
+    h.run();
+    for k in 1..=5 {
+        h.hover_at(from + vec2(0.0, -20.0 * k as f32));
+        h.run();
+    }
+    assert_ne!(h.state().engine.project.rulers.list[0], start, "the handle follows while dragging");
+    h.key_press(Key::Escape);
+    h.run();
+    assert_eq!(h.state().engine.project.rulers.list[0], start, "Escape puts it back");
+    h.drop_at(from + vec2(0.0, -120.0));
+    h.run();
+    assert_eq!(h.state().engine.project.rulers.list[0], start, "letting go after Escape changes nothing");
+    assert!(painted_ys(&h).is_empty(), "and paints nothing");
 }

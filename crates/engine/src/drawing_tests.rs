@@ -249,3 +249,26 @@ fn a_tap_near_a_perspective_ruler_still_paints() {
     e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: vec![Sample::at(100.0, 50.0, 1.0, 0.0)] }).unwrap();
     assert_ne!(e.pick_color(0, 100, 50), PAPER);
 }
+
+#[test]
+fn samples_held_by_a_perspective_ruler_keep_their_own_pressure() {
+    use tooncraft_doc::rulers::{Ruler, Rulers};
+    // a horizontal stroke towards a vanishing point on the left: the first samples are held
+    // while the direction is decided; light ones must stay light
+    let paint = |rulers: bool| {
+        let mut e = engine();
+        if rulers {
+            e.apply(Command::SetRulers { rulers: Rulers { on: true, list: vec![Ruler::Perspective { points: vec![(0.0, 50.0)] }], ..Rulers::default() } })
+                .unwrap();
+        }
+        // two light samples 2.5 px apart are held; the heavy one 17.5 px on decides the direction
+        let mut samples = vec![Sample::at(180.0, 50.0, 0.1, 0.0), Sample::at(177.5, 50.0, 0.1, 0.01)];
+        samples.extend((0..20).map(|i| Sample::at(160.0 - i as f32 * 3.0, 50.0, 1.0, 0.02 + i as f64 * 0.01)));
+        e.apply(Command::Stroke { layer: 0, frame: 0, brush: Brush { size: 20.0, ..ink() }, samples }).unwrap();
+        let width = |x: u32| (0..100).filter(|y| e.pick_color(0, x, *y)[0] < 128).count();
+        (width(179), width(100))
+    };
+    let (free, snapped) = (paint(false), paint(true));
+    assert!(free.0 + 5 < free.1, "the light start is thinner without rulers: {free:?}");
+    assert_eq!(snapped, free, "and just as thin when a ruler held those samples");
+}

@@ -12,6 +12,24 @@ use tooncraft_engine::Command;
 
 use crate::app::ToonApp;
 
+/// The rulers' outlines for one `Rulers` value and canvas size (rebuilding them every frame
+/// costs up to a few hundred thousand points with many concentric rulers).
+#[derive(Default)]
+pub struct Outlines {
+    key: Option<(Rulers, (u32, u32))>,
+    lines: Vec<Vec<(f32, f32)>>,
+}
+
+impl Outlines {
+    fn get(&mut self, rulers: &Rulers, size: (u32, u32)) -> &[Vec<(f32, f32)>] {
+        if self.key.as_ref().is_none_or(|(r, s)| r != rulers || *s != size) {
+            self.lines = rulers.list.iter().flat_map(|r| r.outline(size.0, size.1)).collect();
+            self.key = Some((rulers.clone(), size));
+        }
+        &self.lines
+    }
+}
+
 /// Screen pixels from a handle that still grab it.
 const GRAB: f32 = 8.0;
 
@@ -135,16 +153,22 @@ pub fn menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     set(app, r.sanitized());
 }
 
-/// A press on a ruler handle moves the handle instead of drawing. Returns true while it does.
+/// A press on a ruler handle moves the handle instead of drawing; Escape during the drag puts the
+/// rulers back as they were at the press. Returns true while it does.
 pub fn drag(app: &mut ToonApp, ui: &egui::Ui, rect: Rect) -> bool {
     if !app.engine.project.rulers.on || app.engine.is_stroking() {
         app.aids.ruler_drag = None;
         return false;
     }
     let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
-    let (pressed, down, pos) = ui.input(|i| (i.pointer.primary_pressed(), i.pointer.primary_down(), i.pointer.interact_pos()));
-    if let Some((ri, hi)) = app.aids.ruler_drag {
-        if down {
+    let (pressed, down, pos, esc) =
+        ui.input(|i| (i.pointer.primary_pressed(), i.pointer.primary_down(), i.pointer.interact_pos(), i.key_pressed(egui::Key::Escape)));
+    if let Some((ri, hi, before)) = app.aids.ruler_drag.clone() {
+        if esc {
+            app.aids.ruler_drag = None;
+            app.engine.project.rulers = before;
+            app.set_status(tl!("Ruler move cancelled"));
+        } else if down {
             if let Some(p) = pos {
                 let c = app.view.to_canvas(rect, size, p);
                 if let Some(r) = app.engine.project.rulers.list.get_mut(ri) {
@@ -166,7 +190,7 @@ pub fn drag(app: &mut ToonApp, ui: &egui::Ui, rect: Rect) -> bool {
     let near = |q: (f32, f32)| app.view.to_screen(rect, size, pos2(q.0, q.1)).distance(p) <= GRAB;
     let hit = app.engine.project.rulers.list.iter().enumerate().find_map(|(ri, r)| r.handles().into_iter().position(near).map(|hi| (ri, hi, kind_name(r))));
     if let Some((ri, hi, kind)) = hit {
-        app.aids.ruler_drag = Some((ri, hi));
+        app.aids.ruler_drag = Some((ri, hi, app.engine.project.rulers.clone()));
         app.set_status(tlf!("Moving the {kind}", kind = kind));
         return true;
     }
@@ -182,13 +206,15 @@ pub fn overlay(painter: &egui::Painter, app: &ToonApp, to_screen: &dyn Fn(f32, f
     let (w, h) = (app.engine.project.width(), app.engine.project.height());
     let colour = Color32::from_rgb(240, 120, 200);
     let line = Stroke::new(1.0, colour.gamma_multiply(0.7));
-    for r in &rulers.list {
-        for part in r.outline(w, h) {
+    if let Ok(mut cache) = app.aids.ruler_outlines.try_borrow_mut() {
+        for part in cache.get(rulers, (w, h)) {
             let pts: Vec<Pos2> = part.iter().map(|p| to_screen(p.0, p.1)).collect();
             if pts.len() >= 2 {
                 painter.add(egui::Shape::line(pts, line));
             }
         }
+    }
+    for r in &rulers.list {
         for (x, y) in r.handles() {
             let c = to_screen(x, y);
             painter.circle_filled(c, 4.0, colour);
