@@ -226,6 +226,8 @@ pub struct ToonApp {
     pub export_memory: crate::export_dialog::Memory,
     /// Find Command.
     pub find: crate::command_search::State,
+    /// Frames chosen for flipping (in order of the shot, at most [`MAX_FLIP`]).
+    pub flip: Vec<u32>,
     pub show_shortcuts: bool,
     pub show_about: bool,
     pub confirm_close: bool,
@@ -379,6 +381,7 @@ impl ToonApp {
             export_dialog: None,
             export_memory: Default::default(),
             find: Default::default(),
+            flip: Vec::new(),
             show_shortcuts: false,
             show_about: false,
             confirm_close: false,
@@ -694,6 +697,39 @@ impl ToonApp {
     pub fn go_to(&mut self, frame: i64) {
         let len = self.engine.project.length() as i64;
         self.frame = frame.rem_euclid(len.max(1)) as u32;
+    }
+
+    /// Add the current frame to the flip set, or take it out.
+    pub fn toggle_flip(&mut self) {
+        let f = self.frame;
+        if let Some(i) = self.flip.iter().position(|x| *x == f) {
+            self.flip.remove(i);
+            self.set_status(tlf!("Frame {n} taken out of the flip set", n = f + 1));
+        } else if self.flip.len() < MAX_FLIP {
+            self.flip.push(f);
+            self.flip.sort_unstable();
+            self.set_status(tlf!("Frame {n} added to the flip set ({count} frames)", n = f + 1, count = self.flip.len()));
+        } else {
+            self.set_status(tlf!("The flip set holds at most {n} frames", n = MAX_FLIP));
+        }
+    }
+
+    /// Flip to the next (or previous) chosen frame, round and round; hold the key to roll.
+    pub fn flip_step(&mut self, forward: bool) {
+        let len = self.engine.project.length();
+        self.flip.retain(|f| *f < len);
+        if self.flip.is_empty() {
+            self.set_status(tl!("Choose frames to flip first (Ctrl+Alt+Enter on each)"));
+            return;
+        }
+        let f = self.frame;
+        let next = if forward {
+            self.flip.iter().copied().find(|x| *x > f).unwrap_or(self.flip[0])
+        } else {
+            self.flip.iter().rev().copied().find(|x| *x < f).unwrap_or(self.flip[self.flip.len() - 1])
+        };
+        self.playback.stop();
+        self.frame = next;
     }
 
     /// Go to the next (or previous) drawing marked as a key on the current layer.
@@ -1583,6 +1619,15 @@ impl ToonApp {
         if hit("select.invert") {
             crate::selection_tools::invert(self);
         }
+        if hit("flip.toggle") {
+            self.toggle_flip();
+        }
+        if hit("flip.next") {
+            self.flip_step(true);
+        }
+        if hit("flip.prev") {
+            self.flip_step(false);
+        }
         if hit("frame.prev_key") {
             self.step_key(false);
         }
@@ -1976,6 +2021,9 @@ fn open_checked(p: &Path) -> Result<Engine, String> {
     let budget = budget.unwrap_or(tooncraft_engine::paging::DEFAULT_PAGE_BUDGET);
     Engine::open_paged(p, budget).map_err(|e| tlf!("Could not open {file}: {error}", file = p.display(), error = e))
 }
+
+/// Most frames in the flip set.
+pub const MAX_FLIP: usize = 32;
 
 pub fn shortcut_table() -> Vec<(String, String)> {
     let mut v: Vec<(String, String)> = Vec::new();

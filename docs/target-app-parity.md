@@ -309,7 +309,7 @@ Weight: 4
 | Onion by drawings or by frames | TV TB | D | S | The reach shows in the before and after tints on the timeline ruler; right-click the Onion Skin toggle above the canvas for quick settings |
 | Onion on the current layer or on all layers | TV CS | P | S | Both work; only the current-layer path is tested |
 | Onion skin as outlines | TV | D | S | Also: hide only the step before |
-| Onion settings per layer | TV TB | M | S | |
+| Onion settings per layer | TV TB | D | S | Own settings for a layer in the Onion Skin panel (steps, opacity, colours, outlines); the shot's switch still turns all off |
 | Pick the exact relative frames shown | TB CS | P | S | An opacity per step on each side (0 hides that step), and key drawings only; no free list of offsets |
 | Light table: pin any frame of any layer, with opacity | TB CS | D | S | |
 | Shift and trace: move or turn a pinned frame without changing it | TB TV | M | M | |
@@ -322,7 +322,7 @@ Weight: 9
 |---|---|---|---|---|
 | Key, breakdown and inbetween marks with a spacing chart | TV TB | D | S | |
 | Flip and scrub through drawings | all | D | S | |
-| Rolling and flipping between chosen drawings from the keyboard | TV TB | M | S | |
+| Rolling and flipping between chosen drawings from the keyboard | TV TB | D | S | Choose frames with Ctrl+Alt+Enter, flip round them with Ctrl+Alt+Left and Right (hold to roll); dots on the ruler |
 | Re-time a range, with presets and re-timing between keys | TV TB | D | S | **Ours:** non-destructive, one undo step |
 | Reverse a range | TV TB | D | S | |
 | Cycles (repeat a range of cells) | TV TB | D | S | |
@@ -397,7 +397,7 @@ Weight: 4
 | Volume keys on a clip | TB PD | D | S | |
 | Mute and solo tracks | TB PD | D | S | |
 | Export the sound mix | TV TB | D | S | WAV; MP4 carries the same mix as AAC |
-| Split and duplicate clips | TB CS PD | M | S | |
+| Split and duplicate clips | TB CS PD | D | S | Split a clip at the current frame, or copy it to start there; one undo step each |
 | Record a voice track from the microphone | TB CS PD | M | M | craft-audio has no capture yet |
 | Mouth-chart lip-sync detection | TB | P | M | Offline, model-free rules; checked on synthetic sounds, not on a speech corpus |
 | Lip-sync from the typed line of dialogue | TB | M | M | |

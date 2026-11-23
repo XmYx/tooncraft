@@ -371,3 +371,43 @@ fn find_command_runs_what_it_finds() {
     // a search by key finds the command bound to it
     assert!(crate::command_search::matches(h.state(), "ctrl+shift+i").iter().any(|(id, _, _)| *id == "select.invert"));
 }
+
+#[test]
+fn flipping_between_chosen_frames_from_the_keyboard() {
+    let mut h = harness();
+    let ca = Modifiers::COMMAND | Modifiers::ALT;
+    for f in [2, 7, 4] {
+        h.state_mut().frame = f;
+        h.key_press_modifiers(ca, Key::Enter);
+        h.run();
+    }
+    assert_eq!(h.state().flip, vec![2, 4, 7], "kept in shot order");
+    h.state_mut().frame = 0;
+    for want in [2, 4, 7, 2] {
+        h.key_press_modifiers(ca, Key::ArrowRight);
+        h.run();
+        assert_eq!(h.state().frame, want);
+    }
+    h.key_press_modifiers(ca, Key::ArrowLeft);
+    h.run();
+    assert_eq!(h.state().frame, 7, "round and round");
+    // taking a frame out
+    h.key_press_modifiers(ca, Key::Enter);
+    h.run();
+    assert_eq!(h.state().flip, vec![2, 4]);
+}
+
+#[test]
+fn a_layer_can_have_its_own_onion_settings() {
+    let mut h = harness();
+    h.state_mut().workspace.raise(crate::dock::Pane::Onion);
+    h.run();
+    let name = h.state().engine.project.layers[0].name.clone();
+    h.get(By::new().role(egui::Role::CheckBox).label(&format!("Own settings for {name}"))).click();
+    h.run();
+    assert!(h.state().engine.project.layers[0].onion.is_some());
+    h.get(By::new().role(egui::Role::CheckBox).label("Outlines only")).click();
+    h.run();
+    assert!(h.state().engine.project.layers[0].onion.is_some_and(|o| o.outline), "the layer's own settings changed");
+    assert!(!h.state().engine.project.onion.outline, "the shot's did not");
+}

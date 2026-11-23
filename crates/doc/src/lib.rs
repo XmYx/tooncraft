@@ -154,6 +154,9 @@ pub struct Layer {
     /// Transparency is locked: strokes only recolour paint that is already there.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub lock_alpha: bool,
+    /// This layer's own onion-skin settings (`None`: the shot's).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub onion: Option<OnionSkin>,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
 }
@@ -469,6 +472,9 @@ impl Project {
         }
         let mut seen = std::collections::BTreeSet::new();
         for layer in &mut p.layers {
+            layer.onion = layer.onion.map(OnionSkin::sanitized);
+        }
+        for layer in &mut p.layers {
             layer.cells.resize(p.length as usize, Cell::Blank);
             exposure::repair(&mut layer.cells, |id| p.drawings.contains_key(&id));
             if !layer.opacity.is_finite() {
@@ -613,6 +619,7 @@ impl Project {
                 mouth_chart: BTreeMap::new(),
                 clip: false,
                 lock_alpha: false,
+                onion: None,
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );
@@ -959,7 +966,17 @@ impl Project {
     /// before and positive after, nearest first, never the current drawing.
     pub fn onion_drawings(&self, layer: usize, frame: u32) -> Vec<(DrawingId, i32)> {
         let Some(l) = self.layers.get(layer) else { return Vec::new() };
-        onion::neighbours_where(l, frame, self.length, &self.onion, &|d| self.marks.get(&d) == Some(&Mark::Key))
+        let o = self.onion_for(layer);
+        onion::neighbours_where(l, frame, self.length, &o, &|d| self.marks.get(&d) == Some(&Mark::Key))
+    }
+
+    /// The onion-skin settings that apply to `layer`: its own, or the shot's. A layer's own
+    /// settings never switch the onion skin on when the shot's switch is off.
+    pub fn onion_for(&self, layer: usize) -> OnionSkin {
+        match self.layers.get(layer).and_then(|l| l.onion) {
+            Some(o) => OnionSkin { enabled: self.onion.enabled && o.enabled, ..o },
+            None => self.onion,
+        }
     }
 }
 

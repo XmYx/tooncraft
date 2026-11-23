@@ -98,6 +98,13 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         area_rings: Vec<Vec<(f32, f32)>>,
     },
+    /// Give a layer its own onion-skin settings (`None`: back to the shot's). A setting, not an
+    /// undo step.
+    SetLayerOnion {
+        layer: usize,
+        #[serde(default)]
+        onion: Option<OnionSkin>,
+    },
     /// Replace the shot's named colour palettes (a setting, not an undo step).
     SetPalettes {
         palettes: Vec<tooncraft_doc::palette::Palette>,
@@ -378,6 +385,16 @@ pub enum Command {
     /// Change a sound clip: its track, start frame, the seconds skipped at the start of the file
     /// (`trim_start`), the seconds played (`length`; `to_end` plays to the end of the file),
     /// fades in seconds, volume (gain 0…4) and mute.
+    /// Cut a sound clip in two at a shot frame.
+    SplitSound {
+        index: usize,
+        frame: i32,
+    },
+    /// A copy of a sound clip starting at a shot frame.
+    DuplicateSound {
+        index: usize,
+        offset: i32,
+    },
     SetSoundClip {
         index: usize,
         #[serde(default)]
@@ -915,6 +932,11 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             frame_ok(e, frame)?;
             crate::drawing::gradient(e, layer, frame, kind, from, to, start, end, area.as_deref(), &area_rings)
         }
+        Command::SetLayerOnion { layer, onion } => {
+            e.project.layer_mut(layer)?.onion = onion.map(OnionSkin::sanitized);
+            e.touch();
+            Ok(())
+        }
         Command::SetPalettes { palettes } => {
             e.project.palettes = tooncraft_doc::palette::sanitize_all(palettes);
             e.touch();
@@ -1193,6 +1215,8 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }),
         Command::AddSound { path, offset, track } => crate::audio::add(e, &path, offset, track),
         Command::RemoveSound { index } => crate::audio::remove(e, index),
+        Command::SplitSound { index, frame } => crate::audio::split(e, index, frame),
+        Command::DuplicateSound { index, offset } => crate::audio::duplicate(e, index, offset),
         Command::SetSoundClip { index, track, offset, trim_start, length, to_end, fade_in, fade_out, volume, muted } => {
             crate::audio::edit(e, index, "Sound clip", |c| {
                 if let Some(v) = track {

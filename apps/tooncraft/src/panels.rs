@@ -762,7 +762,22 @@ fn step_slider(ui: &mut egui::Ui, v: &mut f32, tint: [u8; 3], name: String) {
 
 pub fn onion(app: &mut ToonApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical().id_salt("onion-scroll").show(ui, |ui| {
-        let mut o = app.engine.project.onion;
+        // the current layer may have its own settings
+        let li = app.layer;
+        let own_before = app.engine.project.layers.get(li).and_then(|l| l.onion);
+        let mut own = own_before.is_some();
+        let lname = app.engine.project.layers.get(li).map(|l| l.name.clone()).unwrap_or_default();
+        if ui
+            .checkbox(&mut own, tlf!("Own settings for {layer}", layer = lname))
+            .on_hover_text(tl!("This layer gets its own steps, opacity and colours; the others keep the shot's"))
+            .changed()
+        {
+            let onion = own.then_some(app.engine.project.onion);
+            app.run(Command::SetLayerOnion { layer: li, onion });
+        }
+        let own_now = app.engine.project.layers.get(li).and_then(|l| l.onion);
+        let start = own_now.unwrap_or(app.engine.project.onion);
+        let mut o = start;
         ui.checkbox(&mut o.enabled, tl!("Show onion skin"));
         egui::Grid::new("onion-grid").num_columns(2).spacing(vec2(8.0, 5.0)).show(ui, |ui| {
             let l = ui.label(tl!("Before"));
@@ -819,8 +834,12 @@ pub fn onion(app: &mut ToonApp, ui: &mut egui::Ui) {
         }
         ui.checkbox(&mut o.outline, tl!("Outlines only"));
         ui.checkbox(&mut o.hide_previous, tl!("Hide the previous step"));
-        if o != app.engine.project.onion {
-            app.engine.project.onion = o.sanitized();
+        if o != start {
+            if own_now.is_some() {
+                app.run(Command::SetLayerOnion { layer: li, onion: Some(o) });
+            } else {
+                app.engine.project.onion = o.sanitized();
+            }
         }
         ui.separator();
         ui.strong(tl!("Light table"));

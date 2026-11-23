@@ -1,0 +1,1 @@
+- 2026-11-23: Animation and sound: onion-skin settings per layer, a flip set of chosen frames stepped through from the keyboard (hold to roll), and splitting and duplicating sound clips at the current frame.

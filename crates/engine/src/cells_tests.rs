@@ -104,3 +104,53 @@ fn recolour_every_drawing_and_palettes_round_trip() {
     let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
     assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap().palettes, vec![p]);
 }
+
+#[test]
+fn split_and_duplicate_sound_clips() {
+    use std::sync::Arc;
+    use tooncraft_doc::sound::Soundtrack;
+    let mut e = Engine::new(Project::new("Sound", 64, 64, 10, 40).unwrap());
+    e.project.sounds.push(Soundtrack { length: Some(3.0), fade_in: 0.5, fade_out: 0.5, ..Soundtrack::new("a.wav", 5, Arc::new(Vec::new())) });
+    // split 1 s in (frame 15 at 10 fps)
+    e.apply(Command::SplitSound { index: 0, frame: 15 }).unwrap();
+    let s = &e.project.sounds;
+    assert_eq!(s.len(), 2);
+    assert_eq!((s[0].offset, s[0].length, s[0].fade_out), (5, Some(1.0), 0.0));
+    assert_eq!((s[1].offset, s[1].trim_start, s[1].length, s[1].fade_in), (15, 1.0, Some(2.0), 0.0));
+    assert_eq!(e.undo_label(), Some("Split sound"));
+    // outside the clip: refused, nothing changes
+    let n = e.undo_len();
+    assert!(e.apply(Command::SplitSound { index: 0, frame: 5 }).is_err());
+    assert!(e.apply(Command::SplitSound { index: 1, frame: 99 }).is_err());
+    assert!(e.apply(Command::SplitSound { index: 9, frame: 10 }).is_err());
+    assert_eq!(e.undo_len(), n);
+    // duplicate at frame 30
+    e.apply(Command::DuplicateSound { index: 1, offset: 30 }).unwrap();
+    assert_eq!(e.project.sounds.len(), 3);
+    assert_eq!(e.project.sounds[2].offset, 30);
+    assert_eq!(e.project.sounds[2].trim_start, 1.0);
+    e.undo().unwrap();
+    e.undo().unwrap();
+    assert_eq!(e.project.sounds.len(), 1);
+}
+
+#[test]
+fn onion_settings_per_layer() {
+    use tooncraft_doc::OnionSkin;
+    let mut e = Engine::new(Project::new("Onion", 64, 64, 12, 8).unwrap());
+    e.apply(Command::AddLayer { name: "Top".into(), index: None }).unwrap();
+    let own = OnionSkin { before: 5, after: 0, ..e.project.onion };
+    e.apply(Command::SetLayerOnion { layer: 1, onion: Some(own) }).unwrap();
+    assert_eq!(e.project.onion_for(1).before, 5);
+    assert_eq!(e.project.onion_for(0).before, e.project.onion.before, "the other layer keeps the shot's");
+    // the shot's switch still turns every layer's onion skin off
+    e.project.onion.enabled = false;
+    assert!(!e.project.onion_for(1).enabled);
+    // hostile values are clamped, and it round-trips through the file
+    e.apply(Command::SetLayerOnion { layer: 1, onion: Some(OnionSkin { before: 200, opacity: f32::NAN, ..own }) }).unwrap();
+    assert_eq!(e.project.onion_for(1).before as usize, tooncraft_doc::ONION_MAX_STEPS);
+    let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
+    assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap().layers[1].onion.map(|o| o.before), Some(tooncraft_doc::ONION_MAX_STEPS as u8));
+    e.apply(Command::SetLayerOnion { layer: 1, onion: None }).unwrap();
+    assert!(e.project.layers[1].onion.is_none());
+}
