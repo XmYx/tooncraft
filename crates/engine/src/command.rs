@@ -217,14 +217,17 @@ pub enum Command {
         to: u32,
         times: u32,
     },
-    /// Images (PNG, JPEG, WebP, TIFF …) as drawings on a new layer, one per `hold` frames from
-    /// `frame`, centred and scaled down to fit the canvas.
+    /// Images (PNG, JPEG, WebP, TIFF …) as drawings, one per `hold` frames from `frame`: on a new
+    /// layer, one layer per file name, or an existing layer, placed as `options` says (by default
+    /// centred and scaled down to fit the canvas).
     ImportImages {
         paths: Vec<String>,
         frame: u32,
         #[serde(default = "one_frame")]
         hold: u32,
         name: String,
+        #[serde(default)]
+        options: crate::import::ImportOptions,
     },
     /// Use a sound file (WAV, AIFF, MP3, AAC/M4A, FLAC, Ogg …) as the shot's soundtrack, starting at
     /// `offset` frames; no `path` removes it.
@@ -1100,7 +1103,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.cycle(from, to, times).map_err(DocError::from)?;
             Ok(())
         }),
-        Command::ImportImages { paths, frame, hold, name } => crate::import::images(e, &paths, frame, hold.clamp(1, 64), &name),
+        Command::ImportImages { paths, frame, hold, name, options } => crate::import::images(e, &paths, frame, hold.clamp(1, 64), &name, &options),
         Command::TransformSelection { layer, frame, polygon, rings, dx, dy, scale_x, scale_y, angle, skew_x, skew_y, resample } => {
             crate::select::transform(e, layer, frame, &polygon, &rings, (dx, dy, scale_x, scale_y, angle), (skew_x, skew_y), resample)
         }

@@ -534,7 +534,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Preferences, shortcut editor with search, playback speed | TB | D | S | (`--open preferences`, `--open shortcuts`) |
 | Scene settings in one window | TB | P | S | Canvas size and frame rate are set in separate places |
 | Export dialog with range, size and options | TB | D | S | (`--open export`) |
-| Import dialog with options | TB | M | S | Images import straight from a file chooser |
+| Import dialog with options | TB | D | S | After picking images: a new layer, one layer per file name, or the current layer; hold; fit, actual size or fill; premultiplied colours |
 
 ## Tablet and input
 

@@ -379,7 +379,7 @@ fn import_image_sequence() {
         paths.push(p.to_string_lossy().into_owned());
     }
     let mut e = engine();
-    e.apply(Command::ImportImages { paths: paths.clone(), frame: 1, hold: 2, name: "Roughs".into() }).unwrap();
+    e.apply(Command::ImportImages { paths: paths.clone(), frame: 1, hold: 2, name: "Roughs".into(), options: Default::default() }).unwrap();
     let l = e.project.layers.last().unwrap();
     assert_eq!(l.name, "Roughs");
     assert_eq!(sheet(&l.cells), ".#-#-#-.");
@@ -388,7 +388,7 @@ fn import_image_sequence() {
     assert_ne!(e.pick_color(1, 160, 60), [0, 0, 0, 255]);
     paths.push(dir.join("missing.png").to_string_lossy().into_owned());
     let before = e.project.clone();
-    assert!(matches!(e.apply(Command::ImportImages { paths, frame: 0, hold: 1, name: "x".into() }), Err(EngineError::Import(_))));
+    assert!(matches!(e.apply(Command::ImportImages { paths, frame: 0, hold: 1, name: "x".into(), options: Default::default() }), Err(EngineError::Import(_))));
     assert_eq!(e.project, before, "a failed import changes nothing");
     e.undo().unwrap();
     assert_eq!(e.project.layers.len(), 1);
@@ -893,5 +893,83 @@ fn burn_ins_mark_the_bottom_of_exported_frames() {
     };
     assert!(px(200, 176)[0] < 150, "the bottom bar is dark");
     assert!(px(200, 20)[0] > 200, "the paper above is untouched");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn import_options_by_name_into_a_layer_and_placement() {
+    use crate::import::{ImportOptions, Placement, sequence_name};
+    assert_eq!(sequence_name("/a/walk_0001.png"), "walk");
+    assert_eq!(sequence_name("run-12.tif"), "run");
+    assert_eq!(sequence_name("0001.png"), "0001", "a name of digits only stays");
+    let dir = std::env::temp_dir().join(format!("tooncraft-import-opts-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let write = |name: &str, w: u32, h: u32, c: [u8; 4]| {
+        let img = tooncraft_raster::RgbaImage::filled(w, h, tooncraft_raster::premultiply(c));
+        let p = dir.join(name);
+        std::fs::write(&p, tooncraft_format::encode_png(&img).unwrap()).unwrap();
+        p.to_string_lossy().into_owned()
+    };
+    let files = vec![write("walk_01.png", 8, 8, [255, 0, 0, 255]), write("walk_02.png", 8, 8, [255, 0, 0, 255]), write("run_01.png", 8, 8, [0, 0, 255, 255])];
+    let mut e = Engine::new(tooncraft_doc::Project::new("Imp", 64, 32, 12, 6).unwrap());
+    // one layer per file name
+    e.apply(Command::ImportImages {
+        paths: files.clone(),
+        frame: 0,
+        hold: 1,
+        name: "x".into(),
+        options: ImportOptions { by_name: true, ..Default::default() },
+    })
+    .unwrap();
+    let names: Vec<&str> = e.project.layers.iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(names, ["Layer 1", "walk", "run"]);
+    assert!(e.project.drawing_at(1, 1).is_some() && e.project.drawing_at(2, 1).is_none());
+    e.undo().unwrap();
+    assert_eq!(e.project.layers.len(), 1, "one undo step");
+    // into the current layer, from frame 2
+    e.apply(Command::ImportImages {
+        paths: files[..1].to_vec(),
+        frame: 2,
+        hold: 2,
+        name: "x".into(),
+        options: ImportOptions { into_layer: Some(0), ..Default::default() },
+    })
+    .unwrap();
+    assert_eq!(e.project.layers.len(), 1);
+    assert_eq!(e.project.layers[0].exposure_range(2), Some((2, 4)));
+    // placement: fill covers the canvas; actual leaves the rest empty
+    let mut f = Engine::new(tooncraft_doc::Project::new("Fill", 64, 32, 12, 2).unwrap());
+    f.apply(Command::ImportImages {
+        paths: files[2..].to_vec(),
+        frame: 0,
+        hold: 1,
+        name: "x".into(),
+        options: ImportOptions { placement: Placement::Fill, ..Default::default() },
+    })
+    .unwrap();
+    assert_eq!(f.pick_color(0, 1, 1)[..3], [0, 0, 255], "fill reaches the corner");
+    let mut a = Engine::new(tooncraft_doc::Project::new("Actual", 64, 32, 12, 2).unwrap());
+    a.apply(Command::ImportImages {
+        paths: files[2..].to_vec(),
+        frame: 0,
+        hold: 1,
+        name: "x".into(),
+        options: ImportOptions { placement: Placement::Actual, ..Default::default() },
+    })
+    .unwrap();
+    assert_ne!(a.pick_color(0, 1, 1)[..3], [0, 0, 255], "actual size leaves the corner");
+    assert_eq!(a.pick_color(0, 32, 16)[..3], [0, 0, 255], "and sits in the middle");
+    // a locked layer refuses, nothing changes
+    e.apply(Command::SetLayer { layer: 0, visible: None, locked: Some(true), opacity: None }).unwrap();
+    assert!(
+        e.apply(Command::ImportImages {
+            paths: files.clone(),
+            frame: 0,
+            hold: 1,
+            name: "x".into(),
+            options: ImportOptions { into_layer: Some(0), ..Default::default() }
+        })
+        .is_err()
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
