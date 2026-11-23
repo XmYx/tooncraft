@@ -1,0 +1,1 @@
+- 2026-11-23: Brushes: colour jitter (hue, saturation, brightness; per dab or once per stroke), blend modes (multiply, screen, overlay, darken, lighten, add) next to behind and only-on-paint, and several dabs per step for spray brushes; all three are in the .toonbrush format.

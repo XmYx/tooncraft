@@ -86,6 +86,14 @@ pub fn tool(p: &Painter, rect: Rect, tool: Tool, color: Color32) {
             p.rect_stroke(egui::Rect::from_min_max(at(-1.0, -1.0), at(0.3, 0.3)), 1.0, st, egui::StrokeKind::Middle);
             p.circle_stroke(at(0.35, 0.35), s * 0.6, st);
         }
+        Tool::Gradient => {
+            for k in 0..6 {
+                let t = k as f32 / 6.0;
+                let r = egui::Rect::from_min_max(at(-1.0 + t * 2.0, -0.8), at(-1.0 + (t + 1.0 / 6.0) * 2.0, 0.8));
+                p.rect_filled(r, 0.0, color.gamma_multiply(1.0 - t * 0.85));
+            }
+            p.rect_stroke(egui::Rect::from_min_max(at(-1.0, -0.8), at(1.0, 0.8)), 1.0, st, egui::StrokeKind::Middle);
+        }
         Tool::Hand => {
             for k in 0..4 {
                 let x = -0.6 + k as f32 * 0.4;

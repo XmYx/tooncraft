@@ -1,0 +1,1 @@
+- 2026-11-23: Selection tools: ellipse and magic-wand modes; add, subtract and intersect (an option, or Shift and Alt while dragging) with holes and separate parts kept as one selection; invert (Ctrl+Shift+I), grow and shrink; skew and free distort with four corner handles; nearest, bilinear or bicubic resampling for every selection transform.

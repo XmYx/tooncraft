@@ -22,11 +22,17 @@ pub struct State {
     /// The drawing name being typed, and the (layer, frame) it was loaded for.
     pub name: String,
     pub name_for: Option<(usize, u32)>,
+    /// The sheet runs down the page: layers as columns, frames as rows (paper exposure sheet).
+    pub vertical: bool,
+    /// Frames before and after the current one for "Play Around".
+    pub around: u32,
+    /// The in and out frames playback loops between (inclusive), when set.
+    pub range: Option<(u32, u32)>,
 }
 
 impl Default for State {
     fn default() -> Self {
-        Self { zoom: 1.0, timecode: false, note: String::new(), note_frame: None, name: String::new(), name_for: None }
+        Self { zoom: 1.0, timecode: false, note: String::new(), note_frame: None, name: String::new(), name_for: None, vertical: false, around: 3, range: None }
     }
 }
 
@@ -61,6 +67,44 @@ pub fn transport(app: &mut ToonApp, ui: &mut Ui) {
     {
         play_selection(app);
     }
+    if ui.button(tl!("Set In")).on_hover_text(tl!("Playback starts here")).clicked() {
+        set_in_out(app, true);
+    }
+    if ui.button(tl!("Set Out")).on_hover_text(tl!("Playback loops back after this frame")).clicked() {
+        set_in_out(app, false);
+    }
+    if ui.add_enabled(app.tl.range.is_some(), egui::Button::new(tl!("Clear In and Out"))).clicked() {
+        app.tl.range = None;
+    }
+    if ui.button(tl!("Play Around")).on_hover_text(tl!("Loop a few frames either side of this one, to check an inbetween")).clicked() {
+        play_around(app);
+    }
+    let l = ui.label(tl!("Around"));
+    ui.add(egui::DragValue::new(&mut app.tl.around).range(1..=MAX_AROUND).suffix(tl!(" fr")))
+        .labelled_by(l.id)
+        .on_hover_text(tl!("Frames either side for Play Around"));
+    let l = ui.label(tl!("Speed"));
+    let speed = app.playback.speed();
+    let pct = |v: f64| format!("{:.0} %", v * 100.0);
+    egui::ComboBox::from_id_salt("play-speed")
+        .selected_text(pct(speed))
+        .width(64.0)
+        .show_ui(ui, |ui| {
+            for v in SPEEDS {
+                if ui.selectable_label((speed - v).abs() < 1e-6, pct(v)).clicked() {
+                    let (now, fps) = (app.now(), app.engine.project.fps());
+                    app.playback.set_speed(now, fps, v);
+                    if (v - 1.0).abs() > 1e-6 {
+                        // the soundtrack plays only in real time
+                        app.sound.stop();
+                    }
+                }
+            }
+        })
+        .response
+        .labelled_by(l.id)
+        .on_hover_text(tl!("Playback speed; the sound plays only at 100 %"));
+    ui.toggle_value(&mut app.tl.vertical, tl!("Vertical")).on_hover_text(tl!("Show the sheet down the page: layers as columns, frames as rows"));
     let tc = app.tl.timecode;
     if ui.selectable_label(tc, tl!("Timecode")).on_hover_text(tl!("Show the position as HH:MM:SS:FF instead of a frame number")).clicked() {
         app.tl.timecode = !tc;
@@ -73,6 +117,50 @@ pub fn transport(app: &mut ToonApp, ui: &mut Ui) {
     }
 }
 
+/// Speeds offered for playback.
+pub const SPEEDS: [f64; 6] = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0];
+/// The most frames either side for Play Around.
+pub const MAX_AROUND: u32 = 48;
+
+/// Start playback (and the sound, at real-time speed) of `start..end` from `from`.
+pub fn play_range(app: &mut ToonApp, from: u32, start: u32, end: u32) {
+    let now = app.now();
+    app.playback.play(now, from, start, end);
+    if (app.playback.speed() - 1.0).abs() < 1e-6 {
+        let fps = app.engine.project.fps();
+        let offset = app.sound_offset();
+        app.sound.play(from as f64, offset, fps);
+    }
+}
+
+/// Put the in (or out) point on the current frame; the other end stays, and the range never
+/// turns inside out.
+pub fn set_in_out(app: &mut ToonApp, start: bool) {
+    let last = app.engine.project.length().saturating_sub(1);
+    let (a, b) = app.tl.range.unwrap_or((0, last));
+    let f = app.frame.min(last);
+    app.tl.range = Some(if start { (f, b.max(f)) } else { (a.min(f), f) });
+}
+
+/// The frames normal playback covers: the in and out range, or the whole shot.
+pub fn play_span(app: &ToonApp) -> (u32, u32) {
+    let len = app.engine.project.length();
+    match app.tl.range {
+        Some((a, b)) if a <= b && b < len => (a, b + 1),
+        _ => (0, len),
+    }
+}
+
+/// Loop the frames around the current one (`around` either side), starting before it.
+pub fn play_around(app: &mut ToonApp) {
+    let n = app.tl.around.clamp(1, MAX_AROUND);
+    let len = app.engine.project.length();
+    let start = app.frame.saturating_sub(n);
+    let end = (app.frame + n + 1).min(len);
+    app.playback.looping = true;
+    play_range(app, start, start, end);
+}
+
 /// Play the selected frames only (looping, or ping-pong, as set), from the first of them.
 pub fn play_selection(app: &mut ToonApp) {
     if !app.has_range() {
@@ -80,11 +168,7 @@ pub fn play_selection(app: &mut ToonApp) {
     }
     let (_, _, f0, f1) = app.selection();
     let end = (f1 + 1).min(app.engine.project.length());
-    let now = app.now();
-    app.playback.play(now, f0, f0, end);
-    let fps = app.engine.project.fps();
-    let offset = app.sound_offset();
-    app.sound.play(f0 as f64, offset, fps);
+    play_range(app, f0, f0, end);
 }
 
 /// Zoom from the wheel or a pinch over the timeline grid.

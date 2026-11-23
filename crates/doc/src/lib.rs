@@ -15,15 +15,17 @@ pub mod guides;
 pub mod markers;
 mod onion;
 pub mod paging;
+pub mod palette;
 pub mod peg;
 pub mod render;
 pub mod sound;
+pub mod symmetry;
 pub mod timing;
 
 pub use camera::{Camera, CameraKey, Shake};
 pub use exposure::{Cell, ExposureError};
 pub use markers::{MAX_MARKER_TEXT, MAX_MARKERS, MAX_NAME, parse_timecode, timecode};
-pub use onion::{LightTable, OnionMode, OnionSkin, Pin};
+pub use onion::{LightTable, MAX_STEPS as ONION_MAX_STEPS, OnionMode, OnionSkin, Pin};
 pub use peg::{Ease, Peg, PegId, PegKey};
 pub use render::{RenderOptions, render_camera, render_frame, render_region};
 pub use sound::{AudioTrack, Soundtrack, VolumeKey};
@@ -152,6 +154,9 @@ pub struct Layer {
     /// Transparency is locked: strokes only recolour paint that is already there.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub lock_alpha: bool,
+    /// This layer's own onion-skin settings (`None`: the shot's).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub onion: Option<OnionSkin>,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
 }
@@ -328,6 +333,10 @@ pub struct Project {
     pub markers: BTreeMap<u32, String>,
     /// Names of drawings, to expose them again by name (see [`markers`]).
     pub drawing_names: BTreeMap<DrawingId, String>,
+    /// Symmetry drawing (a drawing aid stored with the shot).
+    pub symmetry: symmetry::Symmetry,
+    /// Named colour palettes of the shot.
+    pub palettes: Vec<palette::Palette>,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -351,6 +360,8 @@ impl PartialEq for Project {
             && self.marks == o.marks
             && self.markers == o.markers
             && self.drawing_names == o.drawing_names
+            && self.symmetry == o.symmetry
+            && self.palettes == o.palettes
     }
 }
 
@@ -376,6 +387,8 @@ impl Project {
             layers: Vec::new(),
             drawings: BTreeMap::new(),
             onion: OnionSkin::default(),
+            symmetry: symmetry::Symmetry::default(),
+            palettes: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
@@ -405,6 +418,8 @@ impl Project {
             layers: Vec::new(),
             drawings: BTreeMap::new(),
             onion: OnionSkin::default(),
+            symmetry: symmetry::Symmetry::default(),
+            palettes: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
@@ -456,6 +471,9 @@ impl Project {
             p.layers = layers;
         }
         let mut seen = std::collections::BTreeSet::new();
+        for layer in &mut p.layers {
+            layer.onion = layer.onion.map(OnionSkin::sanitized);
+        }
         for layer in &mut p.layers {
             layer.cells.resize(p.length as usize, Cell::Blank);
             exposure::repair(&mut layer.cells, |id| p.drawings.contains_key(&id));
@@ -601,6 +619,7 @@ impl Project {
                 mouth_chart: BTreeMap::new(),
                 clip: false,
                 lock_alpha: false,
+                onion: None,
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );
@@ -947,7 +966,17 @@ impl Project {
     /// before and positive after, nearest first, never the current drawing.
     pub fn onion_drawings(&self, layer: usize, frame: u32) -> Vec<(DrawingId, i32)> {
         let Some(l) = self.layers.get(layer) else { return Vec::new() };
-        onion::neighbours(l, frame, self.length, &self.onion)
+        let o = self.onion_for(layer);
+        onion::neighbours_where(l, frame, self.length, &o, &|d| self.marks.get(&d) == Some(&Mark::Key))
+    }
+
+    /// The onion-skin settings that apply to `layer`: its own, or the shot's. A layer's own
+    /// settings never switch the onion skin on when the shot's switch is off.
+    pub fn onion_for(&self, layer: usize) -> OnionSkin {
+        match self.layers.get(layer).and_then(|l| l.onion) {
+            Some(o) => OnionSkin { enabled: self.onion.enabled && o.enabled, ..o },
+            None => self.onion,
+        }
     }
 }
 

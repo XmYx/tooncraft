@@ -88,27 +88,32 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
             if !p.layers.get(li).is_some_and(|l| l.visible) {
                 continue;
             }
+            // the layer's own onion settings, when it has them
+            let lo = p.onion_for(li);
+            if !lo.enabled {
+                continue;
+            }
             let t = map(li, frame);
             // furthest first, so nearer steps sit on top
             let mut n = p.onion_drawings(li, frame);
             n.sort_by_key(|(_, off)| std::cmp::Reverse(off.unsigned_abs()));
             for (d, off) in n {
                 let Some(s) = p.drawing(d) else { continue };
-                let tint = if !p.onion.tinted {
+                let tint = if !lo.tinted {
                     None
                 } else if off < 0 {
-                    Some(p.onion.before_tint)
+                    Some(lo.before_tint)
                 } else {
-                    Some(p.onion.after_tint)
+                    Some(lo.after_tint)
                 };
                 let outlined;
-                let s = if p.onion.outline {
+                let s = if lo.outline {
                     outlined = s.outlined();
                     &outlined
                 } else {
                     s
                 };
-                draw(s, &mut img, (x, y), t.as_ref(), p.onion.step_opacity(off.unsigned_abs()), tint);
+                draw(s, &mut img, (x, y), t.as_ref(), lo.offset_opacity(off), tint);
             }
         }
     }

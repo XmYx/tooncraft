@@ -137,7 +137,7 @@ Weight: 9
 | Pen barrel rotation as an input | TV CS | M | S | The pen sample has no rotation field yet |
 | Response curves for every input and dab property | TV CS PD | D | M | A curve for each of five inputs (pressure, tilt, speed, direction, chance) on size, opacity, flow, scatter and angle |
 | Random jitter of size, opacity, angle and scatter | TV CS PD | D | S | The chance input on each property, with quick sliders |
-| Colour jitter per dab and per stroke (hue, saturation, value) | TV CS PD | M | S | |
+| Colour jitter per dab and per stroke (hue, saturation, value) | TV CS PD | D | S | Hue, saturation and brightness jitter, per dab or once per stroke; replays exactly |
 | Stroke smoothing (moving average) | all | D | S | |
 | Pulled-string stabiliser with catch-up at the end | TV CS PD | D | S | |
 | Built-in families: pencil, ink, airbrush, chalk, eraser, watercolour, smudge | all | D | M | Each with its own coverage rule; the airbrush builds up with flow |
@@ -153,10 +153,10 @@ Weight: 9
 | Blur and soften brush | TV CS PD | D | S | The Blur and Fine blur brushes (the smudge brush at full pickup): each pixel moves towards its neighbourhood's mean |
 | Thick paint with depth and lighting (impasto) | TV CS PD | M | L | |
 | Dual tips (a second tip or texture masking the first) | CS PD | M | M | |
-| Scatter and spray brushes (many dabs per step) | TV CS PD | M | M | |
+| Scatter and spray brushes (many dabs per step) | TV CS PD | D | M | Dabs per step (1 to 32) with position jitter |
 | Pattern and ribbon brushes (an image repeated along the stroke) | TV CS | M | M | |
 | Animated brushes (a tip that changes per dab or per frame) | TV CS | M | M | |
-| Brush blend modes (paint as multiply, behind, and so on) | TV CS PD | M | S | |
+| Brush blend modes (paint as multiply, behind, and so on) | TV CS PD | D | S | Behind, only on paint, multiply, screen, overlay, darken, lighten and add |
 | Brushes at large sizes stay real time | all | P | M | Measured up to a 120 px airbrush (0.15 ms a sample); not measured at 500–1000 px ([performance.md](performance.md)) |
 | Brush rendering on the GPU | TV CS PD | M | L | **Ours:** a craft-gpu dab path (RFC-0022) with the CPU path kept as the test oracle |
 | Import of Photoshop ABR brushes | CS PD | M | M | Tips and basic settings |
@@ -186,16 +186,16 @@ Weight: 7
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
 | Line, rectangle and ellipse with constraints | all | D | S | Shift: 15° lines, squares, circles |
-| Polyline, polygon and curve tools | all | M | S | |
-| Filled shapes and lasso fill | all | M | S | |
+| Polyline, polygon and curve tools | all | D | S | Shapes tool: click to place points, Backspace removes one, Enter or double-click finishes; curves pass through every point |
+| Filled shapes and lasso fill | all | D | S | Outline, filled or both for rectangles, ellipses, polygons and closed curves; the paint bucket's lasso fill; one undo step each |
 | Eraser | all | D | S | |
 | Eyedropper | all | D | S | |
-| Gradient tool (linear, radial) | all | M | S | |
-| Symmetry and mirror drawing (axes, radial) | TV CS PD | M | M | |
+| Gradient tool (linear, radial) | all | D | S | Gradient tool (G): drag start to end, to transparent or to white, kept inside the selection |
+| Symmetry and mirror drawing (axes, radial) | TV CS PD | D | M | Left and right, top and bottom, four ways, radial and mirrored radial (2 to 32 copies) with the axes drawn on the canvas; a mirrored stroke is one undo step and the setting is saved in the shot |
 | Stroke rulers: straight, curve, ellipse, concentric | TV TB CS | M | M | |
 | Perspective rulers with vanishing points | TV CS PD | M | M | |
-| Grid display and snapping strokes to it | TV TB CS | P | S | The field guide draws a grid; strokes do not snap |
-| Snap the end of a stroke to a clean line or ellipse when held | CS PD | M | S | |
+| Grid display and snapping strokes to it | TV TB CS | P | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it; freehand strokes do not |
+| Snap the end of a stroke to a clean line or ellipse when held | CS PD | D | S | Hold to straighten: hold the pen still for half a second and a rough line or loop becomes a clean line or ellipse |
 | Text tool | TV TB CS | M | M | |
 | Clone stamp | TV CS | M | S | |
 | Reference image viewer with eyedropper | TV CS PD | M | S | |
@@ -210,19 +210,19 @@ Weight: 5
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
 | Lasso and rectangle selection | all | D | S | |
-| Ellipse selection | all | M | S | |
-| Select by colour with tolerance (magic wand) | all | M | S | |
-| Add, subtract and intersect selections | all | M | S | |
-| Invert, grow, shrink and feather a selection | all | M | S | Select all and deselect only |
+| Ellipse selection | all | D | S | The select tool's Ellipse mode |
+| Select by colour with tolerance (magic wand) | all | D | S | Magic Wand mode: tolerance, this drawing or all visible layers |
+| Add, subtract and intersect selections | all | D | S | A mode option, or Shift (add), Alt (subtract) and both (intersect) while dragging; holes and separate parts stay one selection |
+| Invert, grow, shrink and feather a selection | all | P | S | Invert (Ctrl+Shift+I), grow and shrink by up to 64 px; no feather (selections are hard-edged) |
 | Painted selection masks (quick mask) | TV CS PD | M | M | |
 | Move, scale and rotate a selection with a live preview | all | D | S | One undo step |
 | Flips and 90° turns | all | D | S | |
 | Cut, copy and paste pixels between drawings | all | D | S | |
-| Free distort, perspective and skew | all | M | S | |
+| Free distort, perspective and skew | all | D | S | Distort: drag four corner handles (perspective), then Apply; skew by degrees; each one undo step |
 | Mesh warp | TV CS PD | M | M | |
 | Liquify (push, twirl, pinch) | TV CS PD | M | M | |
 | Transform across several drawings or layers at once | TV TB CS | M | M | |
-| Resampling choice (nearest, bilinear, bicubic) | TV CS | P | S | Bilinear only |
+| Resampling choice (nearest, bilinear, bicubic) | TV CS | D | S | For moving, scaling, turning, skewing and distorting a selection |
 
 ## Colour and paint
 
@@ -234,18 +234,18 @@ Weight: 7
 | Close gaps of a set size | all | D | S | |
 | Fill reference: current layer or all visible layers | TV TB CS | D | S | |
 | Fill under lines (into the antialiasing) | TV TB CS | D | S | |
-| Fill every drawing of a layer at once | TV TB | D | S | One undo step |
+| Fill every drawing of a layer at once | TV TB | D | S | One undo step. Also: fill, empty areas only, or repaint, and gap presets with the reach shown around the pointer |
 | Linked line and paint layers | TB TV CS | P | M | Paint on a layer below the ink with the all-visible reference; no linked pair |
 | Paint the same regions across drawings automatically | TV TB | M | L | |
-| Colour swatches | all | P | S | Up to 64 swatches in the Colour panel; no named palettes |
-| Palette files: save, load, import common formats | all | M | S | |
+| Colour swatches | all | D | S | Named palettes kept with the shot, plus the built-in Basic one; swatch names on hover; remove from a palette with a right-click |
+| Palette files: save, load, import common formats | all | D | S | GIMP .gpl open and save (read through craft-palette), Photoshop .aco open (RGB, HSB, grey) |
 | Linked colour styles (change a swatch, every fill using it updates) | TB CS | M | L | |
-| HSV picker with keyboard fields | all | P | S | No behaviour test yet |
-| Colour wheel, sliders and harmony modes | TV CS PD | M | S | |
+| HSV picker with keyboard fields | all | D | S | Hue, saturation and brightness typed from the keyboard, kittest-tested |
+| Colour wheel, sliders and harmony modes | TV CS PD | D | S | A hue wheel, and opposite, neighbour, three-way, split-opposite and four-way harmonies to pick from or add to a palette |
 | Recent colours | TV CS PD | D | S | The last 16 colours painted with, newest first, in the Colour panel |
 | Lock transparency (paint only where there is paint) | all | D | S | Per layer; brushes (also wet ones) only recolour paint, fills are refused |
 | Paint behind existing paint | TV CS | D | S | Brush option "Behind" (not for wet brushes); the fill already paints under |
-| Recolour line art across drawings | TV TB CS | M | M | |
+| Recolour line art across drawings | TV TB CS | D | M | Recolour Layer: one colour becomes another in every drawing of the layer, edges keep their softness, one undo step |
 | Colour management: working space, profiles, soft proof | TV CS | M | M | |
 | 16-bit colour drawings | TV CS | M | L | |
 
@@ -279,14 +279,14 @@ Weight: 9
 | Holds: a drawing exposed several frames | all | D | S | |
 | Insert and delete frames, in one or all layers | all | D | S | |
 | New blank drawing and duplicate drawing | all | D | S | |
-| Extend and shorten a hold from the keyboard | TV TB | D | S | |
+| Extend and shorten a hold from the keyboard | TV TB | D | S | Also: keys 1 to 9 in the sheet set the hold, a Hold field in the transport, and Fill Empty Frames |
 | Change a hold by dragging its cells | TB CS PD | D | S | |
 | Select a range of cells across layers | all | D | S | |
 | Cut, copy and paste cells | all | D | S | **Ours:** paste linked or as new drawings, in place or inserting |
 | Thumbnails in timeline cells | TV PD | D | S | |
 | Drawings kept when no longer exposed | TB | D | S | Purging them is undoable |
-| Drawing substitution: expose any existing drawing by name | TV TB CS | D | S | Name a drawing, then show it at any frame of any layer by name; only that frame changes |
-| Vertical exposure sheet view | TV TB | M | L | |
+| Drawing substitution: expose any existing drawing by name | TV TB CS | D | S | Name a drawing, then show it at any frame of any layer by name; only that frame changes. Also a thumbnail grid of the layer's drawings (a cell's right-click menu, Frame ▸ Swap Drawing) that swaps the whole exposure |
+| Vertical exposure sheet view | TV TB | D | L | The timeline's Vertical switch, or the Exposure Sheet layout: layers as columns, frames down the side, the same keys, cell names and right-click menus |
 | Frame markers and notes | TV TB | D | S | A note per frame: ruler flags, a list with timecodes, next / previous by keyboard, saved in the shot |
 | Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames |
 | Frame rate change and timecode display | all | D | S | Frame rate per shot; the position and the marker list show HH:MM:SS:FF (non-drop-frame) |
@@ -306,11 +306,11 @@ Weight: 4
 | Separate before and after counts | all | D | S | |
 | Opacity with falloff | all | D | S | |
 | Tint colours for before and after | all | D | S | |
-| Onion by drawings or by frames | TV TB | D | S | |
+| Onion by drawings or by frames | TV TB | D | S | The reach shows in the before and after tints on the timeline ruler; right-click the Onion Skin toggle above the canvas for quick settings |
 | Onion on the current layer or on all layers | TV CS | P | S | Both work; only the current-layer path is tested |
 | Onion skin as outlines | TV | D | S | Also: hide only the step before |
-| Onion settings per layer | TV TB | M | S | |
-| Pick the exact relative frames shown | TB CS | M | S | |
+| Onion settings per layer | TV TB | D | S | Own settings for a layer in the Onion Skin panel (steps, opacity, colours, outlines); the shot's switch still turns all off |
+| Pick the exact relative frames shown | TB CS | P | S | An opacity per step on each side (0 hides that step), and key drawings only; no free list of offsets |
 | Light table: pin any frame of any layer, with opacity | TB CS | D | S | |
 | Shift and trace: move or turn a pinned frame without changing it | TB TV | M | M | |
 
@@ -322,7 +322,7 @@ Weight: 9
 |---|---|---|---|---|
 | Key, breakdown and inbetween marks with a spacing chart | TV TB | D | S | |
 | Flip and scrub through drawings | all | D | S | |
-| Rolling and flipping between chosen drawings from the keyboard | TV TB | M | S | |
+| Rolling and flipping between chosen drawings from the keyboard | TV TB | D | S | Choose frames with Ctrl+Alt+Enter, flip round them with Ctrl+Alt+Left and Right (hold to roll); dots on the ruler |
 | Re-time a range, with presets and re-timing between keys | TV TB | D | S | **Ours:** non-destructive, one undo step |
 | Reverse a range | TV TB | D | S | |
 | Cycles (repeat a range of cells) | TV TB | D | S | |
@@ -371,16 +371,16 @@ Weight: 7
 | Matte layers (keep inside or outside) | TV TB | D | S | |
 | Colour key | TV TB | D | S | Tolerance and soft edge |
 | Soft masks from shapes | TV TB PD | P | S | Rectangle and ellipse, keyframable; no drawn mask shapes |
-| Line thickening and smoothing | TV | P | S | Thicken and thin; no smoothing of jagged lines |
-| Gradient map, posterise and threshold | TV TB PD | P | S | Alpha threshold only |
+| Line thickening and smoothing | TV | D | S | Thicken and thin, and Smooth lines (jagged edges rebuilt smooth) |
+| Gradient map, posterise and threshold | TV TB PD | D | S | Gradient map (dark to light colour), posterise (2 to 64 levels), black and white by brightness, and the alpha threshold |
 | Motion blur from movement | TV TB | M | M | |
-| Distortions: ripple, wave, turbulence, displacement | TV TB | M | M | |
-| Lens looks: vignette, chromatic aberration, flares | TV TB PD | M | S | |
+| Distortions: ripple, wave, turbulence, displacement | TV TB | P | M | Ripple, wave and turbulence, animated over frames; no displacement by another layer |
+| Lens looks: vignette, chromatic aberration, flares | TV TB PD | P | S | Vignette and colour fringe; no flares |
 | Tone and highlight from mattes, lighting from normals | TV TB | M | L | |
 | Particles (rain, snow, sparks) | TV TB | M | L | |
 | Time effects: trails, frame blending, time remap | TV TB PD | M | M | |
 | Transitions between cuts | TV TB PD | M | S | |
-| Effect presets and saved stacks | TV TB | M | S | |
+| Effect presets and saved stacks | TV TB | D | S | Five built-in looks added as one undo step; any layer's stack saved to and opened from a .toonfx file |
 | Node compositing graph | TB | M | XL | |
 
 ## Audio and lip-sync
@@ -397,7 +397,7 @@ Weight: 4
 | Volume keys on a clip | TB PD | D | S | |
 | Mute and solo tracks | TB PD | D | S | |
 | Export the sound mix | TV TB | D | S | WAV; MP4 carries the same mix as AAC |
-| Split and duplicate clips | TB CS PD | M | S | |
+| Split and duplicate clips | TB CS PD | D | S | Split a clip at the current frame, or copy it to start there; one undo step each |
 | Record a voice track from the microphone | TB CS PD | M | M | craft-audio has no capture yet |
 | Mouth-chart lip-sync detection | TB | P | M | Offline, model-free rules; checked on synthetic sounds, not on a speech corpus |
 | Lip-sync from the typed line of dialogue | TB | M | M | |
@@ -420,12 +420,12 @@ Weight: 7
 | Per-layer PNG sequences | TV TB | D | S | |
 | Layered PSD of a frame | TV CS | D | S | Through craft-psd |
 | Multi-frame layered PSD and PSB | TV CS | D | S | One file with a group per frame (PSD, or PSB for large canvases) |
-| TGA, TIFF and JPEG sequences | TV TB CS | P | S | TGA and TIFF sequences; no JPEG |
-| OpenEXR sequences, with layers | TV TB | M | M | |
+| TGA, TIFF and JPEG sequences | TV TB CS | D | S | TGA, TIFF and JPEG sequences through the Export dialog |
+| OpenEXR sequences, with layers | TV TB | P | M | Flat RGBA OpenEXR sequences through craft-image-codecs; no layers in one file |
 | More video codecs: H.265, VP9 or AV1, MOV H.264 | TV CS PD | M | M | |
 | OpenRaster frame export | TV | D | S | |
-| Transparent-background export | all | P | S | PNG and OpenRaster; no test |
-| Export frame range and output size | all | P | S | Frame range; no output scaling |
+| Transparent-background export | all | D | S | PNG, TGA, TIFF, OpenEXR, animated PNG and WebP, ProRes 4444 and OpenRaster without the paper; tested on PNG |
+| Export frame range and output size | all | D | S | One Export dialog: whole shot, selected frames, this frame or from–to; full, half or quarter size; GIF loop and sequence digits; remembered per shot |
 | Image sequence import | all | D | S | PNG, JPEG, WebP, TIFF, BMP, GIF |
 | Animated GIF import | TV PD | D | S | |
 | Layers from PSD or OpenRaster | TV CS | D | S | |
@@ -436,7 +436,7 @@ Weight: 7
 | Camera capture for stop motion and pencil tests | TV | M | M | |
 | Scene export for compositing apps (layers, camera, timing) | TV TB | M | M | |
 | Printed exposure sheets and frames (PDF) | TV TB | M | S | |
-| Shot list and edit decisions out (EDL or OTIO) | TB | M | S | |
+| Shot list and edit decisions out (EDL or OTIO) | TB | D | S | OpenTimelineIO: a track per layer, a clip per exposure, gaps and markers |
 | Asset library shared between shots | TB CS | M | M | |
 | Reading the references' native project files | all | O | XL | Out of scope: the native project formats of TVPaint, Harmony, Clip Studio and Procreate are proprietary and undocumented; exchange goes through PSD, XDTS and image sequences |
 
@@ -466,11 +466,11 @@ Weight: 5
 | Saved workspaces | TV TB CS | D | S | Named layouts per user, plus Drawing and Timing |
 | Keyboard shortcuts for every tool | all | D | S | |
 | Customisable shortcuts | all | D | S | Through craft-keymap, saved per user |
-| Command search | TB CS | M | S | |
+| Command search | TB CS | D | S | Find Command (Ctrl+Shift+P): by name or by key, keyboard or click, runs like the shortcut |
 | Custom tool palettes and radial menus | TV CS PD | M | S | |
 | Second view of the same shot and a navigator | TV TB CS | M | M | |
 | Undo history panel | TV CS | D | S | A panel listing every step; click one to go there (undo or redo as needed) |
-| Preferences dialog | all | P | S | Settings live in menus; no single dialog |
+| Preferences dialog | all | D | S | Edit ▸ Preferences: general, drawing, onion skin, sheet and export tabs, each with Restore Defaults; a damaged settings file gives the defaults |
 | Translated interface | all | P | M | craft-i18n catalogs are validated; English is the only shipped language |
 | Every action reachable from the keyboard | — | P | M | **Ours:** the accessibility rule; kittest-tested for the main flows |
 | Screen reader names for the canvas and the timeline | — | X | S | **Ours:** AccessKit nodes for the canvas and every visible cell |
@@ -501,7 +501,7 @@ Weight: 2
 | Save new versions | TV TB | D | S | shot_v002, shot_v003 … next to the file |
 | Review notes drawn over frames, kept out of exports | TV TB | M | S | |
 | Comments on frames | TB PD | M | M | |
-| Review movie with burn-ins (shot, frame, timecode) | TV TB | M | S | |
+| Review movie with burn-ins (shot, frame, timecode) | TV TB | D | S | An Export dialog option for every frame format and MP4: shot name, frame of total and timecode in a bar along the bottom |
 | Check-out and check-in of shots for several artists | TB | M | L | |
 | Vendor cloud sharing and production-tracking services | TB CS PD | O | L | Out of scope: tied to the vendors' own cloud services |
 

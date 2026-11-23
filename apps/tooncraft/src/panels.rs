@@ -9,33 +9,94 @@ use tooncraft_engine::{Command, FillReference};
 
 use crate::app::{Tool, ToonApp};
 
+/// The tool bar's groups: variants of one kind of tool share a button, which shows the variant
+/// used last and a corner mark; right-click (or press and hold) opens the group to pick another.
+pub const TOOL_GROUPS: [&[Tool]; 8] = [
+    &[Tool::Pencil, Tool::Ink, Tool::Airbrush, Tool::Chalk, Tool::Watercolour],
+    &[Tool::Eraser],
+    &[Tool::Smudge],
+    &[Tool::Fill, Tool::Gradient],
+    &[Tool::Picker],
+    &[Tool::Select],
+    &[Tool::Shape],
+    &[Tool::Hand],
+];
+
+/// The variant a group's button shows: the current tool when it is in the group, or the one used
+/// last there.
+pub fn group_tool(app: &ToonApp, ctx: &egui::Context, group: usize) -> Tool {
+    let tools = TOOL_GROUPS[group];
+    if tools.contains(&app.tool) {
+        return app.tool;
+    }
+    let id = egui::Id::unique("tooncraft-tool-group-last").with(group);
+    ctx.data(|d| d.get_temp::<usize>(id)).and_then(|i| tools.get(i).copied()).unwrap_or(tools[0])
+}
+
+fn tool_button(app: &mut ToonApp, ui: &mut egui::Ui, t: Tool, grouped: bool) -> egui::Response {
+    let selected = app.tool == t;
+    let (rect, resp) = ui.allocate_exact_size(vec2(34.0, 32.0), Sense::click());
+    let v = ui.style().interact_selectable(&resp, selected);
+    let pal = crate::theme::palette(app.light_theme);
+    let bg = if selected {
+        pal.accent.gamma_multiply(0.35)
+    } else if resp.hovered() {
+        v.bg_fill
+    } else {
+        Color32::TRANSPARENT
+    };
+    ui.painter().rect(rect, 4.0, bg, if selected { Stroke::new(1.0, pal.accent) } else { Stroke::NONE }, egui::StrokeKind::Inside);
+    let fg = if selected { pal.text } else { pal.weak };
+    crate::icons::tool(ui.painter(), rect, t, fg);
+    if grouped {
+        // the corner mark: this button holds more tools
+        let c = rect.right_bottom() - vec2(3.0, 3.0);
+        ui.painter().add(egui::Shape::convex_polygon(vec![c, c - vec2(6.0, 0.0), c - vec2(0.0, 6.0)], fg, Stroke::NONE));
+    }
+    if resp.has_focus() {
+        ui.painter().rect_stroke(rect, 4.0, ui.visuals().selection.stroke, egui::StrokeKind::Outside);
+    }
+    let label = format!("{} ({})", t.label(), app.keys.text(&format!("tool.{}", t.id())));
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, selected, label.clone()));
+    let tip = if grouped { tlf!("{tool}; right-click or hold for the other tools of the group", tool = label) } else { label };
+    resp.on_hover_text(tip)
+}
+
 /// The vertical tool bar.
 pub fn toolbar(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.add_space(4.0);
     ui.vertical_centered(|ui| {
-        for t in Tool::ALL {
-            let selected = app.tool == t;
-            let (rect, resp) = ui.allocate_exact_size(vec2(34.0, 32.0), Sense::click());
-            let v = ui.style().interact_selectable(&resp, selected);
-            let pal = crate::theme::palette(app.light_theme);
-            let bg = if selected {
-                pal.accent.gamma_multiply(0.35)
-            } else if resp.hovered() {
-                v.bg_fill
-            } else {
-                Color32::TRANSPARENT
-            };
-            ui.painter().rect(rect, 4.0, bg, if selected { Stroke::new(1.0, pal.accent) } else { Stroke::NONE }, egui::StrokeKind::Inside);
-            crate::icons::tool(ui.painter(), rect, t, if selected { pal.text } else { pal.weak });
-            if resp.has_focus() {
-                ui.painter().rect_stroke(rect, 4.0, ui.visuals().selection.stroke, egui::StrokeKind::Outside);
-            }
-            let label = format!("{} ({})", t.label(), app.keys.text(&format!("tool.{}", t.id())));
-            resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, selected, label.clone()));
-            if resp.on_hover_text(&label).clicked() {
+        let ctx = ui.ctx().clone();
+        for (g, tools) in TOOL_GROUPS.iter().enumerate() {
+            let t = group_tool(app, &ctx, g);
+            let grouped = tools.len() > 1;
+            let resp = tool_button(app, ui, t, grouped);
+            if resp.clicked() {
                 app.tool = t;
             }
-            if t == Tool::Smudge || t == Tool::Select {
+            if grouped {
+                let held = resp.is_pointer_button_down_on() && ui.input(|i| i.pointer.press_start_time().is_some_and(|s| i.time - s > 0.45));
+                let open = (resp.secondary_clicked() || held).then_some(egui::SetOpenCommand::Bool(true));
+                egui::Popup::from_response(&resp)
+                    .kind(egui::PopupKind::Menu)
+                    .layout(egui::Layout::top_down_justified(egui::Align::Min))
+                    .open_memory(open)
+                    .align(egui::RectAlign::RIGHT_START)
+                    .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+                    .show(|ui| {
+                        for (i, v) in tools.iter().enumerate() {
+                            let key = app.keys.text(&format!("tool.{}", v.id()));
+                            if ui.selectable_label(app.tool == *v, format!("{}   {key}", v.label())).clicked() {
+                                app.tool = *v;
+                                ctx.data_mut(|d| d.insert_temp(egui::Id::unique("tooncraft-tool-group-last").with(g), i));
+                            }
+                        }
+                    });
+            }
+            if let Some(i) = tools.iter().position(|v| *v == app.tool) {
+                ctx.data_mut(|d| d.insert_temp(egui::Id::unique("tooncraft-tool-group-last").with(g), i));
+            }
+            if matches!(g, 2 | 5) {
                 ui.add_space(6.0);
             }
         }
@@ -63,7 +124,8 @@ fn slider(ui: &mut egui::Ui, label: &str, v: &mut f32, range: std::ops::RangeInc
 
 /// The tool options bar under the menu.
 pub fn tool_options(app: &mut ToonApp, ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
+    // wraps onto a second row when a tool has more options than fit
+    ui.horizontal_wrapped(|ui| {
         ui.strong(app.tool.label());
         ui.separator();
         if let Some(kind) = app.tool.brush() {
@@ -76,9 +138,29 @@ pub fn tool_options(app: &mut ToonApp, ui: &mut egui::Ui) {
             ui.add(egui::Slider::new(&mut b.smoothing.string, 0.0..=120.0).max_decimals(0).suffix(" px"))
                 .labelled_by(l.id)
                 .on_hover_text(tl!("The brush follows the pen only when it is further than this: very steady lines"));
+            ui.separator();
+            crate::brush_presets::picker(app, ui, kind);
+            ui.separator();
+            crate::draw_aids::brush_options(app, ui);
         }
         match app.tool {
             Tool::Fill => {
+                use tooncraft_raster::fill::{FillMode, GAP_PRESETS};
+                for (m, name, tip) in [
+                    (FillMode::Any, tl!("Fill"), tl!("Fill the area under the click")),
+                    (FillMode::EmptyOnly, tl!("Empty Only"), tl!("Fill only empty areas; a click on paint does nothing")),
+                    (FillMode::Repaint, tl!("Repaint"), tl!("Give an area already painted on this layer a new colour")),
+                ] {
+                    ui.selectable_value(&mut app.fill.mode, m, name).on_hover_text(tip);
+                }
+                ui.separator();
+                ui.label(tl!("Gaps"));
+                for (g, name) in GAP_PRESETS.iter().zip([tl!("Off"), tl!("Small"), tl!("Medium"), tl!("Large")]) {
+                    let resp = ui.selectable_label(app.fill.gap == *g, name).on_hover_text(tlf!("Close gaps up to about {n} px", n = *g as u32 * 2));
+                    if resp.clicked() {
+                        app.fill.gap = *g;
+                    }
+                }
                 let l = ui.label(tl!("Tolerance"));
                 ui.add(egui::Slider::new(&mut app.fill.tolerance, 0..=255)).labelled_by(l.id);
                 let l = ui.label(tl!("Close gaps"));
@@ -100,15 +182,14 @@ pub fn tool_options(app: &mut ToonApp, ui: &mut egui::Ui) {
                     .response
                     .labelled_by(l.id);
                 ui.checkbox(&mut app.fill_every_frame, tl!("Every drawing of the layer"));
+                ui.checkbox(&mut app.aids.lasso_fill, tl!("Lasso fill")).on_hover_text(tl!("Drag around an area to fill it"));
             }
+            Tool::Gradient => crate::draw_aids::gradient_options(app, ui),
             Tool::Picker => {
                 ui.label(tl!("Click the canvas to pick a colour (Alt+click with any brush)"));
             }
             Tool::Shape => {
-                use tooncraft_engine::shapes::ShapeKind;
-                ui.selectable_value(&mut app.shape, ShapeKind::Line, tl!("Line"));
-                ui.selectable_value(&mut app.shape, ShapeKind::Rectangle, tl!("Rectangle"));
-                ui.selectable_value(&mut app.shape, ShapeKind::Ellipse, tl!("Ellipse"));
+                crate::draw_aids::shape_options(app, ui);
                 ui.separator();
                 let b = app.brush_mut(BrushKind::Ink);
                 let l = ui.label(tl!("Size"));
@@ -118,6 +199,11 @@ pub fn tool_options(app: &mut ToonApp, ui: &mut egui::Ui) {
             Tool::Select => {
                 ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Lasso, tl!("Lasso"));
                 ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Rectangle, tl!("Rectangle"));
+                ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Ellipse, tl!("Ellipse"));
+                ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Wand, tl!("Magic Wand"))
+                    .on_hover_text(tl!("Click an area to select the pixels like it"));
+                ui.separator();
+                crate::selection_tools::options(app, ui);
                 ui.separator();
                 let has = app.selection.is_some();
                 if ui.add_enabled(has, egui::Button::new(tl!("Flip H"))).on_hover_text(tl!("Flip horizontally")).clicked() {
@@ -149,9 +235,58 @@ pub fn tool_options(app: &mut ToonApp, ui: &mut egui::Ui) {
 }
 
 /// The Colour panel.
+/// The current and previous colour, side by side; a click on the previous one swaps back.
+fn colour_chips(app: &mut ToonApp, ui: &mut egui::Ui) {
+    let seen_id = egui::Id::unique("tooncraft-colour-seen");
+    let prev_id = egui::Id::unique("tooncraft-colour-previous");
+    let cur = [app.color[0], app.color[1], app.color[2]];
+    let (seen, mut prev) = ui.data(|d| (d.get_temp::<[u8; 3]>(seen_id), d.get_temp::<[u8; 3]>(prev_id)));
+    if let Some(s) = seen
+        && s != cur
+    {
+        prev = Some(s);
+    }
+    ui.horizontal(|ui| {
+        let (rect, resp) = ui.allocate_exact_size(vec2(40.0, 26.0), Sense::hover());
+        ui.painter().rect(rect, 3.0, Color32::from_rgb(cur[0], cur[1], cur[2]), Stroke::new(1.0, Color32::from_gray(120)), egui::StrokeKind::Inside);
+        let label = tlf!("Current colour #{hex}", hex = hex(app.color));
+        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, label.clone()));
+        if let Some(p) = prev {
+            let (rect, resp) = ui.allocate_exact_size(vec2(26.0, 26.0), Sense::click());
+            ui.painter().rect(rect, 3.0, Color32::from_rgb(p[0], p[1], p[2]), Stroke::new(1.0, Color32::from_gray(120)), egui::StrokeKind::Inside);
+            if resp.has_focus() {
+                ui.painter().rect_stroke(rect, 3.0, ui.visuals().selection.stroke, egui::StrokeKind::Outside);
+            }
+            let label = tlf!("Previous colour #{hex}", hex = hex([p[0], p[1], p[2], 255]));
+            resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label.clone()));
+            if resp.on_hover_text(tl!("Back to the previous colour")).clicked() {
+                app.color = [p[0], p[1], p[2], 255];
+            }
+        }
+        // the current brush's opacity, next to its colour
+        if let Some(kind) = app.tool.brush() {
+            let b = app.brush_mut(kind);
+            let l = ui.label(tl!("Brush opacity"));
+            ui.add(egui::Slider::new(&mut b.opacity, 0.0..=1.0).max_decimals(2)).labelled_by(l.id);
+        }
+    });
+    let now = [app.color[0], app.color[1], app.color[2]];
+    ui.data_mut(|d| {
+        d.insert_temp(seen_id, now);
+        if let Some(p) = prev.filter(|p| *p != now).or(prev) {
+            d.insert_temp(prev_id, p);
+        }
+    });
+}
+
 pub fn colour(app: &mut ToonApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical().id_salt("colour-scroll").show(ui, |ui| {
+        colour_chips(app, ui);
+        ui.checkbox(&mut app.colour.wheel, tl!("Hue wheel"));
         let mut rgb = [app.color[0], app.color[1], app.color[2]];
+        if app.colour.wheel && crate::colour_tools::wheel(ui, &mut rgb) {
+            app.color = [rgb[0], rgb[1], rgb[2], 255];
+        }
         if crate::color::picker(ui, "drawing-colour", &mut rgb) {
             app.color = [rgb[0], rgb[1], rgb[2], 255];
         }
@@ -171,30 +306,13 @@ pub fn colour(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         });
         ui.separator();
-        ui.label(tl!("Swatches"));
-        let mut chosen = None;
-        ui.horizontal_wrapped(|ui| {
-            for s in &app.swatches {
-                let (rect, resp) = ui.allocate_exact_size(vec2(22.0, 22.0), Sense::click());
-                ui.painter().rect(rect, 3.0, Color32::from_rgb(s[0], s[1], s[2]), Stroke::new(1.0, Color32::from_gray(120)), egui::StrokeKind::Inside);
-                if resp.has_focus() {
-                    ui.painter().rect_stroke(rect, 3.0, ui.visuals().selection.stroke, egui::StrokeKind::Outside);
-                }
-                let label = tlf!("Swatch #{hex}", hex = hex([s[0], s[1], s[2], 255]));
-                resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label.clone()));
-                if resp.clicked() {
-                    chosen = Some(*s);
-                }
-            }
-        });
-        if let Some(s) = chosen {
-            app.color = [s[0], s[1], s[2], 255];
-        }
-        if ui.button(tl!("Add Current Colour")).clicked() && app.swatches.len() < 64 {
-            app.swatches.push([app.color[0], app.color[1], app.color[2]]);
-        }
+        crate::colour_tools::harmonies(app, ui);
+        ui.separator();
+        crate::colour_tools::palettes(app, ui);
         ui.separator();
         crate::history_panel::recent(app, ui);
+        ui.separator();
+        crate::colour_tools::recolour(app, ui);
         ui.separator();
         ui.horizontal(|ui| {
             ui.label(tl!("Paper"));
@@ -403,6 +521,24 @@ pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
                 app.layer += 1;
             }
         }
+        // the kinds of layer: a drawing layer (Add), or a reference image or a sound
+        ui.menu_button(tl!("Add Other"), |ui| {
+            if ui.button(tl!("Drawing Layer")).clicked() {
+                let name = tlf!("Layer {n}", n = n + 1);
+                if app.run(Command::AddLayer { name, index: Some(app.layer + 1) }) {
+                    app.layer += 1;
+                }
+                ui.close();
+            }
+            if ui.button(tl!("Reference Image…")).on_hover_text(tl!("An image under the drawing, locked and faded, shown for the whole shot")).clicked() {
+                app.import_reference();
+                ui.close();
+            }
+            if ui.button(tl!("Sound…")).clicked() {
+                app.import_sound();
+                ui.close();
+            }
+        });
         if ui.button(tl!("Delete")).clicked() {
             let layer = app.layer;
             app.run(Command::DeleteLayer { layer });
@@ -429,6 +565,7 @@ pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.separator();
     let mut cmds = Vec::new();
     let mut select = None;
+    let mut menus: Vec<(usize, egui::Response)> = Vec::new();
     egui::ScrollArea::vertical().id_salt("layers-scroll").show(ui, |ui| {
         for li in (0..n).rev() {
             let Some(layer) = app.engine.project.layers.get(li) else { continue };
@@ -452,8 +589,14 @@ pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
                         cmds.push(Command::RenameLayer { layer: li, name: name.clone() });
                         app.renaming = None;
                     }
-                } else if ui.selectable_label(li == app.layer, crate::layer_tree::path_name(&app.engine.project, layer)).clicked() {
-                    select = Some(li);
+                } else {
+                    let resp = ui.selectable_label(li == app.layer, crate::layer_tree::path_name(&app.engine.project, layer));
+                    if resp.clicked() {
+                        select = Some(li);
+                    }
+                    if resp.secondary_clicked() || resp.context_menu_opened() {
+                        menus.push((li, resp));
+                    }
                 }
                 let l = ui.label(tl!("Opacity"));
                 if ui.add(egui::DragValue::new(&mut opacity).range(0.0..=1.0).speed(0.01).max_decimals(2)).labelled_by(l.id).changed() {
@@ -467,6 +610,9 @@ pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     for c in cmds {
         app.run(c);
+    }
+    for (li, resp) in menus {
+        resp.context_menu(|ui| crate::context_menus::layer(app, ui, li));
     }
     ui.separator();
     layer_properties(app, ui);
@@ -562,6 +708,13 @@ fn layer_properties(app: &mut ToonApp, ui: &mut egui::Ui) {
 pub fn layer_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     let n = app.engine.project.layers.len();
     let layer = app.layer;
+    if ui.button(tl!("Select Layer Above")).clicked() {
+        app.step_layer(true);
+    }
+    if ui.button(tl!("Select Layer Below")).clicked() {
+        app.step_layer(false);
+    }
+    ui.separator();
     if ui.button(tl!("New Layer")).clicked() {
         let name = tlf!("Layer {n}", n = n + 1);
         if app.run(Command::AddLayer { name, index: Some(layer + 1) }) {
@@ -595,9 +748,36 @@ pub fn layer_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
 }
 
 /// The Onion Skin panel, with the light table.
+/// A small vertical opacity slider for one onion-skin step, in the side's tint.
+fn step_slider(ui: &mut egui::Ui, v: &mut f32, tint: [u8; 3], name: String) {
+    ui.scope(|ui| {
+        let c = Color32::from_rgb(tint[0], tint[1], tint[2]);
+        ui.visuals_mut().selection.bg_fill = c;
+        ui.spacing_mut().slider_width = 70.0;
+        let resp = ui.add(egui::Slider::new(v, 0.0..=1.0).vertical().show_value(false));
+        let value = *v;
+        resp.widget_info(|| egui::WidgetInfo::slider(true, value as f64, name.clone()));
+    });
+}
+
 pub fn onion(app: &mut ToonApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical().id_salt("onion-scroll").show(ui, |ui| {
-        let mut o = app.engine.project.onion;
+        // the current layer may have its own settings
+        let li = app.layer;
+        let own_before = app.engine.project.layers.get(li).and_then(|l| l.onion);
+        let mut own = own_before.is_some();
+        let lname = app.engine.project.layers.get(li).map(|l| l.name.clone()).unwrap_or_default();
+        if ui
+            .checkbox(&mut own, tlf!("Own settings for {layer}", layer = lname))
+            .on_hover_text(tl!("This layer gets its own steps, opacity and colours; the others keep the shot's"))
+            .changed()
+        {
+            let onion = own.then_some(app.engine.project.onion);
+            app.run(Command::SetLayerOnion { layer: li, onion });
+        }
+        let own_now = app.engine.project.layers.get(li).and_then(|l| l.onion);
+        let start = own_now.unwrap_or(app.engine.project.onion);
+        let mut o = start;
         ui.checkbox(&mut o.enabled, tl!("Show onion skin"));
         egui::Grid::new("onion-grid").num_columns(2).spacing(vec2(8.0, 5.0)).show(ui, |ui| {
             let l = ui.label(tl!("Before"));
@@ -618,19 +798,48 @@ pub fn onion(app: &mut ToonApp, ui: &mut egui::Ui) {
                 ui.radio_value(&mut o.mode, OnionMode::Frames, tl!("Frames"));
             });
             ui.end_row();
+            let l = ui.label(tl!("Colours"));
+            let name = |tinted: bool| if tinted { tl!("Tinted before and after") } else { tl!("The drawings' own colours") };
+            egui::ComboBox::from_id_salt("onion-render")
+                .selected_text(name(o.tinted))
+                .show_ui(ui, |ui| {
+                    for t in [true, false] {
+                        ui.selectable_value(&mut o.tinted, t, name(t));
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+            ui.end_row();
             ui.label(tl!("Tint"));
             ui.horizontal(|ui| {
-                ui.checkbox(&mut o.tinted, tl!("On"));
                 crate::color::swatch_edit(ui, "onion-before", tl!("Tint before"), &mut o.before_tint);
                 crate::color::swatch_edit(ui, "onion-after", tl!("Tint after"), &mut o.after_tint);
             });
             ui.end_row();
         });
+        ui.checkbox(&mut o.keys_only, tl!("Key drawings only")).on_hover_text(tl!("Stepping by drawings, show only drawings marked as keys"));
         ui.checkbox(&mut o.all_layers, tl!("Onion skin on every visible layer"));
+        ui.checkbox(&mut o.per_step, tl!("Opacity per step"));
+        if o.per_step {
+            // one small vertical slider per step: before (nearest on the right) | after
+            ui.horizontal(|ui| {
+                for i in (0..o.before as usize).rev() {
+                    step_slider(ui, &mut o.before_steps[i], o.before_tint, tlf!("Before, step {n}", n = i + 1));
+                }
+                ui.separator();
+                for i in 0..o.after as usize {
+                    step_slider(ui, &mut o.after_steps[i], o.after_tint, tlf!("After, step {n}", n = i + 1));
+                }
+            });
+        }
         ui.checkbox(&mut o.outline, tl!("Outlines only"));
         ui.checkbox(&mut o.hide_previous, tl!("Hide the previous step"));
-        if o != app.engine.project.onion {
-            app.engine.project.onion = o.sanitized();
+        if o != start {
+            if own_now.is_some() {
+                app.run(Command::SetLayerOnion { layer: li, onion: Some(o) });
+            } else {
+                app.engine.project.onion = o.sanitized();
+            }
         }
         ui.separator();
         ui.strong(tl!("Light table"));

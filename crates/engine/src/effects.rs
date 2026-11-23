@@ -20,6 +20,22 @@ pub(crate) fn add(e: &mut Engine, layer: usize, effect: tooncraft_fx::Effect, in
     Ok(())
 }
 
+/// Append a whole stack (a preset or a saved stack) as one step; refused when the layer would
+/// hold more than [`tooncraft_fx::MAX_EFFECTS`].
+pub(crate) fn add_all(e: &mut Engine, layer: usize, effects: Vec<tooncraft_fx::Effect>) -> Result<()> {
+    let before = e.project.layers.clone();
+    let l = e.project.layer_mut(layer)?;
+    if l.effects.len() + effects.len() > tooncraft_fx::MAX_EFFECTS {
+        return Err(EngineError::TooManyEffects);
+    }
+    if effects.is_empty() {
+        return Ok(());
+    }
+    l.effects.extend(effects.into_iter().map(tooncraft_fx::Effect::sanitized));
+    record(e, "Add effects", before);
+    Ok(())
+}
+
 /// Change the effect at `index` with `f`; `f` returning false refuses the change.
 pub(crate) fn edit(e: &mut Engine, layer: usize, index: usize, label: &str, f: impl FnOnce(&mut tooncraft_fx::Effect) -> bool) -> Result<()> {
     let before = e.project.layers.clone();

@@ -10,8 +10,14 @@
 
 pub mod audio;
 mod boards;
+pub mod burnin;
+#[cfg(test)]
+mod cells_tests;
 mod command;
 pub mod demo;
+pub mod drawing;
+#[cfg(test)]
+mod drawing_tests;
 mod effects;
 pub mod export;
 mod import;
@@ -86,6 +92,15 @@ struct LiveStroke {
     created: Vec<Part>,
     engine: StrokeEngine,
     stroke: Stroke,
+    /// Symmetry copies: each has its own stroke engine (smoothing and spacing per copy), all
+    /// painting into the same stroke so overlaps never darken.
+    mirrors: Vec<(tooncraft_doc::symmetry::Mirror, StrokeEngine)>,
+}
+
+fn mirror_sample(m: &tooncraft_doc::symmetry::Mirror, s: Sample) -> Sample {
+    let (x, y) = m.apply(s.x, s.y);
+    let (tx, ty) = m.apply_vector(s.tilt_x, s.tilt_y);
+    Sample { x, y, tilt_x: tx, tilt_y: ty, ..s }
 }
 
 /// A project with its history.
@@ -266,7 +281,9 @@ impl Engine {
         };
         let surface = self.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
         let stroke = Stroke::begin_with(surface, brush, images);
-        self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke });
+        let (w, h) = (self.project.width(), self.project.height());
+        let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush))).collect();
+        self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors });
         Ok(())
     }
 
@@ -280,7 +297,10 @@ impl Engine {
         if let Some(s) = sample.sanitized() {
             live.last = Some(s);
         }
-        let dabs = live.engine.feed(sample);
+        let mut dabs = live.engine.feed(sample);
+        for (m, eng) in &mut live.mirrors {
+            dabs.extend(eng.feed(mirror_sample(m, sample)));
+        }
         let surface = self.project.drawing_mut(live.drawing).ok_or(EngineError::NotStroking)?;
         live.stroke.add(surface, &dabs);
         Ok(dabs.len())
@@ -289,7 +309,10 @@ impl Engine {
     /// Finish the live stroke as one undo step.
     pub fn end_stroke(&mut self) -> Result<()> {
         let mut live = self.live.take().ok_or(EngineError::NotStroking)?;
-        let dabs = live.engine.finish();
+        let mut dabs = live.engine.finish();
+        for (_, eng) in &mut live.mirrors {
+            dabs.extend(eng.finish());
+        }
         let surface = self.project.drawing_mut(live.drawing).ok_or(EngineError::NotStroking)?;
         live.stroke.add(surface, &dabs);
         let tiles = live.stroke.end(surface);
@@ -390,16 +413,29 @@ impl Engine {
         // `x`, `y` are in the drawing's own pixels: a pegged layer looks at the picture through
         // the inverse of its peg chain, so the area found lines up with what it fills.
         let space = self.project.layer_transform(layer, frame).inverse().filter(|t| !t.is_identity(1e-6));
+        // repainting looks at this layer's own paint only
+        let reference = if options.mode == fill::FillMode::Repaint { FillReference::Layer } else { reference };
         let opts = match reference {
             FillReference::Layer => RenderOptions { paper: false, only_layer: Some(layer), space, effects: false, ..Default::default() },
             FillReference::AllLayers => RenderOptions { paper: false, space, effects: false, ..Default::default() },
         };
         let reference_img = tooncraft_doc::render_region(&self.project, frame, rect, opts);
+        let seed_alpha = reference_img.pixel(x - rect.0, y - rect.1)[3];
+        match options.mode {
+            fill::FillMode::EmptyOnly if seed_alpha > 0 => return Ok(None),
+            fill::FillMode::Repaint if seed_alpha == 0 => return Ok(None),
+            _ => {}
+        }
         let Some(mask) = fill::flood(&reference_img, (rect.0, rect.1), (x - rect.0, y - rect.1), options)? else { return Ok(None) };
         let (drawing, mut parts) = self.ensure_drawing(layer, frame)?;
         let surface = self.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
         surface.begin_capture();
-        fill::apply(surface, &mask, premultiply(color));
+        if options.mode == fill::FillMode::Repaint {
+            // over the old paint (a fill goes under it, so lines stay on top)
+            fill::paint_over(surface, &mask, premultiply(color));
+        } else {
+            fill::apply(surface, &mask, premultiply(color));
+        }
         let tiles = surface.take_capture();
         parts.push(Part::Tiles { drawing, tiles });
         Ok(Some(parts))

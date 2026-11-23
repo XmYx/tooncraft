@@ -33,17 +33,35 @@ pub struct FillOptions {
     pub gap: u8,
     /// Grow the fill this many pixels under the lines.
     pub spread: u8,
+    /// Which areas the bucket may fill.
+    pub mode: FillMode,
+}
+
+/// Which areas the paint bucket fills.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FillMode {
+    /// The area under the click, empty or painted.
+    #[default]
+    Any,
+    /// Only an empty area: a click on paint does nothing (paint stays as it is).
+    EmptyOnly,
+    /// Only an area already painted on this layer, in a new colour (the lines stay).
+    Repaint,
 }
 
 impl Default for FillOptions {
     fn default() -> Self {
-        Self { tolerance: 40, gap: 3, spread: 1 }
+        Self { tolerance: 40, gap: 3, spread: 1, mode: FillMode::Any }
     }
 }
 
+/// Gap-closing presets: off, small, medium, large.
+pub const GAP_PRESETS: [u8; 4] = [0, 3, 8, 16];
+
 impl FillOptions {
     pub fn sanitized(self) -> Self {
-        Self { tolerance: self.tolerance, gap: self.gap.min(MAX_GAP), spread: self.spread.min(MAX_SPREAD) }
+        Self { gap: self.gap.min(MAX_GAP), spread: self.spread.min(MAX_SPREAD), ..self }
     }
 }
 
@@ -275,6 +293,33 @@ fn grow(region: &mut [bool], w: usize, h: usize, steps: usize, through: Option<&
     }
 }
 
+/// Paint `color` (premultiplied) over the existing pixels of `surface` wherever `mask` is set
+/// (filled shapes, lasso fill).
+pub fn paint_over(surface: &mut Surface, mask: &Mask, color: [u8; 4]) {
+    if mask.width == 0 || mask.height == 0 {
+        return;
+    }
+    for ty in mask.y / TILE..=(mask.y + mask.height - 1) / TILE {
+        for tx in mask.x / TILE..=(mask.x + mask.width - 1) / TILE {
+            if !(0..TILE).any(|r| (0..TILE).any(|c| mask.get(tx * TILE + c, ty * TILE + r))) {
+                continue;
+            }
+            let Some(index) = surface.tile_index(tx, ty) else { continue };
+            let Some(tile) = surface.tile_mut(index) else { continue };
+            let px = tile.bytes_mut();
+            for r in 0..TILE {
+                for c in 0..TILE {
+                    if mask.get(tx * TILE + c, ty * TILE + r) {
+                        let i = ((r * TILE + c) * 4) as usize;
+                        let out = over([px[i], px[i + 1], px[i + 2], px[i + 3]], color);
+                        px[i..i + 4].copy_from_slice(&out);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Paint `color` (premultiplied) under the existing pixels of `surface` wherever `mask` is set.
 /// Existing pixels stay on top, so lines on the same layer keep their antialiased edges.
 pub fn apply(surface: &mut Surface, mask: &Mask, color: [u8; 4]) {
@@ -393,7 +438,7 @@ mod tests {
                 let a = if v % 3 == 0 { 255 } else { 0 };
                 img.set_pixel(i as u32 % w, i as u32 / w, [0, 0, 0, a]);
             }
-            let r = flood(&img, (5, 7), (sx, sy), FillOptions { tolerance: tol, gap, spread });
+            let r = flood(&img, (5, 7), (sx, sy), FillOptions { tolerance: tol, gap, spread, ..Default::default() });
             let m = r.unwrap();
             if let Some(m) = m {
                 proptest::prop_assert!(m.x >= 5 && m.y >= 7 && m.x + m.width <= 5 + w && m.y + m.height <= 7 + h);

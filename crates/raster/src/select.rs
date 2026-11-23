@@ -20,6 +20,14 @@ pub struct Affine {
 }
 
 impl Affine {
+    /// Like [`Affine::about`], with a skew (shear) along x and y (radians) applied first.
+    pub fn about_skewed(pivot: (f32, f32), dx: f32, dy: f32, sx: f32, sy: f32, angle: f32, skew: (f32, f32)) -> Affine {
+        let (kx, ky) = (skew.0.clamp(-1.4, 1.4).tan(), skew.1.clamp(-1.4, 1.4).tan());
+        let (px, py) = pivot;
+        let shear = Affine { a: 1.0, b: kx, c: ky, d: 1.0, tx: -(px + kx * py) + px, ty: -(ky * px + py) + py };
+        shear.then(&Affine::about(pivot, dx, dy, sx, sy, angle))
+    }
+
     pub const IDENTITY: Affine = Affine { a: 1.0, b: 0.0, c: 0.0, d: 1.0, tx: 0.0, ty: 0.0 };
 
     /// Scale and rotate (radians) about `pivot`, then move by `(dx, dy)`. Negative scales flip.
@@ -72,11 +80,18 @@ impl Affine {
 
 /// Pixels whose centres lie inside the polygon (even-odd rule), clipped to `w`×`h`.
 pub fn polygon_mask(w: u32, h: u32, poly: &[(f32, f32)]) -> Option<Mask> {
-    if poly.len() < 3 || poly.iter().any(|p| !p.0.is_finite() || !p.1.is_finite()) {
+    rings_mask(w, h, &[poly])
+}
+
+/// Pixels whose centres lie inside the rings together (even-odd over all their edges, so a ring
+/// inside another is a hole), clipped to `w`×`h`. Rings of fewer than 3 points are skipped.
+pub fn rings_mask(w: u32, h: u32, rings: &[&[(f32, f32)]]) -> Option<Mask> {
+    let rings: Vec<&[(f32, f32)]> = rings.iter().copied().filter(|r| r.len() >= 3).collect();
+    if rings.is_empty() || rings.iter().any(|r| r.iter().any(|p| !p.0.is_finite() || !p.1.is_finite())) {
         return None;
     }
     let (mut x0, mut y0, mut x1, mut y1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
-    for p in poly {
+    for p in rings.iter().flat_map(|r| r.iter()) {
         x0 = x0.min(p.0);
         y0 = y0.min(p.1);
         x1 = x1.max(p.0);
@@ -95,10 +110,12 @@ pub fn polygon_mask(w: u32, h: u32, poly: &[(f32, f32)]) -> Option<Mask> {
     for row in 0..mh {
         let cy = (by0 + row) as f32 + 0.5;
         xs.clear();
-        for i in 0..poly.len() {
-            let (a, b) = (poly[i], poly[(i + 1) % poly.len()]);
-            if (a.1 <= cy) != (b.1 <= cy) {
-                xs.push(a.0 + (cy - a.1) / (b.1 - a.1) * (b.0 - a.0));
+        for poly in &rings {
+            for i in 0..poly.len() {
+                let (a, b) = (poly[i], poly[(i + 1) % poly.len()]);
+                if (a.1 <= cy) != (b.1 <= cy) {
+                    xs.push(a.0 + (cy - a.1) / (b.1 - a.1) * (b.0 - a.0));
+                }
             }
         }
         xs.sort_by(|a, b| a.total_cmp(b));
@@ -113,6 +130,291 @@ pub fn polygon_mask(w: u32, h: u32, poly: &[(f32, f32)]) -> Option<Mask> {
         }
     }
     data.iter().any(|v| *v != 0).then_some(Mask { x: bx0, y: by0, width: mw, height: mh, data })
+}
+
+/// How a new selection combines with the one there is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Combine {
+    /// The new one replaces it.
+    #[default]
+    Replace,
+    Add,
+    Subtract,
+    Intersect,
+}
+
+/// The mask over the whole `w`×`h` canvas (one byte a pixel), or `None` past the size limit.
+fn full(m: Option<&Mask>, w: u32, h: u32) -> Option<Vec<u8>> {
+    if w as u64 * h as u64 > MAX_SELECTION_PIXELS {
+        return None;
+    }
+    let mut out = vec![0u8; w as usize * h as usize];
+    if let Some(m) = m {
+        for y in 0..m.height {
+            let cy = m.y + y;
+            if cy >= h {
+                break;
+            }
+            for x in 0..m.width {
+                let cx = m.x + x;
+                if cx < w && m.data[(y * m.width + x) as usize] != 0 {
+                    out[(cy * w + cx) as usize] = 255;
+                }
+            }
+        }
+    }
+    Some(out)
+}
+
+/// A whole-canvas buffer back to a mask cropped to what is set (`None` when nothing is).
+fn crop(buf: &[u8], w: u32, h: u32) -> Option<Mask> {
+    let (mut x0, mut y0, mut x1, mut y1) = (u32::MAX, u32::MAX, 0, 0);
+    for y in 0..h {
+        for x in 0..w {
+            if buf[(y * w + x) as usize] != 0 {
+                x0 = x0.min(x);
+                y0 = y0.min(y);
+                x1 = x1.max(x + 1);
+                y1 = y1.max(y + 1);
+            }
+        }
+    }
+    if x0 >= x1 {
+        return None;
+    }
+    let (mw, mh) = (x1 - x0, y1 - y0);
+    let mut data = vec![0u8; (mw * mh) as usize];
+    for y in 0..mh {
+        let src = ((y0 + y) * w + x0) as usize;
+        data[(y * mw) as usize..((y + 1) * mw) as usize].copy_from_slice(&buf[src..src + mw as usize]);
+    }
+    Some(Mask { x: x0, y: y0, width: mw, height: mh, data })
+}
+
+/// Combine a new mask with the current one (`None`: nothing selected yet).
+pub fn combine(current: Option<&Mask>, new: &Mask, op: Combine, w: u32, h: u32) -> Option<Mask> {
+    let a = full(current, w, h)?;
+    let b = full(Some(new), w, h)?;
+    let out: Vec<u8> = a
+        .iter()
+        .zip(&b)
+        .map(|(a, b)| {
+            let (a, b) = (*a != 0, *b != 0);
+            let on = match op {
+                Combine::Replace => b,
+                Combine::Add => a || b,
+                Combine::Subtract => a && !b,
+                Combine::Intersect => a && b,
+            };
+            if on { 255 } else { 0 }
+        })
+        .collect();
+    crop(&out, w, h)
+}
+
+/// Everything on the `w`×`h` canvas that is not in `m`.
+pub fn invert(m: Option<&Mask>, w: u32, h: u32) -> Option<Mask> {
+    let mut buf = full(m, w, h)?;
+    for v in &mut buf {
+        *v = if *v == 0 { 255 } else { 0 };
+    }
+    crop(&buf, w, h)
+}
+
+/// Largest grow or shrink, in pixels.
+pub const MAX_GROW: i32 = 64;
+
+/// Grow (`n` > 0) or shrink (`n` < 0) the mask by about `n` pixels (a square reach, clamped to
+/// [`MAX_GROW`]). Linear in the canvas size whatever `n` is.
+pub fn grow(m: &Mask, n: i32, w: u32, h: u32) -> Option<Mask> {
+    let n = n.clamp(-MAX_GROW, MAX_GROW);
+    let mut buf = full(Some(m), w, h)?;
+    if n == 0 {
+        return crop(&buf, w, h);
+    }
+    let r = n.unsigned_abs() as usize;
+    let grow_on = n > 0;
+    // a pixel is on after growing when any pixel within r (per axis) is on; shrinking is the same
+    // on the inverted mask. Each pass counts set pixels in a sliding window.
+    let pass = |buf: &mut Vec<u8>, len: usize, lines: usize, at: &dyn Fn(usize, usize) -> usize| {
+        let mut line = vec![0u8; len];
+        for l in 0..lines {
+            let mut count = 0usize;
+            let on = |v: u8| (v != 0) == grow_on;
+            for i in 0..r.min(len) {
+                count += on(buf[at(l, i)]) as usize;
+            }
+            for i in 0..len {
+                if i + r < len {
+                    count += on(buf[at(l, i + r)]) as usize;
+                }
+                if i > r {
+                    count -= on(buf[at(l, i - r - 1)]) as usize;
+                }
+                let hit = count > 0;
+                line[i] = if hit == grow_on { 255 } else { 0 };
+            }
+            for i in 0..len {
+                buf[at(l, i)] = line[i];
+            }
+        }
+    };
+    let (wu, hu) = (w as usize, h as usize);
+    pass(&mut buf, wu, hu, &|l, i| l * wu + i);
+    pass(&mut buf, hu, wu, &|l, i| i * wu + l);
+    crop(&buf, w, h)
+}
+
+/// Most corner points the traced outline of a selection may have.
+pub const MAX_TRACE_POINTS: usize = 200_000;
+
+/// The outline of a mask as closed rings along pixel edges (outer edges and holes), for drawing
+/// it and for the polygon commands (even-odd gives the mask back). `None` past
+/// [`MAX_TRACE_POINTS`].
+pub fn trace(m: &Mask) -> Option<Vec<Vec<(f32, f32)>>> {
+    use std::collections::HashMap;
+    let on = |x: i64, y: i64| x >= 0 && y >= 0 && (x as u32) < m.width && (y as u32) < m.height && m.data[(y as u32 * m.width + x as u32) as usize] != 0;
+    // directed edges with the inside on the right: top edges go east, right edges south, …
+    let mut next: HashMap<(i64, i64), Vec<(i64, i64)>> = HashMap::new();
+    let mut edges = 0usize;
+    for y in 0..m.height as i64 {
+        for x in 0..m.width as i64 {
+            if !on(x, y) {
+                continue;
+            }
+            let mut add = |a: (i64, i64), b: (i64, i64)| {
+                next.entry(a).or_default().push(b);
+                edges += 1;
+            };
+            if !on(x, y - 1) {
+                add((x, y), (x + 1, y));
+            }
+            if !on(x + 1, y) {
+                add((x + 1, y), (x + 1, y + 1));
+            }
+            if !on(x, y + 1) {
+                add((x + 1, y + 1), (x, y + 1));
+            }
+            if !on(x - 1, y) {
+                add((x, y + 1), (x, y));
+            }
+            if edges > MAX_TRACE_POINTS {
+                return None;
+            }
+        }
+    }
+    let mut rings = Vec::new();
+    let mut starts: Vec<(i64, i64)> = next.keys().copied().collect();
+    starts.sort();
+    for s in starts {
+        while next.get(&s).is_some_and(|v| !v.is_empty()) {
+            let mut ring: Vec<(i64, i64)> = vec![s];
+            let mut cur = s;
+            let mut prev_dir = (0i64, 0i64);
+            while let Some(outs) = next.get_mut(&cur).filter(|o| !o.is_empty()) {
+                // at a corner where two outlines touch, turn right first (keeps rings simple)
+                let pick = if outs.len() > 1 {
+                    let right = (-prev_dir.1, prev_dir.0);
+                    outs.iter().position(|o| (o.0 - cur.0, o.1 - cur.1) == right).unwrap_or(0)
+                } else {
+                    0
+                };
+                let to = outs.swap_remove(pick);
+                prev_dir = (to.0 - cur.0, to.1 - cur.1);
+                cur = to;
+                if cur == s {
+                    break;
+                }
+                ring.push(cur);
+                if ring.len() > MAX_TRACE_POINTS {
+                    return None;
+                }
+            }
+            // keep only the corners (drop points along straight runs)
+            let n = ring.len();
+            let simple: Vec<(f32, f32)> = (0..n)
+                .filter(|&i| {
+                    let (a, b, c) = (ring[(i + n - 1) % n], ring[i], ring[(i + 1) % n]);
+                    (b.0 - a.0) * (c.1 - b.1) != (b.1 - a.1) * (c.0 - b.0)
+                })
+                .map(|i| ((m.x as i64 + ring[i].0) as f32, (m.y as i64 + ring[i].1) as f32))
+                .collect();
+            if simple.len() >= 3 {
+                rings.push(simple);
+            }
+        }
+    }
+    Some(rings)
+}
+
+/// How pixels are resampled when a selection is moved, scaled, turned or distorted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Resample {
+    /// The nearest pixel: hard edges, for pixel art and flat colours.
+    Nearest,
+    #[default]
+    Bilinear,
+    /// Sharper when enlarging.
+    Bicubic,
+}
+
+/// A projective map (`x' = (a x + b y + c) / (g x + h y + 1)`, …) for free distort, solved in
+/// coordinates centred on each quad (so a horizon through the canvas origin is no problem).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Homography {
+    h: [f32; 8],
+    from: (f32, f32),
+    to: (f32, f32),
+}
+
+impl Homography {
+    /// The map from the four corners `src` to the four corners `dst` (in order), if they are not
+    /// degenerate.
+    pub fn from_quads(src: [(f32, f32); 4], dst: [(f32, f32); 4]) -> Option<Homography> {
+        let centre = |q: [(f32, f32); 4]| (q.iter().map(|p| p.0).sum::<f32>() / 4.0, q.iter().map(|p| p.1).sum::<f32>() / 4.0);
+        let (from, to) = (centre(src), centre(dst));
+        // solve the 8×8 system by Gaussian elimination with partial pivoting
+        let mut m = [[0f64; 9]; 8];
+        for i in 0..4 {
+            let (x, y) = ((src[i].0 - from.0) as f64, (src[i].1 - from.1) as f64);
+            let (u, v) = ((dst[i].0 - to.0) as f64, (dst[i].1 - to.1) as f64);
+            m[2 * i] = [x, y, 1.0, 0.0, 0.0, 0.0, -u * x, -u * y, u];
+            m[2 * i + 1] = [0.0, 0.0, 0.0, x, y, 1.0, -v * x, -v * y, v];
+        }
+        for col in 0..8 {
+            let piv = (col..8).max_by(|a, b| m[*a][col].abs().total_cmp(&m[*b][col].abs()))?;
+            if m[piv][col].abs() < 1e-9 {
+                return None;
+            }
+            m.swap(col, piv);
+            for row in 0..8 {
+                if row != col {
+                    let f = m[row][col] / m[col][col];
+                    for k in col..9 {
+                        m[row][k] -= f * m[col][k];
+                    }
+                }
+            }
+        }
+        let mut h = [0f32; 8];
+        for i in 0..8 {
+            h[i] = (m[i][8] / m[i][i]) as f32;
+        }
+        (h.iter().all(|v| v.is_finite()) && from.0.is_finite() && to.0.is_finite()).then_some(Homography { h, from, to })
+    }
+
+    pub fn apply(&self, x: f32, y: f32) -> Option<(f32, f32)> {
+        let h = &self.h;
+        let (x, y) = (x - self.from.0, y - self.from.1);
+        let w = h[6] * x + h[7] * y + 1.0;
+        if w.abs() < 1e-6 {
+            return None;
+        }
+        let p = ((h[0] * x + h[1] * y + h[2]) / w + self.to.0, (h[3] * x + h[4] * y + h[5]) / w + self.to.1);
+        (p.0.is_finite() && p.1.is_finite()).then_some(p)
+    }
 }
 
 /// The pixels under the mask, as an image the size of the mask's box.
@@ -157,6 +459,48 @@ pub fn clear(surface: &mut Surface, mask: &Mask) {
     surface.prune();
 }
 
+/// Sample a premultiplied image at a position in pixels (centres at +0.5) with `r`;
+/// transparent outside.
+pub fn sample_with(img: &RgbaImage, x: f32, y: f32, r: Resample) -> [u8; 4] {
+    match r {
+        Resample::Bilinear => sample(img, x, y),
+        Resample::Nearest => {
+            let (fx, fy) = (x.floor(), y.floor());
+            if fx < 0.0 || fy < 0.0 || fx >= img.width as f32 || fy >= img.height as f32 {
+                return [0; 4];
+            }
+            img.pixel(fx as u32, fy as u32)
+        }
+        Resample::Bicubic => {
+            let (fx, fy) = (x - 0.5, y - 0.5);
+            let (x0, y0) = (fx.floor(), fy.floor());
+            let (tx, ty) = (fx - x0, fy - y0);
+            // Catmull-Rom weights
+            let wt = |t: f32| -> [f32; 4] {
+                let (t2, t3) = (t * t, t * t * t);
+                [(-t3 + 2.0 * t2 - t) * 0.5, (3.0 * t3 - 5.0 * t2 + 2.0) * 0.5, (-3.0 * t3 + 4.0 * t2 + t) * 0.5, (t3 - t2) * 0.5]
+            };
+            let (wx, wy) = (wt(tx), wt(ty));
+            let mut acc = [0f32; 4];
+            for (j, wyj) in wy.iter().enumerate() {
+                for (i, wxi) in wx.iter().enumerate() {
+                    let (sx, sy) = (x0 + i as f32 - 1.0, y0 + j as f32 - 1.0);
+                    if sx < 0.0 || sy < 0.0 || sx >= img.width as f32 || sy >= img.height as f32 {
+                        continue;
+                    }
+                    let p = img.pixel(sx as u32, sy as u32);
+                    for k in 0..4 {
+                        acc[k] += p[k] as f32 * wxi * wyj;
+                    }
+                }
+            }
+            let a = acc[3].round().clamp(0.0, 255.0) as u8;
+            let c = |v: f32| (v.round().clamp(0.0, 255.0) as u8).min(a);
+            [c(acc[0]), c(acc[1]), c(acc[2]), a]
+        }
+    }
+}
+
 /// Bilinear sample of a premultiplied image at a position in pixels (centres at +0.5);
 /// transparent outside.
 pub fn sample(img: &RgbaImage, x: f32, y: f32) -> [u8; 4] {
@@ -184,11 +528,41 @@ pub fn sample(img: &RgbaImage, x: f32, y: f32) -> [u8; 4] {
 
 /// Draw `img` (placed with its top-left at `origin`, then mapped by `t`) over the surface.
 pub fn draw_transformed(surface: &mut Surface, img: &RgbaImage, origin: (f32, f32), t: Affine) -> Result<(), RasterError> {
+    draw_transformed_with(surface, img, origin, t, Resample::Bilinear)
+}
+
+/// [`draw_transformed`] with a choice of resampling.
+pub fn draw_transformed_with(surface: &mut Surface, img: &RgbaImage, origin: (f32, f32), t: Affine, r: Resample) -> Result<(), RasterError> {
     let inv = t.inverse().ok_or(RasterError::BadImage { got: 0, want: 1 })?;
     let corners = [(0.0, 0.0), (img.width as f32, 0.0), (0.0, img.height as f32), (img.width as f32, img.height as f32)];
+    let dst: Vec<(f32, f32)> = corners.iter().map(|(cx, cy)| t.apply(cx + origin.0, cy + origin.1)).collect();
+    draw_mapped(surface, img, &dst, r, &|x, y| Some(inv.apply(x, y)), origin)
+}
+
+/// Draw `img` mapped so its corners land on `quad` (top-left, top-right, bottom-right,
+/// bottom-left): a free distort or perspective.
+pub fn draw_distorted(surface: &mut Surface, img: &RgbaImage, origin: (f32, f32), quad: [(f32, f32); 4], r: Resample) -> Result<(), RasterError> {
+    if quad.iter().any(|p| !p.0.is_finite() || !p.1.is_finite()) {
+        return Err(RasterError::BadImage { got: 0, want: 1 });
+    }
+    let (w, h) = (img.width as f32, img.height as f32);
+    let src = [(origin.0, origin.1), (origin.0 + w, origin.1), (origin.0 + w, origin.1 + h), (origin.0, origin.1 + h)];
+    let back = Homography::from_quads(quad, src).ok_or(RasterError::BadImage { got: 0, want: 1 })?;
+    draw_mapped(surface, img, &quad, r, &|x, y| back.apply(x, y), origin)
+}
+
+/// Draw `img` over the surface where `inverse` maps each destination pixel centre back into the
+/// source (canvas coordinates); `dst` bounds the area touched.
+fn draw_mapped(
+    surface: &mut Surface,
+    img: &RgbaImage,
+    dst: &[(f32, f32)],
+    resample: Resample,
+    inverse: &dyn Fn(f32, f32) -> Option<(f32, f32)>,
+    origin: (f32, f32),
+) -> Result<(), RasterError> {
     let (mut x0, mut y0, mut x1, mut y1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
-    for (cx, cy) in corners {
-        let (x, y) = t.apply(cx + origin.0, cy + origin.1);
+    for &(x, y) in dst {
         x0 = x0.min(x);
         y0 = y0.min(y);
         x1 = x1.max(x);
@@ -219,8 +593,8 @@ pub fn draw_transformed(surface: &mut Surface, img: &RgbaImage, origin: (f32, f3
                     if x < bx0 || x >= bx1 {
                         continue;
                     }
-                    let (sx, sy) = inv.apply(x as f32 + 0.5, y as f32 + 0.5);
-                    let s = sample(img, sx - origin.0, sy - origin.1);
+                    let Some((sx, sy)) = inverse(x as f32 + 0.5, y as f32 + 0.5) else { continue };
+                    let s = sample_with(img, sx - origin.0, sy - origin.1, resample);
                     if s[3] == 0 {
                         continue;
                     }
@@ -237,12 +611,29 @@ pub fn draw_transformed(surface: &mut Surface, img: &RgbaImage, origin: (f32, f3
 
 /// Move / scale / rotate / flip the pixels under `mask` by `t`.
 pub fn transform(surface: &mut Surface, mask: &Mask, t: Affine) -> Result<(), RasterError> {
+    transform_with(surface, mask, t, Resample::Bilinear)
+}
+
+/// [`transform`] with a choice of resampling.
+pub fn transform_with(surface: &mut Surface, mask: &Mask, t: Affine, r: Resample) -> Result<(), RasterError> {
     if !t.is_finite() {
         return Err(RasterError::BadImage { got: 0, want: 1 });
     }
     let img = copy(surface, mask);
     clear(surface, mask);
-    draw_transformed(surface, &img, (mask.x as f32, mask.y as f32), t)
+    draw_transformed_with(surface, &img, (mask.x as f32, mask.y as f32), t, r)
+}
+
+/// Distort the pixels under `mask` so the corners of its box land on `quad`.
+pub fn distort(surface: &mut Surface, mask: &Mask, quad: [(f32, f32); 4], r: Resample) -> Result<(), RasterError> {
+    let img = copy(surface, mask);
+    let before = surface.clone();
+    clear(surface, mask);
+    let out = draw_distorted(surface, &img, (mask.x as f32, mask.y as f32), quad, r);
+    if out.is_err() {
+        *surface = before;
+    }
+    out
 }
 
 #[cfg(test)]
@@ -297,6 +688,97 @@ mod tests {
         s.swap_snapshot(snap);
         s.prune();
         assert_eq!(s, before);
+    }
+
+    fn rect(x0: f32, y0: f32, x1: f32, y1: f32) -> Vec<(f32, f32)> {
+        vec![(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+    }
+
+    #[test]
+    fn rings_combine_invert_grow_and_trace_round_trip() {
+        let (w, h) = (100, 80);
+        // a ring inside a ring is a hole
+        let outer = rect(10.0, 10.0, 50.0, 50.0);
+        let hole = rect(20.0, 20.0, 30.0, 30.0);
+        let m = rings_mask(w, h, &[&outer, &hole]).unwrap();
+        assert_eq!(m.count(), 40 * 40 - 10 * 10);
+        assert!(!m.get(25, 25) && m.get(15, 15));
+        // add, subtract, intersect
+        let b = polygon_mask(w, h, &rect(40.0, 10.0, 70.0, 20.0)).unwrap();
+        let a = polygon_mask(w, h, &outer).unwrap();
+        assert_eq!(combine(Some(&a), &b, Combine::Add, w, h).unwrap().count(), 1600 + 300 - 100);
+        assert_eq!(combine(Some(&a), &b, Combine::Subtract, w, h).unwrap().count(), 1600 - 100);
+        assert_eq!(combine(Some(&a), &b, Combine::Intersect, w, h).unwrap().count(), 100);
+        assert!(combine(Some(&a), &polygon_mask(w, h, &rect(80.0, 60.0, 90.0, 70.0)).unwrap(), Combine::Intersect, w, h).is_none());
+        assert_eq!(combine(None, &b, Combine::Add, w, h).unwrap().count(), 300);
+        // invert
+        assert_eq!(invert(Some(&a), w, h).unwrap().count(), (w * h) as usize - 1600);
+        assert_eq!(invert(None, w, h).unwrap().count(), (w * h) as usize);
+        // grow and shrink by a square reach
+        assert_eq!(grow(&a, 2, w, h).unwrap().count(), 44 * 44);
+        assert_eq!(grow(&a, -2, w, h).unwrap().count(), 36 * 36);
+        assert!(grow(&a, -30, w, h).is_none(), "shrunk away");
+        assert_eq!(grow(&a, 10_000, w, h).unwrap().count(), (w * h) as usize, "clamped to the canvas");
+        // trace gives rings whose even-odd fill is the mask again
+        let rings = trace(&m).unwrap();
+        assert_eq!(rings.len(), 2, "the outline and the hole");
+        let refs: Vec<&[(f32, f32)]> = rings.iter().map(|r| r.as_slice()).collect();
+        assert_eq!(rings_mask(w, h, &refs).unwrap().data, m.data);
+        // two blobs touching at a corner trace to rings that fill back the same
+        let mut d = vec![0u8; 16];
+        d[0] = 255;
+        d[5] = 255;
+        let diag = Mask { x: 3, y: 4, width: 4, height: 4, data: d };
+        let rings = trace(&diag).unwrap();
+        let refs: Vec<&[(f32, f32)]> = rings.iter().map(|r| r.as_slice()).collect();
+        let back = rings_mask(w, h, &refs).unwrap();
+        assert_eq!(back.count(), 2);
+        assert!(back.get(3, 4) && back.get(4, 5));
+    }
+
+    #[test]
+    fn resampling_and_distort() {
+        let mut img = RgbaImage::transparent(2, 1);
+        img.set_pixel(0, 0, [0, 0, 0, 255]);
+        img.set_pixel(1, 0, [255, 255, 255, 255]);
+        assert_eq!(sample_with(&img, 0.9, 0.5, Resample::Nearest), [0, 0, 0, 255]);
+        assert!(sample_with(&img, 1.0, 0.5, Resample::Bilinear)[0] > 100);
+        let _ = sample_with(&img, 1.0, 0.5, Resample::Bicubic);
+        // a distort to the same corners leaves the picture where it was
+        let mut s = dot_surface();
+        let m = polygon_mask(200, 200, &rect(10.0, 10.0, 50.0, 50.0)).unwrap();
+        distort(&mut s, &m, [(10.0, 10.0), (50.0, 10.0), (50.0, 50.0), (10.0, 50.0)], Resample::Nearest).unwrap();
+        assert_eq!(s.pixel(30, 30), [0, 0, 0, 255]);
+        // a perspective: the top edge pulled in; the picture stays inside the new quad
+        distort(&mut s, &m, [(25.0, 10.0), (35.0, 10.0), (60.0, 60.0), (0.0, 60.0)], Resample::Bilinear).unwrap();
+        assert_eq!(s.pixel(5, 12)[3], 0);
+        // a degenerate quad is refused and the drawing is unchanged
+        let before = s.clone();
+        assert!(distort(&mut s, &m, [(0.0, 0.0); 4], Resample::Bilinear).is_err());
+        assert!(distort(&mut s, &m, [(f32::NAN, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)], Resample::Bilinear).is_err());
+        assert_eq!(s, before);
+        // skew keeps the pivot
+        let t = Affine::about_skewed((30.0, 30.0), 0.0, 0.0, 1.0, 1.0, 0.0, (0.5, 0.0));
+        let p = t.apply(30.0, 30.0);
+        assert!((p.0 - 30.0).abs() < 1e-3 && (p.1 - 30.0).abs() < 1e-3);
+        assert!(t.apply(30.0, 40.0).0 > 30.0, "points below the pivot shift right");
+    }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::prelude::ProptestConfig::with_cases(48))]
+        #[test]
+        fn hostile_selection_ops_never_panic(pts in proptest::collection::vec((-500f32..700.0, -500f32..700.0), 0..12), n in -200i32..200, q in proptest::collection::vec((-1e5f32..1e5, -1e5f32..1e5), 4)) {
+            if let Some(m) = polygon_mask(200, 150, &pts) {
+                let _ = grow(&m, n, 200, 150);
+                let _ = invert(Some(&m), 200, 150);
+                if let Some(r) = trace(&m) {
+                    let refs: Vec<&[(f32, f32)]> = r.iter().map(|r| r.as_slice()).collect();
+                    proptest::prop_assert_eq!(rings_mask(200, 150, &refs).map(|b| b.count()), Some(m.count()));
+                }
+                let mut s = dot_surface();
+                let _ = distort(&mut s, &m, [q[0], q[1], q[2], q[3]], Resample::Bicubic);
+            }
+        }
     }
 
     proptest::proptest! {

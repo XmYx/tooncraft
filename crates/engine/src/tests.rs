@@ -158,7 +158,7 @@ fn exports_write_files() {
         e.apply(Command::Stroke { layer: 0, frame: f, brush: ink(), samples: circle(60.0 + f as f32 * 40.0, 120.0, 30.0) }).unwrap();
     }
     let dir = scratch("export");
-    let o = ExportOptions { start: 0, end: 4, paper: true };
+    let o = ExportOptions { start: 0, end: 4, paper: true, ..Default::default() };
     let files = png_sequence(&e.project, &dir.join("png"), "shot", o, |_| {}).unwrap();
     assert_eq!(files.len(), 4);
     assert!(files[0].ends_with("shot_0001.png"));
@@ -167,7 +167,7 @@ fn exports_write_files() {
     assert!(craft_gif::sniff(&bytes));
     ora_frame(&e.project, 1, &dir.join("frame.ora")).unwrap();
     assert!(craft_ora::is_ora(&std::fs::read(dir.join("frame.ora")).unwrap()));
-    assert!(png_sequence(&e.project, &dir, "x", ExportOptions { start: 3, end: 2, paper: true }, |_| {}).is_err());
+    assert!(png_sequence(&e.project, &dir, "x", ExportOptions { start: 3, end: 2, paper: true, ..Default::default() }, |_| {}).is_err());
     mp4(&e.project, &dir.join("shot.mp4"), o, |_| {}).unwrap();
     let bytes = std::fs::read(dir.join("shot.mp4")).unwrap();
     let file = craft_media::isobmff::open(&bytes[..]).unwrap();
@@ -219,7 +219,7 @@ fn webp_stills_and_animations_decode_back() {
     assert_eq!(frame_delays_ms(12, 4).iter().sum::<u32>(), 333);
     assert!(frame_delays_ms(1000, 10).iter().all(|d| *d >= 1));
     // lossless animation: the held frame is merged into the one before it
-    let o = ExportOptions { start: 0, end: 4, paper: false };
+    let o = ExportOptions { start: 0, end: 4, paper: false, ..Default::default() };
     let path = dir.join("anim.webp");
     webp_animated(&e.project, &path, o, WebpOptions::default(), |_| {}).unwrap();
     let bytes = std::fs::read(&path).unwrap();
@@ -241,7 +241,10 @@ fn webp_stills_and_animations_decode_back() {
     let (got, want) = (frames[1].image.to_rgba8(), rendered(&e, 1, true));
     let err: u64 = got.as_chunks::<4>().0.iter().zip(want.as_chunks::<4>().0).map(|(a, b)| (0..3).map(|c| a[c].abs_diff(b[c]) as u64).sum::<u64>()).sum();
     assert!(err as f64 / (got.len() / 4) as f64 / 3.0 < 6.0, "mean error {}", err as f64 / (got.len() / 4) as f64 / 3.0);
-    assert!(webp_animated(&e.project, &dir.join("bad.webp"), ExportOptions { start: 5, end: 2, paper: true }, WebpOptions::default(), |_| {}).is_err());
+    assert!(
+        webp_animated(&e.project, &dir.join("bad.webp"), ExportOptions { start: 5, end: 2, paper: true, ..Default::default() }, WebpOptions::default(), |_| {})
+            .is_err()
+    );
 }
 
 #[test]
@@ -250,7 +253,7 @@ fn tga_and_tiff_sequences_decode_back() {
     let e = drawn_shot();
     let dir = scratch("tga-tiff");
     for paper in [true, false] {
-        let o = ExportOptions { start: 1, end: 4, paper };
+        let o = ExportOptions { start: 1, end: 4, paper, ..Default::default() };
         let tga = tga_sequence(&e.project, &dir.join(format!("tga-{paper}")), "shot", o, |_| {}).unwrap();
         let tif = tiff_sequence(&e.project, &dir.join(format!("tif-{paper}")), "shot", o, |_| {}).unwrap();
         assert_eq!(tga.len(), 3);
@@ -272,8 +275,8 @@ fn tga_and_tiff_sequences_decode_back() {
             );
         }
     }
-    assert!(tga_sequence(&e.project, &dir, "x", ExportOptions { start: 3, end: 2, paper: true }, |_| {}).is_err());
-    assert!(tiff_sequence(&e.project, &dir, "x", ExportOptions { start: 0, end: 99, paper: true }, |_| {}).is_err());
+    assert!(tga_sequence(&e.project, &dir, "x", ExportOptions { start: 3, end: 2, paper: true, ..Default::default() }, |_| {}).is_err());
+    assert!(tiff_sequence(&e.project, &dir, "x", ExportOptions { start: 0, end: 99, paper: true, ..Default::default() }, |_| {}).is_err());
 }
 
 #[test]
@@ -472,12 +475,26 @@ fn selection_commands() {
     e.apply(Command::Stroke { layer: 0, frame: 0, brush: Brush { size: 20.0, ..ink() }, samples: circle(60.0, 60.0, 20.0) }).unwrap();
     let sq = vec![(20.0, 20.0), (100.0, 20.0), (100.0, 100.0), (20.0, 100.0)];
     let before = e.pick_color(0, 60, 40);
-    e.apply(Command::TransformSelection { layer: 0, frame: 0, polygon: sq.clone(), dx: 150.0, dy: 40.0, scale_x: 1.0, scale_y: 1.0, angle: 0.0 }).unwrap();
+    e.apply(Command::TransformSelection {
+        layer: 0,
+        frame: 0,
+        polygon: sq.clone(),
+        rings: Vec::new(),
+        dx: 150.0,
+        dy: 40.0,
+        scale_x: 1.0,
+        scale_y: 1.0,
+        angle: 0.0,
+        skew_x: 0.0,
+        skew_y: 0.0,
+        resample: Default::default(),
+    })
+    .unwrap();
     assert_eq!(e.pick_color(0, 210, 80), before, "the ring moved by (150, 40)");
     assert_ne!(e.pick_color(0, 60, 40), before);
     e.undo().unwrap();
     assert_eq!(e.pick_color(0, 60, 40), before);
-    e.apply(Command::ClearSelection { layer: 0, frame: 0, polygon: sq }).unwrap();
+    e.apply(Command::ClearSelection { layer: 0, frame: 0, polygon: sq, rings: Vec::new() }).unwrap();
     assert!(e.project.drawing(e.project.drawing_at(0, 0).unwrap()).unwrap().is_empty());
     e.apply(Command::PastePixels { layer: 0, frame: 3, x: 10.0, y: 10.0, width: 2, height: 1, rgba: vec![255, 0, 0, 255, 0, 0, 255, 255] }).unwrap();
     assert_eq!(e.pick_color(3, 10, 10), [255, 0, 0, 255]);
@@ -817,5 +834,64 @@ fn boardcraft_board_becomes_a_layout() {
     e.undo().unwrap();
     assert_eq!(e.project, before);
     assert!(e.apply(Command::ImportBoards { path: dir.join("missing.boardcraft").to_string_lossy().into_owned(), frame: 0, camera: true }).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn export_scale_loop_and_digits() {
+    let e = Engine::new(tooncraft_doc::Project::new("Scale", 64, 48, 12, 3).unwrap());
+    let dir = std::env::temp_dir().join(format!("tooncraft-scale-{}", std::process::id()));
+    let o = ExportOptions { start: 0, end: 3, paper: true, scale: 2, loop_forever: false, digits: 6, burn_in: false };
+    assert_eq!(o.size(&e.project), (32, 24));
+    let files = png_sequence(&e.project, &dir, "s", o, |_| {}).unwrap();
+    assert!(files[0].ends_with("s_000001.png"), "{:?}", files[0]);
+    let png = std::fs::read(&files[0]).unwrap();
+    let be = |i: usize| u32::from_be_bytes([png[i], png[i + 1], png[i + 2], png[i + 3]]);
+    assert_eq!((be(16), be(20)), (32, 24), "the IHDR size is half the canvas");
+    gif(&e.project, &dir.join("once.gif"), o, |_| {}).unwrap();
+    let bytes = std::fs::read(dir.join("once.gif")).unwrap();
+    assert!(!bytes.windows(11).any(|w| w == b"NETSCAPE2.0"), "a GIF that plays once has no loop block");
+    // hostile values are refused before anything is written
+    assert!(png_sequence(&e.project, &dir, "x", ExportOptions { scale: 0, ..o }, |_| {}).is_err());
+    assert!(png_sequence(&e.project, &dir, "x", ExportOptions { scale: 99, ..o }, |_| {}).is_err());
+    assert!(png_sequence(&e.project, &dir, "x", ExportOptions { digits: 200, ..o }, |_| {}).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn jpeg_and_exr_sequences_and_transparent_png() {
+    use crate::export::{ExportOptions, exr_sequence, jpeg_sequence, png_sequence};
+    let mut e = Engine::new(tooncraft_doc::Project::new("Seq", 32, 24, 12, 2).unwrap());
+    e.apply(Command::Fill { layer: 0, frame: 0, x: 2, y: 2, color: [200, 30, 30, 255], options: Default::default(), reference: Default::default() }).unwrap();
+    e.apply(Command::NewDrawing { layer: 0, frame: 1 }).unwrap();
+    let dir = std::env::temp_dir().join(format!("tooncraft-seq-{}", std::process::id()));
+    let o = ExportOptions { start: 0, end: 2, paper: false, ..Default::default() };
+    let j = jpeg_sequence(&e.project, &dir, "j", o, 85, |_| {}).unwrap();
+    assert_eq!(j.len(), 2);
+    assert_eq!(&std::fs::read(&j[0]).unwrap()[..2], &[0xFF, 0xD8], "a JPEG");
+    let x = exr_sequence(&e.project, &dir, "x", o, |_| {}).unwrap();
+    assert_eq!(&std::fs::read(&x[0]).unwrap()[..4], &[0x76, 0x2F, 0x31, 0x01], "an OpenEXR file");
+    // without the paper, an empty frame is fully transparent in the PNG
+    let p = png_sequence(&e.project, &dir, "p", o, |_| {}).unwrap();
+    let img = craft_image_codecs::decode(&std::fs::read(&p[1]).unwrap()).unwrap();
+    let rgba = img.to_rgba8();
+    assert!(rgba.as_chunks::<4>().0.iter().all(|px| px[3] == 0), "transparent background");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn burn_ins_mark_the_bottom_of_exported_frames() {
+    use crate::export::{ExportOptions, png_sequence};
+    let e = Engine::new(tooncraft_doc::Project::new("Review", 320, 180, 24, 2).unwrap());
+    let dir = std::env::temp_dir().join(format!("tooncraft-burn-{}", std::process::id()));
+    let o = ExportOptions { start: 0, end: 1, paper: true, burn_in: true, ..Default::default() };
+    let f = png_sequence(&e.project, &dir, "b", o, |_| {}).unwrap();
+    let img = craft_image_codecs::decode(&std::fs::read(&f[0]).unwrap()).unwrap().to_rgba8();
+    let px = |x: usize, y: usize| {
+        let i = (y * 320 + x) * 4;
+        [img[i], img[i + 1], img[i + 2]]
+    };
+    assert!(px(200, 176)[0] < 150, "the bottom bar is dark");
+    assert!(px(200, 20)[0] > 200, "the paper above is untouched");
     let _ = std::fs::remove_dir_all(&dir);
 }

@@ -17,11 +17,16 @@ pub struct Playback {
     /// Clock time (seconds) and frame when play started.
     anchor_time: f64,
     anchor_frame: u32,
+    /// Speed as a fraction of the frame rate ([`MIN_SPEED`] … [`MAX_SPEED`]; 1 is real time).
+    speed: f64,
 }
+
+pub const MIN_SPEED: f64 = 0.1;
+pub const MAX_SPEED: f64 = 4.0;
 
 impl Default for Playback {
     fn default() -> Self {
-        Self { playing: false, looping: true, ping_pong: false, start: 0, end: 1, anchor_time: 0.0, anchor_frame: 0 }
+        Self { playing: false, looping: true, ping_pong: false, start: 0, end: 1, anchor_time: 0.0, anchor_frame: 0, speed: 1.0 }
     }
 }
 
@@ -39,9 +44,24 @@ impl Playback {
         self.playing = false;
     }
 
+    pub fn speed(&self) -> f64 {
+        self.speed
+    }
+
+    /// Change the speed; while playing, the frame on screen stays where it is.
+    pub fn set_speed(&mut self, now: f64, fps: u32, speed: f64) {
+        let speed = if speed.is_finite() { speed.clamp(MIN_SPEED, MAX_SPEED) } else { 1.0 };
+        if self.playing {
+            let f = self.frame(now, fps);
+            self.anchor_frame = f;
+            self.anchor_time = now;
+        }
+        self.speed = speed;
+    }
+
     /// The frame to show at clock time `now`. Stops at the end of the range unless looping.
     pub fn frame(&mut self, now: f64, fps: u32) -> u32 {
-        let (f, still) = frame_at_mode(now - self.anchor_time, fps, self.start, self.end, self.anchor_frame, self.looping, self.ping_pong);
+        let (f, still) = frame_at_mode((now - self.anchor_time) * self.speed, fps, self.start, self.end, self.anchor_frame, self.looping, self.ping_pong);
         if !still {
             self.playing = false;
         }
@@ -51,8 +71,8 @@ impl Playback {
     /// Seconds until the next frame boundary (for scheduling the next repaint).
     pub fn until_next(&self, now: f64, fps: u32) -> f64 {
         let fps = fps.max(1) as f64;
-        let t = (now - self.anchor_time).max(0.0) * fps;
-        ((t.floor() + 1.0 - t) / fps).max(0.001)
+        let t = (now - self.anchor_time).max(0.0) * self.speed * fps;
+        ((t.floor() + 1.0 - t) / (fps * self.speed)).max(0.001)
     }
 }
 
@@ -146,5 +166,20 @@ mod tests {
         assert_eq!(p.frame(102.0, 10), 9);
         assert!(!p.playing);
         assert!(p.until_next(100.05, 10) > 0.0);
+    }
+
+    #[test]
+    fn speed_scales_time_and_keeps_the_frame_when_changed() {
+        let mut p = Playback::default();
+        p.play(0.0, 0, 0, 100);
+        p.set_speed(0.0, 10, 0.5);
+        assert_eq!(p.frame(2.0, 10), 10, "half speed: 2 s show 10 frames at 10 fps");
+        p.set_speed(2.0, 10, 2.0);
+        assert_eq!(p.frame(2.0, 10), 10, "changing speed does not jump");
+        assert_eq!(p.frame(3.0, 10), 30);
+        p.set_speed(3.0, 10, f64::NAN);
+        assert_eq!(p.speed(), 1.0);
+        p.set_speed(3.0, 10, 1e9);
+        assert_eq!(p.speed(), MAX_SPEED);
     }
 }

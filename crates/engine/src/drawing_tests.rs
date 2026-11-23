@@ -1,0 +1,186 @@
+//! Tests of the drawing-aid commands (symmetry, path shapes, lasso fill, gradients).
+
+use crate::drawing::GradientKind;
+use crate::{Command, Engine};
+use tooncraft_brush::{Brush, BrushKind, Sample, Smoothing};
+use tooncraft_doc::Project;
+use tooncraft_doc::symmetry::{Symmetry, SymmetryMode};
+
+fn engine() -> Engine {
+    Engine::new(Project::new("Draw", 200, 100, 12, 4).unwrap())
+}
+
+fn ink() -> Brush {
+    Brush { size: 6.0, smoothing: Smoothing { average: 0.0, ..Default::default() }, ..Brush::preset(BrushKind::Ink) }
+}
+
+const PAPER: [u8; 4] = [246, 243, 236, 255];
+
+#[test]
+fn symmetry_mirrors_live_strokes_and_commands() {
+    let mut e = engine();
+    e.apply(Command::SetSymmetry { symmetry: Symmetry { mode: SymmetryMode::Vertical, center: None, spokes: 6 } }).unwrap();
+    let samples: Vec<Sample> = (0..20).map(|i| Sample::at(20.0, 20.0 + i as f32 * 3.0, 1.0, i as f64 * 0.01)).collect();
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples }).unwrap();
+    assert_ne!(e.pick_color(0, 20, 40), PAPER);
+    assert_ne!(e.pick_color(0, 180, 40), PAPER, "the mirrored copy across x = 100");
+    assert_eq!(e.undo_len(), 1, "both halves are one undo step");
+    let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
+    assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap().symmetry.mode, SymmetryMode::Vertical);
+}
+
+#[test]
+fn path_shapes_outline_fill_and_lasso_fill() {
+    let mut e = engine();
+    let tri = vec![(20.0, 80.0), (60.0, 20.0), (100.0, 80.0)];
+    let red = [220, 20, 20, 255];
+    e.apply(Command::PathShape { layer: 0, frame: 0, brush: ink(), points: tri.clone(), closed: true, curve: false, outline: true, fill: Some(red) }).unwrap();
+    assert_eq!(e.undo_label(), Some("Shape"));
+    assert_eq!(e.undo_len(), 1, "outline and fill are one step");
+    assert_eq!(e.pick_color(0, 60, 60), red, "filled inside");
+    assert_ne!(e.pick_color(0, 20, 80), red, "the outline sits on the edge");
+    // a lasso fill: fill only
+    e.apply(Command::PathShape { layer: 0, frame: 1, brush: ink(), points: tri, closed: true, curve: true, outline: false, fill: Some(red) }).unwrap();
+    assert_eq!(e.pick_color(1, 60, 60), red);
+    // an open polyline outline
+    e.apply(Command::PathShape {
+        layer: 0,
+        frame: 2,
+        brush: ink(),
+        points: vec![(10.0, 10.0), (190.0, 10.0)],
+        closed: false,
+        curve: false,
+        outline: true,
+        fill: None,
+    })
+    .unwrap();
+    assert_ne!(e.pick_color(2, 100, 10), PAPER);
+    assert!(
+        e.apply(Command::PathShape {
+            layer: 0,
+            frame: 2,
+            brush: ink(),
+            points: vec![(f32::NAN, 0.0), (1.0, 1.0)],
+            closed: false,
+            curve: false,
+            outline: true,
+            fill: None
+        })
+        .is_err()
+    );
+    e.undo().unwrap();
+    e.undo().unwrap();
+    e.undo().unwrap();
+    assert_eq!(e.pick_color(0, 60, 60), PAPER);
+}
+
+#[test]
+fn gradients() {
+    let mut e = engine();
+    e.apply(Command::Gradient {
+        layer: 0,
+        frame: 0,
+        kind: GradientKind::Linear,
+        from: (0.0, 0.0),
+        to: (200.0, 0.0),
+        start: [0, 0, 0, 255],
+        end: [255, 255, 255, 255],
+        area: None,
+        area_rings: Vec::new(),
+    })
+    .unwrap();
+    let (l, m, r) = (e.pick_color(0, 1, 50)[0], e.pick_color(0, 100, 50)[0], e.pick_color(0, 198, 50)[0]);
+    assert!(l < 10 && (120..=135).contains(&m) && r > 245, "{l} {m} {r}");
+    e.apply(Command::Gradient {
+        layer: 0,
+        frame: 1,
+        kind: GradientKind::Radial,
+        from: (100.0, 50.0),
+        to: (150.0, 50.0),
+        start: [255, 0, 0, 255],
+        end: [0, 0, 255, 255],
+        area: Some(vec![(80.0, 30.0), (120.0, 30.0), (120.0, 70.0), (80.0, 70.0)]),
+        area_rings: Vec::new(),
+    })
+    .unwrap();
+    assert!(e.pick_color(1, 100, 50)[0] > 245, "the centre is the start colour");
+    assert_eq!(e.pick_color(1, 10, 10), PAPER, "outside the area untouched");
+}
+
+#[test]
+fn drawing_commands_are_json() {
+    let c: Command = serde_json::from_str(
+        r#"{"cmd":"path_shape","layer":0,"frame":0,"brush":{"kind":"ink"},"points":[[0,0],[10,10],[20,0]],"closed":true,"fill":[1,2,3,255]}"#,
+    )
+    .unwrap();
+    assert!(matches!(c, Command::PathShape { outline: true, closed: true, .. }));
+    let g: Command =
+        serde_json::from_str(r#"{"cmd":"gradient","layer":0,"frame":0,"from":[0,0],"to":[5,0],"start":[0,0,0,255],"end":[255,255,255,0]}"#).unwrap();
+    assert!(matches!(g, Command::Gradient { kind: GradientKind::Linear, .. }));
+    let s: Command = serde_json::from_str(r#"{"cmd":"set_symmetry","symmetry":{"mode":"radial","spokes":5}}"#).unwrap();
+    let mut e = engine();
+    e.apply(s).unwrap();
+    assert_eq!(e.project.symmetry.spokes, 5);
+}
+
+#[test]
+fn selection_rings_skew_distort_and_wand() {
+    let mut e = engine();
+    // a square of paint
+    e.apply(Command::Fill { layer: 0, frame: 0, x: 5, y: 5, color: [20, 20, 20, 255], options: Default::default(), reference: Default::default() }).unwrap();
+    let sq = vec![(40.0, 20.0), (80.0, 20.0), (80.0, 60.0), (40.0, 60.0)];
+    let hole = vec![(50.0, 30.0), (70.0, 30.0), (70.0, 50.0), (50.0, 50.0)];
+    // erasing a ring with a hole keeps the hole's paint
+    e.apply(Command::ClearSelection { layer: 0, frame: 0, polygon: sq.clone(), rings: vec![hole.clone()] }).unwrap();
+    assert_eq!(e.pick_color(0, 45, 25), PAPER);
+    assert_ne!(e.pick_color(0, 60, 40), PAPER, "the hole is not erased");
+    e.undo().unwrap();
+    // skew and a resampling choice go through
+    e.apply(Command::TransformSelection {
+        layer: 0,
+        frame: 0,
+        polygon: sq.clone(),
+        rings: Vec::new(),
+        dx: 0.0,
+        dy: 0.0,
+        scale_x: 1.0,
+        scale_y: 1.0,
+        angle: 0.0,
+        skew_x: 0.3,
+        skew_y: 0.0,
+        resample: tooncraft_raster::select::Resample::Nearest,
+    })
+    .unwrap();
+    assert_eq!(e.undo_label(), Some("Transform"));
+    e.undo().unwrap();
+    // free distort to a smaller quad: one undo step; a degenerate quad is refused, unchanged
+    e.apply(Command::DistortSelection {
+        layer: 0,
+        frame: 0,
+        polygon: sq.clone(),
+        rings: Vec::new(),
+        corners: [(50.0, 30.0), (70.0, 30.0), (70.0, 50.0), (50.0, 50.0)],
+        resample: Default::default(),
+    })
+    .unwrap();
+    assert_eq!(e.undo_label(), Some("Distort"));
+    assert_eq!(e.pick_color(0, 42, 22), PAPER, "the corner moved in");
+    let n = e.undo_len();
+    assert!(
+        e.apply(Command::DistortSelection {
+            layer: 0,
+            frame: 0,
+            polygon: sq.clone(),
+            rings: Vec::new(),
+            corners: [(1.0, 1.0); 4],
+            resample: Default::default()
+        })
+        .is_err()
+    );
+    assert_eq!(e.undo_len(), n);
+    // the magic wand picks the painted area of the drawing
+    e.undo().unwrap();
+    let m = crate::select::wand(&e, 0, 0, 10, 10, 30, false).expect("an area");
+    assert_eq!(m.count(), 200 * 100, "the fill covers the whole drawing");
+    assert!(crate::select::wand(&e, 0, 0, 9_999, 10, 30, false).is_none());
+}

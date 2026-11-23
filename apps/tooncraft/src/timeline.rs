@@ -45,7 +45,8 @@ fn bar(p: &egui::Painter, r: Rect, x: f32, c: Color32) {
 }
 
 fn transport(app: &mut ToonApp, ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
+    // wraps onto a second row in a narrow timeline instead of clipping the last controls
+    ui.horizontal_wrapped(|ui| {
         let len = app.engine.project.length();
         if icon_button(ui, tl!("First frame"), false, |p, r, c| {
             bar(p, r, r.left(), c);
@@ -126,6 +127,18 @@ fn transport(app: &mut ToonApp, ui: &mut egui::Ui) {
         if ui.button(tl!("Hold −")).on_hover_text(tl!("Show one frame shorter (−)")).clicked() {
             app.run(Command::ShortenHold { layer, frame });
         }
+        // the exposure length of the current drawing, editable (keys 1 to 9 in the sheet)
+        if let Some((start, end)) = app.engine.project.layers.get(layer).and_then(|l| l.exposure_range(frame)) {
+            let mut length = end - start;
+            let l = ui.label(tl!("Hold"));
+            let resp = ui
+                .add(egui::DragValue::new(&mut length).range(1..=999).speed(0.1).suffix(tl!(" fr")))
+                .labelled_by(l.id)
+                .on_hover_text(tl!("How many frames this drawing is shown (1 to 9 in the sheet)"));
+            if resp.changed() && length != end - start {
+                app.run(Command::SetExposure { layer, frame, length });
+            }
+        }
         if ui.button(tl!("Clear")).on_hover_text(tl!("Clear frame (Delete)")).clicked() {
             app.run(Command::ClearCell { layer, frame });
         }
@@ -154,7 +167,7 @@ fn transport(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.horizontal_wrapped(|ui| crate::timeline_extras::transport(app, ui));
 }
 
-fn cell_text(cell: Cell) -> String {
+pub fn cell_text(cell: Cell) -> String {
     match cell {
         Cell::Key(d) => tlf!("drawing {id}", id = d.0),
         Cell::Hold => tl!("hold").to_string(),
@@ -162,11 +175,16 @@ fn cell_text(cell: Cell) -> String {
     }
 }
 
-fn grid_keys(app: &mut ToonApp, ui: &egui::Ui) {
+pub fn grid_keys(app: &mut ToonApp, ui: &egui::Ui) {
     let (layer, frame) = (app.layer, app.frame);
+    let vertical = app.tl.vertical;
     let (k, shift) = ui.input(|i| {
         let arrow = |k| (i.modifiers.is_none() || i.modifiers.shift_only()) && i.key_pressed(k);
-        ([arrow(Key::ArrowLeft), arrow(Key::ArrowRight), arrow(Key::ArrowUp), arrow(Key::ArrowDown)], i.modifiers.shift)
+        let (l, r, u, d) = (arrow(Key::ArrowLeft), arrow(Key::ArrowRight), arrow(Key::ArrowUp), arrow(Key::ArrowDown));
+        // [previous frame, next frame, layer above, layer below]; down the page, frames run
+        // up and down and the top layer is the rightmost column
+        let k = if vertical { [u, d, r, l] } else { [l, r, u, d] };
+        (k, i.modifiers.shift)
     });
     if k.iter().any(|v| *v) {
         if shift {
@@ -179,6 +197,15 @@ fn grid_keys(app: &mut ToonApp, ui: &egui::Ui) {
     }
     if ui.input(|i| i.key_pressed(Key::Escape)) {
         app.sel_anchor = None;
+    }
+    // 1 to 9: show the drawing here for that many frames
+    const DIGITS: [Key; 9] = [Key::Num1, Key::Num2, Key::Num3, Key::Num4, Key::Num5, Key::Num6, Key::Num7, Key::Num8, Key::Num9];
+    let digit = ui.input(|i| DIGITS.iter().position(|k| i.modifiers.is_none() && i.key_pressed(*k)));
+    if let Some(n) = digit
+        && app.engine.project.layers.get(layer).and_then(|l| l.drawing_at(frame)).is_some()
+        && app.run(Command::SetExposure { layer, frame, length: n as u32 + 1 })
+    {
+        app.set_status(tlf!("Held for {n} frames", n = n + 1));
     }
     if k[0] {
         app.go_to(frame as i64 - 1);
@@ -199,6 +226,12 @@ fn grid_keys(app: &mut ToonApp, ui: &egui::Ui) {
 #[allow(non_snake_case)]
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     transport(app, ui);
+    if app.tl.vertical {
+        let (from, to) = (app.timeline_scroll.x.max(0.0) as u32, app.timeline_scroll.x.max(0.0) as u32 + 80);
+        refresh_thumbnails(app, ui.ctx(), from, to);
+        crate::sheet::show(app, ui);
+        return;
+    }
     let (CELL_W, ROW_H) = if app.thumbnails { (46.0, 42.0) } else { (CELL_W0, ROW_H0) };
     let CELL_W = CELL_W * app.tl.zoom;
     ui.add_space(2.0);
@@ -277,6 +310,62 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         }
     }
     crate::timeline_extras::paint_flags(app, &painter, ruler, frames_area.left(), first, visible_cols, CELL_W, pal.accent);
+    // frames chosen for flipping: a dot on the ruler
+    for &f in &app.flip {
+        if f >= first && f < first + visible_cols {
+            let x = frames_area.left() + (f - first) as f32 * CELL_W + CELL_W * 0.5;
+            painter.circle_filled(pos2(x, ruler.top() + 5.0), 2.5, pal.accent);
+        }
+    }
+    // the in and out range: a band along the top of the ruler
+    if let Some((a, b)) = app.tl.range {
+        let x0 = (frames_area.left() + (a as f32 - first as f32) * CELL_W).max(frames_area.left());
+        let x1 = (frames_area.left() + (b as f32 + 1.0 - first as f32) * CELL_W).min(frames_area.right());
+        if x1 > x0 {
+            painter.rect_filled(Rect::from_min_max(pos2(x0, ruler.top()), pos2(x1, ruler.top() + 3.0)), 0.0, pal.playhead);
+        }
+    }
+    // the onion skin's reach, under the ruler: before in its tint, after in its tint
+    if let Some((lo, hi)) = onion_span(app) {
+        let o = &app.engine.project.onion;
+        let x = |f: u32| frames_area.left() + (f as f32 - first as f32) * CELL_W;
+        let clip = |a: f32, b: f32| (a.max(frames_area.left()), b.min(frames_area.right()));
+        let y = ruler.bottom() - 2.0;
+        let (bt, at) = (o.before_tint, o.after_tint);
+        for (a, b, c) in [(lo, app.frame, bt), (app.frame + 1, hi + 1, at)] {
+            let (x0, x1) = clip(x(a), x(b));
+            if b > a && x1 > x0 {
+                painter.rect_filled(Rect::from_min_max(pos2(x0, y - 2.0), pos2(x1, y + 1.0)), 1.0, Color32::from_rgb(c[0], c[1], c[2]));
+            }
+        }
+        // brackets at each end: drag to show more or fewer steps
+        for (before, f, c) in [(true, lo, bt), (false, hi + 1, at)] {
+            let bx = x(f);
+            if bx < frames_area.left() - 1.0 || bx > frames_area.right() + 1.0 {
+                continue;
+            }
+            let r = Rect::from_center_size(pos2(bx, y - 4.0), vec2(8.0, 12.0));
+            let resp = ui.interact(r, grid_id().with(("onion-bracket", before)), Sense::drag());
+            let name = if before { tl!("Onion skin reach before") } else { tl!("Onion skin reach after") };
+            let steps = if before { app.engine.project.onion.before } else { app.engine.project.onion.after };
+            resp.widget_info(|| egui::WidgetInfo::slider(true, steps as f64, name.to_string()));
+            let col = Color32::from_rgb(c[0], c[1], c[2]);
+            let (top, bot) = (r.top(), r.bottom());
+            let dir = if before { 3.0 } else { -3.0 };
+            painter.line_segment([pos2(bx, top), pos2(bx, bot)], Stroke::new(2.0, col));
+            painter.line_segment([pos2(bx, top), pos2(bx + dir, top)], Stroke::new(2.0, col));
+            painter.line_segment([pos2(bx, bot), pos2(bx + dir, bot)], Stroke::new(2.0, col));
+            if resp.hovered() || resp.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
+            }
+            if resp.dragged()
+                && let Some(p) = resp.interact_pointer_pos()
+            {
+                let to = (first as f32 + (p.x - frames_area.left()) / CELL_W).round().max(0.0) as u32;
+                set_onion_reach(app, before, to);
+            }
+        }
+    }
     // scrub on the ruler (click or drag)
     let ruler_resp = ui.interact(ruler, grid_id().with("ruler"), Sense::click_and_drag());
     ruler_resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Slider, true, tl!("Frame ruler")));
@@ -302,6 +391,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let mut clicked: Option<(usize, u32)> = None;
     let mut toggles: Vec<(usize, bool)> = Vec::new();
     let mut drag: Option<(usize, u32, u32)> = None;
+    // right-click menus, shown after the rows (the rows borrow the project)
+    let mut cell_menus: Vec<(usize, u32, egui::Response)> = Vec::new();
+    let mut layer_menus: Vec<(usize, egui::Response)> = Vec::new();
     for row in 0..visible_rows.min(n_layers.saturating_sub(row0)) {
         let Some(&li) = rows.get(row0 + row) else { continue };
         let Some(layer) = app.engine.project.layers.get(li) else { continue };
@@ -331,6 +423,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         name_resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, li == app.layer, name_label.clone()));
         if name_resp.clicked() {
             clicked = Some((li, app.frame));
+        }
+        if name_resp.secondary_clicked() || name_resp.context_menu_opened() {
+            layer_menus.push((li, name_resp.clone()));
         }
         // folders: a label-coloured stripe per level, and the folder path before the name
         for (depth, f) in app.engine.project.folder_chain(layer.folder.as_deref()).iter().rev().enumerate() {
@@ -395,8 +490,18 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
                 label = format!("{label}, {}", crate::timing_panel::mark_label(Some(*m)).to_lowercase());
             }
             resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Cell, true, selected, label.clone()));
+            if cell == Cell::Hold
+                && resp.hovered()
+                && let Some(d) = layer.drawing_at(f)
+            {
+                painter.text(r.center(), Align2::CENTER_CENTER, format!("{}", d.0), FontId::proportional(9.0), pal.weak);
+            }
+            let resp = cell_tooltip(app, resp, cell, layer.drawing_at(f));
             if resp.clicked() {
                 clicked = Some((li, f));
+            }
+            if resp.secondary_clicked() || resp.context_menu_opened() {
+                cell_menus.push((li, f, resp.clone()));
             }
             f += 1;
         }
@@ -525,7 +630,113 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         app.playback.stop();
         ui.memory_mut(|m| m.request_focus(grid_id()));
     }
+    for (li, f, resp) in cell_menus {
+        if resp.secondary_clicked() {
+            // the menu acts on the cell it was opened on, which becomes the current one
+            app.layer = li;
+            app.frame = f;
+            app.sel_anchor = None;
+            app.playback.stop();
+        }
+        resp.context_menu(|ui| crate::context_menus::cell(app, ui, li, f));
+    }
+    for (li, resp) in layer_menus {
+        resp.context_menu(|ui| crate::context_menus::layer(app, ui, li));
+    }
     ui.allocate_rect(area, Sense::hover());
+}
+
+/// A hover tip on a cell: the drawing's thumbnail (when made), number and name.
+pub fn cell_tooltip(app: &ToonApp, resp: egui::Response, cell: Cell, drawing: Option<tooncraft_doc::DrawingId>) -> egui::Response {
+    let Some(d) = drawing else { return resp };
+    let name = app.engine.project.drawing_names.get(&d).cloned();
+    let thumb = app.thumbs.get(&d).map(|(_, t)| t.clone());
+    let held = cell == Cell::Hold;
+    resp.on_hover_ui_at_pointer(|ui| {
+        if let Some(t) = &thumb {
+            ui.add(egui::Image::new(t).fit_to_exact_size(vec2(120.0, 80.0)));
+        }
+        let mut text = tlf!("Drawing {id}", id = d.0);
+        if let Some(n) = &name {
+            text = format!("{text}, {n}");
+        }
+        if held {
+            text = tlf!("{drawing} (held)", drawing = text);
+        }
+        ui.label(text);
+    })
+}
+
+/// Set how many steps the onion skin shows on one side so it reaches frame `to`.
+pub fn set_onion_reach(app: &mut ToonApp, before: bool, to: u32) {
+    let frame = app.frame;
+    let Some(l) = app.engine.project.layers.get(app.layer) else { return };
+    let o = &app.engine.project.onion;
+    let max = tooncraft_doc::ONION_MAX_STEPS as u32;
+    let n = match o.mode {
+        tooncraft_doc::OnionMode::Frames => {
+            if before {
+                frame.saturating_sub(to)
+            } else {
+                to.saturating_sub(frame + 1)
+            }
+        }
+        tooncraft_doc::OnionMode::Drawings => {
+            let keys = |a: u32, b: u32| (a..b).filter(|f| matches!(l.cells.get(*f as usize), Some(Cell::Key(_)))).count() as u32;
+            if before {
+                let start = l.exposure_start(frame).unwrap_or(frame);
+                keys(to.min(start), start)
+            } else {
+                keys(frame + 1, to.max(frame + 1))
+            }
+        }
+    }
+    .min(max) as u8;
+    let o = &mut app.engine.project.onion;
+    if before {
+        o.before = n;
+    } else {
+        o.after = n;
+    }
+}
+
+/// The frames the onion skin reaches on the current layer, `(first, last)`, when it is on.
+pub fn onion_span(app: &ToonApp) -> Option<(u32, u32)> {
+    let p = &app.engine.project;
+    let o = &p.onion;
+    if !o.enabled {
+        return None;
+    }
+    let len = p.length();
+    let frame = app.frame;
+    let l = p.layers.get(app.layer)?;
+    let span = match o.mode {
+        tooncraft_doc::OnionMode::Frames => (frame.saturating_sub(o.before as u32), (frame + o.after as u32).min(len.saturating_sub(1))),
+        tooncraft_doc::OnionMode::Drawings => {
+            let is_key = |f: u32| matches!(l.cells.get(f as usize), Some(Cell::Key(_)));
+            let here = l.exposure_start(frame).unwrap_or(frame);
+            let mut lo = here;
+            for _ in 0..o.before {
+                match (0..lo).rev().find(|f| is_key(*f)) {
+                    Some(f) => lo = f,
+                    None => break,
+                }
+            }
+            let mut hi = frame;
+            let mut cursor = frame;
+            for _ in 0..o.after {
+                match (cursor + 1..len).find(|f| is_key(*f)) {
+                    Some(f) => {
+                        cursor = f;
+                        hi = l.exposure_range(f).map_or(f, |(_, e)| e.saturating_sub(1));
+                    }
+                    None => break,
+                }
+            }
+            (lo, hi)
+        }
+    };
+    Some(span)
 }
 
 /// Thumbnails of the drawings keyed in the visible frames, a few new ones per UI frame, each
@@ -573,6 +784,27 @@ pub fn frame_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     if ui.button(tl!("Next Frame")).clicked() {
         app.go_to(frame as i64 + 1);
     }
+    if ui.button(tl!("Previous Drawing")).clicked() {
+        app.step_drawing(false);
+    }
+    if ui.button(tl!("Next Drawing")).clicked() {
+        app.step_drawing(true);
+    }
+    if ui.button(tl!("Add to or Remove from Flip Set")).clicked() {
+        app.toggle_flip();
+    }
+    if ui.add_enabled(!app.flip.is_empty(), egui::Button::new(tl!("Flip to Next Chosen Frame"))).clicked() {
+        app.flip_step(true);
+    }
+    if ui.add_enabled(!app.flip.is_empty(), egui::Button::new(tl!("Clear Flip Set"))).clicked() {
+        app.flip.clear();
+    }
+    if ui.button(tl!("Previous Key Drawing")).clicked() {
+        app.step_key(false);
+    }
+    if ui.button(tl!("Next Key Drawing")).clicked() {
+        app.step_key(true);
+    }
     ui.separator();
     let items: [(String, Command); 7] = [
         (tl!("New Drawing").to_string(), Command::NewDrawing { layer, frame }),
@@ -587,6 +819,10 @@ pub fn frame_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
         if ui.button(label).clicked() {
             app.run(cmd);
         }
+    }
+    ui.menu_button(tl!("Swap Drawing"), |ui| crate::context_menus::swap_grid(app, ui, layer, frame));
+    if ui.button(tl!("Fill Empty Frames")).clicked() {
+        app.run(Command::FillEmpty { layer });
     }
     ui.separator();
     if ui.button(tl!("Copy Frames")).clicked() {

@@ -19,10 +19,22 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("tool.picker", "Colour picker", "I"),
     ("tool.select", "Select", "S"),
     ("tool.shape", "Shapes", "U"),
+    ("tool.gradient", "Gradient", "G"),
     ("tool.hand", "Hand", "H"),
     ("frame.play", "Play / stop", "Enter"),
     ("frame.prev", "Previous frame", ","),
     ("frame.next", "Next frame", "."),
+    ("frame.prev_drawing", "Previous drawing", "Ctrl+Left"),
+    ("frame.next_drawing", "Next drawing", "Ctrl+Right"),
+    ("app.find_command", "Find a command", "Ctrl+Shift+P"),
+    ("select.invert", "Invert selection", "Ctrl+Shift+I"),
+    ("flip.toggle", "Add or remove this frame from the flip set", "Ctrl+Alt+Enter"),
+    ("flip.next", "Flip to the next chosen frame", "Ctrl+Alt+Right"),
+    ("flip.prev", "Flip to the previous chosen frame", "Ctrl+Alt+Left"),
+    ("frame.prev_key", "Previous key drawing", "Ctrl+Shift+Left"),
+    ("frame.next_key", "Next key drawing", "Ctrl+Shift+Right"),
+    ("layer.prev", "Layer below", "Ctrl+Down"),
+    ("layer.next", "Layer above", "Ctrl+Up"),
     ("frame.first", "First frame", "Home"),
     ("frame.last", "Last frame", "End"),
     ("frame.new_drawing", "New drawing", "Shift+N"),
@@ -94,6 +106,10 @@ pub struct Keys {
     /// The command waiting for a new key in the editor.
     pub recording: Option<String>,
     save: bool,
+    /// The shortcut editor's search: a command name or a key ("ctrl+z").
+    pub filter: String,
+    /// After a change: the command the new key was taken from, said in the editor.
+    pub taken: Option<String>,
 }
 
 impl Keys {
@@ -108,7 +124,7 @@ impl Keys {
         {
             map.set_overrides(o);
         }
-        Self { map, dispatcher: craft_keymap::egui::Dispatcher::new(), recording: None, save: load }
+        Self { map, dispatcher: craft_keymap::egui::Dispatcher::new(), recording: None, save: load, filter: String::new(), taken: None }
     }
 
     /// The commands whose keys were pressed this frame and that `accept` lets through (those are
@@ -145,7 +161,13 @@ impl Keys {
         }
         let Some(k) = craft_keymap::Key::from_egui(key) else { return true };
         let chord = Chord { mods: craft_keymap::Mods::from_egui(&mods, platform()), key: k };
-        let cmd = CommandRef::new(id);
+        let cmd = CommandRef::new(id.clone());
+        // a key another command had: say which, so the user knows it moved
+        let text = Binding::new(chord).text(&Scope::app());
+        self.taken = COMMANDS
+            .iter()
+            .find(|(other, _, _)| *other != id && self.map.bindings(&CommandRef::new(*other)).iter().any(|b| b.text(&Scope::app()) == text))
+            .map(|(other, _, _)| tlf!("{key} was taken from “{command}”", key = text, command = label(other)));
         // The new key replaces the command's keys and is taken from any other command.
         let mut o = self.map.overrides().clone();
         o.insert(cmd.key(), Vec::new());
@@ -153,6 +175,16 @@ impl Keys {
         let _ = self.map.assign(&cmd, Binding::new(chord), Policy::Steal);
         self.persist();
         true
+    }
+
+    /// Whether the command matches the shortcut editor's search: its name or one of its keys.
+    pub fn matches(&self, id: &str) -> bool {
+        let q = self.filter.trim().to_lowercase();
+        if q.is_empty() {
+            return true;
+        }
+        let keys = self.text(id).to_lowercase();
+        label(id).to_lowercase().contains(&q) || keys.split(", ").any(|k| k == q || k.contains(&q))
     }
 
     pub fn reset(&mut self, id: &str) {

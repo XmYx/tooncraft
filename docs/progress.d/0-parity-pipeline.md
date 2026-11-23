@@ -1,0 +1,1 @@
+- 2026-11-23: Pipeline and review: JPEG and OpenEXR sequences, a tested transparent-background export, edit decisions as OpenTimelineIO, burn-ins (shot, frame, timecode) for review copies, and Find Command (Ctrl+Shift+P).

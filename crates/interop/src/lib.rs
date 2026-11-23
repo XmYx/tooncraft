@@ -14,6 +14,8 @@
 //! | [`gif`] | import | the frames and delays of an animated GIF |
 //! | [`prores`] | export | Apple ProRes 4444 (with alpha) or 422 HQ in a QuickTime movie |
 //! | [`boards`] | import | a BoardCraft board or animatic: panels, timings and camera moves |
+//! | [`otio`] | export | edit decisions as OpenTimelineIO: a track per layer, a clip per exposure, markers |
+//! | [`palette`] | export, import | colour palettes: GIMP `.gpl` (read through craft-palette), Photoshop swatches `.aco` |
 //!
 //! Imported files are hostile: every reader bounds its allocations and returns an error for
 //! truncated or corrupt input, never a panic. Imported pixels are premultiplied RGBA8
@@ -32,6 +34,8 @@ pub mod gif;
 pub mod layer_sequences;
 pub mod levels;
 pub mod ora;
+pub mod otio;
+pub mod palette;
 pub mod prores;
 pub mod psd;
 pub mod xdts;

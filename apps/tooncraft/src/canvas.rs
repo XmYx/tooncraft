@@ -232,6 +232,10 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
     }
     let (layer, frame) = (app.layer, app.frame);
     match app.tool {
+        Tool::Fill if app.aids.lasso_fill => {
+            let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            crate::draw_aids::lasso_input(app, at, resp);
+        }
         Tool::Fill => {
             if resp.clicked()
                 && let Some(p) = resp.interact_pointer_pos()
@@ -256,23 +260,12 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
         }
         Tool::Select => select_input(app, rect, resp),
         Tool::Shape => {
-            if let Some(p) = resp.interact_pointer_pos() {
-                let c = to_canvas(app, rect, p);
-                if resp.drag_started() {
-                    app.shape_drag = Some(((c.x, c.y), (c.x, c.y)));
-                } else if resp.dragged()
-                    && let Some((a, _)) = app.shape_drag
-                {
-                    app.shape_drag = Some((a, (c.x, c.y)));
-                }
-            }
-            if resp.drag_stopped()
-                && let Some((from, to)) = app.shape_drag.take()
-            {
-                let brush = tooncraft_brush::Brush { color: app.color, ..app.brushes[1] };
-                let (layer, frame, shape) = (app.layer, app.frame, app.shape);
-                app.run(Command::Shape { layer, frame, brush, shape, from, to, constrain: mods.shift });
-            }
+            let at = resp.interact_pointer_pos().or(resp.hover_pos()).map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            crate::draw_aids::shape_input(app, at, resp, mods.shift);
+        }
+        Tool::Gradient => {
+            let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            crate::draw_aids::gradient_input(app, at, resp);
         }
         Tool::Hand => {}
         _ if mods.alt => {
@@ -392,10 +385,35 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
     let Some(p) = resp.interact_pointer_pos() else { return };
     let c = to_canvas(app, rect, p);
     let tol = 10.0 / app.view.zoom.max(0.01);
+    let mods = ui_mods(resp);
+    let op = crate::selection_tools::combine_for(app, mods);
+    // free distort: the four corners are the only handles
+    if let Some(mut q) = app.sel.distort {
+        if resp.drag_started() {
+            app.sel.dragging = q.iter().position(|k| (k.0 - c.x).hypot(k.1 - c.y) <= tol);
+        }
+        if resp.dragged()
+            && let Some(i) = app.sel.dragging
+        {
+            q[i] = (c.x, c.y);
+            app.sel.distort = Some(q);
+        }
+        if resp.drag_stopped() {
+            app.sel.dragging = None;
+        }
+        return;
+    }
+    if app.select_mode == SelectMode::Wand {
+        if resp.clicked() {
+            crate::selection_tools::wand(app, c.x, c.y, op);
+        }
+        return;
+    }
     if resp.drag_started() {
         app.selecting.clear();
         app.xform = None;
-        if let Some(poly) = app.selection.clone() {
+        // while adding, subtracting or intersecting, a drag always draws a new outline
+        if let Some(poly) = app.selection.clone().filter(|_| op == tooncraft_raster::select::Combine::Replace) {
             let (corners, knob) = handles(&poly, app.view.zoom);
             let near = |q: (f32, f32)| (q.0 - c.x).hypot(q.1 - c.y) <= tol;
             let kind = if near(knob) {
@@ -408,11 +426,14 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
                 None
             };
             if let Some(kind) = kind {
-                app.xform = Some(Xform { base: poly, kind, start: (c.x, c.y), applied: false, now: (0.0, 0.0, 1.0, 0.0) });
+                let base_rings = crate::selection_tools::extra_rings(app);
+                app.xform = Some(Xform { base: poly, base_rings, kind, start: (c.x, c.y), applied: false, now: (0.0, 0.0, 1.0, 0.0) });
                 return;
             }
         }
-        app.selection = None;
+        if op == tooncraft_raster::select::Combine::Replace {
+            crate::selection_tools::set_rings(app, Vec::new());
+        }
         app.selecting.push((c.x, c.y));
         return;
     }
@@ -435,11 +456,27 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
             if x.applied {
                 let _ = app.engine.undo();
             }
-            let (layer, frame) = (app.layer, app.frame);
-            x.applied = app.run(Command::TransformSelection { layer, frame, polygon: x.base.clone(), dx, dy, scale_x: sc, scale_y: sc, angle: ang });
+            let (layer, frame, resample) = (app.layer, app.frame, app.sel.resample);
+            let cmd = Command::TransformSelection {
+                layer,
+                frame,
+                polygon: x.base.clone(),
+                rings: x.base_rings.clone(),
+                dx,
+                dy,
+                scale_x: sc,
+                scale_y: sc,
+                angle: ang,
+                skew_x: 0.0,
+                skew_y: 0.0,
+                resample,
+            };
+            x.applied = app.run(cmd);
             x.now = (dx, dy, sc, ang);
             let t = tooncraft_engine::select::affine(&x.base, dx, dy, sc, sc, ang);
-            app.selection = Some(x.base.iter().map(|p| t.apply(p.0, p.1)).collect());
+            let mut rings = vec![x.base.iter().map(|p| t.apply(p.0, p.1)).collect::<Vec<_>>()];
+            rings.extend(x.base_rings.iter().map(|r| r.iter().map(|p| t.apply(p.0, p.1)).collect::<Vec<_>>()));
+            crate::selection_tools::keep_rings(app, rings);
             app.xform = Some(x);
         }
         if resp.drag_stopped() {
@@ -459,17 +496,35 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
                     app.selecting = vec![first, (c.x, first.1), (c.x, c.y), (first.0, c.y)];
                 }
             }
+            SelectMode::Ellipse => {
+                if let Some(&first) = app.selecting.first() {
+                    let mut e = crate::selection_tools::ellipse(first, (c.x, c.y));
+                    e.insert(0, first);
+                    // keep the anchor first; the outline follows (dropped on release)
+                    app.selecting = e;
+                }
+            }
+            SelectMode::Wand => {}
         }
     }
     if resp.drag_stopped() {
-        if app.selecting.len() >= 3 {
-            app.selection = Some(std::mem::take(&mut app.selecting));
+        let mut ring = std::mem::take(&mut app.selecting);
+        if app.select_mode == SelectMode::Ellipse && !ring.is_empty() {
+            ring.remove(0);
+        }
+        if ring.len() >= 3 {
+            crate::selection_tools::add_ring(app, ring, op);
         }
         app.selecting.clear();
     }
-    if resp.clicked() && app.selection.as_ref().is_some_and(|poly| !inside(poly, c.x, c.y)) {
-        app.selection = None;
+    if resp.clicked() && op == tooncraft_raster::select::Combine::Replace && app.selection.as_ref().is_some_and(|poly| !inside(poly, c.x, c.y)) {
+        crate::selection_tools::set_rings(app, Vec::new());
     }
+}
+
+/// The modifier keys during a pointer interaction.
+fn ui_mods(resp: &egui::Response) -> egui::Modifiers {
+    resp.ctx.input(|i| i.modifiers)
 }
 
 fn draw_selection(painter: &egui::Painter, app: &ToonApp, c: &Ctx, pal: &crate::theme::Palette) {
@@ -487,6 +542,16 @@ fn draw_selection(painter: &egui::Painter, app: &ToonApp, c: &Ctx, pal: &crate::
         painter.add(Shape::dashed_line(&line, Stroke::new(1.2, Color32::WHITE), 5.0, 4.0));
     };
     ants(&app.selecting);
+    for r in crate::selection_tools::extra_rings(app) {
+        ants(&r);
+    }
+    if let Some(q) = app.sel.distort {
+        ants(&q);
+        for k in &q {
+            painter.circle(to(k), 5.0, pal.panel, Stroke::new(1.5, pal.playhead));
+        }
+        return;
+    }
     if let Some(poly) = &app.selection {
         ants(poly);
         if app.tool == Tool::Select {
@@ -635,6 +700,24 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     };
     ui.ctx().accesskit_node_builder(resp.id, |n| n.set_description(desc.to_string()));
     handle_input(app, ui, rect, &resp);
+    crate::draw_aids::track_stroke(app, ui.ctx());
+    // right-click menu; "Pick Colour Here" picks where it was opened
+    let menu_at = canvas_id().with("menu-at");
+    if resp.secondary_clicked()
+        && let Some(p) = resp.interact_pointer_pos()
+    {
+        ui.data_mut(|d| d.insert_temp(menu_at, p));
+    }
+    if !app.engine.is_stroking() {
+        let at: Option<Pos2> = ui.data(|d| d.get_temp(menu_at));
+        resp.context_menu(|ui| {
+            crate::context_menus::canvas(app, ui, &mut |app| {
+                if let Some(p) = at {
+                    pick(app, rect, p);
+                }
+            })
+        });
+    }
     // ----- drawing -----
     let pal = crate::theme::palette(app.light_theme);
     let painter = ui.painter_at(rect);
@@ -664,19 +747,24 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             if !p.layers.get(li).is_some_and(|l| l.visible) {
                 continue;
             }
+            // the layer's own onion settings, when it has them
+            let lo = p.onion_for(li);
+            if !lo.enabled {
+                continue;
+            }
             let t = p.layer_transform(li, app.frame);
             let mut n = p.onion_drawings(li, app.frame);
             n.sort_by_key(|(_, off)| std::cmp::Reverse(off.unsigned_abs()));
             for (d, off) in n {
                 let Some(s) = p.drawing(d) else { continue };
-                let tint = if !p.onion.tinted {
+                let tint = if !lo.tinted {
                     None
                 } else if off < 0 {
-                    Some(p.onion.before_tint)
+                    Some(lo.before_tint)
                 } else {
-                    Some(p.onion.after_tint)
+                    Some(lo.after_tint)
                 };
-                draw_surface(tex, &ctx, &c, d, s, p.onion.step_opacity(off.unsigned_abs()), tint, &t, p.onion.outline);
+                draw_surface(tex, &ctx, &c, d, s, lo.offset_opacity(off), tint, &t, lo.outline);
             }
         }
     }
@@ -711,6 +799,16 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     // canvas edge
     painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
     draw_selection(&painter, app, &c, pal);
+    crate::draw_aids::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    // the bucket's gap-closing reach, as a ring around the pointer
+    if app.tool == Tool::Fill
+        && !app.aids.lasso_fill
+        && app.fill.gap > 0
+        && let Some(h) = resp.hover_pos()
+    {
+        let r = app.fill.gap as f32 * 2.0 * app.view.zoom;
+        painter.circle_stroke(h, r.max(2.0), Stroke::new(1.0, pal.accent.gamma_multiply(0.8)));
+    }
     if let Some((a, b)) = app.shape_drag {
         let shift = ui.input(|i| i.modifiers.shift);
         let pts = tooncraft_engine::shapes::samples(app.shape, a, b, shift, 1.0);

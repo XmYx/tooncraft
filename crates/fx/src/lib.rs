@@ -18,6 +18,7 @@
 mod blur;
 mod colour;
 mod distance;
+mod look;
 mod par;
 mod shape;
 
@@ -85,6 +86,27 @@ pub enum EffectKind {
     /// Make pixels close to `colour` transparent (scanned paper, coloured backdrops): within
     /// `tolerance` (0…1 colour distance) they go, within `tolerance + softness` they fade.
     ColourKey { colour: [u8; 3], tolerance: f32, softness: f32 },
+    /// Map brightness to a colour between `dark` and `light`, `amount` of the way (0…1).
+    GradientMap { dark: [u8; 3], light: [u8; 3], amount: f32 },
+    /// `levels` steps per colour channel (2…64).
+    Posterize { levels: u32 },
+    /// Black or white by brightness against `level` (0…1).
+    Threshold { level: f32 },
+    /// Darken the drawing towards the edges: none within `radius` of `x`, `y` (canvas pixels),
+    /// `amount` (0…1) beyond `radius + softness`.
+    Vignette { x: f32, y: f32, radius: f32, softness: f32, amount: f32 },
+    /// Red and blue pulled `amount` pixels apart (0…50), like a lens's colour fringe.
+    ChromaticAberration { amount: f32 },
+    /// Rings from `x`, `y`: `amplitude` pixels (0…100) every `wavelength` pixels (2…2000),
+    /// moving `speed` waves per frame.
+    Ripple { x: f32, y: f32, amplitude: f32, wavelength: f32, speed: f32 },
+    /// A wave across the picture at `angle` degrees.
+    Wave { amplitude: f32, wavelength: f32, angle: f32, speed: f32 },
+    /// Smooth noise displacement: `amount` pixels (0…100), features `scale` pixels (2…1000),
+    /// changing every frame when `animated`.
+    Turbulence { amount: f32, scale: f32, seed: u32, animated: bool },
+    /// Smooth jagged lines (`radius` 0…20 pixels).
+    Smooth { radius: f32 },
 }
 
 impl EffectKind {
@@ -108,6 +130,15 @@ impl EffectKind {
             EffectKind::AlphaThreshold { threshold: 0.5 },
             EffectKind::Mask { shape: MaskShape::Ellipse, x: w / 2.0, y: h / 2.0, width: w * 0.6, height: h * 0.6, feather: 40.0, invert: false },
             EffectKind::ColourKey { colour: [255, 255, 255], tolerance: 0.1, softness: 0.1 },
+            EffectKind::GradientMap { dark: [30, 20, 60], light: [255, 220, 160], amount: 1.0 },
+            EffectKind::Posterize { levels: 4 },
+            EffectKind::Threshold { level: 0.5 },
+            EffectKind::Vignette { x: w / 2.0, y: h / 2.0, radius: w.min(h) * 0.35, softness: w.min(h) * 0.4, amount: 0.7 },
+            EffectKind::ChromaticAberration { amount: 2.0 },
+            EffectKind::Ripple { x: w / 2.0, y: h / 2.0, amplitude: 4.0, wavelength: 40.0, speed: 0.1 },
+            EffectKind::Wave { amplitude: 4.0, wavelength: 60.0, angle: 0.0, speed: 0.05 },
+            EffectKind::Turbulence { amount: 3.0, scale: 40.0, seed: 1, animated: true },
+            EffectKind::Smooth { radius: 1.5 },
         ]
     }
 
@@ -130,6 +161,15 @@ impl EffectKind {
             EffectKind::AlphaThreshold { .. } => "alpha_threshold",
             EffectKind::Mask { .. } => "mask",
             EffectKind::ColourKey { .. } => "colour_key",
+            EffectKind::GradientMap { .. } => "gradient_map",
+            EffectKind::Posterize { .. } => "posterize",
+            EffectKind::Threshold { .. } => "threshold",
+            EffectKind::Vignette { .. } => "vignette",
+            EffectKind::ChromaticAberration { .. } => "chromatic_aberration",
+            EffectKind::Ripple { .. } => "ripple",
+            EffectKind::Wave { .. } => "wave",
+            EffectKind::Turbulence { .. } => "turbulence",
+            EffectKind::Smooth { .. } => "smooth",
         }
     }
 
@@ -193,6 +233,34 @@ impl EffectKind {
                 invert,
             },
             ColourKey { colour, tolerance, softness } => ColourKey { colour, tolerance: c(tolerance, 0.0, 1.0, 0.0), softness: c(softness, 0.0, 1.0, 0.0) },
+            GradientMap { dark, light, amount } => GradientMap { dark, light, amount: c(amount, 0.0, 1.0, 0.0) },
+            Posterize { levels } => Posterize { levels: levels.clamp(2, 64) },
+            Threshold { level } => Threshold { level: c(level, 0.0, 1.0, 0.5) },
+            Vignette { x, y, radius, softness, amount } => Vignette {
+                x: c(x, -65536.0, 65536.0, 0.0),
+                y: c(y, -65536.0, 65536.0, 0.0),
+                radius: c(radius, 0.0, 65536.0, 0.0),
+                softness: c(softness, 1.0, 65536.0, 1.0),
+                amount: c(amount, 0.0, 1.0, 0.0),
+            },
+            ChromaticAberration { amount } => ChromaticAberration { amount: c(amount, 0.0, 50.0, 0.0) },
+            Ripple { x, y, amplitude, wavelength, speed } => Ripple {
+                x: c(x, -65536.0, 65536.0, 0.0),
+                y: c(y, -65536.0, 65536.0, 0.0),
+                amplitude: c(amplitude, 0.0, 100.0, 0.0),
+                wavelength: c(wavelength, 2.0, 2000.0, 40.0),
+                speed: c(speed, -10.0, 10.0, 0.0),
+            },
+            Wave { amplitude, wavelength, angle, speed } => Wave {
+                amplitude: c(amplitude, 0.0, 100.0, 0.0),
+                wavelength: c(wavelength, 2.0, 2000.0, 40.0),
+                angle: c(angle, -3600.0, 3600.0, 0.0),
+                speed: c(speed, -10.0, 10.0, 0.0),
+            },
+            Turbulence { amount, scale, seed, animated } => {
+                Turbulence { amount: c(amount, 0.0, 100.0, 0.0), scale: c(scale, 2.0, 1000.0, 40.0), seed, animated }
+            }
+            Smooth { radius } => Smooth { radius: c(radius, 0.0, 20.0, 0.0) },
         }
     }
 
@@ -412,7 +480,15 @@ pub fn reach(kind: &EffectKind) -> Option<u32> {
         | EffectKind::Grain { .. }
         | EffectKind::AlphaThreshold { .. }
         | EffectKind::Mask { .. }
-        | EffectKind::ColourKey { .. } => Some(0),
+        | EffectKind::ColourKey { .. }
+        | EffectKind::GradientMap { .. }
+        | EffectKind::Posterize { .. }
+        | EffectKind::Threshold { .. }
+        | EffectKind::Vignette { .. } => Some(0),
+        EffectKind::ChromaticAberration { amount } => Some(r(*amount)),
+        EffectKind::Ripple { amplitude, .. } | EffectKind::Wave { amplitude, .. } => Some(r(*amplitude)),
+        EffectKind::Turbulence { amount, .. } => Some(r(*amount)),
+        EffectKind::Smooth { radius } => Some(r(radius * 3.0)),
     }
 }
 
@@ -490,8 +566,70 @@ fn apply_at(img: &mut RgbaImage, origin: (u32, u32), kind: &EffectKind, frame: u
             shape::mask(img, *shape, (*x - origin.0 as f32, *y - origin.1 as f32, *width, *height), *feather, *invert)
         }
         EffectKind::ColourKey { colour, tolerance, softness } => colour::key(img, *colour, *tolerance, *softness),
+        EffectKind::GradientMap { dark, light, amount } => look::gradient_map(img, *dark, *light, *amount),
+        EffectKind::Posterize { levels } => look::posterize(img, *levels),
+        EffectKind::Threshold { level } => look::threshold(img, *level),
+        EffectKind::Vignette { x, y, radius, softness, amount } => look::vignette(img, origin, (*x, *y), *radius, *softness, *amount),
+        EffectKind::ChromaticAberration { amount } => look::chromatic_aberration(img, *amount),
+        EffectKind::Ripple { x, y, amplitude, wavelength, speed } => look::ripple(img, origin, (*x, *y), *amplitude, *wavelength, *speed * frame as f32),
+        EffectKind::Wave { amplitude, wavelength, angle, speed } => look::wave(img, origin, *amplitude, *wavelength, *angle, *speed * frame as f32),
+        EffectKind::Turbulence { amount, scale, seed, animated } => {
+            look::turbulence(img, origin, *amount, *scale, seed.wrapping_add(if *animated { frame } else { 0 }))
+        }
+        EffectKind::Smooth { radius } => look::smooth(img, *radius),
     }
 }
 
 #[cfg(test)]
 mod tests;
+
+/// The built-in effect looks: (id, effects). Names are the app's to translate.
+pub fn presets(w: u32, h: u32) -> Vec<(&'static str, Vec<Effect>)> {
+    let (wf, hf) = (w as f32, h as f32);
+    let e = Effect::new;
+    vec![
+        (
+            "film",
+            vec![
+                e(EffectKind::GradientMap { dark: [40, 30, 50], light: [255, 236, 200], amount: 0.35 }),
+                e(EffectKind::Grain { amount: 0.12, size: 1.5, seed: 7, animated: true }),
+                e(EffectKind::Vignette { x: wf / 2.0, y: hf / 2.0, radius: wf.min(hf) * 0.35, softness: wf.min(hf) * 0.45, amount: 0.6 }),
+            ],
+        ),
+        ("glow", vec![e(EffectKind::Glow { radius: 14.0, intensity: 1.2, colour: [255, 240, 200] }), e(EffectKind::ChromaticAberration { amount: 1.5 })]),
+        ("ink", vec![e(EffectKind::Smooth { radius: 1.2 }), e(EffectKind::Thicken { amount: 0.5 })]),
+        (
+            "dream",
+            vec![
+                e(EffectKind::Blur { radius: 2.0 }),
+                e(EffectKind::Glow { radius: 20.0, intensity: 0.8, colour: [230, 210, 255] }),
+                e(EffectKind::Wave { amplitude: 2.0, wavelength: 80.0, angle: 0.0, speed: 0.04 }),
+            ],
+        ),
+        ("comic", vec![e(EffectKind::Posterize { levels: 5 }), e(EffectKind::Outline { width: 2.0, colour: [20, 20, 20] })]),
+    ]
+}
+
+/// Largest saved stack file read.
+pub const MAX_STACK_FILE: usize = 1 << 20;
+
+/// A stack as `.toonfx` JSON (`{"effects": [...]}`).
+pub fn stack_to_json(effects: &[Effect]) -> Result<String, String> {
+    serde_json::to_string_pretty(&serde_json::json!({ "toonfx": 1, "effects": effects })).map_err(|e| e.to_string())
+}
+
+/// A stack from `.toonfx` JSON: bounded, every effect sanitized.
+pub fn stack_from_json(text: &str) -> Result<Vec<Effect>, String> {
+    if text.len() > MAX_STACK_FILE {
+        return Err("the effect stack file is too large".into());
+    }
+    #[derive(Deserialize)]
+    struct File {
+        effects: Vec<Effect>,
+    }
+    let f: File = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    if f.effects.len() > MAX_EFFECTS {
+        return Err(format!("an effect stack holds at most {MAX_EFFECTS} effects"));
+    }
+    Ok(f.effects.into_iter().map(Effect::sanitized).collect())
+}

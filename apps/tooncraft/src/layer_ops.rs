@@ -12,6 +12,12 @@ pub fn compose_name(c: Compose) -> String {
         Compose::Normal => tl!("On top"),
         Compose::Behind => tl!("Behind"),
         Compose::KeepAlpha => tl!("Only on paint"),
+        Compose::Multiply => tl!("Multiply"),
+        Compose::Screen => tl!("Screen"),
+        Compose::Overlay => tl!("Overlay"),
+        Compose::Darken => tl!("Darken"),
+        Compose::Lighten => tl!("Lighten"),
+        Compose::Add => tl!("Add light"),
     }
     .to_string()
 }
@@ -32,7 +38,7 @@ pub fn compose_combo(ui: &mut Ui, compose: &mut Compose) {
 }
 
 /// Run a merge and keep the current layer on the merged one.
-fn merge(app: &mut ToonApp, cmd: Command, lands_on: Option<usize>) {
+pub fn merge(app: &mut ToonApp, cmd: Command, lands_on: Option<usize>) {
     if app.run(cmd) {
         if let Some(l) = lands_on {
             app.layer = l;

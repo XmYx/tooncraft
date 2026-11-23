@@ -27,6 +27,15 @@ pub fn effect_name(k: &EffectKind) -> String {
         EffectKind::AlphaThreshold { .. } => tl!("Hard edges"),
         EffectKind::Mask { .. } => tl!("Soft mask"),
         EffectKind::ColourKey { .. } => tl!("Colour key"),
+        EffectKind::GradientMap { .. } => tl!("Gradient map"),
+        EffectKind::Posterize { .. } => tl!("Posterise"),
+        EffectKind::Threshold { .. } => tl!("Black and white"),
+        EffectKind::Vignette { .. } => tl!("Vignette"),
+        EffectKind::ChromaticAberration { .. } => tl!("Colour fringe"),
+        EffectKind::Ripple { .. } => tl!("Ripple"),
+        EffectKind::Wave { .. } => tl!("Wave"),
+        EffectKind::Turbulence { .. } => tl!("Turbulence"),
+        EffectKind::Smooth { .. } => tl!("Smooth lines"),
     }
     .to_string()
 }
@@ -134,6 +143,44 @@ fn params(ui: &mut egui::Ui, id: usize, k: &mut EffectKind) -> bool {
             ch |= num(ui, tl!("Tolerance"), tolerance, 0.0..=1.0, 0.005);
             ch |= num(ui, tl!("Softness"), softness, 0.0..=1.0, 0.005);
         }
+        EffectKind::GradientMap { dark, light, amount } => {
+            ch |= colour(ui, &format!("{cid}-dark"), tl!("Dark colour"), dark);
+            ch |= colour(ui, &format!("{cid}-light"), tl!("Light colour"), light);
+            ch |= num(ui, tl!("Amount"), amount, 0.0..=1.0, 0.005);
+        }
+        EffectKind::Posterize { levels } => {
+            let l = ui.label(tl!("Levels"));
+            ch |= ui.add(egui::DragValue::new(levels).range(2..=64)).labelled_by(l.id).changed();
+            ui.end_row();
+        }
+        EffectKind::Threshold { level } => ch |= num(ui, tl!("Threshold"), level, 0.0..=1.0, 0.005),
+        EffectKind::Vignette { x, y, radius, softness, amount } => {
+            ch |= num(ui, tl!("Centre X"), x, -65536.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Centre Y"), y, -65536.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Radius"), radius, 0.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Softness"), softness, 1.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Amount"), amount, 0.0..=1.0, 0.005);
+        }
+        EffectKind::ChromaticAberration { amount } => ch |= num(ui, tl!("Pixels"), amount, 0.0..=50.0, 0.05),
+        EffectKind::Ripple { x, y, amplitude, wavelength, speed } => {
+            ch |= num(ui, tl!("Centre X"), x, -65536.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Centre Y"), y, -65536.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Height"), amplitude, 0.0..=100.0, 0.1);
+            ch |= num(ui, tl!("Wavelength"), wavelength, 2.0..=2000.0, 0.5);
+            ch |= num(ui, tl!("Speed"), speed, -10.0..=10.0, 0.005);
+        }
+        EffectKind::Wave { amplitude, wavelength, angle, speed } => {
+            ch |= num(ui, tl!("Height"), amplitude, 0.0..=100.0, 0.1);
+            ch |= num(ui, tl!("Wavelength"), wavelength, 2.0..=2000.0, 0.5);
+            ch |= num(ui, tl!("Angle"), angle, -3600.0..=3600.0, 0.5);
+            ch |= num(ui, tl!("Speed"), speed, -10.0..=10.0, 0.005);
+        }
+        EffectKind::Turbulence { amount, scale, animated, .. } => {
+            ch |= num(ui, tl!("Pixels"), amount, 0.0..=100.0, 0.1);
+            ch |= num(ui, tl!("Size"), scale, 2.0..=1000.0, 0.5);
+            ch |= check(ui, tl!("Change every frame"), animated);
+        }
+        EffectKind::Smooth { radius } => ch |= num(ui, tl!("Radius"), radius, 0.0..=20.0, 0.05),
     });
     ch
 }
@@ -250,6 +297,45 @@ fn layer_section(app: &mut ToonApp, ui: &mut egui::Ui, li: usize) {
     });
 }
 
+fn preset_name(id: &str) -> String {
+    match id {
+        "film" => tl!("Film"),
+        "glow" => tl!("Glow and fringe"),
+        "ink" => tl!("Clean ink"),
+        "dream" => tl!("Dream"),
+        "comic" => tl!("Comic"),
+        other => other,
+    }
+    .to_string()
+}
+
+/// Write a layer's effect stack to a `.toonfx` file.
+pub fn save_stack(app: &mut ToonApp, effects: &[Effect], path: &std::path::Path) {
+    let r = tooncraft_fx::stack_to_json(effects).and_then(|t| craft_atomic::atomic_write(path, t.as_bytes()).map_err(|e| e.to_string()));
+    match r {
+        Ok(()) => app.set_status(tlf!("Saved {file}", file = path.display())),
+        Err(e) => app.set_status(tlf!("Could not save the effects: {error}", error = e)),
+    }
+}
+
+/// Add the effects saved in a `.toonfx` file to layer `li` (one undo step).
+pub fn open_stack(app: &mut ToonApp, li: usize, path: &std::path::Path) {
+    let r = std::fs::metadata(path)
+        .map_err(|e| e.to_string())
+        .and_then(|m| if m.len() > tooncraft_fx::MAX_STACK_FILE as u64 { Err(tl!("the file is too large").to_string()) } else { Ok(()) })
+        .and_then(|_| std::fs::read_to_string(path).map_err(|e| e.to_string()))
+        .and_then(|t| tooncraft_fx::stack_from_json(&t));
+    match r {
+        Ok(effects) => {
+            let n = effects.len();
+            if app.run(Command::AddEffects { layer: li, effects }) {
+                app.set_status(tlf!("Added {n} effects", n = n));
+            }
+        }
+        Err(e) => app.set_status(tlf!("Could not open the effects: {error}", error = e)),
+    }
+}
+
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let li = app.layer;
     let Some(layer) = app.engine.project.layers.get(li) else { return };
@@ -274,6 +360,37 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     if let Some(k) = pick {
         app.run(Command::AddEffect { layer: li, effect: Effect::new(k), index: None });
     }
+    ui.horizontal_wrapped(|ui| {
+        let l = ui.label(tl!("Add a look"));
+        let mut chosen: Option<Vec<Effect>> = None;
+        egui::ComboBox::from_id_salt("fx-preset")
+            .selected_text(tl!("Choose…"))
+            .show_ui(ui, |ui| {
+                for (id, stack) in tooncraft_fx::presets(w, h) {
+                    if ui.selectable_label(false, preset_name(id)).clicked() {
+                        chosen = Some(stack);
+                    }
+                }
+            })
+            .response
+            .labelled_by(l.id);
+        if let Some(stack) = chosen {
+            app.run(Command::AddEffects { layer: li, effects: stack });
+        }
+        if ui
+            .add_enabled(!effects.is_empty(), egui::Button::new(tl!("Save Stack…")))
+            .on_hover_text(tl!("Save this layer's effects to a file (.toonfx)"))
+            .clicked()
+            && let Some(f) = rfd::FileDialog::new().add_filter(tl!("Effect stack"), &["toonfx"]).set_file_name(format!("{lname}.toonfx")).save_file()
+        {
+            save_stack(app, &effects, &f);
+        }
+        if ui.button(tl!("Open Stack…")).on_hover_text(tl!("Add the effects saved in a .toonfx file to this layer")).clicked()
+            && let Some(f) = rfd::FileDialog::new().add_filter(tl!("Effect stack"), &["toonfx"]).pick_file()
+        {
+            open_stack(app, li, &f);
+        }
+    });
     ui.separator();
     if effects.is_empty() {
         ui.weak(tl!("No effects on this layer."));

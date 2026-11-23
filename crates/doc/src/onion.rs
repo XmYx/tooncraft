@@ -39,6 +39,26 @@ pub struct OnionSkin {
     pub outline: bool,
     /// Leave out the nearest step before (keep only the earlier ones).
     pub hide_previous: bool,
+    /// Use `before_steps` / `after_steps` for each step's opacity instead of `opacity` and
+    /// `falloff`.
+    pub per_step: bool,
+    /// Opacity of each step before (nearest first) and after, when `per_step` is on.
+    pub before_steps: [f32; MAX_STEPS],
+    pub after_steps: [f32; MAX_STEPS],
+    /// Stepping by drawings: show only drawings marked as keys.
+    pub keys_only: bool,
+}
+
+/// Most steps on each side.
+pub const MAX_STEPS: usize = 10;
+
+/// Falling default opacities for per-step mode.
+fn falling() -> [f32; MAX_STEPS] {
+    let mut a = [0.0; MAX_STEPS];
+    for (i, v) in a.iter_mut().enumerate() {
+        *v = 0.5 * 0.7f32.powi(i as i32);
+    }
+    a
 }
 
 impl Default for OnionSkin {
@@ -56,6 +76,10 @@ impl Default for OnionSkin {
             all_layers: false,
             outline: false,
             hide_previous: false,
+            per_step: false,
+            before_steps: falling(),
+            after_steps: falling(),
+            keys_only: false,
         }
     }
 }
@@ -63,7 +87,26 @@ impl Default for OnionSkin {
 impl OnionSkin {
     pub fn sanitized(self) -> Self {
         let f = |v: f32, d: f32| if v.is_finite() { v.clamp(0.0, 1.0) } else { d };
-        Self { before: self.before.min(10), after: self.after.min(10), opacity: f(self.opacity, 0.45), falloff: f(self.falloff, 0.6), ..self }
+        let steps = |a: [f32; MAX_STEPS]| a.map(|v| f(v, 0.3));
+        Self {
+            before: self.before.min(MAX_STEPS as u8),
+            after: self.after.min(MAX_STEPS as u8),
+            opacity: f(self.opacity, 0.45),
+            falloff: f(self.falloff, 0.6),
+            before_steps: steps(self.before_steps),
+            after_steps: steps(self.after_steps),
+            ..self
+        }
+    }
+
+    /// Opacity of the step at offset `off` (negative: before, positive: after).
+    pub fn offset_opacity(&self, off: i32) -> f32 {
+        let n = off.unsigned_abs();
+        if !self.per_step || n == 0 {
+            return self.step_opacity(n);
+        }
+        let i = (n as usize - 1).min(MAX_STEPS - 1);
+        if off < 0 { self.before_steps[i] } else { self.after_steps[i] }
     }
 
     /// Opacity of the step `n` away (1 = nearest).
@@ -112,7 +155,14 @@ impl LightTable {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn neighbours(layer: &Layer, frame: u32, length: u32, o: &OnionSkin) -> Vec<(DrawingId, i32)> {
+    neighbours_where(layer, frame, length, o, &|_| true)
+}
+
+/// The drawings the onion skin shows around `frame`, with their step offsets. Stepping by
+/// drawings with `keys_only`, only drawings for which `is_key` holds count.
+pub(crate) fn neighbours_where(layer: &Layer, frame: u32, length: u32, o: &OnionSkin, is_key: &dyn Fn(DrawingId) -> bool) -> Vec<(DrawingId, i32)> {
     let current = layer.drawing_at(frame);
     let mut out = Vec::new();
     for (dir, count) in [(-1i64, o.before), (1i64, o.after)] {
@@ -129,6 +179,7 @@ pub(crate) fn neighbours(layer: &Layer, frame: u32, length: u32, o: &OnionSkin) 
                 OnionMode::Drawings => {
                     if let Some(d) = d
                         && Some(d) != last
+                        && (!o.keys_only || is_key(d))
                     {
                         steps += 1;
                         out.push((d, dir as i32 * steps as i32));
@@ -181,6 +232,7 @@ mod tests {
             mouth_chart: Default::default(),
             clip: false,
             lock_alpha: false,
+            onion: None,
             cells,
         }
     }
@@ -226,5 +278,21 @@ mod tests {
         assert_eq!(t.pins, vec![p]);
         t.toggle(p);
         assert!(t.pins.is_empty());
+    }
+
+    #[test]
+    fn per_step_opacity_and_keys_only() {
+        let mut o = OnionSkin { per_step: true, ..Default::default() };
+        o.before_steps[0] = 0.9;
+        o.after_steps[1] = 0.2;
+        assert_eq!(o.offset_opacity(-1), 0.9);
+        assert_eq!(o.offset_opacity(2), 0.2);
+        assert_eq!(o.offset_opacity(40), o.after_steps[MAX_STEPS - 1], "far steps use the last slider");
+        let hostile = OnionSkin { before_steps: [f32::NAN; MAX_STEPS], after_steps: [9.0; MAX_STEPS], ..o }.sanitized();
+        assert!(hostile.before_steps.iter().all(|v| v.is_finite()) && hostile.after_steps.iter().all(|v| *v <= 1.0));
+        // keys only: drawings 1 and 3 are keys; 2 is skipped
+        let l = layer(vec![k(1), k(2), k(3), k(4)]);
+        let o = OnionSkin { before: 2, after: 0, keys_only: true, ..Default::default() };
+        assert_eq!(neighbours_where(&l, 3, 4, &o, &|d| d.0 % 2 == 1), vec![(DrawingId(3), -1), (DrawingId(1), -2)]);
     }
 }
