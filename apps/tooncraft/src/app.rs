@@ -226,6 +226,8 @@ pub struct ToonApp {
     pub export_memory: crate::export_dialog::Memory,
     /// Find Command.
     pub find: crate::command_search::State,
+    /// The import options, after images were picked.
+    pub import_dialog: Option<crate::import_dialog::Dialog>,
     /// The canvas pixel under the pointer, for the status line.
     pub pointer: Option<(i64, i64)>,
     /// Frames chosen for flipping (in order of the shot, at most [`MAX_FLIP`]).
@@ -383,6 +385,7 @@ impl ToonApp {
             export_dialog: None,
             export_memory: Default::default(),
             find: Default::default(),
+            import_dialog: None,
             flip: Vec::new(),
             pointer: None,
             show_shortcuts: false,
@@ -697,7 +700,7 @@ impl ToonApp {
     /// Add `path` as a reference layer at the bottom (see [`Self::import_reference`]).
     pub fn add_reference(&mut self, path: &str) -> bool {
         let hold = self.engine.project.length();
-        if !self.run(Command::ImportImages { paths: vec![path.to_string()], frame: 0, hold, name: tl!("Reference").to_string() }) {
+        if !self.run(Command::ImportImages { paths: vec![path.to_string()], frame: 0, hold, name: tl!("Reference").to_string(), options: Default::default() }) {
             return false;
         }
         let top = self.engine.project.layers.len().saturating_sub(1);
@@ -712,14 +715,9 @@ impl ToonApp {
         let Some(files) = rfd::FileDialog::new().add_filter(tl!("Images"), &["png", "jpg", "jpeg", "webp", "tif", "tiff", "bmp", "gif"]).pick_files() else {
             return;
         };
-        let mut paths: Vec<String> = files.iter().map(|f| f.to_string_lossy().into_owned()).collect();
-        paths.sort();
-        let n = paths.len();
-        let frame = self.frame;
-        if self.run(Command::ImportImages { paths, frame, hold: 1, name: tl!("Imported").to_string() }) {
-            self.layer = self.engine.project.layers.len().saturating_sub(1);
-            self.set_status(tlf!("Imported {count} images", count = n));
-        }
+        let paths: Vec<String> = files.iter().map(|f| f.to_string_lossy().into_owned()).collect();
+        // the options come next, then the import
+        self.import_dialog = Some(crate::import_dialog::Dialog::new(paths));
     }
 
     pub fn go_to(&mut self, frame: i64) {
@@ -1838,6 +1836,7 @@ impl ToonApp {
 
     fn dialogs(&mut self, ctx: &egui::Context) {
         crate::command_search::window(self, ctx);
+        crate::import_dialog::window(self, ctx);
         crate::export_dialog::window(self, ctx);
         crate::preferences::window(self, ctx);
         crate::canvas_tools::dialog(self, ctx);

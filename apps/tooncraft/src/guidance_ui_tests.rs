@@ -461,3 +461,29 @@ fn the_top_bar_goes_to_a_typed_frame_sets_the_play_range_and_picks_a_workspace()
     h.run();
     assert!(h.state().pointer.is_some());
 }
+
+#[test]
+fn the_import_window_offers_layers_hold_and_placement() {
+    let mut h = harness();
+    let dir = std::env::temp_dir().join(format!("tooncraft-import-ui-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut paths = Vec::new();
+    for name in ["walk_01.png", "walk_02.png", "run_01.png"] {
+        let img = tooncraft_raster::RgbaImage::filled(8, 8, [0, 0, 0, 255]);
+        let p = dir.join(name);
+        std::fs::write(&p, tooncraft_format::encode_png(&img).unwrap()).unwrap();
+        paths.push(p.to_string_lossy().into_owned());
+    }
+    h.state_mut().import_dialog = Some(crate::import_dialog::Dialog::new(paths));
+    h.run();
+    h.get(By::new().role(egui::Role::RadioButton).label("One layer per file name")).click();
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Placement"));
+    h.get(By::new().role(egui::Role::Button).label("Import")).click();
+    h.run();
+    assert!(h.state().import_dialog.is_none());
+    let names: Vec<String> = h.state().engine.project.layers.iter().map(|l| l.name.clone()).collect();
+    assert!(names.contains(&"walk".to_string()) && names.contains(&"run".to_string()), "{names:?}");
+    assert_eq!(h.state().engine.undo_label(), Some("Import images"));
+    let _ = std::fs::remove_dir_all(&dir);
+}

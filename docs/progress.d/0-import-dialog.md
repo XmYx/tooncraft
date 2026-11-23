@@ -1,0 +1,1 @@
+- 2026-11-23: Import options: after picking images, choose a new layer, one layer per file name or the current layer, how long each image is held, fit / actual size / fill, and whether colours are already premultiplied; one undo step, a bad file stops it before anything changes.

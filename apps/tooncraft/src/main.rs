@@ -37,6 +37,7 @@ mod history_panel;
 #[cfg(test)]
 mod history_ui_tests;
 mod icons;
+mod import_dialog;
 mod keys;
 mod layer_ops;
 mod layer_tree;
