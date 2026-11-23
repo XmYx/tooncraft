@@ -12,6 +12,7 @@
 pub mod camera;
 mod exposure;
 pub mod guides;
+pub mod library;
 pub mod markers;
 mod onion;
 pub mod paging;
@@ -337,6 +338,8 @@ pub struct Project {
     pub symmetry: symmetry::Symmetry,
     /// Named colour palettes of the shot.
     pub palettes: Vec<palette::Palette>,
+    /// The shot's drawing library (see [`library`]); its drawings live in the drawing table.
+    pub library: Vec<library::Item>,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -362,6 +365,7 @@ impl PartialEq for Project {
             && self.drawing_names == o.drawing_names
             && self.symmetry == o.symmetry
             && self.palettes == o.palettes
+            && self.library == o.library
     }
 }
 
@@ -389,6 +393,7 @@ impl Project {
             onion: OnionSkin::default(),
             symmetry: symmetry::Symmetry::default(),
             palettes: Vec::new(),
+            library: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
@@ -420,6 +425,7 @@ impl Project {
             onion: OnionSkin::default(),
             symmetry: symmetry::Symmetry::default(),
             palettes: Vec::new(),
+            library: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
@@ -739,9 +745,10 @@ impl Project {
         self.layers.get(layer)?.drawing_at(frame)
     }
 
-    /// Drawings no cell refers to.
+    /// Drawings no cell of a layer or a library item refers to.
     pub fn unused_drawings(&self) -> Vec<DrawingId> {
-        let used: std::collections::BTreeSet<DrawingId> = self.layers.iter().flat_map(|l| l.cells.iter().filter_map(|c| c.key())).collect();
+        let used: std::collections::BTreeSet<DrawingId> =
+            self.layers.iter().flat_map(|l| l.cells.iter()).chain(self.library.iter().flat_map(|i| i.cells.iter())).filter_map(|c| c.key()).collect();
         self.drawings.keys().filter(|d| !used.contains(d)).copied().collect()
     }
 

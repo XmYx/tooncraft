@@ -16,6 +16,7 @@ mod cells_tests;
 mod command;
 pub mod demo;
 pub mod drawing;
+mod drawing_library;
 #[cfg(test)]
 mod drawing_tests;
 mod effects;
@@ -82,6 +83,8 @@ pub enum EngineError {
     Merge(String),
     #[error("layer “{0}” has its transparency locked, so it cannot take a fill")]
     TransparencyLocked(String),
+    #[error("there is no library item {0}")]
+    NoLibraryItem(usize),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
@@ -454,6 +457,8 @@ impl Engine {
 mod history_tests;
 #[cfg(test)]
 mod layerops_tests;
+#[cfg(test)]
+mod library_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

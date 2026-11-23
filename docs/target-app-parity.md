@@ -530,7 +530,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Separate drawing, reference and perspective views | TB | M | M | One canvas |
 | Curve editor | TB | M | L | |
 | Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
-| Library window for drawings | TB | M | L | The library holds brushes only |
+| Library window for drawings | TB | P | L | The Drawing Library panel: the shot's reusable drawings with thumbnails, names and lengths; add the selected frames, insert as copies or linked, rename, reorder, remove; no library shared between shots yet |
 | Preferences, shortcut editor with search, playback speed | TB | D | S | (`--open preferences`, `--open shortcuts`) |
 | Scene settings in one window | TB | P | S | Canvas size and frame rate are set in separate places |
 | Export dialog with range, size and options | TB | D | S | (`--open export`) |
