@@ -716,6 +716,11 @@ pub enum Command {
         color: [u8; 3],
     },
     /// Add an effect to the layer's stack at `index` (default: last, so it runs after the others).
+    /// Append several effects (a preset or a saved stack) as one undo step.
+    AddEffects {
+        layer: usize,
+        effects: Vec<tooncraft_fx::Effect>,
+    },
     AddEffect {
         layer: usize,
         effect: tooncraft_fx::Effect,
@@ -1544,6 +1549,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }
         Command::AddEffect { layer, effect, index } => crate::effects::add(e, layer, effect, index),
+        Command::AddEffects { layer, effects } => crate::effects::add_all(e, layer, effects),
         Command::SetEffect { layer, index, effect } => crate::effects::edit(e, layer, index, "Effect", |fx| {
             *fx = effect.sanitized();
             true

@@ -231,6 +231,15 @@ fn any_kind() -> impl Strategy<Value = EffectKind> {
             feather,
             invert
         }),
+        (col(), col(), f()).prop_map(|(dark, light, amount)| EffectKind::GradientMap { dark, light, amount }),
+        any::<u32>().prop_map(|levels| EffectKind::Posterize { levels }),
+        f().prop_map(|level| EffectKind::Threshold { level }),
+        (f(), f(), f(), f(), f()).prop_map(|(x, y, radius, softness, amount)| EffectKind::Vignette { x, y, radius, softness, amount }),
+        f().prop_map(|amount| EffectKind::ChromaticAberration { amount }),
+        (f(), f(), f(), f(), f()).prop_map(|(x, y, amplitude, wavelength, speed)| EffectKind::Ripple { x, y, amplitude, wavelength, speed }),
+        (f(), f(), f(), f()).prop_map(|(amplitude, wavelength, angle, speed)| EffectKind::Wave { amplitude, wavelength, angle, speed }),
+        (f(), f(), any::<u32>(), any::<bool>()).prop_map(|(amount, scale, seed, animated)| EffectKind::Turbulence { amount, scale, seed, animated }),
+        f().prop_map(|radius| EffectKind::Smooth { radius }),
     ]
 }
 
@@ -294,4 +303,20 @@ proptest! {
         let EffectKind::Blur { radius } = e.at(f) else { return Err(TestCaseError::fail("kind changed")) };
         prop_assert!(radius >= a.min(b) - 1e-3 && radius <= a.max(b) + 1e-3);
     }
+}
+
+#[test]
+fn presets_and_saved_stacks() {
+    for (id, stack) in crate::presets(640, 360) {
+        assert!(!stack.is_empty() && stack.len() <= MAX_EFFECTS, "{id}");
+        let json = crate::stack_to_json(&stack).unwrap();
+        assert_eq!(crate::stack_from_json(&json).unwrap(), stack.into_iter().map(Effect::sanitized).collect::<Vec<_>>());
+    }
+    assert!(crate::stack_from_json("not json").is_err());
+    let blur = |radius| Effect { kind: EffectKind::Blur { radius }, ..Effect::new(EffectKind::Blur { radius: 1.0 }) };
+    let too_many = crate::stack_to_json(&vec![blur(1.0); MAX_EFFECTS + 1]).unwrap();
+    assert!(crate::stack_from_json(&too_many).is_err());
+    // hostile numbers come back clamped
+    let hostile = crate::stack_to_json(&[blur(1e30)]).unwrap();
+    assert_eq!(crate::stack_from_json(&hostile).unwrap()[0].kind, EffectKind::Blur { radius: MAX_RADIUS });
 }
