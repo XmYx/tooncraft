@@ -570,6 +570,7 @@ tooncraft	Next panel
 tooncraft	No Colour	
 tooncraft	No Mark	
 tooncraft	No command matches	
+tooncraft	No drawing here to swap	
 tooncraft	No drawings have names yet	
 tooncraft	No earlier drawing on this layer	
 tooncraft	No earlier marker	
@@ -946,6 +947,7 @@ tooncraft	The drawings' own colours
 tooncraft	The flip set holds at most {n} frames	
 tooncraft	The last save of this shot was interrupted and there is no backup.	
 tooncraft	The last save was interrupted and the backup does not open: {error}	
+tooncraft	The layer has no other drawing	
 tooncraft	The selection is too detailed to keep; nothing changed	
 tooncraft	The sheet down the right side, layers as columns	
 tooncraft	The shot has as many palettes as it can hold	

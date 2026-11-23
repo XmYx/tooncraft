@@ -286,7 +286,7 @@ Weight: 9
 | Cut, copy and paste cells | all | D | S | **Ours:** paste linked or as new drawings, in place or inserting |
 | Thumbnails in timeline cells | TV PD | D | S | |
 | Drawings kept when no longer exposed | TB | D | S | Purging them is undoable |
-| Drawing substitution: expose any existing drawing by name | TV TB CS | D | S | Name a drawing, then show it at any frame of any layer by name; only that frame changes. Also a thumbnail grid of the layer's drawings (a cell's right-click menu, Frame ▸ Swap Drawing) that swaps the whole exposure |
+| Drawing substitution: expose any existing drawing by name | TV TB CS | D | S | Name a drawing, then show it at any frame of any layer by name; only that frame changes. Also a thumbnail grid of the layer's drawings (a cell's right-click menu, Frame ▸ Swap Drawing) that swaps the whole exposure; Ctrl+Alt+Up and Down swap to the previous or next drawing from the keyboard |
 | Vertical exposure sheet view | TV TB | D | L | The timeline's Vertical switch, or the Exposure Sheet layout: layers as columns, frames down the side, the same keys, cell names and right-click menus |
 | Frame markers and notes | TV TB | D | S | A note per frame: ruler flags, a list with timecodes, next / previous by keyboard, saved in the shot |
 | Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames |

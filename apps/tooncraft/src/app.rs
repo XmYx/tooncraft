@@ -724,6 +724,27 @@ impl ToonApp {
         self.frame = frame.rem_euclid(len.max(1)) as u32;
     }
 
+    /// Show the next (or previous) of the layer's drawings in the current exposure, in the order
+    /// they first appear; round and round. A blank frame has nothing to swap.
+    pub fn swap_step(&mut self, forward: bool) {
+        let (layer, frame) = (self.layer, self.frame);
+        let Some(current) = self.engine.project.layers.get(layer).and_then(|l| l.drawing_at(frame)) else {
+            self.set_status(tl!("No drawing here to swap"));
+            return;
+        };
+        let all = crate::context_menus::layer_drawings(self, layer);
+        let Some(i) = all.iter().position(|d| *d == current) else { return };
+        if all.len() < 2 {
+            self.set_status(tl!("The layer has no other drawing"));
+            return;
+        }
+        let j = if forward { (i + 1) % all.len() } else { (i + all.len() - 1) % all.len() };
+        let drawing = Some(all[j]);
+        if self.run(Command::SwapDrawing { layer, frame, drawing }) {
+            self.set_status(tlf!("Now showing drawing {id}", id = all[j].0));
+        }
+    }
+
     /// Add the current frame to the flip set, or take it out.
     pub fn toggle_flip(&mut self) {
         let f = self.frame;
@@ -1643,6 +1664,12 @@ impl ToonApp {
         }
         if hit("select.invert") {
             crate::selection_tools::invert(self);
+        }
+        if hit("frame.swap_next") {
+            self.swap_step(true);
+        }
+        if hit("frame.swap_prev") {
+            self.swap_step(false);
         }
         if hit("flip.toggle") {
             self.toggle_flip();

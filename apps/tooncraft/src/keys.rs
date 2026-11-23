@@ -28,6 +28,8 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("frame.next_drawing", "Next drawing", "Ctrl+Right"),
     ("app.find_command", "Find a command", "Ctrl+Shift+P"),
     ("select.invert", "Invert selection", "Ctrl+Shift+I"),
+    ("frame.swap_next", "Show the next drawing of the layer here", "Ctrl+Alt+Down"),
+    ("frame.swap_prev", "Show the previous drawing of the layer here", "Ctrl+Alt+Up"),
     ("flip.toggle", "Add or remove this frame from the flip set", "Ctrl+Alt+Enter"),
     ("flip.next", "Flip to the next chosen frame", "Ctrl+Alt+Right"),
     ("flip.prev", "Flip to the previous chosen frame", "Ctrl+Alt+Left"),

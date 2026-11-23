@@ -105,8 +105,24 @@ pub fn canvas(app: &mut ToonApp, ui: &mut Ui, pick: &mut dyn FnMut(&mut ToonApp)
     ui.checkbox(&mut app.engine.project.light_table.enabled, tl!("Light Table"));
 }
 
-/// The drawings a layer shows, in the order they first appear (at most [`MAX_SWAP`]).
+/// The drawings a layer can swap between, at most [`MAX_SWAP`]: those it shows, in the order
+/// they first appear, then the shot's drawings no layer shows (kept in the library after a swap,
+/// a clear or a re-time), so a swap can always be undone by swapping back.
 pub fn layer_drawings(app: &ToonApp, layer: usize) -> Vec<DrawingId> {
+    let mut out = exposed_drawings(app, layer);
+    for d in app.engine.project.unused_drawings() {
+        if out.len() >= MAX_SWAP {
+            break;
+        }
+        if !out.contains(&d) {
+            out.push(d);
+        }
+    }
+    out
+}
+
+/// The drawings a layer shows, in the order they first appear (at most [`MAX_SWAP`]).
+fn exposed_drawings(app: &ToonApp, layer: usize) -> Vec<DrawingId> {
     let mut out: Vec<DrawingId> = Vec::new();
     if let Some(l) = app.engine.project.layers.get(layer) {
         for c in &l.cells {

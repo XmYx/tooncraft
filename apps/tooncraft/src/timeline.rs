@@ -394,6 +394,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     // right-click menus, shown after the rows (the rows borrow the project)
     let mut cell_menus: Vec<(usize, u32, egui::Response)> = Vec::new();
     let mut layer_menus: Vec<(usize, egui::Response)> = Vec::new();
+    let mut current_cell: Option<(usize, u32, egui::Response)> = None;
     for row in 0..visible_rows.min(n_layers.saturating_sub(row0)) {
         let Some(&li) = rows.get(row0 + row) else { continue };
         let Some(layer) = app.engine.project.layers.get(li) else { continue };
@@ -502,6 +503,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
             if resp.secondary_clicked() || resp.context_menu_opened() {
                 cell_menus.push((li, f, resp.clone()));
+            } else if selected {
+                current_cell = Some((li, f, resp.clone()));
             }
             f += 1;
         }
@@ -630,6 +633,11 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         app.playback.stop();
         ui.memory_mut(|m| m.request_focus(grid_id()));
     }
+    // Shift+F10 or the Menu key: the menu of the current cell, from the keyboard
+    if let Some((li, f, resp)) = current_cell.take() {
+        let now = menu_key(ui) && ui.memory(|m| m.has_focus(grid_id()));
+        keyboard_menu(ui, &resp, now, |ui| crate::context_menus::cell(app, ui, li, f));
+    }
     for (li, f, resp) in cell_menus {
         if resp.secondary_clicked() {
             // the menu acts on the cell it was opened on, which becomes the current one
@@ -644,6 +652,27 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         resp.context_menu(|ui| crate::context_menus::layer(app, ui, li));
     }
     ui.allocate_rect(area, Sense::hover());
+}
+
+/// Shift+F10 or the Menu key: open the focused thing's right-click menu.
+pub fn menu_key(ui: &egui::Ui) -> bool {
+    ui.input(|i| i.key_pressed(Key::Menu) || (i.modifiers.shift_only() && i.key_pressed(Key::F10)))
+}
+
+/// A widget's right-click menu opened from the keyboard (`open_now`), shown under the widget
+/// (there is no pointer position to put it at) until an item is chosen or Escape.
+pub fn keyboard_menu(ui: &egui::Ui, resp: &egui::Response, open_now: bool, add: impl FnOnce(&mut egui::Ui)) {
+    let id = resp.id.with("keyboard-menu");
+    if !open_now && !egui::Popup::is_id_open(ui.ctx(), id) {
+        return;
+    }
+    egui::Popup::from_response(resp)
+        .id(id)
+        .kind(egui::PopupKind::Menu)
+        .layout(egui::Layout::top_down_justified(egui::Align::Min))
+        .open_memory(open_now.then_some(egui::SetOpenCommand::Bool(true)))
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+        .show(add);
 }
 
 /// A hover tip on a cell: the drawing's thumbnail (when made), number and name.
