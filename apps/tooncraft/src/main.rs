@@ -48,6 +48,8 @@ mod lipsync_panel;
 #[cfg(test)]
 mod menus_ui_tests;
 mod panels;
+#[cfg(test)]
+mod panels_ui_tests;
 mod pegs;
 mod pipeline;
 mod preferences;
