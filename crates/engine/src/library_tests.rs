@@ -143,6 +143,9 @@ fn rename_move_and_remove_are_undoable() {
     e.apply(Command::SaveToLibrary { layer: 0, from: 2, to: 4, name: "B".into() }).unwrap();
     e.apply(Command::RenameLibraryItem { item: 0, name: "".into() }).unwrap();
     assert_eq!(e.project.library[0].name, "Drawing", "an empty name gets the default");
+    let n = e.undo_len();
+    e.apply(Command::MoveLibraryItem { item: 1, to: 7 }).unwrap();
+    assert_eq!(e.undo_len(), n, "moving the last item past the end changes nothing and adds no step");
     e.apply(Command::MoveLibraryItem { item: 0, to: 9 }).unwrap();
     assert_eq!(e.project.library[1].name, "Drawing");
     e.apply(Command::RemoveLibraryItem { item: 0 }).unwrap();

@@ -96,6 +96,12 @@ fn linked_insert_rename_move_and_remove() {
     // rename from the keyboard: Enter confirms
     click(&mut h, "Rename Item");
     h.run();
+    assert!(h.get_by_label("New name").is_focused(), "the field takes the focus when it opens");
+    // Tab leaves the field (it does not pull the focus back), and focusing it again works
+    h.key_press(Key::Tab);
+    h.run();
+    h.run();
+    assert!(!h.get_by_label("New name").is_focused(), "Tab moves the focus on");
     h.get_by_label("New name").focus();
     h.run();
     h.key_press(Key::End);

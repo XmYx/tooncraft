@@ -14,6 +14,8 @@ struct State {
     chosen: usize,
     name: String,
     rename: Option<String>,
+    /// Give the rename field the focus once (set when Rename Item is pressed).
+    focus_rename: bool,
 }
 
 fn state_id() -> egui::Id {
@@ -24,7 +26,7 @@ fn state_id() -> egui::Id {
 /// until the drawing changes.
 fn refresh_thumbnails(app: &mut ToonApp, ctx: &egui::Context) {
     let mut budget = 4;
-    let firsts: Vec<DrawingId> = app.engine.project.library.iter().filter_map(|i| i.drawings().first().copied()).collect();
+    let firsts: Vec<DrawingId> = app.engine.project.library.iter().filter_map(|i| i.first_drawing()).collect();
     for d in firsts {
         let Some(s) = app.engine.project.drawing(d) else { continue };
         let rev = s.tiles().map(|(_, t)| t.revision()).max().unwrap_or(0) ^ (s.tile_count() as u64).rotate_left(40);
@@ -89,16 +91,17 @@ fn body(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State) {
             }
         }
     });
-    let items = app.engine.project.library.clone();
+    // only what is drawn: name, length and thumbnail drawing (not the cells)
+    let items: Vec<(String, usize, Option<DrawingId>)> = app.engine.project.library.iter().map(|i| (i.name.clone(), i.len(), i.first_drawing())).collect();
     if items.is_empty() {
         ui.weak(tl!("No drawings yet: select frames on the timeline and add them."));
         return;
     }
     st.chosen = st.chosen.min(items.len() - 1);
     ui.separator();
-    for (i, item) in items.iter().enumerate() {
+    for (i, (name, len, first)) in items.iter().enumerate() {
         ui.horizontal(|ui| {
-            let thumb = item.drawings().first().and_then(|d| app.thumbs.get(d)).map(|(_, t)| t.clone());
+            let thumb = first.and_then(|d| app.thumbs.get(&d)).map(|(_, t)| t.clone());
             match thumb {
                 Some(t) => {
                     ui.add(egui::Image::new(&t).fit_to_exact_size(egui::vec2(48.0, 27.0)));
@@ -107,7 +110,7 @@ fn body(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State) {
                     ui.allocate_space(egui::vec2(48.0, 27.0));
                 }
             }
-            let text = tlf!("{name} ({n} frames)", name = item.name, n = item.len());
+            let text = tlf!("{name} ({n} frames)", name = name, n = len);
             if ui.selectable_label(st.chosen == i, text).clicked() {
                 st.chosen = i;
             }
@@ -115,8 +118,8 @@ fn body(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State) {
     }
     ui.separator();
     let i = st.chosen;
-    let Some(item) = items.get(i) else { return };
-    ui.label(tlf!("Chosen: {name}", name = item.name));
+    let Some((name, _, _)) = items.get(i) else { return };
+    ui.label(tlf!("Chosen: {name}", name = name));
     ui.horizontal_wrapped(|ui| {
         if ui.button(tl!("Insert Item")).on_hover_text(tl!("On the current layer at the current frame, as new drawings")).clicked() {
             app.run(Command::InsertFromLibrary { item: i, layer, frame, linked: false });
@@ -125,7 +128,8 @@ fn body(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State) {
             app.run(Command::InsertFromLibrary { item: i, layer, frame, linked: true });
         }
         if ui.button(tl!("Rename Item")).clicked() {
-            st.rename = Some(item.name.clone());
+            st.rename = Some(name.clone());
+            st.focus_rename = true;
         }
         if ui.add_enabled(i > 0, egui::Button::new(tl!("Move Item Up"))).clicked() && app.run(Command::MoveLibraryItem { item: i, to: i - 1 }) {
             st.chosen = i - 1;
@@ -142,7 +146,7 @@ fn body(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State) {
         ui.horizontal(|ui| {
             let l = ui.label(tl!("New name"));
             let r = ui.add(egui::TextEdit::singleline(&mut n).desired_width(160.0)).labelled_by(l.id);
-            if !r.has_focus() && !r.lost_focus() {
+            if std::mem::take(&mut st.focus_rename) {
                 r.request_focus();
             }
             let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));

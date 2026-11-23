@@ -35,10 +35,14 @@ fn copy_drawings(e: &mut Engine, cells: &mut [Cell], parts: &mut Vec<Part>) -> R
     Ok(())
 }
 
-/// Run `edit`; on success push one step labelled `label` that brings back the library and layers
-/// as they were before (and removes the drawings `edit` created), on failure undo it right away.
-fn step(e: &mut Engine, label: &str, edit: impl FnOnce(&mut Engine, &mut Vec<Part>) -> Result<()>) -> Result<()> {
-    let mut parts = vec![Part::Library(e.project.library.clone()), Part::Layers(e.project.layers.clone())];
+/// Run `edit`; on success push one step labelled `label` that brings back the library (and the
+/// layers, when `layers`) as they were before and removes the drawings `edit` created; on failure
+/// undo it right away.
+fn step(e: &mut Engine, label: &str, layers: bool, edit: impl FnOnce(&mut Engine, &mut Vec<Part>) -> Result<()>) -> Result<()> {
+    let mut parts = vec![Part::Library(e.project.library.clone())];
+    if layers {
+        parts.push(Part::Layers(e.project.layers.clone()));
+    }
     match edit(e, &mut parts) {
         Ok(()) => {
             e.push(Entry { label: label.into(), parts });
@@ -60,7 +64,7 @@ pub(crate) fn save(e: &mut Engine, layer: usize, from: u32, to: u32, name: &str)
         return Err(EngineError::NoDrawing(from.min(to)));
     };
     let name = library::clean_name(name);
-    step(e, "Add to library", |e, parts| {
+    step(e, "Add to library", false, |e, parts| {
         copy_drawings(e, &mut cells, parts)?;
         e.project.library.push(Item { name, cells });
         Ok(())
@@ -76,7 +80,7 @@ pub(crate) fn insert(e: &mut Engine, item: usize, layer: usize, frame: u32, link
     }
     let mut cells = e.project.library[item].cells.clone();
     cells.truncate((len - frame) as usize);
-    step(e, "Insert from library", |e, parts| {
+    step(e, "Insert from library", true, |e, parts| {
         if !linked {
             copy_drawings(e, &mut cells, parts)?;
         }
@@ -99,7 +103,7 @@ pub(crate) fn insert(e: &mut Engine, item: usize, layer: usize, frame: u32, link
 pub(crate) fn rename(e: &mut Engine, item: usize, name: &str) -> Result<()> {
     item_index(e, item)?;
     let name = library::clean_name(name);
-    step(e, "Rename library item", |e, _| {
+    step(e, "Rename library item", false, |e, _| {
         e.project.library[item].name = name;
         Ok(())
     })
@@ -109,7 +113,7 @@ pub(crate) fn rename(e: &mut Engine, item: usize, name: &str) -> Result<()> {
 /// them).
 pub(crate) fn remove(e: &mut Engine, item: usize) -> Result<()> {
     item_index(e, item)?;
-    step(e, "Remove library item", |e, _| {
+    step(e, "Remove library item", false, |e, _| {
         e.project.library.remove(item);
         Ok(())
     })
@@ -119,7 +123,10 @@ pub(crate) fn remove(e: &mut Engine, item: usize) -> Result<()> {
 pub(crate) fn move_item(e: &mut Engine, item: usize, to: usize) -> Result<()> {
     item_index(e, item)?;
     let to = to.min(e.project.library.len() - 1);
-    step(e, "Move library item", |e, _| {
+    if to == item {
+        return Ok(());
+    }
+    step(e, "Move library item", false, |e, _| {
         let i = e.project.library.remove(item);
         e.project.library.insert(to, i);
         Ok(())

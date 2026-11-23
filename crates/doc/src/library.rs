@@ -30,17 +30,15 @@ pub fn clean_name(s: &str) -> String {
 }
 
 impl Item {
-    /// The drawings the item uses, each once, in the order they first show.
+    /// The drawings the item uses, each once, in the order they first show (one set lookup per
+    /// cell).
     pub fn drawings(&self) -> Vec<DrawingId> {
-        let mut out: Vec<DrawingId> = Vec::new();
-        for c in &self.cells {
-            if let Cell::Key(d) = c
-                && !out.contains(d)
-            {
-                out.push(*d);
-            }
-        }
-        out
+        dedup_keys(&self.cells, &mut 0)
+    }
+
+    /// The first drawing the item shows (its thumbnail), without listing the others.
+    pub fn first_drawing(&self) -> Option<DrawingId> {
+        self.cells.iter().find_map(|c| c.key())
     }
 
     /// Frames the item lasts.
@@ -63,6 +61,19 @@ impl Item {
         }
         self
     }
+}
+
+/// The keys of `cells`, each once, in order; `lookups` counts the set lookups (one per key cell).
+fn dedup_keys(cells: &[Cell], lookups: &mut u64) -> Vec<DrawingId> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut out = Vec::new();
+    for d in cells.iter().filter_map(|c| c.key()) {
+        *lookups += 1;
+        if seen.insert(d) {
+            out.push(d);
+        }
+    }
+    out
 }
 
 /// A list of items within the limits (see [`Item::sanitized`]); items left empty are dropped.
@@ -119,6 +130,18 @@ mod tests {
         assert_eq!(named.name.chars().count(), MAX_NAME);
         assert!(!named.name.contains('\u{7}'));
         assert_eq!(named.len(), MAX_ITEM_CELLS);
+    }
+
+    #[test]
+    fn listing_the_drawings_of_a_full_item_is_linear() {
+        let cells: Vec<Cell> = (0..MAX_ITEM_CELLS as u64).map(|i| Cell::Key(DrawingId(i + 1))).collect();
+        let mut lookups = 0;
+        let out = dedup_keys(&cells, &mut lookups);
+        assert_eq!(out.len(), MAX_ITEM_CELLS);
+        assert_eq!(lookups, MAX_ITEM_CELLS as u64, "one set lookup per cell, not one scan of the list per cell");
+        let item = Item { name: "x".into(), cells };
+        assert_eq!(item.first_drawing(), Some(DrawingId(1)));
+        assert_eq!(Item { name: "x".into(), cells: vec![Cell::Blank, Cell::Key(D2)] }.first_drawing(), Some(D2));
     }
 
     #[test]
