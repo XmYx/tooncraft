@@ -53,8 +53,11 @@ mod selection_tools;
 #[cfg(test)]
 mod selection_ui_tests;
 mod sheet;
+#[cfg(test)]
+mod shell_ui_tests;
 mod sound;
 mod sound_panel;
+mod start_screen;
 mod tablet;
 mod textures;
 mod theme;

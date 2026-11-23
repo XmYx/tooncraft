@@ -221,6 +221,9 @@ pub struct ToonApp {
     pub new_shot: Option<NewShot>,
     /// Preferences and their window.
     pub preferences: crate::preferences::State,
+    /// Recent shots (File ▸ Open Recent, the start window).
+    pub recent_files: crate::start_screen::Recent,
+    pub start: crate::start_screen::Start,
     /// The Export dialog, and its last choices per shot.
     pub export_dialog: Option<crate::export_dialog::Dialog>,
     pub export_memory: crate::export_dialog::Memory,
@@ -384,6 +387,8 @@ impl ToonApp {
             renaming: None,
             new_shot: None,
             preferences: crate::preferences::State::new(!cfg!(test) && cli.screenshot.is_none()),
+            recent_files: crate::start_screen::Recent::new(!cfg!(test) && cli.screenshot.is_none() && cli.bench_playback.is_none()),
+            start: Default::default(),
             export_dialog: None,
             export_memory: Default::default(),
             find: Default::default(),
@@ -480,6 +485,12 @@ impl ToonApp {
             app.run(Command::TogglePin { layer, frame: 0 });
             app.run(Command::SetLightTable { enabled: Some(true), opacity: Some(0.3) });
         }
+        if let Some(p) = app.path.clone() {
+            crate::start_screen::note(&mut app, &p);
+        }
+        if crate::start_screen::wanted_at_launch(&cli, app.preferences.prefs.start_screen) {
+            crate::start_screen::show(&mut app);
+        }
         app.offer_recovery();
         app
     }
@@ -496,6 +507,48 @@ impl ToonApp {
     pub fn new_shot_defaults(&self) -> NewShot {
         let p = &self.preferences.prefs;
         NewShot { width: p.width, height: p.height, fps: p.fps, frames: p.frames, ..NewShot::default() }
+    }
+
+    /// The New Shot form: name, size presets, width, height, frame rate and length.
+    pub fn new_shot_fields(&mut self, ui: &mut egui::Ui, salt: &str, n: &mut NewShot) {
+        egui::Grid::new(salt).num_columns(2).show(ui, |ui| {
+            let l = ui.label(tl!("Name"));
+            ui.text_edit_singleline(&mut n.name).labelled_by(l.id);
+            ui.end_row();
+            ui.label(tl!("Size"));
+            ui.vertical(|ui| {
+                crate::scene_presets::picker(&mut self.scene_presets, ui, salt, &mut n.width, &mut n.height, Some(&mut n.fps));
+            });
+            ui.end_row();
+            let l = ui.label(tl!("Width"));
+            ui.add(egui::DragValue::new(&mut n.width).range(1..=tooncraft_raster::MAX_SIDE)).labelled_by(l.id);
+            ui.end_row();
+            let l = ui.label(tl!("Height"));
+            ui.add(egui::DragValue::new(&mut n.height).range(1..=tooncraft_raster::MAX_SIDE)).labelled_by(l.id);
+            ui.end_row();
+            let l = ui.label(tl!("Frames per second"));
+            ui.add(egui::DragValue::new(&mut n.fps).range(tooncraft_doc::MIN_FPS..=tooncraft_doc::MAX_FPS)).labelled_by(l.id);
+            ui.end_row();
+            let l = ui.label(tl!("Frames"));
+            ui.add(egui::DragValue::new(&mut n.frames).range(1..=tooncraft_doc::MAX_FRAMES)).labelled_by(l.id);
+            ui.end_row();
+        });
+    }
+
+    /// Replace the shot with a new one made from `n`; false (and a status message) when it is invalid.
+    pub fn create_shot(&mut self, n: &NewShot) -> bool {
+        match Project::new(&n.name, n.width, n.height, n.fps, n.frames) {
+            Ok(p) => {
+                self.replace_engine(Engine::new(p), None);
+                crate::preferences::apply_to_new_shot(self);
+                crate::preferences::apply_live(self);
+                true
+            }
+            Err(e) => {
+                self.status = e.to_string();
+                false
+            }
+        }
     }
 
     pub fn now(&self) -> f64 {
@@ -896,6 +949,7 @@ impl ToonApp {
             Ok(r) => {
                 self.engine.mark_saved();
                 self.path = Some(p.to_path_buf());
+                crate::start_screen::note(self, p);
                 if let Some(dir) = &self.autosave_dir {
                     tooncraft_format::autosave::discard(dir, &old_key);
                     tooncraft_format::autosave::discard(dir, &self.autosave_key());
@@ -921,6 +975,7 @@ impl ToonApp {
             Ok(e) => {
                 self.replace_engine(e, Some(p.to_path_buf()));
                 self.set_status(tlf!("Opened {file}", file = p.display()));
+                crate::start_screen::note(self, p);
                 self.offer_recovery();
             }
             Err(e) => self.set_status(e),
@@ -1238,6 +1293,7 @@ impl ToonApp {
                 if ui.button(tl!("Open…")).clicked() {
                     self.open_dialog();
                 }
+                crate::start_screen::menu(self, ui);
                 ui.separator();
                 if ui.button(tl!("Save")).clicked() {
                     self.save();
@@ -1640,6 +1696,7 @@ impl ToonApp {
             || self.renaming.is_some()
             || self.export_dialog.is_some()
             || self.preferences.open
+            || self.start.open
         {
             return;
         }
@@ -1886,39 +1943,10 @@ impl ToonApp {
         if let Some(mut n) = self.new_shot.take() {
             let mut keep = true;
             egui::Window::new(tl!("New shot")).collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, |ui| {
-                egui::Grid::new("new-shot").num_columns(2).show(ui, |ui| {
-                    let l = ui.label(tl!("Name"));
-                    ui.text_edit_singleline(&mut n.name).labelled_by(l.id);
-                    ui.end_row();
-                    ui.label(tl!("Size"));
-                    ui.vertical(|ui| {
-                        crate::scene_presets::picker(&mut self.scene_presets, ui, "new-shot", &mut n.width, &mut n.height, Some(&mut n.fps));
-                    });
-                    ui.end_row();
-                    let l = ui.label(tl!("Width"));
-                    ui.add(egui::DragValue::new(&mut n.width).range(1..=tooncraft_raster::MAX_SIDE)).labelled_by(l.id);
-                    ui.end_row();
-                    let l = ui.label(tl!("Height"));
-                    ui.add(egui::DragValue::new(&mut n.height).range(1..=tooncraft_raster::MAX_SIDE)).labelled_by(l.id);
-                    ui.end_row();
-                    let l = ui.label(tl!("Frames per second"));
-                    ui.add(egui::DragValue::new(&mut n.fps).range(tooncraft_doc::MIN_FPS..=tooncraft_doc::MAX_FPS)).labelled_by(l.id);
-                    ui.end_row();
-                    let l = ui.label(tl!("Frames"));
-                    ui.add(egui::DragValue::new(&mut n.frames).range(1..=tooncraft_doc::MAX_FRAMES)).labelled_by(l.id);
-                    ui.end_row();
-                });
+                self.new_shot_fields(ui, "new-shot", &mut n);
                 ui.horizontal(|ui| {
-                    if ui.button(tl!("Create")).clicked() {
-                        match Project::new(&n.name, n.width, n.height, n.fps, n.frames) {
-                            Ok(p) => {
-                                self.replace_engine(Engine::new(p), None);
-                                crate::preferences::apply_to_new_shot(self);
-                                crate::preferences::apply_live(self);
-                                keep = false;
-                            }
-                            Err(e) => self.status = e.to_string(),
-                        }
+                    if ui.button(tl!("Create")).clicked() && self.create_shot(&n) {
+                        keep = false;
                     }
                     if ui.button(tl!("Cancel")).clicked() || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
                         keep = false;
@@ -1929,6 +1957,7 @@ impl ToonApp {
                 self.new_shot = Some(n);
             }
         }
+        crate::start_screen::window(self, ctx);
         if self.show_shortcuts {
             let mut open = true;
             if self.keys.record(ctx) {
