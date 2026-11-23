@@ -69,6 +69,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let mut clicked: Option<(usize, u32)> = None;
     let mut cell_menus: Vec<(usize, u32, egui::Response)> = Vec::new();
     let mut layer_menus: Vec<(usize, egui::Response)> = Vec::new();
+    let mut current_cell: Option<(usize, u32, egui::Response)> = None;
     // frame numbers down the side, a stronger line at each second
     for r in 0..visible_rows.min(len - first) {
         let f = first + r;
@@ -150,6 +151,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
             if resp.secondary_clicked() || resp.context_menu_opened() {
                 cell_menus.push((li, f, resp));
+            } else if selected {
+                current_cell = Some((li, f, resp));
             }
         }
     }
@@ -159,6 +162,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         app.frame = f;
         app.playback.stop();
         ui.memory_mut(|m| m.request_focus(grid_id()));
+    }
+    if let Some((li, f, resp)) = current_cell.take() {
+        let now = crate::timeline::menu_key(ui) && ui.memory(|m| m.has_focus(grid_id()));
+        crate::timeline::keyboard_menu(ui, &resp, now, |ui| crate::context_menus::cell(app, ui, li, f));
     }
     for (li, f, resp) in cell_menus {
         if resp.secondary_clicked() {

@@ -1,0 +1,1 @@
+- 2026-11-23: Keyboard: Ctrl+Alt+Up and Down swap the exposure at the cursor to the previous or next drawing of the layer (unexposed drawings included, so a swap can be undone by swapping back); Shift+F10 or the Menu key opens the right-click menu of the focused cell (timeline or sheet) or canvas.
