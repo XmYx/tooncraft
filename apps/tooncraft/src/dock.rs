@@ -1,9 +1,11 @@
 //! The docked workspace (craft-ui docking): the canvas in the middle, the timeline under it, and
 //! tabbed groups for colour, brush, layers and onion skin on the right. Panels can be moved,
-//! tabbed together and floated; none can be closed (View ▸ Reset Panels restores the layout).
-//! The canvas stays put.
+//! tabbed together, floated and closed; the Window menu lists every panel and puts a closed one
+//! back where it was (View ▸ Reset Panels restores the whole layout). The canvas stays put.
 
-use craft_ui::docking::{DockArea, DockStyle, Layout, Node, Permissions};
+use std::collections::HashMap;
+
+use craft_ui::docking::{Action, DockArea, DockStyle, Layout, Location, Node, Permissions};
 use craft_ui::layout::{SplitAxis, SplitSize};
 
 use crate::app::ToonApp;
@@ -28,6 +30,25 @@ pub enum Pane {
 }
 
 impl Pane {
+    /// Every panel, in the Window menu's order.
+    pub const ALL: [Pane; 15] = [
+        Pane::Canvas,
+        Pane::Timeline,
+        Pane::Colour,
+        Pane::Brush,
+        Pane::Library,
+        Pane::Layers,
+        Pane::Onion,
+        Pane::Camera,
+        Pane::Pegs,
+        Pane::Effects,
+        Pane::Sound,
+        Pane::LipSync,
+        Pane::Timing,
+        Pane::History,
+        Pane::Curves,
+    ];
+
     pub fn label(self) -> String {
         match self {
             Pane::Canvas => tl!("Canvas"),
@@ -70,7 +91,8 @@ impl Pane {
     }
 
     fn permissions(self) -> Permissions {
-        let closable = false;
+        // the canvas is the one panel that cannot be closed
+        let closable = self != Pane::Canvas;
         match self {
             Pane::Canvas => Permissions { movable: false, floatable: false, closable, accepts_tabs: false, accepts_splits: true },
             _ => Permissions { closable, ..Permissions::default() },
@@ -83,6 +105,8 @@ pub struct Workspace {
     /// The canvas viewport last frame (keyboard zoom anchors on it).
     pub canvas_rect: egui::Rect,
     raise: Option<Pane>,
+    /// Where each closed panel was, so the Window menu puts it back there.
+    closed: HashMap<Pane, Location<Pane>>,
 }
 
 fn tabs(panels: &[Pane], active: usize) -> Node<Pane> {
@@ -111,13 +135,57 @@ impl Default for Workspace {
             layout: Layout { root: Some(root), floating: Vec::new() },
             canvas_rect: egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0)),
             raise: None,
+            closed: HashMap::new(),
         }
     }
 }
 
 impl Workspace {
-    /// Bring a panel's tab to the front next frame.
+    /// Is the panel in the layout (docked or floating)?
+    pub fn is_open(&self, pane: Pane) -> bool {
+        self.layout.contains(&pane)
+    }
+
+    /// Close a panel, remembering where it was. The canvas stays.
+    pub fn close(&mut self, pane: Pane) -> bool {
+        if !self.is_open(pane) || !pane.permissions().closable {
+            return false;
+        }
+        let at = self.layout.location(&pane).ok();
+        match self.layout.apply_with_permissions(Action::Close { panel: pane }, |p| p.permissions()) {
+            Ok(_) => {
+                if let Some(at) = at {
+                    self.closed.insert(pane, at);
+                }
+                true
+            }
+            Err(e) => {
+                log::warn!("panel close refused: {e:?}");
+                false
+            }
+        }
+    }
+
+    /// Put a closed panel back where it was (or in the first panel group when that place is
+    /// gone) and bring it to the front.
+    pub fn open(&mut self, pane: Pane) -> bool {
+        if !self.is_open(pane) {
+            let back = self.closed.remove(&pane).is_some_and(|at| self.layout.restore(pane, &at).is_ok());
+            if !back && let Err(e) = self.layout.apply_with_permissions(Action::Open { panel: pane, anchor: None }, |p| p.permissions()) {
+                log::warn!("panel open refused: {e:?}");
+                return false;
+            }
+        }
+        self.raise(pane);
+        true
+    }
+
+    /// Bring a panel's tab to the front next frame (opening it first when it was closed).
     pub fn raise(&mut self, pane: Pane) {
+        if !self.is_open(pane) {
+            self.open(pane);
+            return;
+        }
         if let Some(root) = self.layout.root.as_mut() {
             activate(root, pane);
         }
@@ -179,8 +247,40 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         return;
     }
     for action in out.actions {
-        if let Err(e) = app.workspace.layout.apply_with_permissions(action, |p| p.permissions()) {
-            log::warn!("panel move refused: {e:?}");
+        // panels closed from their tab or window: remember where they were
+        let closing: Vec<(Pane, Location<Pane>)> = app
+            .workspace
+            .layout
+            .closed_by(&action)
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|p| app.workspace.layout.location(&p).ok().map(|at| (p, at)))
+            .collect();
+        match app.workspace.layout.apply_with_permissions(action, |p| p.permissions()) {
+            Ok(_) => app.workspace.closed.extend(closing),
+            Err(e) => log::warn!("panel move refused: {e:?}"),
         }
+    }
+}
+
+/// The Window menu: every panel with a tick when it is open; picking one opens or closes it.
+pub fn window_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
+    for pane in Pane::ALL {
+        if pane == Pane::Canvas {
+            continue;
+        }
+        let mut open = app.workspace.is_open(pane);
+        if ui.checkbox(&mut open, pane.label()).clicked() {
+            if open {
+                app.workspace.open(pane);
+            } else {
+                app.workspace.close(pane);
+            }
+        }
+    }
+    ui.separator();
+    if ui.button(tl!("Reset Panels")).on_hover_text(tl!("Every panel back in its first place")).clicked() {
+        app.workspace = Workspace::default();
+        ui.close();
     }
 }

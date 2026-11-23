@@ -11,7 +11,8 @@ Options:
   --panel <NAME>             bring a panel to the front (timeline, layers, brush, colour, onion, camera,
                              pegs, library, effects, sound, lipsync, timing, history,
                              curves)
-  --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size
+  --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size,
+                             start, scene
   --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet
   --vertical                 show the exposure sheet down the page
   --tool <NAME>              start with a tool (pencil, ink, fill, gradient, select, shape …)
@@ -44,7 +45,7 @@ pub struct Cli {
 }
 
 /// The windows `--open` knows.
-pub const OPEN_NAMES: [&str; 6] = ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size"];
+pub const OPEN_NAMES: [&str; 8] = ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size", "start", "scene"];
 /// The layouts `--layout` knows.
 pub const LAYOUT_NAMES: [&str; 4] = ["drawing", "timing", "ink-paint", "sheet"];
 
