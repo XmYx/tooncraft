@@ -10,6 +10,7 @@ tooncraft	A copy of the clip starting at the current frame
 tooncraft	A new layer	
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
 tooncraft	A new shot (Ctrl+N)	
+tooncraft	A short bouncing-ball shot to try things on	
 tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
 tooncraft	About ToonCraft	
 tooncraft	Actual Size	
@@ -119,6 +120,7 @@ tooncraft	Clear Drawing
 tooncraft	Clear Flip Set	
 tooncraft	Clear Frame	
 tooncraft	Clear In and Out	
+tooncraft	Clear Recent Shots	
 tooncraft	Clear frame	
 tooncraft	Clear frame (Delete)	
 tooncraft	Clear {mouth}	
@@ -610,6 +612,7 @@ tooncraft	No next drawing
 tooncraft	No other key drawing on this layer; mark keys from a cell's right-click menu	
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
 tooncraft	No pixels of that colour on the layer	
+tooncraft	No recent shots	
 tooncraft	No sound in this shot.	
 tooncraft	No symmetry	
 tooncraft	None	
@@ -653,8 +656,10 @@ tooncraft	Opacity per step
 tooncraft	Open	
 tooncraft	Open (A I)	
 tooncraft	Open Palette…	
+tooncraft	Open Recent	
 tooncraft	Open Stack…	
 tooncraft	Open a shot (Ctrl+O)	
+tooncraft	Open the Demo Shot	
 tooncraft	OpenEXR Sequence	
 tooncraft	OpenEXR Sequence…	
 tooncraft	OpenRaster, Current Frame	
@@ -775,6 +780,8 @@ tooncraft	Re-timed on {n}s; no drawing was deleted
 tooncraft	Recent	
 tooncraft	Recent colour #{hex}	
 tooncraft	Recent colours	
+tooncraft	Recent shots	
+tooncraft	Recent shots not saved: {error}	
 tooncraft	Recolour Every Drawing of the Layer	
 tooncraft	Recolour Layer	
 tooncraft	Recoloured	
@@ -896,6 +903,7 @@ tooncraft	Shift: 15° lines, squares, circles
 tooncraft	Shortcut changed	
 tooncraft	Shot	
 tooncraft	Shot colours	
+tooncraft	Shots you open or save are listed here.	
 tooncraft	Show	
 tooncraft	Show Layer	
 tooncraft	Show a mouth drawing at the current frame, then press its “Use” button.	
@@ -912,8 +920,10 @@ tooncraft	Show the drawings before and after this one (O); right-click for its s
 tooncraft	Show the pinned drawings under this one	
 tooncraft	Show the position as HH:MM:SS:FF instead of a frame number	
 tooncraft	Show the sheet down the page: layers as columns, frames as rows	
+tooncraft	Show the start window when opening with no shot	
 tooncraft	Show this drawing at the current frame, leaving the frames after it as they are	
 tooncraft	Show this layer only where the layer below has paint	
+tooncraft	Show this window at start	
 tooncraft	Show {category} brushes	
 tooncraft	Show {layer}	
 tooncraft	Show {name} here	
@@ -1126,6 +1136,7 @@ tooncraft	{fps} fps playback · {ms} ms/frame
 tooncraft	{key} was taken from “{command}”	
 tooncraft	{layer}, frame {frame}	
 tooncraft	{layer}, frame {frame}: {cell}	
+tooncraft	{name} (missing)	
 tooncraft	{name} and {n} more	
 tooncraft	{name} is a favourite	
 tooncraft	{name} is no longer a favourite	
