@@ -480,6 +480,9 @@ impl ToonApp {
             app.run(Command::TogglePin { layer, frame: 0 });
             app.run(Command::SetLightTable { enabled: Some(true), opacity: Some(0.3) });
         }
+        if cli.rulers {
+            crate::rulers_ui::demo(&mut app);
+        }
         app.offer_recovery();
         app
     }

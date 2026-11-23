@@ -95,6 +95,9 @@ struct LiveStroke {
     /// Symmetry copies: each has its own stroke engine (smoothing and spacing per copy), all
     /// painting into the same stroke so overlaps never darken.
     mirrors: Vec<(tooncraft_doc::symmetry::Mirror, StrokeEngine)>,
+    /// The stroke follows a ruler (see [`tooncraft_doc::rulers`]); positions are snapped before
+    /// smoothing and symmetry.
+    snap: Option<tooncraft_doc::rulers::Snapper>,
 }
 
 fn mirror_sample(m: &tooncraft_doc::symmetry::Mirror, s: Sample) -> Sample {
@@ -283,7 +286,8 @@ impl Engine {
         let stroke = Stroke::begin_with(surface, brush, images);
         let (w, h) = (self.project.width(), self.project.height());
         let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush))).collect();
-        self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors });
+        let snap = self.project.rulers.snapper(w, h);
+        self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, snap });
         Ok(())
     }
 
@@ -297,9 +301,16 @@ impl Engine {
         if let Some(s) = sample.sanitized() {
             live.last = Some(s);
         }
-        let mut dabs = live.engine.feed(sample);
-        for (m, eng) in &mut live.mirrors {
-            dabs.extend(eng.feed(mirror_sample(m, sample)));
+        let samples = match &mut live.snap {
+            Some(snap) => snap.feed((sample.x, sample.y)).into_iter().map(|(x, y)| Sample { x, y, ..sample }).collect(),
+            None => vec![sample],
+        };
+        let mut dabs = Vec::new();
+        for sample in samples {
+            dabs.extend(live.engine.feed(sample));
+            for (m, eng) in &mut live.mirrors {
+                dabs.extend(eng.feed(mirror_sample(m, sample)));
+            }
         }
         let surface = self.project.drawing_mut(live.drawing).ok_or(EngineError::NotStroking)?;
         live.stroke.add(surface, &dabs);
@@ -309,7 +320,18 @@ impl Engine {
     /// Finish the live stroke as one undo step.
     pub fn end_stroke(&mut self) -> Result<()> {
         let mut live = self.live.take().ok_or(EngineError::NotStroking)?;
-        let mut dabs = live.engine.finish();
+        let mut dabs = Vec::new();
+        // samples a ruler still held back (a short tap near a perspective ruler)
+        if let (Some(snap), Some(last)) = (&mut live.snap, live.last) {
+            for (x, y) in snap.finish() {
+                let s = Sample { x, y, ..last };
+                dabs.extend(live.engine.feed(s));
+                for (m, eng) in &mut live.mirrors {
+                    dabs.extend(eng.feed(mirror_sample(m, s)));
+                }
+            }
+        }
+        dabs.extend(live.engine.finish());
         for (_, eng) in &mut live.mirrors {
             dabs.extend(eng.finish());
         }
