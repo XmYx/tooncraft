@@ -29,11 +29,18 @@ pub struct State {
     pub distort: Option<[(f32, f32); 4]>,
     /// The corner being dragged.
     pub dragging: Option<usize>,
+    /// Magic wand: only the area touching the click (off: that colour everywhere).
+    pub contiguous: bool,
+    /// Typed box and angle (x, y, width, height, degrees), and the outline they were read from.
+    pub typed: [f32; 5],
+    typed_for: Vec<(f32, f32)>,
+    /// Width and height change together.
+    pub keep_proportions: bool,
 }
 
 impl State {
     pub fn new() -> Self {
-        Self { wand_tolerance: 32, grow_by: 4, ..Self::default() }
+        Self { wand_tolerance: 32, grow_by: 4, contiguous: true, keep_proportions: true, ..Self::default() }
     }
 }
 
@@ -149,7 +156,8 @@ pub fn wand(app: &mut ToonApp, x: f32, y: f32, op: Combine) {
         return;
     }
     let (tol, all) = (app.sel.wand_tolerance, app.sel.wand_all_layers);
-    match tooncraft_engine::select::wand(&app.engine, app.layer, app.frame, x as u32, y as u32, tol, all) {
+    let contiguous = app.sel.contiguous;
+    match tooncraft_engine::select::wand_with(&app.engine, app.layer, app.frame, x as u32, y as u32, tol, all, contiguous) {
         Some(m) => {
             apply_mask(app, &m, op);
             let n = m.count();
@@ -200,6 +208,37 @@ pub fn map_rings(app: &mut ToonApp, f: impl Fn((f32, f32)) -> (f32, f32)) {
         app.sel.main = main;
         app.sel.rings = it.collect();
     }
+}
+
+/// The box of an outline: (x, y, width, height).
+pub fn bbox(poly: &[(f32, f32)]) -> (f32, f32, f32, f32) {
+    let (mut x0, mut y0, mut x1, mut y1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+    for p in poly {
+        x0 = x0.min(p.0);
+        y0 = y0.min(p.1);
+        x1 = x1.max(p.0);
+        y1 = y1.max(p.1);
+    }
+    if x0 > x1 { (0.0, 0.0, 0.0, 0.0) } else { (x0, y0, x1 - x0, y1 - y0) }
+}
+
+/// Move, scale and turn the selection so its box becomes the typed one (one undo step).
+pub fn apply_typed(app: &mut ToonApp) {
+    let Some(main) = app.selection.clone() else { return };
+    let (x0, y0, w0, h0) = bbox(&main);
+    if w0 <= 0.0 || h0 <= 0.0 {
+        return;
+    }
+    let [x, y, w, h, deg] = app.sel.typed;
+    if ![x, y, w, h, deg].iter().all(|v| v.is_finite()) || w <= 0.0 || h <= 0.0 {
+        app.set_status(tl!("Width and height must be more than zero"));
+        return;
+    }
+    let (dx, dy) = ((x + w / 2.0) - (x0 + w0 / 2.0), (y + h / 2.0) - (y0 + h0 / 2.0));
+    let (sx, sy) = ((w / w0).clamp(0.01, 100.0), (h / h0).clamp(0.01, 100.0));
+    app.transform_selection(dx, dy, (sx, sy), deg.to_radians());
+    // the fields now describe the new outline (an angle is applied once)
+    app.sel.typed_for.clear();
 }
 
 /// Start a free distort: the four corners of the selection's box become handles.
@@ -274,9 +313,44 @@ pub fn options(app: &mut ToonApp, ui: &mut egui::Ui) {
         let l = ui.label(tl!("Tolerance"));
         ui.add(egui::Slider::new(&mut app.sel.wand_tolerance, 0..=255)).labelled_by(l.id);
         ui.checkbox(&mut app.sel.wand_all_layers, tl!("Look at all visible layers"));
+        ui.checkbox(&mut app.sel.contiguous, tl!("Touching only")).on_hover_text(tl!("Off: that colour everywhere in the picture"));
         ui.separator();
     }
     let has = app.selection.is_some();
+    // typed box and angle, read from the outline whenever it changes
+    if let Some(main) = app.selection.clone() {
+        if main != app.sel.typed_for {
+            let (x, y, w, h) = bbox(&main);
+            app.sel.typed = [x, y, w, h, 0.0];
+            app.sel.typed_for = main;
+        }
+        let ratio = if app.sel.typed[3] > 0.0 { app.sel.typed[2] / app.sel.typed[3] } else { 1.0 };
+        let mut t = app.sel.typed;
+        for (i, name) in [tl!("X"), tl!("Y"), tl!("Width"), tl!("Height"), tl!("Angle")].iter().enumerate() {
+            let l = ui.label(*name);
+            let range = if i == 4 {
+                -360.0..=360.0
+            } else if i >= 2 {
+                0.5..=65536.0
+            } else {
+                -65536.0..=65536.0
+            };
+            ui.add(egui::DragValue::new(&mut t[i]).range(range).max_decimals(1).suffix(if i == 4 { "°" } else { "" })).labelled_by(l.id);
+        }
+        if app.sel.keep_proportions && ratio > 0.0 {
+            if t[2] != app.sel.typed[2] {
+                t[3] = t[2] / ratio;
+            } else if t[3] != app.sel.typed[3] {
+                t[2] = t[3] * ratio;
+            }
+        }
+        app.sel.typed = t;
+        ui.checkbox(&mut app.sel.keep_proportions, tl!("Keep proportions"));
+        if ui.button(tl!("Apply Box")).on_hover_text(tl!("Move, scale and turn the selection to these numbers")).clicked() {
+            apply_typed(app);
+        }
+        ui.separator();
+    }
     if ui.button(tl!("Invert")).on_hover_text(tl!("Select everything that is not selected (Ctrl+Shift+I)")).clicked() {
         invert(app);
     }

@@ -92,12 +92,25 @@ pub(crate) fn distort(
 /// alone or on everything visible, within `tolerance`. Read-only (a selection is not part of the
 /// shot).
 pub fn wand(e: &Engine, layer: usize, frame: u32, x: u32, y: u32, tolerance: u8, all_layers: bool) -> Option<Mask> {
+    wand_with(e, layer, frame, x, y, tolerance, all_layers, true)
+}
+
+/// [`wand`], or with `contiguous` off: every pixel of the picture like the one clicked, wherever
+/// it is.
+#[allow(clippy::too_many_arguments)]
+pub fn wand_with(e: &Engine, layer: usize, frame: u32, x: u32, y: u32, tolerance: u8, all_layers: bool, contiguous: bool) -> Option<Mask> {
     let (w, h) = (e.project.width(), e.project.height());
     if x >= w || y >= h || w as u64 * h as u64 > select::MAX_SELECTION_PIXELS {
         return None;
     }
     let opts = tooncraft_doc::RenderOptions { paper: false, only_layer: (!all_layers).then_some(layer), effects: false, ..Default::default() };
     let img = tooncraft_doc::render_region(&e.project, frame, (0, 0, w, h), opts);
+    if !contiguous {
+        let seed = img.pixel(x, y);
+        let near = |p: [u8; 4]| (0..4).all(|k| p[k].abs_diff(seed[k]) <= tolerance);
+        let data: Vec<u8> = img.data.as_chunks::<4>().0.iter().map(|p| if near(*p) { 255 } else { 0 }).collect();
+        return Some(Mask { x: 0, y: 0, width: w, height: h, data });
+    }
     let options = tooncraft_raster::fill::FillOptions { tolerance, gap: 0, spread: 0, ..Default::default() };
     tooncraft_raster::fill::flood(&img, (0, 0), (x, y), options).ok().flatten()
 }
