@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use tooncraft_brush::{Brush, Sample};
-use tooncraft_doc::{Cell, DocError, Ease, Mark, OnionSkin, PegId, PegKey, Pin, Shake, TimingPreset};
+use tooncraft_doc::{Cell, Channel, DocError, Ease, Mark, OnionSkin, PegId, PegKey, Pin, Shake, TimingPreset};
 use tooncraft_raster::fill::FillOptions;
 
 use crate::undo::{Entry, Part};
@@ -303,6 +303,30 @@ pub enum Command {
     RemovePegKey {
         peg: PegId,
         frame: u32,
+    },
+    /// Move several keys of one peg together (the curve editor's drag): by `by_frames` in time
+    /// and, with a `channel`, by `by_value` in that value. Refused whole when a key would leave
+    /// the shot or land on a key that is not moving.
+    MovePegKeys {
+        peg: PegId,
+        frames: Vec<u32>,
+        #[serde(default)]
+        by_frames: i64,
+        #[serde(default)]
+        channel: Option<Channel>,
+        #[serde(default)]
+        by_value: f32,
+    },
+    /// Give several keys of one peg the same ease towards their next key.
+    SetPegEases {
+        peg: PegId,
+        frames: Vec<u32>,
+        ease: Ease,
+    },
+    /// Remove several keys of one peg.
+    RemovePegKeys {
+        peg: PegId,
+        frames: Vec<u32>,
     },
     /// Hang a layer from a peg, or take it off (`None`). Its pixels do not change.
     SetLayerPeg {
@@ -1161,6 +1185,25 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }
         Command::RemovePegKey { peg, frame } => pegs(e, "Remove peg key", |p| {
             p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.remove_key(frame);
+            Ok(())
+        }),
+        Command::MovePegKeys { peg, frames, by_frames, channel, by_value } => {
+            let last = e.project.length().saturating_sub(1);
+            let label = if by_frames == 0 && channel.is_some() { "Change key values" } else { "Move keys" };
+            pegs(e, label, |p| {
+                p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.move_keys(&frames, by_frames, channel, by_value, last)?;
+                Ok(())
+            })
+        }
+        Command::SetPegEases { peg, frames, ease } => pegs(e, "Ease keys", |p| {
+            p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.set_eases(&frames, ease);
+            Ok(())
+        }),
+        Command::RemovePegKeys { peg, frames } => pegs(e, "Remove peg keys", |p| {
+            let pg = p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?;
+            for f in frames.iter().take(tooncraft_doc::peg::MAX_PEG_KEYS) {
+                pg.remove_key(*f);
+            }
             Ok(())
         }),
         Command::SetLayerPeg { layer, peg } => edit_layers(e, "Layer peg", |e| {

@@ -292,7 +292,7 @@ Weight: 9
 | Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames |
 | Frame rate change and timecode display | all | D | S | Frame rate per shot; the position and the marker list show HH:MM:SS:FF (non-drop-frame) |
 | Timeline zoom and scroll | all | D | S | Zoom buttons, Alt+= and Alt+-, Ctrl and the wheel or a pinch; scroll as before |
-| Graph editor for keyed values | TB CS PD | M | L | Per-key easing and a two-handle curve; no curve view |
+| Graph editor for keyed values | TB CS PD | P | L | The Curves panel plots each peg value against frames: drag keys in time and value (one undo step, Escape cancels), move them from the keyboard, ease many keys at once, drag the two ease handles. Camera, opacity and effect keys still edit in their own panels |
 | Several shots or scenes in one project | TV TB | M | L | |
 | Nested sequences (a shot or symbol inside a shot) | TB CS PD | M | L | |
 | Record transforms live while playing | PD | M | M | |
@@ -528,7 +528,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Light table on the canvas | TB | D | S | |
 | Camera frame and safe areas | TB | D | S | |
 | Separate drawing, reference and perspective views | TB | M | M | One canvas |
-| Curve editor | TB | M | L | |
+| Curve editor | TB | D | L | The Curves panel beside the timeline: value buttons, the graph with keys, other values faintly behind, an ease box with handles and typed values (`--panel curves`) |
 | Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
 | Library window for drawings | TB | M | L | The library holds brushes only |
 | Preferences, shortcut editor with search, playback speed | TB | D | S | (`--open preferences`, `--open shortcuts`) |

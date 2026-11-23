@@ -111,6 +111,7 @@ tooncraft	Choose a brush tool first
 tooncraft	Choose a brush tool to change its settings.	
 tooncraft	Choose a layer	
 tooncraft	Choose frames to flip first (Ctrl+Alt+Enter on each)	
+tooncraft	Choose keys to ease them	
 tooncraft	Choose…	
 tooncraft	Cinema 2K, 24 fps	
 tooncraft	Cinema 4K, 24 fps	
@@ -174,6 +175,7 @@ tooncraft	Current colour #{hex}
 tooncraft	Current colour: open the Colour panel	
 tooncraft	Curve	
 tooncraft	Curve: {source} to {target}	
+tooncraft	Curves	
 tooncraft	Custom curve	
 tooncraft	Cut	
 tooncraft	Cut Frames	
@@ -209,6 +211,7 @@ tooncraft	Drag from start to end; inside the selection when there is one
 tooncraft	Drag inside to move, corners to scale, the top knob to rotate	
 tooncraft	Drag the four corners freely (perspective), then Apply	
 tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates	
+tooncraft	Draw the peg's other values faintly, each scaled to fit, to compare their timing	
 tooncraft	Drawing	
 tooncraft	Drawing (standard)	
 tooncraft	Drawing Layer	
@@ -236,6 +239,8 @@ tooncraft	Dynamics
 tooncraft	Dynamics for {target}	
 tooncraft	Each drawing on {n}s	
 tooncraft	Ease curve	
+tooncraft	Ease for {n} chosen keys	
+tooncraft	Ease handles: {a}, {b} and {c}, {d}	
 tooncraft	Ease in	
 tooncraft	Ease in and out	
 tooncraft	Ease out	
@@ -456,6 +461,7 @@ tooncraft	Keep the top in place
 tooncraft	Keep the top left in place	
 tooncraft	Keep the top right in place	
 tooncraft	Key	
+tooncraft	Key Here	
 tooncraft	Key at frame {n}	
 tooncraft	Key clip {n} volume here	
 tooncraft	Key colour	
@@ -610,6 +616,7 @@ tooncraft	No mark
 tooncraft	No markers yet	
 tooncraft	No next drawing	
 tooncraft	No other key drawing on this layer; mark keys from a cell's right-click menu	
+tooncraft	No pegs yet. Add one in the Pegs panel to see its keys here.	
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
 tooncraft	No pixels of that colour on the layer	
 tooncraft	No recent shots	
@@ -670,6 +677,7 @@ tooncraft	Opposite
 tooncraft	Or hold Shift to add, Alt to subtract, both to intersect	
 tooncraft	Orange	
 tooncraft	Other consonants	
+tooncraft	Other values	
 tooncraft	Outline	
 tooncraft	Outline and fill	
 tooncraft	Outline colour	
@@ -701,6 +709,7 @@ tooncraft	Paste Frames, Moving Later Frames
 tooncraft	Paste as New Drawings	
 tooncraft	Paste frames, moving later frames right	
 tooncraft	Pasted	
+tooncraft	Peg	
 tooncraft	Peg {n}	
 tooncraft	Pegs	
 tooncraft	Pen down: arrow keys draw, Enter lifts	
@@ -892,6 +901,7 @@ tooncraft	Set In
 tooncraft	Set Key	
 tooncraft	Set Name	
 tooncraft	Set Out	
+tooncraft	Set a key at the current frame with the peg's values there	
 tooncraft	Shadow colour	
 tooncraft	Shake the camera for 12 frames from the current frame	
 tooncraft	Shakes	
@@ -907,6 +917,7 @@ tooncraft	Shots you open or save are listed here.
 tooncraft	Show	
 tooncraft	Show Layer	
 tooncraft	Show a mouth drawing at the current frame, then press its “Use” button.	
+tooncraft	Show and edit this value	
 tooncraft	Show drawing thumbnails in the cells	
 tooncraft	Show fewer, wider frames (Alt+=)	
 tooncraft	Show layers labelled	
@@ -1133,11 +1144,13 @@ tooncraft	{done} steps, {undone} to redo
 tooncraft	{drawings} drawings ({unused} not exposed)	
 tooncraft	{drawing} (held)	
 tooncraft	{fps} fps playback · {ms} ms/frame	
+tooncraft	{f} frames, {v} (Escape cancels)	
 tooncraft	{key} was taken from “{command}”	
 tooncraft	{layer}, frame {frame}	
 tooncraft	{layer}, frame {frame}: {cell}	
 tooncraft	{name} (missing)	
 tooncraft	{name} and {n} more	
+tooncraft	{name} curve: {count} keys	
 tooncraft	{name} is a favourite	
 tooncraft	{name} is no longer a favourite	
 tooncraft	{name}, {category}	

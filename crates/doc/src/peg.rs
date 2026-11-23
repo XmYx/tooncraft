@@ -18,6 +18,8 @@ pub const MAX_PEGS: usize = 256;
 pub const MAX_PEG_KEYS: usize = 10_000;
 /// Deepest chain of pegs hanging from pegs.
 pub const MAX_PEG_DEPTH: usize = 32;
+/// Furthest a key moves in one step (the longest shot).
+const MAX_FRAMES_I64: i64 = crate::MAX_FRAMES as i64;
 
 /// A peg's stable id.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -162,6 +164,56 @@ impl PegKey {
     }
 }
 
+/// One keyed value of a peg, as the curve editor plots it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Channel {
+    X,
+    Y,
+    Angle,
+    ScaleX,
+    ScaleY,
+    Skew,
+}
+
+impl Channel {
+    pub const ALL: [Channel; 6] = [Channel::X, Channel::Y, Channel::Angle, Channel::ScaleX, Channel::ScaleY, Channel::Skew];
+
+    pub fn get(self, k: &PegKey) -> f32 {
+        match self {
+            Channel::X => k.x,
+            Channel::Y => k.y,
+            Channel::Angle => k.angle,
+            Channel::ScaleX => k.scale_x,
+            Channel::ScaleY => k.scale_y,
+            Channel::Skew => k.skew,
+        }
+    }
+
+    /// Set the value; the caller sanitizes the key afterwards.
+    pub fn set(self, k: &mut PegKey, v: f32) {
+        match self {
+            Channel::X => k.x = v,
+            Channel::Y => k.y = v,
+            Channel::Angle => k.angle = v,
+            Channel::ScaleX => k.scale_x = v,
+            Channel::ScaleY => k.scale_y = v,
+            Channel::Skew => k.skew = v,
+        }
+    }
+
+    /// One keyboard nudge of this value (Shift nudges ten times as far).
+    pub fn step(self) -> f32 {
+        match self {
+            Channel::X | Channel::Y | Channel::Angle | Channel::Skew => 1.0,
+            Channel::ScaleX | Channel::ScaleY => 0.01,
+        }
+    }
+}
+
+/// Most points [`Peg::sample`] returns, whatever is asked.
+pub const MAX_SAMPLES: usize = 4096;
+
 /// A peg: a named transform with keys, a pivot and an optional parent peg.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Peg {
@@ -204,6 +256,104 @@ impl Peg {
         }
         let last = self.keys.last().copied().unwrap_or(PegKey::rest(frame));
         PegKey { frame, ..last }
+    }
+
+    /// The value at a fractional time `t` (frames), for drawing smooth curves; whole frames give
+    /// the same values as [`Peg::at`]. Finds the segment by binary search.
+    pub fn at_time(&self, t: f32) -> PegKey {
+        let t = if t.is_finite() { t.max(0.0) } else { 0.0 };
+        let (Some(first), Some(last)) = (self.keys.first(), self.keys.last()) else { return PegKey::rest(0) };
+        if t <= first.frame as f32 {
+            return *first;
+        }
+        if t >= last.frame as f32 {
+            return *last;
+        }
+        // the last key at or before t
+        let i = self.keys.partition_point(|k| k.frame as f32 <= t).saturating_sub(1);
+        let (Some(a), Some(b)) = (self.keys.get(i), self.keys.get(i + 1)) else { return *last };
+        let u = a.ease.apply((t - a.frame as f32) / (b.frame - a.frame).max(1) as f32);
+        let l = |x: f32, y: f32| x + (y - x) * u;
+        PegKey {
+            frame: a.frame,
+            x: l(a.x, b.x),
+            y: l(a.y, b.y),
+            angle: l(a.angle, b.angle),
+            scale_x: l(a.scale_x, b.scale_x),
+            scale_y: l(a.scale_y, b.scale_y),
+            skew: l(a.skew, b.skew),
+            ease: a.ease,
+        }
+    }
+
+    /// `count` evenly spaced (time, value) points of one channel from frame `from` to `to`
+    /// (at most [`MAX_SAMPLES`]; work is `count · log keys`).
+    pub fn sample(&self, channel: Channel, from: f32, to: f32, count: usize) -> Vec<(f32, f32)> {
+        let count = count.clamp(2, MAX_SAMPLES);
+        let (from, to) = (if from.is_finite() { from } else { 0.0 }, if to.is_finite() { to } else { 0.0 });
+        (0..count)
+            .map(|i| {
+                let t = from + (to - from) * i as f32 / (count - 1) as f32;
+                (t, channel.get(&self.at_time(t)))
+            })
+            .collect()
+    }
+
+    /// Move the keys at `frames` by `by_frames` and, with a `channel`, add `by_value` to that
+    /// value, as one change: the moved keys keep their order, and nothing changes when a key is
+    /// missing, would land before frame 0 or past `last`, or on a key that is not moving. Returns
+    /// the moved keys' new frames.
+    pub fn move_keys(&mut self, frames: &[u32], by_frames: i64, channel: Option<Channel>, by_value: f32, last: u32) -> Result<Vec<u32>, crate::DocError> {
+        let moving: std::collections::BTreeSet<u32> = frames.iter().copied().take(MAX_PEG_KEYS).collect();
+        for f in &moving {
+            if !self.has_key(*f) {
+                return Err(crate::DocError::NoKey(*f));
+            }
+        }
+        let by_value = if by_value.is_finite() { by_value } else { 0.0 };
+        let mut keys = Vec::with_capacity(self.keys.len());
+        let mut moved = Vec::with_capacity(moving.len());
+        for k in &self.keys {
+            if !moving.contains(&k.frame) {
+                keys.push(*k);
+                continue;
+            }
+            let to = k.frame as i64 + by_frames.clamp(-(MAX_FRAMES_I64), MAX_FRAMES_I64);
+            if to < 0 {
+                return Err(crate::DocError::KeyBeforeStart);
+            }
+            let to = u32::try_from(to).map_err(|_| crate::DocError::NoFrame(u32::MAX))?;
+            if to > last {
+                return Err(crate::DocError::NoFrame(to));
+            }
+            if self.has_key(to) && !moving.contains(&to) {
+                return Err(crate::DocError::KeyInTheWay(to));
+            }
+            let mut nk = PegKey { frame: to, ..*k };
+            if let Some(c) = channel {
+                c.set(&mut nk, c.get(k) + by_value);
+            }
+            keys.push(nk.sanitized());
+            moved.push(to);
+        }
+        keys.sort_by_key(|k| k.frame);
+        self.keys = keys;
+        Ok(moved)
+    }
+
+    /// Give every key at `frames` the same ease (handle values are clamped); returns how many
+    /// keys changed.
+    pub fn set_eases(&mut self, frames: &[u32], ease: Ease) -> usize {
+        let ease = PegKey { ease, ..PegKey::rest(0) }.sanitized().ease;
+        let set: std::collections::BTreeSet<u32> = frames.iter().copied().take(MAX_PEG_KEYS).collect();
+        let mut n = 0;
+        for k in &mut self.keys {
+            if set.contains(&k.frame) {
+                k.ease = ease;
+                n += 1;
+            }
+        }
+        n
     }
 
     /// Add or replace the key at its frame.
@@ -376,6 +526,62 @@ mod tests {
         // a looping chain still terminates
         let looped = vec![peg(1, Some(2)), peg(2, Some(1))];
         assert!(chain(&looped, PegId(1), 0).is_finite());
+    }
+
+    #[test]
+    fn fractional_time_matches_whole_frames_and_samples_are_bounded() {
+        let mut p = peg(1, None);
+        p.set_key(PegKey { x: 0.0, angle: 10.0, ease: Ease::In, ..PegKey::rest(2) });
+        p.set_key(PegKey { x: 100.0, ease: Ease::Out, ..PegKey::rest(12) });
+        p.set_key(PegKey { x: 40.0, ..PegKey::rest(20) });
+        for f in 0..25 {
+            let (a, b) = (p.at(f), p.at_time(f as f32));
+            for c in Channel::ALL {
+                assert!((c.get(&a) - c.get(&b)).abs() < 1e-3, "{c:?} at {f}");
+            }
+        }
+        let s = p.sample(Channel::X, 0.0, 24.0, 1_000_000);
+        assert_eq!(s.len(), MAX_SAMPLES);
+        assert_eq!(s[0], (0.0, 0.0));
+        assert!((s[s.len() - 1].1 - 40.0).abs() < 1e-4);
+        assert_eq!(p.sample(Channel::X, f32::NAN, f32::INFINITY, 0).len(), 2);
+    }
+
+    #[test]
+    fn keys_move_together_or_not_at_all() {
+        let mut p = peg(1, None);
+        for f in [0, 5, 10] {
+            p.set_key(PegKey { x: f as f32, ..PegKey::rest(f) });
+        }
+        // 5 and 10 move right by 2, x + 7
+        assert_eq!(p.move_keys(&[5, 10], 2, Some(Channel::X), 7.0, 100).unwrap(), [7, 12]);
+        assert_eq!(p.keys.iter().map(|k| (k.frame, k.x)).collect::<Vec<_>>(), [(0, 0.0), (7, 12.0), (12, 17.0)]);
+        let before = p.clone();
+        assert!(matches!(p.move_keys(&[7], -7, None, 0.0, 100), Err(crate::DocError::KeyInTheWay(0))));
+        assert!(matches!(p.move_keys(&[0, 7], -1, None, 0.0, 100), Err(crate::DocError::KeyBeforeStart)));
+        assert!(matches!(p.move_keys(&[12], 5, None, 0.0, 15), Err(crate::DocError::NoFrame(17))));
+        assert!(matches!(p.move_keys(&[3], 1, None, 0.0, 100), Err(crate::DocError::NoKey(3))));
+        assert_eq!(p, before, "a refused move changes nothing");
+        // keys moving onto each other's old frames is fine
+        assert_eq!(p.move_keys(&[0, 7, 12], 7, None, 0.0, 100).unwrap(), [7, 14, 19]);
+        // hostile values are clamped
+        p.move_keys(&[7], 0, Some(Channel::ScaleX), f32::NAN, 100).unwrap();
+        p.move_keys(&[7], 0, Some(Channel::ScaleX), -1.0, 100).unwrap();
+        assert!(p.keys[0].scale_x.abs() >= 0.001 && p.keys[0].scale_x.is_finite());
+        p.move_keys(&[14], i64::MIN, None, 0.0, u32::MAX).unwrap_err();
+        p.move_keys(&[14], i64::MAX, None, 0.0, 100).unwrap_err();
+    }
+
+    #[test]
+    fn eases_are_set_on_many_keys_with_handles_clamped() {
+        let mut p = peg(1, None);
+        for f in [0, 5, 10, 15] {
+            p.set_key(PegKey::rest(f));
+        }
+        assert_eq!(p.set_eases(&[0, 10, 99], Ease::Hold), 2);
+        assert_eq!(p.keys.iter().map(|k| k.ease).collect::<Vec<_>>(), [Ease::Hold, Ease::InOut, Ease::Hold, Ease::InOut]);
+        p.set_eases(&[5], Ease::Curve { x1: 9.0, y1: f32::NAN, x2: -3.0, y2: 1e9 });
+        assert_eq!(p.keys[1].ease, Ease::Curve { x1: 1.0, y1: 0.5, x2: 0.0, y2: 3.0 });
     }
 
     proptest! {
