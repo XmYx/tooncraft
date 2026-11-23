@@ -31,12 +31,13 @@ pub enum Pane {
 
 impl Pane {
     /// Every panel, in the Window menu's order.
-    pub const ALL: [Pane; 14] = [
+    pub const ALL: [Pane; 15] = [
         Pane::Canvas,
         Pane::Timeline,
         Pane::Colour,
         Pane::Brush,
         Pane::Library,
+        Pane::Drawings,
         Pane::Layers,
         Pane::Onion,
         Pane::Camera,
