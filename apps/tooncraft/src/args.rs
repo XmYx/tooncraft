@@ -8,7 +8,12 @@ Options:
   --demo                     open the built-in demo shot
   --frame <N>                start on frame N (1-based)
   --screenshot <PNG>         render the window once to PNG and quit
-  --panel <NAME>             with --screenshot: bring a panel to the front (timeline, layers, brush, colour, onion)
+  --panel <NAME>             bring a panel to the front (timeline, layers, brush, colour, onion, camera,
+                             pegs, library, effects, sound, lipsync, timing, history)
+  --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size
+  --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet
+  --vertical                 show the exposure sheet down the page
+  --tool <NAME>              start with a tool (pencil, ink, fill, gradient, select, shape …)
   --bench-playback <SECONDS> play the shot for SECONDS, print frame timing and quit
   --select <A..B>            start with frames A to B (1-based) of the top layer selected
   --light-table              pin frame 1 of the top layer to the light table and show it
@@ -30,7 +35,17 @@ pub struct Cli {
     pub select: Option<(u32, u32)>,
     pub thumbnails: bool,
     pub file: Option<PathBuf>,
+    /// A window to open at start (for screenshots of dialogs).
+    pub open: Option<String>,
+    pub layout: Option<String>,
+    pub vertical: bool,
+    pub tool: Option<String>,
 }
+
+/// The windows `--open` knows.
+pub const OPEN_NAMES: [&str; 6] = ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size"];
+/// The layouts `--layout` knows.
+pub const LAYOUT_NAMES: [&str; 4] = ["drawing", "timing", "ink-paint", "sheet"];
 
 #[derive(Debug, PartialEq)]
 pub enum Launch {
@@ -76,6 +91,22 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             }
             "--screenshot" => cli.screenshot = Some(PathBuf::from(it.next().ok_or("--screenshot needs a file")?)),
             "--panel" => cli.panel = Some(it.next().ok_or("--panel needs a name")?),
+            "--open" => {
+                let v = it.next().ok_or("--open needs a window name")?;
+                if !OPEN_NAMES.contains(&v.as_str()) {
+                    return Err(format!("--open: unknown window {v} (one of {})", OPEN_NAMES.join(", ")));
+                }
+                cli.open = Some(v);
+            }
+            "--layout" => {
+                let v = it.next().ok_or("--layout needs a name")?;
+                if !LAYOUT_NAMES.contains(&v.as_str()) {
+                    return Err(format!("--layout: unknown layout {v} (one of {})", LAYOUT_NAMES.join(", ")));
+                }
+                cli.layout = Some(v);
+            }
+            "--vertical" => cli.vertical = true,
+            "--tool" => cli.tool = Some(it.next().ok_or("--tool needs a name")?),
             "--bench-playback" => {
                 let v = it.next().ok_or("--bench-playback needs seconds")?;
                 let s: f64 = v.parse().map_err(|_| format!("--bench-playback: not a number: {v}"))?;
@@ -104,5 +135,12 @@ mod tests {
         assert!(s(&["--nope"]).is_err());
         assert!(s(&["a.toon", "b.toon"]).is_err());
         assert!(matches!(s(&["--help"]), Ok(Launch::Print(_))));
+        assert_eq!(
+            s(&["--open", "preferences", "--layout", "sheet", "--vertical"]),
+            Ok(Launch::Run(Cli { open: Some("preferences".into()), layout: Some("sheet".into()), vertical: true, ..Default::default() }))
+        );
+        assert!(s(&["--open", "nope"]).is_err());
+        assert!(s(&["--layout", "nope"]).is_err());
+        assert!(s(&["--open"]).is_err());
     }
 }

@@ -134,6 +134,17 @@ fn sheet_layout() -> Layout<Pane> {
     Layout { root: Some(root), floating: Vec::new() }
 }
 
+/// A built-in layout by its launch name (`--layout`).
+pub fn layout_by_name(name: &str) -> Option<Layout<Pane>> {
+    Some(match name {
+        "drawing" => Workspace::default().layout,
+        "timing" => timing_layout(),
+        "ink-paint" => ink_paint_layout(),
+        "sheet" => sheet_layout(),
+        _ => return None,
+    })
+}
+
 /// View menu entries (guides, canvas size, workspaces).
 pub fn view_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.checkbox(&mut app.canvas_ui.field_guide, tl!("Field Guide"));

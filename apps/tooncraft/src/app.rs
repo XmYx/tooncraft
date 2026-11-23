@@ -429,6 +429,18 @@ impl ToonApp {
         if let Some(name) = &cli.panel {
             app.workspace.raise(Pane::from_name(name));
         }
+        if let Some(t) = cli.tool.as_deref().and_then(|n| Tool::ALL.into_iter().find(|t| t.id() == n)) {
+            app.tool = t;
+        }
+        match cli.open.as_deref() {
+            Some("preferences") => app.preferences.open = true,
+            Some("export") => crate::export_dialog::open(&mut app, "mp4"),
+            Some("shortcuts") => app.show_shortcuts = true,
+            Some("find") => app.find.open = true,
+            Some("new-shot") => app.new_shot = Some(app.new_shot_defaults()),
+            Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
+            _ => {}
+        }
         if cli.demo && cli.screenshot.is_some() {
             app.engine.project.onion.before = 2;
             app.engine.project.onion.after = 2;
@@ -441,6 +453,19 @@ impl ToonApp {
         crate::preferences::apply_live(&mut app);
         crate::preferences::apply_tool_defaults(&mut app);
         app.thumbnails = cli.thumbnails || app.preferences.prefs.thumbnails;
+        // launch options win over the preferences
+        if let Some(l) = cli.layout.as_deref().and_then(crate::canvas_tools::layout_by_name) {
+            app.workspace.layout = l;
+            app.tl.vertical = cli.layout.as_deref() == Some("sheet");
+        }
+        if cli.vertical {
+            app.tl.vertical = true;
+        }
+        if cli.layout.is_some()
+            && let Some(name) = &cli.panel
+        {
+            app.workspace.raise(Pane::from_name(name));
+        }
         if cli.light_table {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
