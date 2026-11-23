@@ -495,6 +495,14 @@ impl ToonApp {
         app
     }
 
+    /// Autosave into `dir` and look there for a recovery copy, as at launch (UI tests).
+    #[cfg(test)]
+    pub fn with_autosave_dir(mut self, dir: PathBuf) -> Self {
+        self.autosave_dir = Some(dir);
+        self.offer_recovery();
+        self
+    }
+
     /// No autosave and no recovery offer (UI tests).
     #[cfg(test)]
     pub fn without_autosave(mut self) -> Self {
@@ -1924,6 +1932,8 @@ impl ToonApp {
                             let doc = self.path.clone();
                             self.replace_engine(Engine::new(p), doc);
                             self.engine.touch();
+                            // the recovered work is what the user wanted: no start window over it
+                            self.start.open = false;
                             self.set_status(tl!("Recovered; save to keep it"));
                         }
                         Err(e) => self.set_status(e.to_string()),

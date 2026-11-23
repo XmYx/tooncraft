@@ -17,12 +17,18 @@ const MAX_STORE_BYTES: usize = 256 << 10;
 /// Longer entries are dropped (no real path is this long).
 const MAX_PATH_CHARS: usize = 4096;
 
+/// How long the "is it still there" answers are kept, so an open menu does not ask the disk
+/// (possibly a slow network share) for every entry on every frame.
+const PRESENT_TTL: std::time::Duration = std::time::Duration::from_secs(2);
+
 /// The recent shots, newest first.
 #[derive(Default)]
 pub struct Recent {
     pub paths: Vec<PathBuf>,
     /// Where the list is saved (none in tests and screenshots).
     store: Option<PathBuf>,
+    /// Whether each entry was on disk, and when that was checked.
+    present: Option<(std::time::Instant, Vec<bool>)>,
 }
 
 /// The list read from a recent-files file: valid entries only, de-duplicated, capped.
@@ -58,7 +64,16 @@ impl Recent {
     pub fn new(persist: bool) -> Self {
         let store = if persist { crate::keys::overrides_path().and_then(|p| p.parent().map(|d| d.join("recent.json"))) } else { None };
         let paths = store.as_ref().and_then(|p| std::fs::read(p).ok()).map(|b| parse(&b)).unwrap_or_default();
-        Self { paths, store }
+        Self { paths, store, present: None }
+    }
+
+    /// Whether each listed shot is still on disk (checked at most every [`PRESENT_TTL`]).
+    pub fn present(&mut self) -> Vec<bool> {
+        let fresh = self.present.as_ref().is_some_and(|(at, v)| at.elapsed() < PRESENT_TTL && v.len() == self.paths.len());
+        if !fresh {
+            self.present = Some((std::time::Instant::now(), self.paths.iter().map(|p| p.is_file()).collect()));
+        }
+        self.present.as_ref().map(|(_, v)| v.clone()).unwrap_or_default()
     }
 
     /// Put `p` first (moving it up if it is already listed) and drop the oldest past the cap.
@@ -70,12 +85,14 @@ impl Recent {
         self.paths.retain(|q| key(q) != k);
         self.paths.insert(0, k);
         self.paths.truncate(MAX_RECENT_FILES);
+        self.present = None;
         self.save()
     }
 
     /// Forget every entry.
     pub fn clear(&mut self) -> Result<(), String> {
         self.paths.clear();
+        self.present = None;
         self.save()
     }
 
@@ -106,10 +123,10 @@ pub fn note(app: &mut ToonApp, p: &Path) {
     }
 }
 
-/// The name shown for a recent shot, and whether it is still there.
-fn entry(p: &Path) -> (String, bool) {
+/// The name shown for a recent shot that is (or is not) still there.
+fn entry(p: &Path, there: bool) -> String {
     let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.display().to_string());
-    if p.is_file() { (name, true) } else { (tlf!("{name} (missing)", name = name), false) }
+    if there { name } else { tlf!("{name} (missing)", name = name) }
 }
 
 /// File ▸ Open Recent.
@@ -120,8 +137,9 @@ pub fn menu(app: &mut ToonApp, ui: &mut egui::Ui) {
             return;
         }
         let mut pick = None;
-        for p in &app.recent_files.paths {
-            let (name, there) = entry(p);
+        let present = app.recent_files.present();
+        for (p, there) in app.recent_files.paths.iter().zip(present) {
+            let name = entry(p, there);
             let tip = p.display().to_string();
             if ui.add_enabled(there, egui::Button::new(name)).on_hover_text(&tip).on_disabled_hover_text(&tip).clicked() {
                 pick = Some(p.clone());
@@ -166,9 +184,12 @@ enum Pick {
 
 /// The start window.
 pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
-    if !app.start.open {
+    // never over the recovery offer: the user decides about unsaved work first (Recover closes
+    // this window; Discard shows it)
+    if !app.start.open || app.recovery.is_some() {
         return;
     }
+    let present = app.recent_files.present();
     let mut form = std::mem::take(&mut app.start.form);
     let focus = std::mem::take(&mut app.start.focus);
     let mut pick = None;
@@ -183,7 +204,7 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
                 if create.clicked() {
                     pick = Some(Pick::Create);
                 }
-                if focus && app.recent_files.paths.iter().all(|p| !p.is_file()) {
+                if focus && !present.iter().any(|t| *t) {
                     create.request_focus();
                 }
             });
@@ -195,8 +216,8 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
                     ui.label(egui::RichText::new(tl!("Shots you open or save are listed here.")).weak());
                 }
                 let mut focused = false;
-                for p in &app.recent_files.paths {
-                    let (name, there) = entry(p);
+                for (p, there) in app.recent_files.paths.iter().zip(present.iter().copied()) {
+                    let name = entry(p, there);
                     let tip = p.display().to_string();
                     let r = ui.add_enabled(there, egui::Button::new(name)).on_hover_text(&tip).on_disabled_hover_text(&tip);
                     if focus && there && !focused {
@@ -297,7 +318,7 @@ mod tests {
     fn the_list_is_saved_and_read_back() {
         let dir = std::env::temp_dir().join(format!("tooncraft-recent-test-{}", std::process::id()));
         let store = dir.join("recent.json");
-        let mut r = Recent { paths: Vec::new(), store: Some(store.clone()) };
+        let mut r = Recent { store: Some(store.clone()), ..Recent::default() };
         r.note(Path::new("/x/one.toon")).expect("saved");
         r.note(Path::new("/x/two.toon")).expect("saved");
         let back = parse(&std::fs::read(&store).expect("written"));

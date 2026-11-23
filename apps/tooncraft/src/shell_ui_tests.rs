@@ -51,6 +51,7 @@ fn the_start_window_creates_a_shot_from_the_keyboard() {
     h.state_mut().start.form.name = "Walk cycle".into();
     h.state_mut().start.form.frames = 7;
     h.run();
+    assert!(h.get_by_label("Create").is_focused(), "Create has the focus when no recent shot is there");
     h.key_press(Key::Enter);
     h.run();
     assert!(!h.state().start.open, "closed after creating");
@@ -78,6 +79,7 @@ fn the_start_window_opens_a_recent_shot_with_enter_and_marks_missing_ones() {
     // the missing shot is listed, marked and cannot be picked
     assert!(h.get_by_label("Gone.toon (missing)").accesskit_node().is_disabled(), "a missing shot cannot be opened");
     // the first shot that is still there has the focus
+    assert!(h.get_by_label("Recent one.toon").is_focused());
     h.key_press(Key::Enter);
     h.run();
     assert!(!h.state().start.open);
@@ -118,5 +120,53 @@ fn saving_puts_the_shot_in_the_recent_list() {
     let mut h = harness_with(app(Cli::default()));
     assert!(h.state_mut().save_to(&path));
     assert_eq!(h.state().recent_files.paths.first().map(|p| p.ends_with("saved.toon")), Some(true));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A launch with an untitled recovery copy in a temporary autosave folder.
+fn with_recovery_copy(tag: &str) -> (ToonApp, PathBuf) {
+    let dir = std::env::temp_dir().join(format!("tooncraft-shell-recover-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::create_dir_all(&dir);
+    let a = app(start_cli());
+    let mut lost = a.engine.project.clone();
+    lost.set_length(9).expect("length");
+    let key = tooncraft_format::autosave::key_for(None, &a.engine.project.name);
+    tooncraft_format::autosave::write(&dir, &key, &lost).expect("recovery copy");
+    let a = a.with_autosave_dir(dir.clone());
+    assert!(a.recovery.is_some(), "the recovery copy is offered");
+    (a, dir)
+}
+
+#[test]
+fn the_start_window_waits_until_the_recovery_offer_is_answered() {
+    let (a, dir) = with_recovery_copy("discard");
+    let mut h = harness_with(a);
+    // only the recovery offer is shown; the start window is not drawn over it
+    h.get_by_label("Recover unsaved work");
+    assert!(h.query_by_label("Recent shots").is_none(), "no start window while the offer stands");
+    // pressing Enter does not create a shot behind the offer
+    let name = h.state().engine.project.name.clone();
+    h.key_press(Key::Enter);
+    h.run();
+    assert!(h.state().recovery.is_some());
+    assert_eq!(h.state().engine.project.name, name);
+    // Discard: the start window comes up
+    h.get_by_label("Discard").click();
+    h.run();
+    assert!(h.state().recovery.is_none());
+    h.get_by_label("Recent shots");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn recovering_closes_the_start_window() {
+    let (a, dir) = with_recovery_copy("recover");
+    let mut h = harness_with(a);
+    h.get_by_label("Recover").click();
+    h.run();
+    assert!(h.state().recovery.is_none());
+    assert!(!h.state().start.open, "the recovered work is not hidden behind the start window");
+    assert!(h.query_by_label("Recent shots").is_none());
     let _ = std::fs::remove_dir_all(&dir);
 }
