@@ -25,18 +25,53 @@ pub struct ExportOptions {
     pub end: u32,
     /// Include the paper (off: transparent background where the format allows it).
     pub paper: bool,
+    /// Output size divisor: 1 is the canvas size, 2 half, 4 a quarter (1 … [`MAX_SCALE`]).
+    pub scale: u32,
+    /// Animated GIF: loop forever (off: play once).
+    pub loop_forever: bool,
+    /// Image sequences: digits in the frame number (0: at least 4, more for long shots).
+    pub digits: u8,
+}
+
+/// The largest output size divisor.
+pub const MAX_SCALE: u32 = 8;
+
+impl Default for ExportOptions {
+    fn default() -> Self {
+        Self { start: 0, end: 1, paper: true, scale: 1, loop_forever: true, digits: 0 }
+    }
 }
 
 impl ExportOptions {
     pub fn whole(p: &Project) -> Self {
-        Self { start: 0, end: p.length(), paper: p.paper.export }
+        Self { start: 0, end: p.length(), paper: p.paper.export, ..Self::default() }
     }
 
     fn check(&self, p: &Project) -> Result<()> {
         if self.start >= self.end || self.end > p.length() {
             return Err(ExportError::Range(self.start, self.end));
         }
+        if self.scale == 0 || self.scale > MAX_SCALE || self.digits > 9 {
+            return Err(ExportError::Encode(format!("output scale must be 1 to {MAX_SCALE} and digits 0 to 9")));
+        }
         Ok(())
+    }
+
+    /// The output size for `p`.
+    pub fn size(&self, p: &Project) -> (u32, u32) {
+        let s = self.scale.clamp(1, MAX_SCALE);
+        (p.width().div_ceil(s).max(1), p.height().div_ceil(s).max(1))
+    }
+
+    /// Frame `f` through the camera, at the output size.
+    fn render(&self, p: &Project, f: u32, paper: bool) -> tooncraft_raster::RgbaImage {
+        tooncraft_doc::render_camera(p, f, RenderOptions { paper, ..Default::default() }).reduced(self.scale.clamp(1, MAX_SCALE))
+    }
+
+    /// Digits for the frame numbers of a sequence.
+    fn digit_count(&self) -> usize {
+        let needed = (self.end.max(1).ilog10() + 1) as usize;
+        if self.digits == 0 { needed.max(4) } else { (self.digits as usize).max(needed) }
     }
 }
 
@@ -44,10 +79,10 @@ impl ExportOptions {
 pub fn png_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, mut progress: impl FnMut(u32)) -> Result<Vec<PathBuf>> {
     o.check(p)?;
     std::fs::create_dir_all(dir).map_err(|e| ExportError::Io(dir.display().to_string(), e))?;
-    let digits = (o.end.max(1).ilog10() + 1).max(4) as usize;
+    let digits = o.digit_count();
     let mut out = Vec::new();
     for f in o.start..o.end {
-        let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: o.paper, ..Default::default() });
+        let img = o.render(p, f, o.paper);
         let png = tooncraft_format::encode_png(&img).map_err(|e| ExportError::Encode(e.to_string()))?;
         let path = dir.join(format!("{prefix}_{:0digits$}.png", f + 1));
         craft_atomic::atomic_write(&path, &png).map_err(|e| ExportError::Io(path.display().to_string(), e))?;
@@ -64,15 +99,16 @@ pub fn gif_delays(fps: u32, frames: u32) -> Vec<u16> {
     (0..frames as u64).map(|i| (((i + 1) * 100 + fps / 2) / fps - (i * 100 + fps / 2) / fps).max(2) as u16).collect()
 }
 
-/// Write an animated GIF that loops forever. Frames are encoded one at a time (streaming), so
+/// Write an animated GIF (looping forever unless `o.loop_forever` is off). Frames are encoded one at a time (streaming), so
 /// memory does not grow with the shot length.
 pub fn gif(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(u32)) -> Result<()> {
     o.check(p)?;
     let delays = gif_delays(p.fps(), o.end - o.start);
-    let opts = craft_gif::write::Options::default();
-    let mut w = craft_gif::write::AnimationWriter::new(Vec::new(), p.width(), p.height(), opts).map_err(|e| ExportError::Encode(e.to_string()))?;
+    let opts = craft_gif::write::Options { loop_forever: o.loop_forever, ..Default::default() };
+    let (ow, oh) = o.size(p);
+    let mut w = craft_gif::write::AnimationWriter::new(Vec::new(), ow, oh, opts).map_err(|e| ExportError::Encode(e.to_string()))?;
     for (i, f) in (o.start..o.end).enumerate() {
-        let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: o.paper, ..Default::default() });
+        let img = o.render(p, f, o.paper);
         let straight = img.to_straight();
         let delay_cs = delays.get(i).copied().unwrap_or(4);
         w.write_frame(craft_gif::write::RgbaFrame { pixels: &straight, delay_cs }).map_err(|e| ExportError::Encode(e.to_string()))?;
@@ -157,7 +193,8 @@ pub fn mp4(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(
     use craft_media::isobmff::{AvcConfig, Brand, Mp4Writer, SampleEntry, TrackConfig, WriteSample, WriterOptions};
     use craft_video::h264::{Encoder, EncoderConfig, PacketFormat, RateControl, YuvFrame};
     o.check(p)?;
-    let (w, h) = (p.width() & !1, p.height() & !1);
+    let (w, h) = o.size(p);
+    let (w, h) = (w & !1, h & !1);
     if w < 16 || h < 16 {
         return Err(ExportError::Encode("video needs a canvas of at least 16×16".into()));
     }
@@ -199,7 +236,7 @@ pub fn mp4(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(
             Ok(())
         };
         for (i, f) in (o.start..o.end).enumerate() {
-            let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: true, ..Default::default() });
+            let img = o.render(p, f, true);
             let (y, u, v) = to_yuv420(&img, w, h);
             let frame = YuvFrame { y: &y, u: &u, v: &v, y_stride: w as usize, uv_stride: w as usize / 2 };
             let packets = enc.encode(&frame, i as i64).map_err(|e| io(enc_err(e)))?;
@@ -259,7 +296,7 @@ pub fn apng(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut
     let delays = gif_delays(p.fps(), o.end - o.start);
     let mut payloads = Vec::new();
     for f in o.start..o.end {
-        let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: o.paper, ..Default::default() });
+        let img = o.render(p, f, o.paper);
         let png = tooncraft_format::encode_png(&img).map_err(|e| ExportError::Encode(e.to_string()))?;
         payloads.push(idat(&png).ok_or_else(|| ExportError::Encode("PNG without image data".into()))?);
         progress(f);
@@ -268,8 +305,8 @@ pub fn apng(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut
         .iter()
         .enumerate()
         .map(|(i, d)| craft_image_codecs::apng::Frame {
-            width: p.width(),
-            height: p.height(),
+            width: o.size(p).0,
+            height: o.size(p).1,
             x: 0,
             y: 0,
             delay_num: delays.get(i).copied().unwrap_or(4),
@@ -278,7 +315,7 @@ pub fn apng(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut
             data: d,
         })
         .collect();
-    let bytes = craft_image_codecs::apng::encode(p.width(), p.height(), 0, &frames, 500 << 20).map_err(|e| ExportError::Encode(e.to_string()))?;
+    let bytes = craft_image_codecs::apng::encode(o.size(p).0, o.size(p).1, 0, &frames, 500 << 20).map_err(|e| ExportError::Encode(e.to_string()))?;
     craft_atomic::atomic_write(path, &bytes).map_err(|e| ExportError::Io(path.display().to_string(), e))
 }
 
@@ -366,7 +403,7 @@ fn riff_chunk<'a>(file: &'a [u8], id: &[u8; 4]) -> Option<&'a [u8]> {
 /// the one before it only extends that frame's time, so held drawings cost nothing.
 pub fn webp_animated(p: &Project, path: &Path, o: ExportOptions, opt: WebpOptions, mut progress: impl FnMut(u32)) -> Result<()> {
     o.check(p)?;
-    let (w, h) = (p.width(), p.height());
+    let (w, h) = o.size(p);
     if !opt.lossless && (w > 16383 || h > 16383) {
         return Err(ExportError::Encode("lossy WebP is at most 16383 pixels a side; use lossless".into()));
     }
@@ -380,7 +417,7 @@ pub fn webp_animated(p: &Project, path: &Path, o: ExportOptions, opt: WebpOption
     let mut bytes = 0usize;
     let mut any_alpha = false;
     for (i, f) in (o.start..o.end).enumerate() {
-        let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: o.paper, ..Default::default() });
+        let img = o.render(p, f, o.paper);
         let rgba = img.to_straight();
         let ms = delays.get(i).copied().unwrap_or(42);
         if last.as_deref() == Some(rgba.as_slice())
@@ -447,10 +484,10 @@ fn frame_files(
 ) -> Result<Vec<PathBuf>> {
     o.check(p)?;
     std::fs::create_dir_all(dir).map_err(|e| ExportError::Io(dir.display().to_string(), e))?;
-    let digits = (o.end.max(1).ilog10() + 1).max(4) as usize;
+    let digits = o.digit_count();
     let mut out = Vec::new();
     for f in o.start..o.end {
-        let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: o.paper, ..Default::default() });
+        let img = o.render(p, f, o.paper);
         let bytes = encode(&img, !o.paper)?;
         let path = dir.join(format!("{prefix}_{:0digits$}.{ext}", f + 1));
         craft_atomic::atomic_write(&path, &bytes).map_err(|e| ExportError::Io(path.display().to_string(), e))?;

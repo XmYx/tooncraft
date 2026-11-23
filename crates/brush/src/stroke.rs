@@ -90,8 +90,11 @@ impl StrokeEngine {
             travelled += need;
             self.carry = 0.0;
             let at = lerp_sample(&prev, &s, (travelled / len).clamp(0.0, 1.0));
-            out.push(self.dab(&at));
-            budget -= 1;
+            // a spray lays several dabs per step (each with its own scatter and chances)
+            for _ in 0..self.brush.count.max(1) {
+                out.push(self.dab(&at));
+            }
+            budget = budget.saturating_sub(self.brush.count.max(1) as usize);
         }
         self.last = Some(s);
     }
@@ -121,6 +124,18 @@ impl StrokeEngine {
         (self.brush.size * f).clamp(0.5, crate::MAX_SIZE)
     }
 
+    /// The dab's colour under colour jitter (`None` without jitter).
+    fn jittered(&self) -> Option<[u8; 3]> {
+        let j = self.brush.jitter;
+        if j.is_off() {
+            return None;
+        }
+        let key = if j.per_stroke { self.seed } else { self.seed ^ self.index.wrapping_mul(0x9E37_79B9_7F4A_7C15) };
+        let r = [hash01(key, 101), hash01(key, 102), hash01(key, 103)];
+        let c = self.brush.color;
+        Some(j.apply([c[0], c[1], c[2]], r))
+    }
+
     fn dab(&mut self, s: &Sample) -> Dab {
         let d = self.brush.dynamics;
         let r = d.response;
@@ -145,6 +160,7 @@ impl StrokeEngine {
             angle: self.brush.angle.to_radians() + tilt_angle + turn * TAU,
             roundness: (self.brush.roundness * (1.0 - d.tilt * m * 0.75)).clamp(0.1, 1.0),
             pressure: s.pressure,
+            color: self.jittered(),
         };
         self.index = self.index.wrapping_add(1);
         dab
@@ -299,14 +315,20 @@ impl Stroke {
                             }
                             None => [0; 4],
                         };
-                        let paint = scale_alpha(self.color, k);
+                        let colour = match dab.color {
+                            Some(c) => premultiply([c[0], c[1], c[2], self.brush.color[3]]),
+                            None => self.color,
+                        };
+                        let paint = scale_alpha(colour, k);
                         let out = match (eraser, compose) {
                             (true, Compose::Normal) => scale_alpha(base, 255 - k),
-                            // erasing "behind" or inside a locked layer changes nothing sensible
+                            // erasing "behind", inside a locked layer or in a blend mode changes
+                            // nothing sensible
                             (true, _) => base,
                             (false, Compose::Normal) => over(base, paint),
                             (false, Compose::Behind) => over(paint, base),
                             (false, Compose::KeepAlpha) => keep_alpha(base, paint),
+                            (false, mode) => blend_over(base, paint, mode),
                         };
                         px[i..i + 4].copy_from_slice(&out);
                     }
@@ -496,6 +518,26 @@ impl Stroke {
 }
 
 /// `paint` laid over `base` with the alpha of `base` unchanged (premultiplied in and out).
+/// Paint `paint` over `base` (both premultiplied) in a blend mode: where there is paint under it,
+/// the paint's colour becomes the blend of the two (weighted by the paint under's opacity), then
+/// goes over as usual.
+fn blend_over(base: [u8; 4], paint: [u8; 4], mode: Compose) -> [u8; 4] {
+    if paint[3] == 0 {
+        return base;
+    }
+    let (ab, as_) = (base[3] as f32 / 255.0, paint[3] as f32 / 255.0);
+    let straight = |p: [u8; 4], a: f32, k: usize| if a > 0.0 { (p[k] as f32 / 255.0 / a).min(1.0) } else { 0.0 };
+    let mut c = [0u8; 4];
+    for k in 0..3 {
+        let (cb, cs) = (straight(base, ab, k), straight(paint, as_, k));
+        let mixed = mode.blend(cb, cs).unwrap_or(cs);
+        let v = (1.0 - ab) * cs + ab * mixed;
+        c[k] = (v * as_ * 255.0).round().clamp(0.0, 255.0) as u8;
+    }
+    c[3] = paint[3];
+    over(base, c)
+}
+
 fn keep_alpha(base: [u8; 4], paint: [u8; 4]) -> [u8; 4] {
     if base[3] == 0 || paint[3] == 0 {
         return base;
@@ -632,7 +674,7 @@ mod tests {
         let mut s = Surface::new(128, 128).unwrap();
         let brush = Brush { size: 40.0, smoothing: crate::Smoothing { average: 0.0, ..Default::default() }, ..Brush::preset(BrushKind::Ink) };
         let mut st = Stroke::begin_with_tip(&mut s, brush, Some(tip));
-        let dab = Dab { x: 64.0, y: 64.0, radius: 20.0, alpha: 1.0, angle: 0.0, roundness: 1.0, pressure: 1.0 };
+        let dab = Dab { x: 64.0, y: 64.0, radius: 20.0, alpha: 1.0, angle: 0.0, roundness: 1.0, pressure: 1.0, color: None };
         st.add(&mut s, &[dab]);
         st.end(&mut s);
         assert!(s.pixel(54, 64)[3] > 200 && s.pixel(74, 64)[3] == 0);
@@ -774,7 +816,7 @@ mod dynamics_tests {
         // a thin blade turned upright covers a tall, narrow patch
         let mut s = Surface::new(80, 80).unwrap();
         let mut st = Stroke::begin(&mut s, Brush { size: 40.0, hardness: 1.0, ..blade });
-        st.add(&mut s, &[Dab { x: 40.0, y: 40.0, radius: 20.0, alpha: 1.0, angle: std::f32::consts::FRAC_PI_2, roundness: 0.2, pressure: 1.0 }]);
+        st.add(&mut s, &[Dab { x: 40.0, y: 40.0, radius: 20.0, alpha: 1.0, angle: std::f32::consts::FRAC_PI_2, roundness: 0.2, pressure: 1.0, color: None }]);
         st.end(&mut s);
         let (tall, wide) = ((0..80).filter(|y| s.pixel(40, *y)[3] > 128).count(), (0..80).filter(|x| s.pixel(*x, 40)[3] > 128).count());
         assert!(tall > wide * 3, "{tall} tall, {wide} wide");

@@ -30,6 +30,7 @@ pub enum Tool {
     Picker,
     Select,
     Shape,
+    Gradient,
     Hand,
 }
 
@@ -38,12 +39,17 @@ pub enum Tool {
 pub enum SelectMode {
     Lasso,
     Rectangle,
+    Ellipse,
+    /// Click an area: pixels like the one clicked.
+    Wand,
 }
 
 /// A transform being dragged: the selection before it and what kind of drag it is.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Xform {
     pub base: Vec<(f32, f32)>,
+    /// The selection's other rings when the drag began.
+    pub base_rings: Vec<Vec<(f32, f32)>>,
     pub kind: XformKind,
     pub start: (f32, f32),
     pub applied: bool,
@@ -59,7 +65,7 @@ pub enum XformKind {
 }
 
 impl Tool {
-    pub const ALL: [Tool; 12] = [
+    pub const ALL: [Tool; 13] = [
         Tool::Pencil,
         Tool::Ink,
         Tool::Airbrush,
@@ -71,6 +77,7 @@ impl Tool {
         Tool::Picker,
         Tool::Select,
         Tool::Shape,
+        Tool::Gradient,
         Tool::Hand,
     ];
 
@@ -100,6 +107,7 @@ impl Tool {
             Tool::Picker => tl!("Colour picker"),
             Tool::Select => tl!("Select"),
             Tool::Shape => tl!("Shapes"),
+            Tool::Gradient => tl!("Gradient"),
             Tool::Hand => tl!("Hand"),
         }
         .to_string()
@@ -119,6 +127,7 @@ impl Tool {
             Tool::Picker => "picker",
             Tool::Select => "select",
             Tool::Shape => "shape",
+            Tool::Gradient => "gradient",
             Tool::Hand => "hand",
         }
     }
@@ -188,6 +197,8 @@ pub struct ToonApp {
     /// Straight RGBA drawing colour.
     pub color: [u8; 4],
     pub swatches: Vec<[u8; 3]>,
+    /// The Colour panel's palette, harmony, wheel and recolour settings.
+    pub colour: crate::colour_tools::State,
     /// Colours painted with, newest first.
     pub recent: Vec<[u8; 3]>,
     pub fill: FillOptions,
@@ -208,6 +219,11 @@ pub struct ToonApp {
     pub light_theme: bool,
     pub renaming: Option<(usize, String)>,
     pub new_shot: Option<NewShot>,
+    /// Preferences and their window.
+    pub preferences: crate::preferences::State,
+    /// The Export dialog, and its last choices per shot.
+    pub export_dialog: Option<crate::export_dialog::Dialog>,
+    pub export_memory: crate::export_dialog::Memory,
     pub show_shortcuts: bool,
     pub show_about: bool,
     pub confirm_close: bool,
@@ -241,6 +257,8 @@ pub struct ToonApp {
     /// Points of a selection being drawn.
     pub selecting: Vec<(f32, f32)>,
     pub xform: Option<Xform>,
+    /// Several rings, combine modes, wand, grow, skew, distort, resampling.
+    pub sel: crate::selection_tools::State,
     /// Copied pixels: straight RGBA, size, and where they came from.
     pub pixel_clipboard: Option<(Vec<u8>, u32, u32, (f32, f32))>,
     pub sound: crate::sound::Sound,
@@ -254,6 +272,8 @@ pub struct ToonApp {
     pub shape: tooncraft_engine::shapes::ShapeKind,
     /// A shape being dragged: (from, to) in canvas pixels.
     pub shape_drag: Option<((f32, f32), (f32, f32))>,
+    /// Shape modes, lasso fill, gradient, symmetry, hold to straighten, grid snapping.
+    pub aids: crate::draw_aids::DrawAids,
     /// Paint-bucket clicks fill the point in every drawing of the layer.
     pub fill_every_frame: bool,
     /// Bigger timeline cells with drawing thumbnails.
@@ -280,8 +300,6 @@ pub fn autosave_dir() -> Option<PathBuf> {
         home("XDG_STATE_HOME").or_else(|| home("HOME").map(|h| h.join(".local/state"))).map(|d| d.join("tooncraft/autosave"))
     }
 }
-
-const AUTOSAVE_SECONDS: u64 = 45;
 
 impl ToonApp {
     pub fn new(cc: &eframe::CreationContext<'_>, cli: Cli) -> Self {
@@ -323,6 +341,7 @@ impl ToonApp {
             brushes,
             color: [28, 26, 40, 255],
             recent: Vec::new(),
+            colour: crate::colour_tools::State::new(),
             swatches: vec![
                 [28, 26, 40],
                 [90, 86, 110],
@@ -354,6 +373,9 @@ impl ToonApp {
             light_theme: cli.light,
             renaming: None,
             new_shot: None,
+            preferences: crate::preferences::State::new(!cfg!(test) && cli.screenshot.is_none()),
+            export_dialog: None,
+            export_memory: Default::default(),
             show_shortcuts: false,
             show_about: false,
             confirm_close: false,
@@ -383,12 +405,14 @@ impl ToonApp {
             canvas_ui: crate::canvas_tools::CanvasUi::new(!cfg!(test) && cli.screenshot.is_none()),
             shape: tooncraft_engine::shapes::ShapeKind::Line,
             shape_drag: None,
+            aids: crate::draw_aids::DrawAids::default(),
             fill_every_frame: false,
             thumbnails: false,
             thumbs: std::collections::HashMap::new(),
             blend_cache: Default::default(),
             selection: None,
             select_mode: SelectMode::Lasso,
+            sel: crate::selection_tools::State::new(),
             selecting: Vec::new(),
             xform: None,
             pixel_clipboard: None,
@@ -408,7 +432,9 @@ impl ToonApp {
             app.sel_anchor = Some((app.layer, a.min(last)));
             app.frame = b.min(last);
         }
-        app.thumbnails = cli.thumbnails;
+        crate::preferences::apply_live(&mut app);
+        crate::preferences::apply_tool_defaults(&mut app);
+        app.thumbnails = cli.thumbnails || app.preferences.prefs.thumbnails;
         if cli.light_table {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
@@ -424,6 +450,12 @@ impl ToonApp {
         self.autosave_dir = None;
         self.recovery = None;
         self
+    }
+
+    /// The New Shot dialog's starting values, from the preferences.
+    pub fn new_shot_defaults(&self) -> NewShot {
+        let p = &self.preferences.prefs;
+        NewShot { width: p.width, height: p.height, fps: p.fps, frames: p.frames, ..NewShot::default() }
     }
 
     pub fn now(&self) -> f64 {
@@ -553,30 +585,42 @@ impl ToonApp {
     /// Apply a transform to the selection (one undo step) and move the outline with it.
     pub fn transform_selection(&mut self, dx: f32, dy: f32, scale: (f32, f32), angle: f32) {
         let Some(poly) = self.selection.clone() else { return };
-        let (layer, frame) = (self.layer, self.frame);
-        if self.run(Command::TransformSelection { layer, frame, polygon: poly.clone(), dx, dy, scale_x: scale.0, scale_y: scale.1, angle }) {
+        let (layer, frame, rings, resample) = (self.layer, self.frame, crate::selection_tools::extra_rings(self), self.sel.resample);
+        let cmd = Command::TransformSelection {
+            layer,
+            frame,
+            polygon: poly.clone(),
+            rings,
+            dx,
+            dy,
+            scale_x: scale.0,
+            scale_y: scale.1,
+            angle,
+            skew_x: 0.0,
+            skew_y: 0.0,
+            resample,
+        };
+        if self.run(cmd) {
             let t = tooncraft_engine::select::affine(&poly, dx, dy, scale.0, scale.1, angle);
-            self.selection = Some(poly.iter().map(|p| t.apply(p.0, p.1)).collect());
+            crate::selection_tools::map_rings(self, |p| t.apply(p.0, p.1));
         }
     }
 
     pub fn delete_selected_pixels(&mut self) {
         if let Some(poly) = self.selection.clone() {
-            let (layer, frame) = (self.layer, self.frame);
-            self.run(Command::ClearSelection { layer, frame, polygon: poly });
+            let (layer, frame, rings) = (self.layer, self.frame, crate::selection_tools::extra_rings(self));
+            self.run(Command::ClearSelection { layer, frame, polygon: poly, rings });
         }
     }
 
     pub fn select_all(&mut self) {
         let (w, h) = (self.engine.project.width() as f32, self.engine.project.height() as f32);
-        self.selection = Some(vec![(0.0, 0.0), (w, 0.0), (w, h), (0.0, h)]);
+        crate::selection_tools::set_rings(self, vec![vec![(0.0, 0.0), (w, 0.0), (w, h), (0.0, h)]]);
         self.tool = Tool::Select;
     }
 
     pub fn copy_pixels(&mut self, cut: bool) {
-        let Some(poly) = self.selection.clone() else { return };
-        let (w, h) = (self.engine.project.width(), self.engine.project.height());
-        let Some(mask) = tooncraft_raster::select::polygon_mask(w, h, &poly) else { return };
+        let Some(mask) = crate::selection_tools::mask(self) else { return };
         let Some(s) = self.engine.project.drawing_at(self.layer, self.frame).and_then(|d| self.engine.project.drawing(d)) else { return };
         let img = tooncraft_raster::select::copy(s, &mask);
         self.pixel_clipboard = Some((img.to_straight(), img.width, img.height, (mask.x as f32, mask.y as f32)));
@@ -591,7 +635,7 @@ impl ToonApp {
         let (layer, frame) = (self.layer, self.frame);
         if self.run(Command::PastePixels { layer, frame, x, y, width: w, height: h, rgba }) {
             let (w, h) = (w as f32, h as f32);
-            self.selection = Some(vec![(x, y), (x + w, y), (x + w, y + h), (x, y + h)]);
+            crate::selection_tools::set_rings(self, vec![vec![(x, y), (x + w, y), (x + w, y + h), (x, y + h)]]);
             self.tool = Tool::Select;
         }
     }
@@ -606,6 +650,28 @@ impl ToonApp {
                 self.save_as();
             }
         }
+    }
+
+    /// A reference image: one picture under the drawing for the whole shot, locked and faded.
+    pub fn import_reference(&mut self) {
+        let Some(file) = rfd::FileDialog::new().add_filter(tl!("Images"), &["png", "jpg", "jpeg", "webp", "tif", "tiff", "bmp"]).pick_file() else {
+            return;
+        };
+        self.add_reference(&file.to_string_lossy());
+    }
+
+    /// Add `path` as a reference layer at the bottom (see [`Self::import_reference`]).
+    pub fn add_reference(&mut self, path: &str) -> bool {
+        let hold = self.engine.project.length();
+        if !self.run(Command::ImportImages { paths: vec![path.to_string()], frame: 0, hold, name: tl!("Reference").to_string() }) {
+            return false;
+        }
+        let top = self.engine.project.layers.len().saturating_sub(1);
+        let ok = self.run(Command::MoveLayer { from: top, to: 0 })
+            && self.run(Command::SetLayer { layer: 0, visible: None, locked: Some(true), opacity: Some(0.5) });
+        self.layer = 0;
+        self.set_status(tl!("Reference image added under the drawing, locked"));
+        ok
     }
 
     pub fn import_images(&mut self) {
@@ -627,15 +693,64 @@ impl ToonApp {
         self.frame = frame.rem_euclid(len.max(1)) as u32;
     }
 
+    /// Go to the next (or previous) drawing marked as a key on the current layer.
+    pub fn step_key(&mut self, forward: bool) {
+        let p = &self.engine.project;
+        let Some(l) = p.layers.get(self.layer) else { return };
+        let is_key = |f: u32| match l.cells.get(f as usize) {
+            Some(tooncraft_doc::Cell::Key(d)) => p.marks.get(d) == Some(&tooncraft_doc::Mark::Key),
+            _ => false,
+        };
+        let here = l.exposure_start(self.frame).unwrap_or(self.frame);
+        let target = if forward { (self.frame + 1..p.length()).find(|f| is_key(*f)) } else { (0..here).rev().find(|f| is_key(*f)) };
+        match target {
+            Some(f) => {
+                self.playback.stop();
+                self.frame = f;
+            }
+            None => self.set_status(tl!("No other key drawing on this layer; mark keys from a cell's right-click menu")),
+        }
+    }
+
+    /// Make the layer above (or below) in the list the current one.
+    pub fn step_layer(&mut self, up: bool) {
+        let rows = crate::layer_tree::rows(self);
+        if let Some(i) = rows.iter().position(|&l| l == self.layer) {
+            // rows run top layer first
+            let j = if up { i.checked_sub(1) } else { (i + 1 < rows.len()).then_some(i + 1) };
+            if let Some(l) = j.and_then(|j| rows.get(j)) {
+                self.layer = *l;
+            }
+        }
+    }
+
+    /// Go to the start of the next (or previous) drawing on the current layer, past its holds.
+    pub fn step_drawing(&mut self, forward: bool) {
+        let Some(l) = self.engine.project.layers.get(self.layer) else { return };
+        let here = l.exposure_start(self.frame);
+        let len = self.engine.project.length();
+        let target = if forward {
+            (self.frame + 1..len).find(|f| matches!(l.cells.get(*f as usize), Some(tooncraft_doc::Cell::Key(_))))
+        } else {
+            here.filter(|s| *s < self.frame)
+                .or_else(|| (0..here.unwrap_or(self.frame)).rev().find(|f| matches!(l.cells.get(*f as usize), Some(tooncraft_doc::Cell::Key(_)))))
+        };
+        match target {
+            Some(f) => {
+                self.playback.stop();
+                self.frame = f;
+            }
+            None => self.set_status(if forward { tl!("No later drawing on this layer") } else { tl!("No earlier drawing on this layer") }),
+        }
+    }
+
     pub fn toggle_play(&mut self) {
         if self.playback.playing {
             self.playback.stop();
             self.sound.stop();
         } else {
-            let now = self.now();
-            self.playback.play(now, self.frame, 0, self.engine.project.length());
-            let (offset, fps) = (self.sound_offset(), self.engine.project.fps());
-            self.sound.play(self.frame as f64, offset, fps);
+            let (start, end) = crate::timeline_extras::play_span(self);
+            crate::timeline_extras::play_range(self, self.frame, start, end);
         }
     }
 
@@ -723,9 +838,9 @@ impl ToonApp {
         }
     }
 
-    pub fn export(&mut self, kind: &str) {
-        use tooncraft_engine::export::{self, ExportOptions};
-        let o = ExportOptions::whole(&self.engine.project);
+    /// Export as `kind` with `o` (range, size, paper, loop, digits): asks where, then writes.
+    pub fn export_with(&mut self, kind: &str, o: tooncraft_engine::export::ExportOptions) {
+        use tooncraft_engine::export;
         let name = self.engine.project.name.clone();
         let result = match kind {
             "png" => rfd::FileDialog::new().set_title(tl!("Folder for the PNG frames")).pick_folder().map(|d| {
@@ -815,7 +930,7 @@ impl ToonApp {
         if !self.engine.is_dirty() || self.engine.changes() == self.autosaved_changes || self.engine.is_stroking() {
             return;
         }
-        if self.autosave_at.elapsed().as_secs() < AUTOSAVE_SECONDS || self.autosave_busy.load(Ordering::SeqCst) {
+        if self.autosave_at.elapsed().as_secs() < self.preferences.prefs.autosave_seconds as u64 || self.autosave_busy.load(Ordering::SeqCst) {
             return;
         }
         // Copy-on-write snapshot: tiles are shared, so this is a pointer copy.
@@ -964,6 +1079,27 @@ impl ToonApp {
             ui.label(tlf!("Frame {frame} / {total}", frame = self.frame + 1, total = p.length()));
             ui.separator();
             ui.label(layer);
+            let drawing = match p.drawing_at(self.layer, self.frame) {
+                Some(d) => match p.drawing_names.get(&d) {
+                    Some(name) => tlf!("drawing {id}, {name}", id = d.0, name = name),
+                    None => tlf!("drawing {id}", id = d.0),
+                },
+                None => tl!("no drawing").to_string(),
+            };
+            ui.label(drawing);
+            ui.separator();
+            ui.label(self.tool.label());
+            let c = self.color;
+            let (r, swatch) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            ui.painter().rect(
+                r,
+                2.0,
+                egui::Color32::from_rgb(c[0], c[1], c[2]),
+                egui::Stroke::new(1.0, egui::Color32::from_gray(140)),
+                egui::StrokeKind::Inside,
+            );
+            let colour = tlf!("Colour #{hex}", hex = format!("{:02X}{:02X}{:02X}", c[0], c[1], c[2]));
+            swatch.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, colour.clone()));
             ui.separator();
             ui.label(format!("{:.0} %  {:.0}°", self.view.zoom * 100.0, self.view.rotation_degrees()));
             ui.separator();
@@ -988,7 +1124,7 @@ impl ToonApp {
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button(tl!("File"), |ui| {
                 if ui.button(tl!("New Shot…")).clicked() {
-                    self.new_shot = Some(NewShot::default());
+                    self.new_shot = Some(self.new_shot_defaults());
                 }
                 if ui.button(tl!("Open…")).clicked() {
                     self.open_dialog();
@@ -1035,58 +1171,62 @@ impl ToonApp {
                 if ui.add_enabled(!self.engine.project.sounds.is_empty(), egui::Button::new(tl!("Remove Sound"))).clicked() {
                     self.run(Command::SetSound { path: None, offset: 0 });
                 }
+                if ui.button(tl!("Export…")).clicked() {
+                    let kind = self.export_memory.get(&self.engine.project.name).map(|d| d.kind).unwrap_or("mp4");
+                    crate::export_dialog::open(self, kind);
+                }
                 ui.menu_button(tl!("Export"), |ui| {
                     if ui.button(tl!("Video (MP4, H.264)…")).clicked() {
-                        self.export("mp4");
+                        crate::export_dialog::open(self, "mp4");
                     }
                     if ui.button(tl!("Animated PNG…")).clicked() {
-                        self.export("apng");
+                        crate::export_dialog::open(self, "apng");
                     }
                     if ui.button(tl!("Animated WebP…")).clicked() {
-                        self.export("webp");
+                        crate::export_dialog::open(self, "webp");
                     }
                     if ui.button(tl!("Animated WebP, Lossy…")).clicked() {
-                        self.export("webp-lossy");
+                        crate::export_dialog::open(self, "webp-lossy");
                     }
                     if ui.button(tl!("WebP Image, Current Frame…")).clicked() {
-                        self.export("webp-frame");
+                        crate::export_dialog::open(self, "webp-frame");
                     }
                     ui.separator();
                     if ui.button(tl!("ProRes 4444 with Alpha (MOV)…")).clicked() {
-                        self.export("prores4444");
+                        crate::export_dialog::open(self, "prores4444");
                     }
                     if ui.button(tl!("ProRes 422 HQ (MOV)…")).clicked() {
-                        self.export("prores422");
+                        crate::export_dialog::open(self, "prores422");
                     }
                     if ui.button(tl!("PNG Sequence per Layer…")).clicked() {
-                        self.export("layers");
+                        crate::export_dialog::open(self, "layers");
                     }
                     if ui.button(tl!("Layered PSD, Current Frame…")).clicked() {
-                        self.export("psd");
+                        crate::export_dialog::open(self, "psd");
                     }
                     if ui.button(tl!("Layered PSD, All Frames…")).clicked() {
-                        self.export("psd-frames");
+                        crate::export_dialog::open(self, "psd-frames");
                     }
                     if ui.button(tl!("Layered PSB, All Frames…")).clicked() {
-                        self.export("psb-frames");
+                        crate::export_dialog::open(self, "psb-frames");
                     }
                     if ui.button(tl!("TGA Sequence…")).clicked() {
-                        self.export("tga");
+                        crate::export_dialog::open(self, "tga");
                     }
                     if ui.button(tl!("TIFF Sequence…")).clicked() {
-                        self.export("tiff");
+                        crate::export_dialog::open(self, "tiff");
                     }
                     if ui.button(tl!("XDTS Exposure Sheet with Drawings…")).clicked() {
-                        self.export("levels");
+                        crate::export_dialog::open(self, "levels");
                     }
                     if ui.button(tl!("PNG Sequence…")).clicked() {
-                        self.export("png");
+                        crate::export_dialog::open(self, "png");
                     }
                     if ui.button(tl!("Animated GIF…")).clicked() {
-                        self.export("gif");
+                        crate::export_dialog::open(self, "gif");
                     }
                     if ui.button(tl!("OpenRaster, Current Frame…")).clicked() {
-                        self.export("ora");
+                        crate::export_dialog::open(self, "ora");
                     }
                 });
                 ui.separator();
@@ -1095,6 +1235,10 @@ impl ToonApp {
                 }
             });
             ui.menu_button(tl!("Edit"), |ui| {
+                if ui.button(tl!("Preferences…")).clicked() {
+                    self.preferences.open = true;
+                }
+                ui.separator();
                 let u = self.engine.undo_label().map(|l| tlf!("Undo {action}", action = l)).unwrap_or_else(|| tl!("Undo").to_string());
                 if ui.add_enabled(self.engine.can_undo(), egui::Button::new(u)).clicked() {
                     self.undo();
@@ -1113,6 +1257,17 @@ impl ToonApp {
                 let has = self.selection.is_some();
                 if ui.add_enabled(has, egui::Button::new(tl!("Deselect"))).clicked() {
                     self.selection = None;
+                }
+                if ui.button(tl!("Invert Selection")).clicked() {
+                    crate::selection_tools::invert(self);
+                }
+                if ui.add_enabled(has, egui::Button::new(tl!("Grow Selection"))).clicked() {
+                    let n = self.sel.grow_by;
+                    crate::selection_tools::grow(self, n);
+                }
+                if ui.add_enabled(has, egui::Button::new(tl!("Shrink Selection"))).clicked() {
+                    let n = self.sel.grow_by;
+                    crate::selection_tools::grow(self, -n);
                 }
                 ui.menu_button(tl!("Transform Selection"), |ui| {
                     if ui.add_enabled(has, egui::Button::new(tl!("Flip Horizontally"))).clicked() {
@@ -1232,7 +1387,7 @@ impl ToonApp {
             self.open_dialog();
         }
         if new {
-            self.new_shot = Some(NewShot::default());
+            self.new_shot = Some(self.new_shot_defaults());
         }
         if undo && !self.engine.is_stroking() {
             self.undo();
@@ -1353,17 +1508,28 @@ impl ToonApp {
             });
             self.view.pan += d;
         }
-        if (ctx.egui_wants_keyboard_input() && !own_focus) || (focus.is_some() && !own_focus) || self.new_shot.is_some() || self.renaming.is_some() {
+        if (ctx.egui_wants_keyboard_input() && !own_focus)
+            || (focus.is_some() && !own_focus)
+            || self.new_shot.is_some()
+            || self.renaming.is_some()
+            || self.export_dialog.is_some()
+            || self.preferences.open
+        {
             return;
         }
         let plain = |i: &egui::InputState, k| i.modifiers.is_none() && i.key_pressed(k);
         // Remappable commands (craft-keymap); Enter stays with the canvas's keyboard pen.
         let canvas_focused = focus == Some(crate::canvas::canvas_id());
+        // while a polyline is being placed, Enter finishes it and Backspace removes a point
+        let placing = !self.aids.path.is_empty();
+        crate::draw_aids::path_keys(self, ctx);
         let hits: Vec<String> = if self.keys.recording.is_some() {
             Vec::new()
         } else {
-            self.keys
-                .dispatch_filtered(ctx, |id| !(canvas_focused && (id == "frame.play" || (id == "frame.clear" && self.keyboard_pen.is_some_and(|p| p.down)))))
+            self.keys.dispatch_filtered(ctx, |id| {
+                !(placing && id == "frame.play")
+                    && !(canvas_focused && (id == "frame.play" || (id == "frame.clear" && self.keyboard_pen.is_some_and(|p| p.down))))
+            })
         };
         let hit = |id: &str| hits.iter().any(|h| h == id);
         let picked = Tool::ALL.into_iter().find(|t| hit(&format!("tool.{}", t.id())));
@@ -1372,6 +1538,27 @@ impl ToonApp {
         {
             self.tool = t;
             self.set_status(tlf!("{tool} selected", tool = t.label()));
+        }
+        if hit("select.invert") {
+            crate::selection_tools::invert(self);
+        }
+        if hit("frame.prev_key") {
+            self.step_key(false);
+        }
+        if hit("frame.next_key") {
+            self.step_key(true);
+        }
+        if hit("layer.prev") {
+            self.step_layer(false);
+        }
+        if hit("layer.next") {
+            self.step_layer(true);
+        }
+        if hit("frame.prev_drawing") {
+            self.step_drawing(false);
+        }
+        if hit("frame.next_drawing") {
+            self.step_drawing(true);
         }
         if hit("marker.toggle") {
             crate::timeline_extras::toggle_here(self);
@@ -1416,7 +1603,7 @@ impl ToonApp {
             hit("frame.delete"),
             hit("frame.hold_more") || arrows[5],
             hit("frame.hold_less"),
-            hit("frame.clear") || arrows[4],
+            hit("frame.clear") || (arrows[4] && !placing),
             hit("brush.smaller"),
             hit("brush.bigger"),
             hit("view.mirror"),
@@ -1504,6 +1691,8 @@ impl ToonApp {
     }
 
     fn dialogs(&mut self, ctx: &egui::Context) {
+        crate::export_dialog::window(self, ctx);
+        crate::preferences::window(self, ctx);
         crate::canvas_tools::dialog(self, ctx);
         if let Some(offer) = &self.recovery {
             let (path, when) = (offer.path.clone(), offer.when.clone());
@@ -1580,6 +1769,8 @@ impl ToonApp {
                         match Project::new(&n.name, n.width, n.height, n.fps, n.frames) {
                             Ok(p) => {
                                 self.replace_engine(Engine::new(p), None);
+                                crate::preferences::apply_to_new_shot(self);
+                                crate::preferences::apply_live(self);
                                 keep = false;
                             }
                             Err(e) => self.status = e.to_string(),
@@ -1597,13 +1788,24 @@ impl ToonApp {
         if self.show_shortcuts {
             let mut open = true;
             if self.keys.record(ctx) {
-                self.set_status(tl!("Shortcut changed"));
+                let msg = self.keys.taken.clone().unwrap_or_else(|| tl!("Shortcut changed").to_string());
+                self.set_status(msg);
             }
             egui::Window::new(tl!("Keyboard shortcuts")).open(&mut open).collapsible(false).default_height(520.0).show(ctx, |ui| {
                 ui.label(tl!("Choose Change, then press the new key. Escape cancels."));
+                ui.horizontal(|ui| {
+                    let l = ui.label(tl!("Find"));
+                    ui.add(egui::TextEdit::singleline(&mut self.keys.filter).hint_text(tl!("a command or a key, like Ctrl+Z")).desired_width(220.0))
+                        .labelled_by(l.id);
+                });
+                if let Some(t) = &self.keys.taken {
+                    ui.colored_label(ui.visuals().warn_fg_color, t);
+                }
                 egui::ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
                     egui::Grid::new("keys").num_columns(4).striped(true).show(ui, |ui| {
-                        for (id, _, _) in crate::keys::COMMANDS {
+                        let shown: Vec<&str> = crate::keys::COMMANDS.iter().map(|c| c.0).filter(|id| self.keys.matches(id)).collect();
+                        for id in shown {
+                            let id = &id;
                             ui.label(crate::keys::label(id));
                             let recording = self.keys.recording.as_deref() == Some(*id);
                             ui.label(if recording { tl!("Press a key…").to_string() } else { self.keys.text(id) });

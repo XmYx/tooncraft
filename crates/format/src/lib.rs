@@ -167,6 +167,14 @@ struct ProjectJson {
     markers: Vec<MarkerEntry>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     names: Vec<NameEntry>,
+    #[serde(default, skip_serializing_if = "is_off")]
+    symmetry: tooncraft_doc::symmetry::Symmetry,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    palettes: Vec<tooncraft_doc::palette::Palette>,
+}
+
+fn is_off(s: &tooncraft_doc::symmetry::Symmetry) -> bool {
+    !s.is_on()
 }
 
 #[derive(Serialize, Deserialize)]
@@ -214,6 +222,8 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             layers: p.layers.clone(),
             onion: p.onion,
             light_table: p.light_table.clone(),
+            symmetry: p.symmetry,
+            palettes: p.palettes.clone(),
             camera: p.camera.clone(),
             folders: p.folders.clone(),
             pegs: p.pegs.clone(),
@@ -359,6 +369,8 @@ fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::P
         placeholders.insert(d.id, blank.clone());
     }
     let mut p = Project::from_parts(pj.name, (pj.width, pj.height), pj.fps, pj.length, pj.paper, pj.layers, placeholders, pj.onion, pj.light_table)?;
+    p.symmetry = pj.symmetry.sanitized();
+    p.palettes = tooncraft_doc::palette::sanitize_all(pj.palettes);
     let none = std::collections::BTreeSet::new();
     for d in &m.drawings {
         let want = 8 + d.tiles as u64 * (4 + TILE_BYTES as u64);

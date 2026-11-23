@@ -97,6 +97,43 @@ fn timing_layout() -> Layout<Pane> {
     Layout { root: Some(root), floating: Vec::new() }
 }
 
+/// Ink and paint: a big canvas, colour and layers on the right, a short timeline.
+fn ink_paint_layout() -> Layout<Pane> {
+    use craft_ui::docking::Node;
+    use craft_ui::layout::{SplitAxis, SplitSize};
+    let tabs = |p: &[Pane]| Node::Tabs { panels: p.to_vec(), active: 0 };
+    let centre = Node::Split {
+        axis: SplitAxis::Vertical,
+        size: SplitSize::FixedSecond(150.0),
+        first: Box::new(tabs(&[Pane::Canvas])),
+        second: Box::new(tabs(&[Pane::Timeline])),
+    };
+    let right = Node::Split {
+        axis: SplitAxis::Vertical,
+        size: SplitSize::Ratio(0.5),
+        first: Box::new(tabs(&[Pane::Colour])),
+        second: Box::new(tabs(&[Pane::Layers, Pane::Brush, Pane::Onion])),
+    };
+    let root = Node::Split { axis: SplitAxis::Horizontal, size: SplitSize::FixedSecond(300.0), first: Box::new(centre), second: Box::new(right) };
+    Layout { root: Some(root), floating: Vec::new() }
+}
+
+/// The exposure sheet down the right side, as on paper, next to the canvas.
+fn sheet_layout() -> Layout<Pane> {
+    use craft_ui::docking::Node;
+    use craft_ui::layout::{SplitAxis, SplitSize};
+    let tabs = |p: &[Pane]| Node::Tabs { panels: p.to_vec(), active: 0 };
+    let right = Node::Split {
+        axis: SplitAxis::Vertical,
+        size: SplitSize::Ratio(0.7),
+        first: Box::new(tabs(&[Pane::Timeline])),
+        second: Box::new(tabs(&[Pane::Layers, Pane::Colour, Pane::Brush, Pane::Onion])),
+    };
+    let root =
+        Node::Split { axis: SplitAxis::Horizontal, size: SplitSize::FixedSecond(420.0), first: Box::new(tabs(&[Pane::Canvas])), second: Box::new(right) };
+    Layout { root: Some(root), floating: Vec::new() }
+}
+
 /// View menu entries (guides, canvas size, workspaces).
 pub fn view_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.checkbox(&mut app.canvas_ui.field_guide, tl!("Field Guide"));
@@ -110,6 +147,13 @@ pub fn view_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
         }
         if ui.button(tl!("Timing")).clicked() {
             app.workspace.layout = timing_layout();
+        }
+        if ui.button(tl!("Ink and Paint")).clicked() {
+            app.workspace.layout = ink_paint_layout();
+        }
+        if ui.button(tl!("Exposure Sheet")).on_hover_text(tl!("The sheet down the right side, layers as columns")).clicked() {
+            app.workspace.layout = sheet_layout();
+            app.tl.vertical = true;
         }
         let saved: Vec<String> = app.canvas_ui.workspaces.iter().map(|(n, _)| n.clone()).collect();
         if !saved.is_empty() {

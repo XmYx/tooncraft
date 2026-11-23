@@ -50,9 +50,13 @@ fn tool_shortcuts() {
         h.run();
         assert_eq!(h.state().tool, tool);
     }
-    h.get_by_label("Ink pen (N)").click();
+    // Ink shares the Pencil's button: right-click it for the group, then pick Ink
+    h.get_by_label("Pencil (P)").click_secondary();
+    h.run();
+    h.get(By::new().label_contains("Ink pen")).click();
     h.run();
     assert_eq!(h.state().tool, Tool::Ink);
+    h.get_by_label("Ink pen (N)");
 }
 
 #[test]
@@ -716,7 +720,7 @@ fn guides_canvas_size_onion_outlines_and_workspaces() {
     h.run();
     h.get_by_label("View").click();
     h.run();
-    h.get_by_label("Field Guide").click();
+    h.get(By::new().role(egui::Role::CheckBox).label("Field Guide")).click();
     h.run();
     assert!(h.state().canvas_ui.field_guide);
     h.get_by_label("View").click();

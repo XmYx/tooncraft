@@ -66,6 +66,56 @@ pub enum Command {
         #[serde(default)]
         constrain: bool,
     },
+    /// A polyline, polygon or smooth curve through `points`: outlined with the brush, filled
+    /// with straight RGBA `fill`, or both (lasso fill is `outline: false` with a fill).
+    PathShape {
+        layer: usize,
+        frame: u32,
+        brush: Brush,
+        points: Vec<(f32, f32)>,
+        #[serde(default)]
+        closed: bool,
+        #[serde(default)]
+        curve: bool,
+        #[serde(default = "yes")]
+        outline: bool,
+        #[serde(default)]
+        fill: Option<[u8; 4]>,
+    },
+    /// A linear or radial gradient from `from` to `to`, inside `area` when given.
+    Gradient {
+        layer: usize,
+        frame: u32,
+        #[serde(default)]
+        kind: crate::drawing::GradientKind,
+        from: (f32, f32),
+        to: (f32, f32),
+        start: [u8; 4],
+        end: [u8; 4],
+        #[serde(default)]
+        area: Option<Vec<(f32, f32)>>,
+        /// More rings of the selection (holes, other parts), with `area`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        area_rings: Vec<Vec<(f32, f32)>>,
+    },
+    /// Replace the shot's named colour palettes (a setting, not an undo step).
+    SetPalettes {
+        palettes: Vec<tooncraft_doc::palette::Palette>,
+    },
+    /// In every drawing of the layer, give the pixels close to `from` (within `tolerance` per
+    /// channel) the colour `to`, keeping their opacity (antialiased edges stay soft). One undo
+    /// step.
+    RecolourLayer {
+        layer: usize,
+        from: [u8; 3],
+        to: [u8; 3],
+        #[serde(default = "recolour_tolerance")]
+        tolerance: u8,
+    },
+    /// Symmetry drawing for the following strokes (a setting, not an undo step).
+    SetSymmetry {
+        symmetry: tooncraft_doc::symmetry::Symmetry,
+    },
     /// Start a new, empty drawing at the frame.
     NewDrawing {
         layer: usize,
@@ -103,6 +153,17 @@ pub enum Command {
     ShortenHold {
         layer: usize,
         frame: u32,
+    },
+    /// Show another drawing (or nothing) for the whole exposure at the frame.
+    SwapDrawing {
+        layer: usize,
+        frame: u32,
+        #[serde(default)]
+        drawing: Option<tooncraft_doc::DrawingId>,
+    },
+    /// Hold each drawing of the layer over the empty frames after it.
+    FillEmpty {
+        layer: usize,
     },
     /// Make the frame blank (the drawing stays in the library).
     ClearCell {
@@ -389,6 +450,9 @@ pub enum Command {
         layer: usize,
         frame: u32,
         polygon: Vec<(f32, f32)>,
+        /// More rings of the selection (holes, other parts); even-odd with `polygon`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        rings: Vec<Vec<(f32, f32)>>,
         #[serde(default)]
         dx: f32,
         #[serde(default)]
@@ -399,12 +463,33 @@ pub enum Command {
         scale_y: f32,
         #[serde(default)]
         angle: f32,
+        /// Skew along x and y (radians), applied before the scale and turn.
+        #[serde(default)]
+        skew_x: f32,
+        #[serde(default)]
+        skew_y: f32,
+        #[serde(default)]
+        resample: tooncraft_raster::select::Resample,
+    },
+    /// Distort the pixels inside `polygon` so the corners of its box land on `corners`
+    /// (top-left, top-right, bottom-right, bottom-left): free distort and perspective.
+    DistortSelection {
+        layer: usize,
+        frame: u32,
+        polygon: Vec<(f32, f32)>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        rings: Vec<Vec<(f32, f32)>>,
+        corners: [(f32, f32); 4],
+        #[serde(default)]
+        resample: tooncraft_raster::select::Resample,
     },
     /// Erase the pixels inside `polygon`.
     ClearSelection {
         layer: usize,
         frame: u32,
         polygon: Vec<(f32, f32)>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        rings: Vec<Vec<(f32, f32)>>,
     },
     /// Paste straight-RGBA pixels with their top-left at (x, y) (a new drawing on a blank cell).
     PastePixels {
@@ -778,6 +863,10 @@ fn pegs(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Proje
     }
 }
 
+fn recolour_tolerance() -> u8 {
+    24
+}
+
 fn frame_ok(e: &Engine, frame: u32) -> Result<()> {
     if frame >= e.project.length() { Err(DocError::NoFrame(frame).into()) } else { Ok(()) }
 }
@@ -812,6 +901,24 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             if let Some(top) = e.undo.last_mut() {
                 top.label = "Shape".into();
             }
+            Ok(())
+        }
+        Command::PathShape { layer, frame, brush, points, closed, curve, outline, fill } => {
+            crate::drawing::path_shape(e, layer, frame, brush, &points, closed, curve, outline, fill)
+        }
+        Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings } => {
+            frame_ok(e, frame)?;
+            crate::drawing::gradient(e, layer, frame, kind, from, to, start, end, area.as_deref(), &area_rings)
+        }
+        Command::SetPalettes { palettes } => {
+            e.project.palettes = tooncraft_doc::palette::sanitize_all(palettes);
+            e.touch();
+            Ok(())
+        }
+        Command::RecolourLayer { layer, from, to, tolerance } => crate::drawing::recolour(e, layer, from, to, tolerance),
+        Command::SetSymmetry { symmetry } => {
+            e.project.symmetry = symmetry.sanitized();
+            e.touch();
             Ok(())
         }
         Command::NewDrawing { layer, frame } => {
@@ -877,6 +984,22 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::ShortenHold { layer, frame } => edit_layers(e, "Shorten hold", |e| {
             e.check_unlocked(layer)?;
             e.project.layer_mut(layer)?.shorten_hold(frame).map_err(DocError::from)?;
+            Ok(())
+        }),
+        Command::SwapDrawing { layer, frame, drawing } => edit_layers(e, "Swap drawing", |e| {
+            e.check_unlocked(layer)?;
+            frame_ok(e, frame)?;
+            if let Some(d) = drawing
+                && e.project.drawing(d).is_none()
+            {
+                return Err(DocError::NoDrawingId(d.0).into());
+            }
+            e.project.layer_mut(layer)?.swap(frame, drawing);
+            Ok(())
+        }),
+        Command::FillEmpty { layer } => edit_layers(e, "Fill empty frames", |e| {
+            e.check_unlocked(layer)?;
+            e.project.layer_mut(layer)?.fill_empty();
             Ok(())
         }),
         Command::ClearCell { layer, frame } => edit_layers(e, "Clear frame", |e| {
@@ -951,10 +1074,13 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }),
         Command::ImportImages { paths, frame, hold, name } => crate::import::images(e, &paths, frame, hold.clamp(1, 64), &name),
-        Command::TransformSelection { layer, frame, polygon, dx, dy, scale_x, scale_y, angle } => {
-            crate::select::transform(e, layer, frame, &polygon, (dx, dy, scale_x, scale_y, angle))
+        Command::TransformSelection { layer, frame, polygon, rings, dx, dy, scale_x, scale_y, angle, skew_x, skew_y, resample } => {
+            crate::select::transform(e, layer, frame, &polygon, &rings, (dx, dy, scale_x, scale_y, angle), (skew_x, skew_y), resample)
         }
-        Command::ClearSelection { layer, frame, polygon } => crate::select::clear(e, layer, frame, &polygon),
+        Command::DistortSelection { layer, frame, polygon, rings, corners, resample } => {
+            crate::select::distort(e, layer, frame, &polygon, &rings, corners, resample)
+        }
+        Command::ClearSelection { layer, frame, polygon, rings } => crate::select::clear(e, layer, frame, &polygon, &rings),
         Command::PastePixels { layer, frame, x, y, width, height, rgba } => crate::select::paste(e, layer, frame, (x, y), width, height, &rgba),
         Command::SetSound { path, offset } => crate::audio::set(e, path.as_deref(), offset),
         Command::SetCameraKey { frame, x, y, zoom, angle } => {

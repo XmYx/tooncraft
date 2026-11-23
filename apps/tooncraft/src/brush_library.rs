@@ -134,7 +134,7 @@ fn builtin_name(n: &str) -> String {
 }
 
 /// The name a brush is shown under: built-in names are translated.
-fn shown_name(e: &tooncraft_engine::library::Entry) -> String {
+pub fn shown_name(e: &tooncraft_engine::library::Entry) -> String {
     if matches!(e.source, tooncraft_engine::library::Source::Builtin(_)) { builtin_name(&e.name) } else { e.name.clone() }
 }
 

@@ -1,0 +1,358 @@
+//! The Colour panel's palettes, hue wheel, harmonies and layer recolouring. Palettes are kept with
+//! the shot (`Project::palettes`); "Basic" is the built-in one. Palette files: GIMP `.gpl` (open
+//! and save) and Photoshop `.aco` (open), through `tooncraft-interop`.
+
+use egui::{Color32, Mesh, Sense, Stroke, Ui, ecolor::Hsva, pos2, vec2};
+use tooncraft_doc::palette::Palette;
+use tooncraft_engine::Command;
+
+use crate::app::ToonApp;
+
+/// Which palette the panel shows: 0 is the built-in Basic one, n is the shot's palette n − 1.
+#[derive(Clone, Debug, Default)]
+pub struct State {
+    pub current: usize,
+    pub rename: Option<String>,
+    pub harmony: Harmony,
+    pub recolour_from: [u8; 3],
+    pub recolour_tolerance: u8,
+    pub wheel: bool,
+}
+
+impl State {
+    pub fn new() -> Self {
+        Self { recolour_from: [0, 0, 0], recolour_tolerance: 24, ..Self::default() }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Harmony {
+    #[default]
+    Complementary,
+    Analogous,
+    Triadic,
+    SplitComplementary,
+    Tetradic,
+}
+
+fn harmony_name(h: Harmony) -> String {
+    match h {
+        Harmony::Complementary => tl!("Opposite"),
+        Harmony::Analogous => tl!("Neighbours"),
+        Harmony::Triadic => tl!("Three-way"),
+        Harmony::SplitComplementary => tl!("Split opposite"),
+        Harmony::Tetradic => tl!("Four-way"),
+    }
+    .to_string()
+}
+
+/// The hue turns (fractions of a full turn) of a harmony around a base colour.
+pub fn harmony_turns(h: Harmony) -> &'static [f32] {
+    match h {
+        Harmony::Complementary => &[0.0, 0.5],
+        Harmony::Analogous => &[-1.0 / 12.0, 0.0, 1.0 / 12.0],
+        Harmony::Triadic => &[0.0, 1.0 / 3.0, 2.0 / 3.0],
+        Harmony::SplitComplementary => &[0.0, 5.0 / 12.0, 7.0 / 12.0],
+        Harmony::Tetradic => &[0.0, 0.25, 0.5, 0.75],
+    }
+}
+
+/// The colours of harmony `h` around `rgb` (same saturation and brightness).
+pub fn harmony(rgb: [u8; 3], h: Harmony) -> Vec<[u8; 3]> {
+    let base = Hsva::from(Color32::from_rgb(rgb[0], rgb[1], rgb[2]));
+    harmony_turns(h)
+        .iter()
+        .map(|t| {
+            let c = Color32::from(Hsva::new((base.h + t).rem_euclid(1.0), base.s, base.v, 1.0));
+            [c.r(), c.g(), c.b()]
+        })
+        .collect()
+}
+
+fn basic(app: &ToonApp) -> Palette {
+    let mut p = Palette::new(tl!("Basic"));
+    for s in &app.swatches {
+        p.push("", *s);
+    }
+    p
+}
+
+/// The palette shown (a copy).
+pub fn shown(app: &ToonApp) -> Palette {
+    match app.colour.current.checked_sub(1).and_then(|i| app.engine.project.palettes.get(i)) {
+        Some(p) => p.clone(),
+        None => basic(app),
+    }
+}
+
+/// Save the shot's palettes with `f` applied to them.
+fn edit(app: &mut ToonApp, f: impl FnOnce(&mut Vec<Palette>)) {
+    let mut v = app.engine.project.palettes.clone();
+    f(&mut v);
+    app.run(Command::SetPalettes { palettes: v });
+}
+
+/// Add a colour to the palette shown; on Basic, a new shot palette is made for it first.
+pub fn add_colour(app: &mut ToonApp, rgb: [u8; 3]) {
+    if app.colour.current == 0 {
+        let name = tl!("Shot colours").to_string();
+        edit(app, |v| v.push(Palette::new(&name)));
+        app.colour.current = app.engine.project.palettes.len();
+    }
+    let i = app.colour.current - 1;
+    edit(app, |v| {
+        if let Some(p) = v.get_mut(i) {
+            p.push("", rgb);
+        }
+    });
+}
+
+fn swatch_button(ui: &mut Ui, rgb: [u8; 3], label: String) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(vec2(22.0, 22.0), Sense::click());
+    ui.painter().rect(rect, 3.0, Color32::from_rgb(rgb[0], rgb[1], rgb[2]), Stroke::new(1.0, Color32::from_gray(120)), egui::StrokeKind::Inside);
+    if resp.has_focus() {
+        ui.painter().rect_stroke(rect, 3.0, ui.visuals().selection.stroke, egui::StrokeKind::Outside);
+    }
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label.clone()));
+    resp
+}
+
+fn hex3(c: [u8; 3]) -> String {
+    format!("{:02X}{:02X}{:02X}", c[0], c[1], c[2])
+}
+
+/// The palettes section: choose, show, add, name, delete, open and save files.
+pub fn palettes(app: &mut ToonApp, ui: &mut Ui) {
+    let names: Vec<String> = std::iter::once(tl!("Basic").to_string()).chain(app.engine.project.palettes.iter().map(|p| p.name.clone())).collect();
+    app.colour.current = app.colour.current.min(names.len() - 1);
+    ui.horizontal_wrapped(|ui| {
+        let l = ui.label(tl!("Palette"));
+        egui::ComboBox::from_id_salt("palette-choice")
+            .selected_text(names[app.colour.current].clone())
+            .show_ui(ui, |ui| {
+                for (i, n) in names.iter().enumerate() {
+                    ui.selectable_value(&mut app.colour.current, i, n);
+                }
+            })
+            .response
+            .labelled_by(l.id);
+        if ui.button(tl!("New Palette")).clicked() && app.engine.project.palettes.len() < tooncraft_doc::palette::MAX_PALETTES {
+            let name = tlf!("Palette {n}", n = app.engine.project.palettes.len() + 1);
+            edit(app, |v| v.push(Palette::new(&name)));
+            app.colour.current = app.engine.project.palettes.len();
+        }
+        let own = app.colour.current > 0;
+        if ui.add_enabled(own, egui::Button::new(tl!("Rename"))).clicked() {
+            app.colour.rename = Some(names[app.colour.current].clone());
+        }
+        if ui.add_enabled(own, egui::Button::new(tl!("Delete Palette"))).clicked() {
+            let i = app.colour.current - 1;
+            edit(app, |v| {
+                if i < v.len() {
+                    v.remove(i);
+                }
+            });
+            app.colour.current = 0;
+        }
+        if ui.button(tl!("Open Palette…")).on_hover_text(tl!("GIMP palette (.gpl) or Photoshop swatches (.aco)")).clicked()
+            && let Some(f) = rfd::FileDialog::new().add_filter(tl!("Palettes"), &["gpl", "aco"]).pick_file()
+        {
+            open_file(app, &f);
+        }
+        if ui.button(tl!("Save Palette…")).on_hover_text(tl!("As a GIMP palette (.gpl)")).clicked() {
+            let p = shown(app);
+            if let Some(f) = rfd::FileDialog::new().add_filter("GPL", &["gpl"]).set_file_name(format!("{}.gpl", p.name)).save_file() {
+                save_file(app, &p, &f);
+            }
+        }
+    });
+    if let Some(mut n) = app.colour.rename.take() {
+        let mut keep = true;
+        ui.horizontal(|ui| {
+            let l = ui.label(tl!("Name"));
+            let r = ui.add(egui::TextEdit::singleline(&mut n).desired_width(160.0)).labelled_by(l.id);
+            r.request_focus();
+            if ui.input(|i| i.key_pressed(egui::Key::Enter)) || ui.button(tl!("OK")).clicked() {
+                let i = app.colour.current.saturating_sub(1);
+                let name = n.clone();
+                edit(app, |v| {
+                    if let Some(p) = v.get_mut(i) {
+                        p.name = name;
+                    }
+                });
+                keep = false;
+            }
+            if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                keep = false;
+            }
+        });
+        if keep {
+            app.colour.rename = Some(n);
+        }
+    }
+    let p = shown(app);
+    let mut chosen = None;
+    let mut remove = None;
+    ui.horizontal_wrapped(|ui| {
+        for (i, s) in p.swatches.iter().enumerate() {
+            let label =
+                if s.name.is_empty() { tlf!("Swatch #{hex}", hex = hex3(s.rgb)) } else { tlf!("Swatch {name}, #{hex}", name = s.name, hex = hex3(s.rgb)) };
+            let resp = swatch_button(ui, s.rgb, label);
+            let resp = if s.name.is_empty() { resp } else { resp.on_hover_text(&s.name) };
+            if resp.clicked() {
+                chosen = Some(s.rgb);
+            }
+            if app.colour.current > 0 {
+                resp.context_menu(|ui| {
+                    if ui.button(tl!("Remove from Palette")).clicked() {
+                        remove = Some(i);
+                        ui.close();
+                    }
+                });
+            }
+        }
+    });
+    if let Some(c) = chosen {
+        app.color = [c[0], c[1], c[2], 255];
+    }
+    if let Some(i) = remove {
+        let pi = app.colour.current - 1;
+        edit(app, |v| {
+            if let Some(p) = v.get_mut(pi)
+                && i < p.swatches.len()
+            {
+                p.swatches.remove(i);
+            }
+        });
+    }
+    if ui.button(tl!("Add Current Colour")).on_hover_text(tl!("To the palette shown (on Basic, a new shot palette)")).clicked() {
+        let c = [app.color[0], app.color[1], app.color[2]];
+        add_colour(app, c);
+    }
+}
+
+/// Add the palette in `path` to the shot and show it.
+pub fn open_file(app: &mut ToonApp, path: &std::path::Path) {
+    match tooncraft_interop::palette::read_file(path) {
+        Ok(p) => {
+            let n = p.swatches.len();
+            let name = p.name.clone();
+            if app.engine.project.palettes.len() >= tooncraft_doc::palette::MAX_PALETTES {
+                app.set_status(tl!("The shot has as many palettes as it can hold"));
+                return;
+            }
+            edit(app, |v| v.push(p));
+            app.colour.current = app.engine.project.palettes.len();
+            app.set_status(tlf!("Palette {name} added ({n} colours)", name = name, n = n));
+        }
+        Err(e) => app.set_status(tlf!("Could not open the palette: {error}", error = e)),
+    }
+}
+
+pub fn save_file(app: &mut ToonApp, p: &Palette, path: &std::path::Path) {
+    let text = tooncraft_interop::palette::to_gpl(p);
+    match craft_atomic::atomic_write(path, text.as_bytes()) {
+        Ok(()) => app.set_status(tlf!("Saved {file}", file = path.display())),
+        Err(e) => app.set_status(tlf!("Could not save the palette: {error}", error = e)),
+    }
+}
+
+/// A hue ring: click or drag around it to turn the hue (saturation and brightness stay).
+pub fn wheel(ui: &mut Ui, rgb: &mut [u8; 3]) -> bool {
+    let size = ui.available_width().clamp(120.0, 200.0);
+    let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click_and_drag());
+    let c = rect.center();
+    let (r1, r0) = (size * 0.5, size * 0.5 - 16.0);
+    let mut mesh = Mesh::default();
+    let n = 72;
+    for i in 0..=n {
+        let t = i as f32 / n as f32;
+        let a = t * std::f32::consts::TAU;
+        let col = Color32::from(Hsva::new(t, 1.0, 1.0, 1.0));
+        mesh.colored_vertex(pos2(c.x + a.cos() * r1, c.y + a.sin() * r1), col);
+        mesh.colored_vertex(pos2(c.x + a.cos() * r0, c.y + a.sin() * r0), col);
+        if i > 0 {
+            let k = (i * 2) as u32;
+            mesh.add_triangle(k - 2, k - 1, k);
+            mesh.add_triangle(k - 1, k + 1, k);
+        }
+    }
+    ui.painter().add(mesh);
+    let mut hsv = Hsva::from(Color32::from_rgb(rgb[0], rgb[1], rgb[2]));
+    let a = hsv.h * std::f32::consts::TAU;
+    let rm = (r0 + r1) * 0.5;
+    ui.painter().circle_stroke(pos2(c.x + a.cos() * rm, c.y + a.sin() * rm), 6.0, Stroke::new(2.0, Color32::WHITE));
+    ui.painter().circle_filled(c, r0 * 0.55, Color32::from_rgb(rgb[0], rgb[1], rgb[2]));
+    let deg = (hsv.h * 360.0).round();
+    resp.widget_info(|| egui::WidgetInfo::slider(true, deg as f64, tl!("Hue wheel")));
+    if let Some(p) = resp.interact_pointer_pos().filter(|_| resp.dragged() || resp.clicked()) {
+        let t = ((p.y - c.y).atan2(p.x - c.x) / std::f32::consts::TAU).rem_euclid(1.0);
+        hsv.h = t;
+        if hsv.s < 0.01 {
+            hsv.s = 1.0;
+        }
+        if hsv.v < 0.01 {
+            hsv.v = 1.0;
+        }
+        let col = Color32::from(hsv);
+        let out = [col.r(), col.g(), col.b()];
+        if out != *rgb {
+            *rgb = out;
+            return true;
+        }
+    }
+    false
+}
+
+/// The harmony row: colours that go with the current one; a click takes one.
+pub fn harmonies(app: &mut ToonApp, ui: &mut Ui) {
+    ui.horizontal_wrapped(|ui| {
+        let l = ui.label(tl!("Harmony"));
+        egui::ComboBox::from_id_salt("colour-harmony")
+            .selected_text(harmony_name(app.colour.harmony))
+            .show_ui(ui, |ui| {
+                for h in [Harmony::Complementary, Harmony::Analogous, Harmony::Triadic, Harmony::SplitComplementary, Harmony::Tetradic] {
+                    ui.selectable_value(&mut app.colour.harmony, h, harmony_name(h));
+                }
+            })
+            .response
+            .labelled_by(l.id);
+        let base = [app.color[0], app.color[1], app.color[2]];
+        let colours = harmony(base, app.colour.harmony);
+        let mut chosen = None;
+        for c in &colours {
+            if swatch_button(ui, *c, tlf!("Harmony colour #{hex}", hex = hex3(*c))).clicked() {
+                chosen = Some(*c);
+            }
+        }
+        if ui.button(tl!("Add All to Palette")).clicked() {
+            for c in &colours {
+                add_colour(app, *c);
+            }
+        }
+        if let Some(c) = chosen {
+            app.color = [c[0], c[1], c[2], 255];
+        }
+    });
+}
+
+/// Recolour the layer: one colour becomes the current colour in every drawing.
+pub fn recolour(app: &mut ToonApp, ui: &mut Ui) {
+    egui::CollapsingHeader::new(tl!("Recolour Layer")).default_open(false).show(ui, |ui| {
+        ui.horizontal_wrapped(|ui| {
+            crate::color::swatch_edit(ui, "recolour-from", tl!("Colour to replace"), &mut app.colour.recolour_from);
+            ui.label(tl!("becomes the current colour"));
+            let l = ui.label(tl!("Tolerance"));
+            ui.add(egui::DragValue::new(&mut app.colour.recolour_tolerance).range(0..=255)).labelled_by(l.id);
+        });
+        if ui.button(tl!("Recolour Every Drawing of the Layer")).on_hover_text(tl!("Antialiased edges keep their softness; one undo step")).clicked() {
+            let (layer, from, tolerance) = (app.layer, app.colour.recolour_from, app.colour.recolour_tolerance);
+            let to = [app.color[0], app.color[1], app.color[2]];
+            let before = app.engine.undo_len();
+            if app.run(Command::RecolourLayer { layer, from, to, tolerance }) {
+                let s = if app.engine.undo_len() > before { tl!("Recoloured") } else { tl!("No pixels of that colour on the layer") };
+                app.set_status(s);
+            }
+        }
+    });
+}

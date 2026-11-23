@@ -56,6 +56,9 @@ or non-numbers fall back to the default).
 | `smoothing` | `average` 0 … 1, `string` 0 … 500, `catch_up` bool | Moving-average strength, pulled-string length in canvas pixels, and whether the line finishes where the pen lifts |
 | `wet` | `pickup` 0 … 1 | Wet mixing, see below |
 | `dynamics` | see below | Response curves |
+| `compose` | `normal`, `behind`, `keep_alpha`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `add` | Where the paint goes relative to the paint already there, or how it blends with it; absent means `normal` |
+| `jitter` | `hue` 0 … 0.5, `saturation` 0 … 1, `value` 0 … 1, `per_stroke` bool | Random colour change: the most each may move either way (hue in turns), per dab or once per stroke; absent means none |
+| `count` | 1 … 32 | Dabs laid at each spacing step (a spray, with scatter); absent means 1 |
 
 `tip` and `grain_image` (ids into a shot's tip table) are never written: the images travel in the
 archive, and the id is assigned when the brush is put to use.
