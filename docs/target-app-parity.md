@@ -489,7 +489,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
 | Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | P | M | Same family of layout; tool settings sit in a bar above the canvas, not in a properties panel |
-| Start screen with recent shots and a new-shot form | TB | M | S | ToonCraft opens straight into a blank shot |
+| Start screen with recent shots and a new-shot form | TB | D | S | With no shot to open: a new-shot form with size presets, the recent shots (missing ones marked), Open… and the demo shot; waits for a recovery offer to be answered; turn it off in Preferences (`--open start` shows it) |
 | Named workspaces picked from a bar | TB | D | S | The Workspace picker in the top bar (Drawing, Timing, Ink and Paint, Exposure Sheet); saved ones in View ▸ Workspaces (`--layout`) |
 | Compositing workspace with a node view | TB | M | XL | No node view |
 | Scripting workspace with a script editor and log | TB | M | L | No scripting panels |
@@ -498,7 +498,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Dark theme and a light theme | TB | D | S | Contrast tested |
 | Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Frame, layer, drawing, canvas pixel under the pointer, tool, colour, zoom |
 | Top menus for play, drawing, scene and windows | TB | D | M | File, Edit, Frame, Layer, Drawing, Play, Scene, View, Window, Help |
-| File menu with recent files | TB | P | S | No recent list |
+| File menu with recent files | TB | D | S | File ▸ Open Recent: the last 12 shots opened or saved, newest first, missing ones marked, Clear Recent Shots |
 | Edit menu with selection and transform items | TB | D | S | Undo and redo with names, Preferences, select, invert, grow and shrink, transform submenu |
 | View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | |
 | Play commands with speed | TB | D | S | Frame menu and timeline: play, step, in and out, speed, Play Around |
