@@ -353,3 +353,21 @@ fn effect_looks_saved_stacks_and_the_new_effects() {
     h.run();
     h.get_by_label("Wavelength");
 }
+
+#[test]
+fn find_command_runs_what_it_finds() {
+    let mut h = harness();
+    h.key_press_modifiers(Modifiers::COMMAND | Modifiers::SHIFT, Key::P);
+    h.run();
+    assert!(h.state().find.open);
+    h.get(By::new().role(egui::Role::TextInput).label("Command")).type_text("hand");
+    h.run();
+    assert_eq!(crate::command_search::matches(h.state(), "hand").len(), 1);
+    h.key_press(Key::Enter);
+    h.run();
+    h.run();
+    assert!(!h.state().find.open);
+    assert_eq!(h.state().tool, Tool::Hand);
+    // a search by key finds the command bound to it
+    assert!(crate::command_search::matches(h.state(), "ctrl+shift+i").iter().any(|(id, _, _)| *id == "select.invert"));
+}

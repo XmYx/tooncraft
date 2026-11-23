@@ -10,6 +10,7 @@
 
 pub mod audio;
 mod boards;
+pub mod burnin;
 #[cfg(test)]
 mod cells_tests;
 mod command;

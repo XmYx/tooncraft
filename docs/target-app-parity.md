@@ -420,11 +420,11 @@ Weight: 7
 | Per-layer PNG sequences | TV TB | D | S | |
 | Layered PSD of a frame | TV CS | D | S | Through craft-psd |
 | Multi-frame layered PSD and PSB | TV CS | D | S | One file with a group per frame (PSD, or PSB for large canvases) |
-| TGA, TIFF and JPEG sequences | TV TB CS | P | S | TGA and TIFF sequences; no JPEG |
-| OpenEXR sequences, with layers | TV TB | M | M | |
+| TGA, TIFF and JPEG sequences | TV TB CS | D | S | TGA, TIFF and JPEG sequences through the Export dialog |
+| OpenEXR sequences, with layers | TV TB | P | M | Flat RGBA OpenEXR sequences through craft-image-codecs; no layers in one file |
 | More video codecs: H.265, VP9 or AV1, MOV H.264 | TV CS PD | M | M | |
 | OpenRaster frame export | TV | D | S | |
-| Transparent-background export | all | P | S | PNG and OpenRaster; no test |
+| Transparent-background export | all | D | S | PNG, TGA, TIFF, OpenEXR, animated PNG and WebP, ProRes 4444 and OpenRaster without the paper; tested on PNG |
 | Export frame range and output size | all | D | S | One Export dialog: whole shot, selected frames, this frame or from–to; full, half or quarter size; GIF loop and sequence digits; remembered per shot |
 | Image sequence import | all | D | S | PNG, JPEG, WebP, TIFF, BMP, GIF |
 | Animated GIF import | TV PD | D | S | |
@@ -436,7 +436,7 @@ Weight: 7
 | Camera capture for stop motion and pencil tests | TV | M | M | |
 | Scene export for compositing apps (layers, camera, timing) | TV TB | M | M | |
 | Printed exposure sheets and frames (PDF) | TV TB | M | S | |
-| Shot list and edit decisions out (EDL or OTIO) | TB | M | S | |
+| Shot list and edit decisions out (EDL or OTIO) | TB | D | S | OpenTimelineIO: a track per layer, a clip per exposure, gaps and markers |
 | Asset library shared between shots | TB CS | M | M | |
 | Reading the references' native project files | all | O | XL | Out of scope: the native project formats of TVPaint, Harmony, Clip Studio and Procreate are proprietary and undocumented; exchange goes through PSD, XDTS and image sequences |
 
@@ -466,7 +466,7 @@ Weight: 5
 | Saved workspaces | TV TB CS | D | S | Named layouts per user, plus Drawing and Timing |
 | Keyboard shortcuts for every tool | all | D | S | |
 | Customisable shortcuts | all | D | S | Through craft-keymap, saved per user |
-| Command search | TB CS | M | S | |
+| Command search | TB CS | D | S | Find Command (Ctrl+Shift+P): by name or by key, keyboard or click, runs like the shortcut |
 | Custom tool palettes and radial menus | TV CS PD | M | S | |
 | Second view of the same shot and a navigator | TV TB CS | M | M | |
 | Undo history panel | TV CS | D | S | A panel listing every step; click one to go there (undo or redo as needed) |
@@ -501,7 +501,7 @@ Weight: 2
 | Save new versions | TV TB | D | S | shot_v002, shot_v003 … next to the file |
 | Review notes drawn over frames, kept out of exports | TV TB | M | S | |
 | Comments on frames | TB PD | M | M | |
-| Review movie with burn-ins (shot, frame, timecode) | TV TB | M | S | |
+| Review movie with burn-ins (shot, frame, timecode) | TV TB | D | S | An Export dialog option for every frame format and MP4: shot name, frame of total and timecode in a bar along the bottom |
 | Check-out and check-in of shots for several artists | TB | M | L | |
 | Vendor cloud sharing and production-tracking services | TB CS PD | O | L | Out of scope: tied to the vendors' own cloud services |
 

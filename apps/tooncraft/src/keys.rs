@@ -26,6 +26,7 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("frame.next", "Next frame", "."),
     ("frame.prev_drawing", "Previous drawing", "Ctrl+Left"),
     ("frame.next_drawing", "Next drawing", "Ctrl+Right"),
+    ("app.find_command", "Find a command", "Ctrl+Shift+P"),
     ("select.invert", "Invert selection", "Ctrl+Shift+I"),
     ("frame.prev_key", "Previous key drawing", "Ctrl+Shift+Left"),
     ("frame.next_key", "Next key drawing", "Ctrl+Shift+Right"),

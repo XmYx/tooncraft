@@ -31,6 +31,8 @@ pub struct ExportOptions {
     pub loop_forever: bool,
     /// Image sequences: digits in the frame number (0: at least 4, more for long shots).
     pub digits: u8,
+    /// Review copies: the shot name, frame and timecode in a bar along the bottom.
+    pub burn_in: bool,
 }
 
 /// The largest output size divisor.
@@ -38,7 +40,7 @@ pub const MAX_SCALE: u32 = 8;
 
 impl Default for ExportOptions {
     fn default() -> Self {
-        Self { start: 0, end: 1, paper: true, scale: 1, loop_forever: true, digits: 0 }
+        Self { start: 0, end: 1, paper: true, scale: 1, loop_forever: true, digits: 0, burn_in: false }
     }
 }
 
@@ -65,7 +67,11 @@ impl ExportOptions {
 
     /// Frame `f` through the camera, at the output size.
     fn render(&self, p: &Project, f: u32, paper: bool) -> tooncraft_raster::RgbaImage {
-        tooncraft_doc::render_camera(p, f, RenderOptions { paper, ..Default::default() }).reduced(self.scale.clamp(1, MAX_SCALE))
+        let mut img = tooncraft_doc::render_camera(p, f, RenderOptions { paper, ..Default::default() }).reduced(self.scale.clamp(1, MAX_SCALE));
+        if self.burn_in {
+            crate::burnin::stamp(&mut img, &crate::burnin::text_for(p, f));
+        }
+        img
     }
 
     /// Digits for the frame numbers of a sequence.
@@ -511,6 +517,23 @@ pub fn tga_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, pro
 }
 
 /// `<dir>/<prefix>_0001.tif`, … TIFF files, LZW-compressed (with alpha when the paper is off).
+/// Write `<dir>/<prefix>_0001.jpg`, …: JPEG at `quality` (1…100) on the paper (JPEG has no
+/// transparency, so the paper is always under it).
+pub fn jpeg_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, quality: u8, progress: impl FnMut(u32)) -> Result<Vec<PathBuf>> {
+    let o = ExportOptions { paper: true, ..o };
+    frame_files(p, dir, prefix, "jpg", o, progress, |img, _| {
+        let eo = craft_image_codecs::EncodeOptions { jpeg_quality: quality.clamp(1, 100), ..Default::default() };
+        craft_image_codecs::encode(&straight_image(img, false)?, craft_image_codecs::Format::Jpeg, &eo).map_err(codec_err)
+    })
+}
+
+/// Write `<dir>/<prefix>_0001.exr`, …: OpenEXR frames (one flat RGBA image each) for compositing.
+pub fn exr_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, progress: impl FnMut(u32)) -> Result<Vec<PathBuf>> {
+    frame_files(p, dir, prefix, "exr", o, progress, |img, alpha| {
+        craft_image_codecs::encode(&straight_image(img, alpha)?, craft_image_codecs::Format::OpenExr, &Default::default()).map_err(codec_err)
+    })
+}
+
 pub fn tiff_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, progress: impl FnMut(u32)) -> Result<Vec<PathBuf>> {
     frame_files(p, dir, prefix, "tif", o, progress, |img, alpha| {
         let eo = craft_image_codecs::EncodeOptions { tiff_compression: craft_image_codecs::TiffCompression::Lzw, ..Default::default() };
