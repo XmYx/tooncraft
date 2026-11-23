@@ -22,6 +22,9 @@ mod colour_tools;
 mod colour_ui_tests;
 mod command_search;
 mod context_menus;
+mod curves;
+#[cfg(test)]
+mod curves_ui_tests;
 mod dock;
 mod draw_aids;
 #[cfg(test)]
@@ -45,16 +48,24 @@ mod lipsync_panel;
 #[cfg(test)]
 mod menus_ui_tests;
 mod panels;
+#[cfg(test)]
+mod panels_ui_tests;
 mod pegs;
 mod pipeline;
 mod preferences;
+mod scene_menus;
 mod scene_presets;
+#[cfg(test)]
+mod scene_ui_tests;
 mod selection_tools;
 #[cfg(test)]
 mod selection_ui_tests;
 mod sheet;
+#[cfg(test)]
+mod shell_ui_tests;
 mod sound;
 mod sound_panel;
+mod start_screen;
 mod tablet;
 mod text_tool;
 #[cfg(test)]
