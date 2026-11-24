@@ -127,3 +127,31 @@ fn each_tool_chooses_its_own_reference_layers() {
     assert_eq!(h.state().sel.wand_reference, tooncraft_engine::FillReference::ReferenceLayers);
     assert!(crate::commands::get("layer.reference").is_some());
 }
+
+#[test]
+fn time_effects_and_transitions_in_the_panel() {
+    let mut h = harness();
+    h.state_mut().frame = 4;
+    h.run();
+    h.get(By::new().role(Role::ComboBox).label("Add effect")).click();
+    h.run();
+    click(&mut h, "Transition");
+    let EffectKind::Transition { start, .. } = h.state().engine.project.layers[0].effects[0].kind else { panic!("a transition") };
+    assert_eq!(start, 4, "starts at the current frame");
+    h.get(By::new().role(Role::ComboBox).label("Style"));
+    h.get(By::new().role(Role::CheckBox).label("Out (the layer leaves)")).click();
+    h.run();
+    assert!(matches!(h.state().engine.project.layers[0].effects[0].kind, EffectKind::Transition { out: true, .. }));
+    for (name, field) in [
+        ("Motion blur from movement", "Shutter (frames)"),
+        ("Trails", "Frames apart"),
+        ("Frame blending", "Mix of the next frame"),
+        ("Time remap", "Start at frame"),
+    ] {
+        h.get(By::new().role(Role::ComboBox).label("Add effect")).click();
+        h.run();
+        click(&mut h, name);
+        h.get_by_label(field);
+    }
+    assert_eq!(h.state().engine.project.layers[0].effects.len(), 5);
+}
