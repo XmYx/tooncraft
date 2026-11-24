@@ -84,7 +84,7 @@ fn fill_polygon(e: &mut Engine, layer: usize, frame: u32, outline: &[(f32, f32)]
 }
 
 /// Merge the last `n` undo entries into one with `label`.
-fn merge_last(e: &mut Engine, n: usize, label: &str) {
+pub(crate) fn merge_last(e: &mut Engine, n: usize, label: &str) {
     if n < 2 || e.undo.len() < n {
         if let Some(top) = e.undo.last_mut() {
             top.label = label.into();

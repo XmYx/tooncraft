@@ -1,0 +1,1 @@
+- 2026-11-24: Engine support for the right-click menus: `batch` runs several commands as one undo step (all or nothing), the pixels of one colour can be selected, a block of frames can be reversed for pasting, and brushes of your own can be renamed, duplicated, overwritten with the current settings, exported and deleted (built-in ones stay as they are).
