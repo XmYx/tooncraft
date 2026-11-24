@@ -94,6 +94,7 @@ tooncraft	Align left
 tooncraft	Align right	
 tooncraft	Aligned	
 tooncraft	All	
+tooncraft	All selected cells	
 tooncraft	All visible layers	
 tooncraft	Alt+click sets a new source	
 tooncraft	Alt+click where to copy from first	
@@ -116,6 +117,7 @@ tooncraft	Any colour
 tooncraft	Apply	
 tooncraft	Apply Box	
 tooncraft	Apply Distort	
+tooncraft	Apply Mesh Warp	
 tooncraft	Apply Pose	
 tooncraft	Apply Skew	
 tooncraft	Around	
@@ -142,6 +144,7 @@ tooncraft	Black and white
 tooncraft	Blank frame: drawing here starts a new drawing.	
 tooncraft	Bleeding	
 tooncraft	Blend	
+tooncraft	Bloat	
 tooncraft	Blue	
 tooncraft	BoardCraft Board or Animatic…	
 tooncraft	Body	
@@ -180,6 +183,7 @@ tooncraft	Camera name
 tooncraft	Camera {n}	
 tooncraft	Cancel	
 tooncraft	Cancel Distort	
+tooncraft	Cancel Mesh Warp	
 tooncraft	Cannot read this video: {reason}	
 tooncraft	Canvas	
 tooncraft	Canvas Size	
@@ -190,6 +194,7 @@ tooncraft	Canvas zoom
 tooncraft	Canvas: {layer}, frame {frame}	
 tooncraft	Category	
 tooncraft	Cell order	
+tooncraft	Cells along each side of the mesh	
 tooncraft	Centre	
 tooncraft	Centre X	
 tooncraft	Centre Y	
@@ -258,6 +263,7 @@ tooncraft	Colours you paint with show up here
 tooncraft	Comic	
 tooncraft	Command	
 tooncraft	Concentric ruler	
+tooncraft	Contour	
 tooncraft	Copied	
 tooncraft	Copied {frames} frames from {layers} layers	
 tooncraft	Copies	
@@ -309,6 +315,7 @@ tooncraft	Delete Frame
 tooncraft	Delete Frame in All Layers	
 tooncraft	Delete Item	
 tooncraft	Delete Layer	
+tooncraft	Delete Line	
 tooncraft	Delete Palette	
 tooncraft	Delete Peg	
 tooncraft	Delete Pose	
@@ -333,12 +340,15 @@ tooncraft	Divide
 tooncraft	Done	
 tooncraft	Don’t Save	
 tooncraft	Down	
+tooncraft	Drag a point to move it, Shift+drag to change the width there; click a line to choose it	
 tooncraft	Drag around an area to fill it	
 tooncraft	Drag around the centre to turn the view; double-click puts it upright	
 tooncraft	Drag from start to end; inside the selection when there is one	
 tooncraft	Drag further from the pivot to scale or turn	
 tooncraft	Drag inside to move, a corner to scale, the top knob to rotate	
+tooncraft	Drag over the drawing; hold still and drag again to twirl, pinch or bloat more	
 tooncraft	Drag the four corners freely (perspective), then Apply	
+tooncraft	Drag the grid's points to bend the selection, then Apply	
 tooncraft	Drag the handles to move, scale or turn the selection	
 tooncraft	Drag the layer while the shot plays and every frame it passes is keyed (one undo step; Escape drops the take)	
 tooncraft	Drag to move this end of the loop range, or use the arrow keys when it has the focus	
@@ -780,11 +790,15 @@ tooncraft	Line
 tooncraft	Line ends	
 tooncraft	Line of dialogue	
 tooncraft	Line spacing	
+tooncraft	Line width	
+tooncraft	Line {n}	
 tooncraft	Linear	
 tooncraft	Linear burn	
 tooncraft	Linear light	
 tooncraft	Lip Sync	
 tooncraft	Lip sync	
+tooncraft	Liquify	
+tooncraft	Liquify mode	
 tooncraft	Load Preset…	
 tooncraft	Lock	
 tooncraft	Lock Layer	
@@ -827,6 +841,7 @@ tooncraft	Merge down
 tooncraft	Merge every visible layer into one	
 tooncraft	Merge every visible layer into one and remove the hidden layers	
 tooncraft	Merge the layer into the one below it	
+tooncraft	Mesh Warp	
 tooncraft	Mirror View	
 tooncraft	Mirror four ways	
 tooncraft	Mirror left and right	
@@ -860,6 +875,7 @@ tooncraft	Move {command} later
 tooncraft	Move {name} down	
 tooncraft	Move {name} up	
 tooncraft	Move, scale and turn the selection to these numbers	
+tooncraft	Move, scale, turn, flip and skew every drawing in the timeline's selected cells together	
 tooncraft	Moving the peg turns the pegs it hangs from, so a hand pulls its arm along	
 tooncraft	Moving the {kind}	
 tooncraft	Multiply	
@@ -896,6 +912,7 @@ tooncraft	New-shot and onion settings apply to shots made from now on.
 tooncraft	Next Drawing	
 tooncraft	Next Frame	
 tooncraft	Next Key Drawing	
+tooncraft	Next Line	
 tooncraft	Next Marker	
 tooncraft	Next drawing	
 tooncraft	Next drawings	
@@ -912,6 +929,7 @@ tooncraft	No drawing here to swap
 tooncraft	No drawing on this frame	
 tooncraft	No drawing on this frame to hold	
 tooncraft	No drawings have names yet	
+tooncraft	No drawings in the selected cells to transform	
 tooncraft	No drawings yet: select frames on the timeline and add them.	
 tooncraft	No earlier drawing on this layer	
 tooncraft	No earlier marker	
@@ -1099,6 +1117,7 @@ tooncraft	Pigment gathers along the inside of the stroke's edge as it dries
 tooncraft	Pin This Frame	
 tooncraft	Pin frame to the light table	
 tooncraft	Pin light	
+tooncraft	Pinch	
 tooncraft	Ping-pong	
 tooncraft	Pivot X	
 tooncraft	Pivot Y	
@@ -1148,6 +1167,7 @@ tooncraft	Previous / next frame (timeline: move)
 tooncraft	Previous Drawing	
 tooncraft	Previous Frame	
 tooncraft	Previous Key Drawing	
+tooncraft	Previous Line	
 tooncraft	Previous Marker	
 tooncraft	Previous colour #{hex}	
 tooncraft	Previous drawing	
@@ -1159,6 +1179,7 @@ tooncraft	ProRes 422 HQ (MOV)…
 tooncraft	ProRes 4444 with Alpha (MOV)	
 tooncraft	ProRes 4444 with Alpha (MOV)…	
 tooncraft	Pucker (U W Q)	
+tooncraft	Pull its points towards their neighbours	
 tooncraft	Purge Unused Drawings	
 tooncraft	Push	
 tooncraft	Put the current layer in a new folder inside its folder	
@@ -1192,6 +1213,7 @@ tooncraft	Recent shots
 tooncraft	Recent shots not saved: {error}	
 tooncraft	Recolour Every Drawing of the Layer	
 tooncraft	Recolour Layer	
+tooncraft	Recolour the line with the current colour	
 tooncraft	Recoloured	
 tooncraft	Record Macro	
 tooncraft	Record Motion	
@@ -1345,6 +1367,7 @@ tooncraft	Select Layer Above
 tooncraft	Select Layer Below	
 tooncraft	Select Pixels of This Colour	
 tooncraft	Select a range of frames in the exposure sheet first	
+tooncraft	Select at most {n} drawings to transform at once	
 tooncraft	Select everything that is not selected (Ctrl+Shift+I)	
 tooncraft	Select frames	
 tooncraft	Select something first	
@@ -1424,6 +1447,7 @@ tooncraft	Smaller / bigger brush
 tooncraft	Smaller brush	
 tooncraft	Smallest size	
 tooncraft	Smear fade	
+tooncraft	Smooth Line	
 tooncraft	Smooth lines	
 tooncraft	Smoothing	
 tooncraft	Smoothing for new brushes	
@@ -1527,6 +1551,7 @@ tooncraft	That brush is not in the library
 tooncraft	The basic palette cannot be changed; add the colour to a palette of the shot	
 tooncraft	The canvas is too large for quick mask	
 tooncraft	The canvas stays in its place	
+tooncraft	The contour tool edits lines on a vector layer (Layers: Vector lines)	
 tooncraft	The current colour, half way	
 tooncraft	The current layer's drawing alone; draw here too	
 tooncraft	The current layer, from this frame	
@@ -1617,12 +1642,16 @@ tooncraft	Trails
 tooncraft	Transform	
 tooncraft	Transform Selection	
 tooncraft	Transform cancelled	
+tooncraft	Transform drawings	
 tooncraft	Transform layer	
 tooncraft	Transform selection	
+tooncraft	Transformed {n} drawings	
 tooncraft	Transition	
 tooncraft	Trim start	
 tooncraft	Turbulence	
 tooncraft	Turn	
+tooncraft	Twirl left	
+tooncraft	Twirl right	
 tooncraft	Two Colours	
 tooncraft	Type a frame number to go there	
 tooncraft	Type the line as it is spoken	
@@ -1650,6 +1679,7 @@ tooncraft	Update paint in this colour
 tooncraft	Upper button (right click)	
 tooncraft	Use Brush	
 tooncraft	Use Colour	
+tooncraft	Use Current Colour	
 tooncraft	Use Layer Mask	
 tooncraft	Use brush {name}	
 tooncraft	Use for This Shot	

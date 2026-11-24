@@ -1,0 +1,1 @@
+- 2026-11-24: Mesh warp: a grid over the selection whose points are dragged to bend the pixels, each cell bilinearly, applied as one undo step (`mesh_warp_selection`).

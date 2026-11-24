@@ -1,0 +1,1 @@
+- 2026-11-24: Quick mask (Shift+Q): paint the selection with any brush and take away with the eraser, shown as a red tint over what is not selected; turning it off makes the painted area the selection.

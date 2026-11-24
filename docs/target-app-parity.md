@@ -24,34 +24,34 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 | | Value | Kind |
 |---|---|---|
 | In-scope feature rows | 314 | counted |
-| Done / exceeds / partial / missing | 234 / 3 / 21 / 56 | counted |
+| Done / exceeds / partial / missing | 267 / 3 / 16 / 28 | counted |
 | Out of scope (not in any denominator) | 4 | counted |
-| **Row parity**, (D + X + ½·P) / rows | **78.8 %** | counted |
-| **Weighted parity**, area weights × size-weighted rows | **62.6 %** | counted |
-| Size-weighted parity over all rows, no area weights | 62.2 % | counted |
-| **UI parity**, rows of the reference-layout area | **90.4 %** | counted |
+| **Row parity**, (D + X + ½·P) / rows | **88.5 %** | counted |
+| **Weighted parity**, area weights × size-weighted rows | **75.7 %** | counted |
+| Size-weighted parity over all rows, no area weights | 74.8 % | counted |
+| **UI parity**, rows of the reference-layout area | **94.7 %** | counted |
 
 | Area | Weight | Rows | D | X | P | M | Out | Row parity | Effort parity |
 |---|---|---|---|---|---|---|---|---|---|
-| Brush engine | 9 (9 %) | 29 | 20 | 0 | 2 | 7 | 1 | 72 % | 58 % |
-| Paper and textures | 3 (3 %) | 10 | 9 | 0 | 0 | 1 | 0 | 90 % | 91 % |
-| Drawing tools | 7 (7 %) | 17 | 12 | 0 | 2 | 3 | 0 | 76 % | 58 % |
-| Selection and transform | 5 (5 %) | 14 | 10 | 0 | 0 | 4 | 0 | 71 % | 56 % |
-| Colour and paint | 7 (7 %) | 18 | 14 | 0 | 1 | 3 | 0 | 81 % | 60 % |
-| Layers | 6 (6 %) | 13 | 12 | 0 | 0 | 1 | 0 | 92 % | 93 % |
+| Brush engine | 9 (9 %) | 29 | 25 | 0 | 1 | 3 | 1 | 88 % | 78 % |
+| Paper and textures | 3 (3 %) | 10 | 10 | 0 | 0 | 0 | 0 | 100 % | 100 % |
+| Drawing tools | 7 (7 %) | 17 | 14 | 0 | 2 | 1 | 0 | 88 % | 63 % |
+| Selection and transform | 5 (5 %) | 14 | 14 | 0 | 0 | 0 | 0 | 100 % | 100 % |
+| Colour and paint | 7 (7 %) | 18 | 15 | 0 | 0 | 3 | 0 | 83 % | 67 % |
+| Layers | 6 (6 %) | 13 | 13 | 0 | 0 | 0 | 0 | 100 % | 100 % |
 | Timeline and exposure sheet | 9 (9 %) | 20 | 17 | 0 | 1 | 2 | 0 | 88 % | 70 % |
 | Onion skin and light table | 4 (4 %) | 11 | 11 | 0 | 0 | 0 | 0 | 100 % | 100 % |
-| Animation tools | 9 (9 %) | 18 | 9 | 1 | 2 | 6 | 0 | 61 % | 37 % |
-| Camera | 4 (4 %) | 8 | 5 | 0 | 0 | 3 | 0 | 62 % | 47 % |
-| Effects and compositing | 7 (7 %) | 22 | 16 | 0 | 0 | 6 | 0 | 73 % | 46 % |
-| Audio and lip-sync | 4 (4 %) | 14 | 11 | 0 | 1 | 2 | 0 | 82 % | 72 % |
-| Import, export and pipeline | 7 (7 %) | 28 | 21 | 0 | 2 | 5 | 1 | 79 % | 68 % |
-| Scripting and automation | 4 (4 %) | 7 | 1 | 0 | 2 | 4 | 0 | 29 % | 22 % |
+| Animation tools | 9 (9 %) | 18 | 10 | 1 | 3 | 4 | 0 | 69 % | 48 % |
+| Camera | 4 (4 %) | 8 | 6 | 0 | 0 | 2 | 0 | 75 % | 60 % |
+| Effects and compositing | 7 (7 %) | 22 | 21 | 0 | 1 | 0 | 0 | 98 % | 90 % |
+| Audio and lip-sync | 4 (4 %) | 14 | 12 | 0 | 1 | 1 | 0 | 89 % | 83 % |
+| Import, export and pipeline | 7 (7 %) | 28 | 24 | 0 | 1 | 3 | 1 | 88 % | 78 % |
+| Scripting and automation | 4 (4 %) | 7 | 3 | 0 | 1 | 3 | 0 | 50 % | 44 % |
 | UI and workspace | 5 (5 %) | 14 | 12 | 1 | 1 | 0 | 0 | 96 % | 94 % |
-| UI parity with the reference layout | 5 (5 %) | 47 | 41 | 0 | 3 | 3 | 0 | 90 % | 77 % |
-| Tablet and input | 4 (4 %) | 9 | 4 | 0 | 3 | 2 | 1 | 61 % | 55 % |
+| UI parity with the reference layout | 5 (5 %) | 47 | 44 | 0 | 1 | 2 | 0 | 95 % | 81 % |
+| Tablet and input | 4 (4 %) | 9 | 6 | 0 | 3 | 0 | 1 | 83 % | 85 % |
 | Collaboration and review | 2 (2 %) | 5 | 2 | 0 | 0 | 3 | 1 | 40 % | 22 % |
-| Stability and performance | 4 (4 %) | 10 | 7 | 1 | 1 | 1 | 0 | 85 % | 69 % |
+| Stability and performance | 4 (4 %) | 10 | 8 | 1 | 0 | 1 | 0 | 90 % | 75 % |
 <!-- parity:end -->
 
 ## How to read the map
@@ -217,14 +217,14 @@ Weight: 5
 | Select by colour with tolerance (magic wand) | all | D | S | Magic Wand mode: tolerance, this drawing or all visible layers, the touching area or that colour everywhere |
 | Add, subtract and intersect selections | all | D | S | A mode option, or Shift (add), Alt (subtract) and both (intersect) while dragging; holes and separate parts stay one selection |
 | Invert, grow, shrink and feather a selection | all | D | S | Invert (Ctrl+Shift+I), grow and shrink by up to 64 px; Feather in the Select tool's options (up to 64 px) softens the edge, and moving, distorting, erasing, copying and filling the selection blend over it (one undo step each; `feather` in command files) |
-| Painted selection masks (quick mask) | TV CS PD | M | M | |
+| Painted selection masks (quick mask) | TV CS PD | D | M | Select > Quick Mask (Shift+Q): the selection becomes a mask the brushes paint into (the eraser takes away) under a red tint for what is not selected; turning it off traces the painted area back into the selection |
 | Move, scale and rotate a selection with a live preview | all | D | S | One undo step |
 | Flips and 90° turns | all | D | S | |
 | Cut, copy and paste pixels between drawings | all | D | S | |
 | Free distort, perspective and skew | all | D | S | Distort: drag four corner handles (perspective), then Apply; skew by degrees; each one undo step |
-| Mesh warp | TV CS PD | M | M | |
-| Liquify (push, twirl, pinch) | TV CS PD | M | M | |
-| Transform across several drawings or layers at once | TV TB CS | M | M | |
+| Mesh warp | TV CS PD | D | M | Selection options: Mesh Warp puts a grid (1 to 8 cells a side) over the selection; drag its points and Apply bends the pixels, each cell bilinearly, as one undo step (`mesh_warp_selection` command, up to 16 cells a side) |
+| Liquify (push, twirl, pinch) | TV CS PD | D | M | Liquify tool (Shift+K, with Smudge on the rail): push, twirl left or right, pinch or bloat under a soft round brush (size, strength), resampled from the drawing as it was before the stroke; one undo step (`liquify` command) |
+| Transform across several drawings or layers at once | TV TB CS | D | M | Selection options: All selected cells moves, scales, turns, flips and skews every drawing in the timeline's selected cells (each held drawing once, locked layers left out) as one undo step, from the canvas handles, the typed box, the flip and rotate buttons or the whole-drawing transforms; a `batch` of `transform_selection` commands |
 | Resampling choice (nearest, bilinear, bicubic) | TV CS | D | S | For moving, scaling, turning, skewing and distorting a selection |
 
 ## Colour and paint
@@ -242,7 +242,7 @@ Weight: 7
 | Paint the same regions across drawings automatically | TV TB | D | L | Paint bucket options: Paint Like This Drawing colours the next drawings (or the selected cells) on the layer like the current one: each enclosed empty area takes the colour the current drawing has most under it (at least 30 % of the area), filled with the bucket's gap and reference settings, as one undo step (`auto_paint` command) |
 | Colour swatches | all | D | S | Named palettes kept with the shot, plus the built-in Basic one; swatch names on hover; a swatch's right-click menu (also Shift+F10) uses, edits, renames, duplicates or deletes it, or selects the pixels of its colour |
 | Palette files: save, load, import common formats | all | D | S | GIMP .gpl open and save (read through craft-palette), Photoshop .aco open (RGB, HSB, grey) |
-| Linked colour styles (change a swatch, every fill using it updates) | TB CS | P | L | Edit Swatch: the swatch's paint on every unlocked layer takes the new colour (matched by colour at each pixel's opacity, so soft edges follow), one undo step; paint is not linked to the swatch, so unrelated paint in exactly that colour changes too |
+| Linked colour styles (change a swatch, every fill using it updates) | TB CS | D | L | A paint-bucket fill made with a colour chosen from a shot palette swatch is linked to it (the filled pixels are kept with the swatch, saved with the shot); Edit Swatch with Update paint then recolours only that linked paint, one undo step, so other paint in the same colour stays; swatches with no links keep the old colour-matching update; Edit Swatch without Update paint forgets the links (that paint keeps the old colour); all links together are capped at 2 M runs, newest kept (`swatch_fill` command) |
 | HSV picker with keyboard fields | all | D | S | Hue, saturation and brightness typed from the keyboard, kittest-tested |
 | Colour wheel, sliders and harmony modes | TV CS PD | D | S | A hue wheel, and opposite, neighbour, three-way, split-opposite and four-way harmonies to pick from or add to a palette |
 | Recent colours | TV CS PD | D | S | The last 16 colours painted with, newest first, in the Colour panel |
@@ -384,7 +384,7 @@ Weight: 7
 | Time effects: trails, frame blending, time remap | TV TB PD | D | M | Trails (up to 16 earlier pictures, fading), Frame blending (mix of the next frame) and Time remap (speed and start, keyable for ramps, reverse and holds) |
 | Transitions between cuts | TV TB PD | D | S | Transition effect: a layer comes in or leaves over a number of frames by dissolve, wipe, iris or push; a cut between two layers is one going out as the other comes in |
 | Effect presets and saved stacks | TV TB | D | S | Five built-in looks added as one undo step; any layer's stack saved to and opened from a .toonfx file |
-| Node compositing graph | TB | M | XL | |
+| Node compositing graph | TB | P | XL | The shot's compositing graph (layer, effect, blend, mask and output nodes) builds the frame when switched on: saved with the shot, loops refused, every edit one undo step (`edit_comp` command); no node view yet (it waits for the shared node editor, storytold/craft-libs#3337) |
 
 ## Audio and lip-sync
 
@@ -514,7 +514,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
 | Select properties: modes, typed position, size and angle | TB | D | S | Lasso, rectangle, ellipse, wand; add, remove, overlap; X, Y, width, height (proportions kept) and angle typed and applied as one step; flips, skew, distort |
 | Transform tool properties with typed values | TB | D | M | The Transform tool (Q) drags the current layer's peg on the canvas: move, a corner to scale, a knob to turn, the pivot cross; one peg key per drag, Escape cancels; arrows, [ ] and Page Up / Down nudge; its options type Move X/Y, Rotation, Scale X/Y, or add a peg for a layer without one |
-| Contour, text, rigging and morph tool properties | TB | P | L | Text tool properties: font, size, alignment, line and letter spacing; the contour, rigging and morph tools are missing |
+| Contour, text, rigging and morph tool properties | TB | P | L | Text tool properties: font, size, alignment, line and letter spacing; Contour tool (Shift+P, on vector layers): drag a line's points, Shift+drag to change the width there, and the chosen line's width, smoothing, colour and delete in its options, each one undo step; the rigging and morph tools are missing |
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
 | Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue, the colour's own opacity and the brush's opacity |
 | Picker with alpha and a gradient | TB | D | S | A floating Colour Picker window (`--open colour-picker`) as well as the docked one; the colour has its own opacity; palette swatches keep an opacity and can be gradients (stops with colour and opacity), drawn over a checkerboard; choosing a gradient swatch takes the gradient tool, whose stop editor builds one and adds it to the palette (`gradient` and `set_palettes` commands) |
@@ -546,11 +546,11 @@ Weight: 4
 |---|---|---|---|---|
 | Pen pressure and tilt on X11 and macOS | all | D | S | Shared photocraft-tablet reader, also under Xwayland |
 | Pen pressure and tilt on Windows | all | P | S | Windows Ink gives pressure (as touch force), the eraser end and the barrel button; Preferences ▸ Pen ▸ WinTab reads pressure, tilt and rotation through the shared WinTab backend. Built and type-checked for Windows, not yet run on Windows hardware |
-| Pen input in Wayland-native windows | all | M | M | |
+| Pen input in Wayland sessions | all | D | M | Rescoped from "Wayland-native windows" by the maintainer (2026-11-24): binding the tablet protocol on winit's connection needs `unsafe`. On a Wayland session with a pen attached (found in the kernel's input device list) the window opens through Xwayland, where the tablet reader gets pressure, tilt, rotation and the eraser end; `TOONCRAFT_NATIVE_WAYLAND=1` keeps the native window |
 | Pen eraser end switches tool | TV CS | D | S | |
 | Pen side buttons mapped to actions | TV CS | D | S | Preferences ▸ Pen: each side button (sent as a middle or right click on X11 and macOS, the barrel button through the pointer hooks on Windows) runs any command over the canvas while the pen is near, instead of panning or opening the menu |
 | Touch gestures: pinch zoom and twist, taps for undo and redo | CS PD | D | S | Pinch and twist; a two-finger tap undoes and a three-finger tap redoes (the stroke the first finger began is dropped) |
-| Palm rejection while the pen is near | CS PD | P | S | Touches are ignored while the pen is seen and for 1.2 s after; the pen is seen through the tablet reader (X11, Xwayland, macOS, Windows in WinTab mode). Not with Windows Ink (the pointer hooks do not say which touch is the pen) or in Wayland-native windows |
+| Palm rejection while the pen is near | CS PD | P | S | Touches are ignored while the pen is seen and for 1.2 s after; the pen is seen through the tablet reader (X11, Xwayland, macOS, Windows in WinTab mode). On a Wayland session the window opens through Xwayland when a pen is attached, so the pen is seen there too. Not yet with Windows Ink: the shared pointer hooks do not say which touch is the pen |
 | Global pressure curve and calibration | TV CS PD | D | S | Preferences ▸ Pen (`--open pen`): one curve for every brush, applied to pen and touch pressure (the mouse keeps its own setting); a calibration pad records test strokes and Fit Curve to My Hand makes the hardest press (95th percentile) full pressure |
 | End-to-end stroke latency measured | — | P | S | Engine latency per sample is measured; input-to-screen is not |
 | iPad and Android tablet builds | CS PD | O | XL | Out of scope: the suite targets desktop Linux, macOS and Windows |

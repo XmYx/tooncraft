@@ -1,0 +1,1 @@
+- 2026-11-24: Liquify tool (Shift+K): push, twirl, pinch or bloat a drawing's pixels with a soft round brush, one undo step per stroke and a `liquify` command.

@@ -4426,6 +4426,7 @@ dependencies = [
  "tooncraft-lipsync",
  "tooncraft-raster",
  "tooncraft-vector",
+ "winit",
 ]
 
 [[package]]

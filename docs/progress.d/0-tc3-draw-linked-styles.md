@@ -1,0 +1,1 @@
+- 2026-11-24: Linked colour styles: fills made with a colour from a shot palette swatch are linked to it, so changing the swatch recolours that paint and leaves other paint of the same colour alone (`swatch_fill`).

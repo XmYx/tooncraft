@@ -723,6 +723,82 @@ pub fn distort(surface: &mut Surface, mask: &Mask, quad: [(f32, f32); 4], r: Res
     out
 }
 
+/// Most cells a mesh warp grid has along each side.
+pub const MAX_MESH_CELLS: u32 = 16;
+
+/// Where `p` sits in the quad `a b c d` (corners at (0,0), (1,0), (1,1), (0,1)) by inverting
+/// the bilinear map; `None` outside it or when the quad is degenerate there.
+pub fn inverse_bilinear(p: (f32, f32), a: (f32, f32), b: (f32, f32), c: (f32, f32), d: (f32, f32)) -> Option<(f32, f32)> {
+    let cross = |u: (f32, f32), v: (f32, f32)| u.0 * v.1 - u.1 * v.0;
+    let e = (b.0 - a.0, b.1 - a.1);
+    let f = (d.0 - a.0, d.1 - a.1);
+    let g = (a.0 - b.0 + c.0 - d.0, a.1 - b.1 + c.1 - d.1);
+    let h = (p.0 - a.0, p.1 - a.1);
+    let (k2, k1, k0) = (cross(g, f), cross(e, f) + cross(h, g), cross(h, e));
+    let u_for = |v: f32| -> Option<f32> {
+        let (dx, dy) = (e.0 + g.0 * v, e.1 + g.1 * v);
+        if dx.abs() >= dy.abs() { (dx.abs() > 1e-8).then(|| (h.0 - f.0 * v) / dx) } else { Some((h.1 - f.1 * v) / dy) }
+    };
+    let inside = |t: f32| (-1e-4..=1.0 + 1e-4).contains(&t);
+    let candidates: Vec<f32> = if k2.abs() < 1e-8 {
+        if k1.abs() < 1e-8 {
+            return None;
+        }
+        vec![-k0 / k1]
+    } else {
+        let disc = k1 * k1 - 4.0 * k0 * k2;
+        if disc < 0.0 {
+            return None;
+        }
+        let s = disc.sqrt();
+        vec![(-k1 - s) / (2.0 * k2), (-k1 + s) / (2.0 * k2)]
+    };
+    candidates.into_iter().filter(|v| v.is_finite() && inside(*v)).find_map(|v| u_for(v).filter(|u| u.is_finite() && inside(*u)).map(|u| (u, v)))
+}
+
+/// Warp the pixels under `mask` with a grid of `cols` × `rows` cells over its box: `points`
+/// (row by row, (cols + 1) × (rows + 1) of them) are where the grid's points land. Each cell's
+/// pixels follow its four corners bilinearly.
+pub fn mesh_warp(surface: &mut Surface, mask: &Mask, cols: u32, rows: u32, points: &[(f32, f32)], r: Resample) -> Result<(), RasterError> {
+    let bad = RasterError::BadImage { got: points.len(), want: ((cols + 1) * (rows + 1)) as usize };
+    if cols == 0 || rows == 0 || cols > MAX_MESH_CELLS || rows > MAX_MESH_CELLS || points.len() != ((cols + 1) * (rows + 1)) as usize {
+        return Err(bad);
+    }
+    if points.iter().any(|p| !p.0.is_finite() || !p.1.is_finite() || p.0.abs() > 1.0e6 || p.1.abs() > 1.0e6) {
+        return Err(bad);
+    }
+    let img = copy(surface, mask);
+    let before = surface.clone();
+    clear(surface, mask);
+    let origin = (mask.x as f32, mask.y as f32);
+    let (w, h) = (img.width as f32, img.height as f32);
+    let at = |i: u32, j: u32| points.get((j * (cols + 1) + i) as usize).copied().unwrap_or((0.0, 0.0));
+    let mut out = Ok(());
+    'cells: for j in 0..rows {
+        for i in 0..cols {
+            let (a, b, c, d) = (at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1));
+            // half-open cells, so a pixel on a shared edge is drawn once
+            let (last_col, last_row) = (i + 1 == cols, j + 1 == rows);
+            let inverse = |x: f32, y: f32| -> Option<(f32, f32)> {
+                let (u, v) = inverse_bilinear((x, y), a, b, c, d)?;
+                if (u >= 1.0 && !last_col) || (v >= 1.0 && !last_row) {
+                    return None;
+                }
+                let (u, v) = (u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
+                Some((origin.0 + (i as f32 + u) / cols as f32 * w, origin.1 + (j as f32 + v) / rows as f32 * h))
+            };
+            if let Err(e) = draw_mapped(surface, &img, &[a, b, c, d], r, &inverse, origin) {
+                out = Err(e);
+                break 'cells;
+            }
+        }
+    }
+    if out.is_err() {
+        *surface = before;
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -738,6 +814,30 @@ mod tests {
             }
         }
         s
+    }
+
+    #[test]
+    fn a_flat_mesh_leaves_the_pixels_and_a_moved_point_bends_them() {
+        let mut s = dot_surface();
+        let m = polygon_mask(200, 200, &[(0.0, 0.0), (60.0, 0.0), (60.0, 60.0), (0.0, 60.0)]).unwrap();
+        let grid = |dx: f32| -> Vec<(f32, f32)> {
+            (0..3).flat_map(|j| (0..3).map(move |i| (i as f32 * 30.0 + if i == 1 && j == 1 { dx } else { 0.0 }, j as f32 * 30.0))).collect()
+        };
+        let before = s.clone();
+        mesh_warp(&mut s, &m, 2, 2, &grid(0.0), Resample::Nearest).unwrap();
+        assert_eq!(s.pixel(30, 30), before.pixel(30, 30), "an unmoved grid keeps the dot");
+        assert_eq!(s.pixel(10, 10)[3], 0);
+        // pull the middle point 20 px right: the dot (20…40) follows towards the right
+        mesh_warp(&mut s, &m, 2, 2, &grid(20.0), Resample::Nearest).unwrap();
+        assert!(s.pixel(45, 30)[3] > 0, "pulled right");
+        assert_eq!(s.pixel(22, 50)[3], 0, "the bottom edge stayed: no paint low down");
+        assert!(mesh_warp(&mut s, &m, 2, 2, &grid(0.0)[..5], Resample::Nearest).is_err(), "wrong point count");
+        assert!(mesh_warp(&mut s, &m, 0, 2, &[], Resample::Nearest).is_err());
+        let mut nan = grid(0.0);
+        nan[4] = (f32::NAN, 1.0);
+        assert!(mesh_warp(&mut s, &m, 2, 2, &nan, Resample::Nearest).is_err());
+        assert_eq!(inverse_bilinear((5.0, 5.0), (0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)), Some((0.5, 0.5)));
+        assert_eq!(inverse_bilinear((50.0, 5.0), (0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)), None);
     }
 
     #[test]

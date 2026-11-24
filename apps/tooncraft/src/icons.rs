@@ -28,6 +28,8 @@ pub enum Icon {
     Shape,
     Gradient,
     CloneStamp,
+    Contour,
+    Liquify,
     Hand,
     Transform,
     Text,
@@ -119,7 +121,7 @@ pub enum Icon {
 
 #[allow(dead_code, reason = "the shared icon family: the UI-pass shell, canvas and menu code draws from all of it; the tests paint every glyph")]
 impl Icon {
-    pub const ALL: [Icon; 93] = [
+    pub const ALL: [Icon; 95] = [
         Icon::Pencil,
         Icon::Ink,
         Icon::Airbrush,
@@ -133,6 +135,8 @@ impl Icon {
         Icon::Shape,
         Icon::Gradient,
         Icon::CloneStamp,
+        Icon::Contour,
+        Icon::Liquify,
         Icon::Hand,
         Icon::Transform,
         Icon::Text,
@@ -232,6 +236,8 @@ impl Icon {
             Icon::Shape => tl!("Shapes"),
             Icon::Gradient => tl!("Gradient"),
             Icon::CloneStamp => tl!("Clone stamp"),
+            Icon::Contour => tl!("Contour"),
+            Icon::Liquify => tl!("Liquify"),
             Icon::Hand => tl!("Hand"),
             Icon::Transform => tl!("Transform layer"),
             Icon::Text => tl!("Text"),
@@ -333,6 +339,8 @@ impl From<Tool> for Icon {
             Tool::Shape => Icon::Shape,
             Tool::Gradient => Icon::Gradient,
             Tool::Clone => Icon::CloneStamp,
+            Tool::Contour => Icon::Contour,
+            Tool::Liquify => Icon::Liquify,
             Tool::Hand => Icon::Hand,
             Tool::Transform => Icon::Transform,
             Tool::Text => Icon::Text,
@@ -547,6 +555,28 @@ impl Glyph {
                     self.out.push(Shape::rect_filled(r, 0.0, self.color.gamma_multiply(1.0 - t * 0.8)));
                 }
                 self.rect_outline((-0.9, -0.7), (0.9, 0.7));
+            }
+            Icon::Contour => {
+                // a curve with square handles on its points
+                let pts = [(-0.9, 0.6), (-0.3, -0.5), (0.3, 0.4), (0.9, -0.6)];
+                for w in pts.windows(2) {
+                    self.line(w[0], w[1]);
+                }
+                for p in pts {
+                    self.rect((p.0 - 0.14, p.1 - 0.14), (p.0 + 0.14, p.1 + 0.14));
+                }
+            }
+            Icon::Liquify => {
+                // a swirl: a spiral of short lines round the centre
+                let mut prev = (0.0f32, 0.0f32);
+                for k in 1..=24 {
+                    let t = k as f32 / 24.0;
+                    let a = t * std::f32::consts::TAU * 1.6;
+                    let r = t * 0.9;
+                    let p = (r * a.cos(), r * a.sin());
+                    self.line(prev, p);
+                    prev = p;
+                }
             }
             Icon::CloneStamp => {
                 // a rubber stamp: knob, neck, body and the print line

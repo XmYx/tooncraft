@@ -1,0 +1,1 @@
+- 2026-11-24: Contour tool (Shift+P) for vector layers: drag a line's points to reshape it, Shift+drag to change its width there, and set the chosen line's width, smoothing and colour or delete it from the options.
