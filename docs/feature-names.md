@@ -83,5 +83,6 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Colour layer, Add Colour Layer, Colour of …, Stop Following the Line Layer | Generic ink-and-paint terms and our wording | Use (common) |
 | Feather (selection) | Generic image-editing term for a soft selection edge, used descriptively by many apps | Use (common) |
 | Tool Palette, Radial menu, Use in the radial menu | Generic UI terms (a palette of buttons; a ring menu) | Use (common) |
+| Line of dialogue, Mouths from the Typed Line | Descriptive | Use |
 | Record Macro, Stop Recording and Save Macro, Play Macro | Descriptive (generic automation term) | Use (common) |
 | Exposure Sheet to Print (PDF), Frames to Print (PDF), Frames per page | Descriptive | Use |

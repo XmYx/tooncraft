@@ -26,6 +26,7 @@ hand a script can do.
 | `set_volume_key`, `remove_volume_key` | `index`, `frame` (+ `gain` 0…4) |
 | `set_mouth` | `layer`, `mouth` (`rest`, `closed`, `open`, `wide`, `round`, `pucker`, `teeth`, `tongue`, `consonant`), `drawing` (absent: forget it) |
 | `lip_sync` | `layer`, `from`, `settings` (`silence` 0…1, `min_hold` frames) |
+| `lip_sync_text` | `layer`, `from`, `text`, `settings`: the typed line's mouths over the voiced frames of the sound, or `min_hold` frames each without sound |
 | `import_mouth_sheet` | `layer`, `path`, `from` |
 | `set_audio_track` | `track`, optional `name`, `muted`, `solo`, `volume` |
 | `transform_selection` | `layer`, `frame`, `polygon`, `dx`, `dy`, `scale_x`, `scale_y`, `angle` (radians); optional `feather` (soft edge, pixels, up to 64; also on `distort_selection`, `clear_selection` and `gradient`) |
