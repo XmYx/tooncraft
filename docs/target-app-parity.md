@@ -240,7 +240,7 @@ Weight: 7
 | Fill every drawing of a layer at once | TV TB | D | S | One undo step. Also: fill, empty areas only, or repaint, and gap presets with the reach shown around the pointer |
 | Linked line and paint layers | TB TV CS | D | M | Add Colour Layer (a layer's menu): a layer below that follows the line layer's exposures, so new drawings, holds, re-timing and deleted frames act on both; painting there makes the colour drawing paired with the line drawing, and the bucket sees the lines through the all-visible reference; saved with the shot. No line-only onion and no automatic copy of line regions |
 | Paint the same regions across drawings automatically | TV TB | M | L | |
-| Colour swatches | all | D | S | Named palettes kept with the shot, plus the built-in Basic one; swatch names on hover; remove from a palette with a right-click |
+| Colour swatches | all | D | S | Named palettes kept with the shot, plus the built-in Basic one; swatch names on hover; a swatch's right-click menu (also Shift+F10) uses, edits, renames, duplicates or deletes it, or selects the pixels of its colour |
 | Palette files: save, load, import common formats | all | D | S | GIMP .gpl open and save (read through craft-palette), Photoshop .aco open (RGB, HSB, grey) |
 | Linked colour styles (change a swatch, every fill using it updates) | TB CS | P | L | Edit Swatch: the swatch's paint on every unlocked layer takes the new colour (matched by colour at each pixel's opacity, so soft edges follow), one undo step; paint is not linked to the swatch, so unrelated paint in exactly that colour changes too |
 | HSV picker with keyboard fields | all | D | S | Hue, saturation and brightness typed from the keyboard, kittest-tested |
@@ -521,7 +521,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Timeline layer rows with toggles | TB | D | S | Show and lock toggles in each row (named check boxes, keyboard reachable); a mark on every cell where the layer's pegs are keyed, named "peg key" for screen readers; the rest in the Layers panel and the row's right-click menu |
 | Timeline buttons | TB | D | S | |
 | Selected range highlight | TB | D | S | |
-| Right-click menu on timeline cells | TB | D | S | Swap drawing, marks, hold for, fill empty frames, frame and clipboard commands |
+| Right-click menu on timeline cells | TB | D | S | Swap drawing, hold for 1 to 8, marks, new and duplicate drawing, insert and remove frames, fill empty frames, cut, copy, paste and paste reversed, go to; every item with its icon and key, disabled ones saying why; Shift+F10 or the Menu key opens it |
 | Right-click menu on exposure-sheet cells | TB | D | S | The same menu in the vertical sheet |
 | Panel menus (a ☰ button per panel) | TB | M | S | |
 | Vertical exposure sheet | TB | D | M | Layers as columns, frames down the side, the same keys and menus (`--vertical`, `--layout sheet`) |

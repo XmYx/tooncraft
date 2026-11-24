@@ -440,7 +440,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         if name_resp.clicked() {
             clicked = Some((li, app.frame));
         }
-        if name_resp.secondary_clicked() || name_resp.context_menu_opened() {
+        if crate::context_menus::wants_menu(ui, &name_resp, if li == app.layer { "layer" } else { "" }) {
             layer_menus.push((li, name_resp.clone()));
         }
         // folders: a label-coloured stripe per level, and the folder path before the name

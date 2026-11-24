@@ -24,6 +24,17 @@ pub fn attach(ui: &Ui, resp: &Response, launch: &str, mut add: impl FnMut(&mut U
     resp.context_menu(&mut add);
 }
 
+/// Whether a widget whose menu is drawn only on demand needs it this frame: right-clicked, its
+/// menu open (from the pointer or the keyboard), focused (the Menu key may come), or named by a
+/// pending `--context-menu`.
+pub fn wants_menu(ui: &Ui, resp: &Response, launch: &str) -> bool {
+    resp.secondary_clicked()
+        || resp.context_menu_opened()
+        || resp.has_focus()
+        || egui::Popup::is_id_open(ui.ctx(), resp.id.with("keyboard-menu"))
+        || !launch.is_empty() && ui.ctx().data(|d| d.get_temp::<String>(launch_id())).is_some_and(|t| t == launch)
+}
+
 /// A submenu of registry commands.
 fn sub(ui: &mut Ui, app: &mut ToonApp, label: &str, ids: &[&str]) {
     ui.menu_button(label, |ui| {
@@ -300,8 +311,16 @@ pub fn panel_tab(app: &mut ToonApp, ui: &mut Ui, pane: Pane) {
     context(ui, app, &["panel.reset"]);
 }
 
+/// Once a frame: hand a pending `--context-menu` to the widgets, and show the rename window.
+pub fn frame(app: &mut ToonApp, ctx: &egui::Context) {
+    if let Some(target) = app.menus.launch.take() {
+        ctx.data_mut(|d| d.insert_temp(launch_id(), target));
+    }
+    rename_window(app, ctx);
+}
+
 /// The small window for a name typed from a menu (Rename Brush…, Rename Item…).
-pub fn rename_window(app: &mut ToonApp, ctx: &egui::Context) {
+fn rename_window(app: &mut ToonApp, ctx: &egui::Context) {
     let Some((what, mut text)) = app.menus.rename.take() else { return };
     let mut keep = true;
     let mut open = true;
@@ -330,14 +349,13 @@ fn launch_id() -> egui::Id {
 
 /// `--context-menu <target>`: remember the menu to open on the first frame, and set the shot up
 /// so the menu has something to act on (a selection for the selection menu).
-pub fn prepare_launch(app: &mut ToonApp, ctx: &egui::Context, target: &str) {
+pub fn prepare_launch(app: &mut ToonApp, target: &str) {
     if target == "selection" && app.selection.is_none() {
         let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
         crate::selection_tools::set_rings(app, vec![vec![(w * 0.3, h * 0.3), (w * 0.6, h * 0.3), (w * 0.6, h * 0.65), (w * 0.3, h * 0.65)]]);
         app.tool = Tool::Select;
     }
-    let target = target.to_string();
-    ctx.data_mut(|d| d.insert_temp(launch_id(), target));
+    app.menus.launch = Some(target.to_string());
 }
 
 /// Whether the launch asked for `target`'s menu; true once, then it is forgotten.

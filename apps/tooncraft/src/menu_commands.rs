@@ -39,6 +39,8 @@ pub struct State {
     pub rename: Option<(Target, String)>,
     /// The frame typed in the ruler's Go To Frame field (1-based).
     pub go_to: i64,
+    /// `--context-menu`: the menu to open, handed to the UI on the first frame.
+    pub launch: Option<String>,
 }
 
 fn target(a: &ToonApp) -> &Target {

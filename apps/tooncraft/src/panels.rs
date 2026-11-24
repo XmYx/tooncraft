@@ -601,7 +601,7 @@ pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
                     if resp.clicked() {
                         select = Some(li);
                     }
-                    if resp.secondary_clicked() || resp.context_menu_opened() {
+                    if crate::context_menus::wants_menu(ui, &resp, if li == app.layer { "layer" } else { "" }) {
                         menus.push((li, resp));
                     }
                 }

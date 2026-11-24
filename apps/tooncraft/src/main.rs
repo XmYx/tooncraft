@@ -26,6 +26,8 @@ mod colour_ui_tests;
 mod command_search;
 mod commands;
 mod context_menus;
+#[cfg(test)]
+mod context_menus_ui_tests;
 mod curves;
 #[cfg(test)]
 mod curves_ui_tests;

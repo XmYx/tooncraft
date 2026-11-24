@@ -525,7 +525,7 @@ impl ToonApp {
             crate::rulers_ui::demo(&mut app);
         }
         if let Some(target) = cli.context_menu.as_deref() {
-            crate::context_menus::prepare_launch(&mut app, ctx, target);
+            crate::context_menus::prepare_launch(&mut app, target);
         }
         if let Some(p) = app.path.clone() {
             crate::start_screen::note(&mut app, &p);
@@ -1263,7 +1263,7 @@ impl ToonApp {
         let ctx = ui.ctx().clone();
         self.textures.begin_frame();
         self.shortcuts(&ctx);
-        crate::context_menus::rename_window(self, &ctx);
+        crate::context_menus::frame(self, &ctx);
         egui::Panel::top("menu").show(ui, |ui| self.menu_bar(ui));
         egui::Panel::top("top-bar").show(ui, |ui| crate::top_bar::show(self, ui));
         egui::Panel::top("tool-options").show(ui, |ui| crate::panels::tool_options(self, ui));
