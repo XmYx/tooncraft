@@ -343,27 +343,8 @@ fn flyout(app: &mut ToonApp, ui: &mut egui::Ui, g: usize) {
         return;
     }
     ui.separator();
-    let v = shown(app, g);
-    let kind = v.tool().brush();
-    let reset = ui
-        .add_enabled(kind.is_some(), egui::Button::new(tl!("Reset Tool Settings")))
-        .on_hover_text(tlf!("{tool}: size, opacity, smoothing and the rest back to the first settings", tool = v.label()))
-        .on_disabled_hover_text(tl!("Only brush tools have settings to reset"));
-    if reset.clicked()
-        && let Some(kind) = kind
-    {
-        let smoothing = app.preferences.prefs.smoothing;
-        let b = app.brush_mut(kind);
-        *b = tooncraft_brush::Brush::preset(kind);
-        b.smoothing.average = smoothing;
-        app.set_status(tlf!("{tool} settings reset", tool = v.label()));
-        ui.close();
-    }
-    if ui.button(tl!("Shortcut…")).on_hover_text(tl!("Change this tool's key in the shortcut editor")).clicked() {
-        app.keys.filter = crate::keys::label(&v.key_id());
-        app.show_shortcuts = true;
-        ui.close();
-    }
+    let t = shown(app, g).tool();
+    crate::context_menus::tool_button_extras(app, ui, t);
 }
 
 /// The current and previous colour, overlapping; a click on the previous one swaps back.

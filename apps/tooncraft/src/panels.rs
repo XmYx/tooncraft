@@ -383,7 +383,7 @@ pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
                     if resp.clicked() {
                         select = Some(li);
                     }
-                    if resp.secondary_clicked() || resp.context_menu_opened() {
+                    if crate::context_menus::wants_menu(ui, &resp, if li == app.layer { "layer" } else { "" }) {
                         menus.push((li, resp));
                     }
                 }
@@ -401,7 +401,8 @@ pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
         app.run(c);
     }
     for (li, resp) in menus {
-        resp.context_menu(|ui| crate::context_menus::layer(app, ui, li));
+        let launch = if li == app.layer { "layer" } else { "" };
+        crate::context_menus::attach(ui, &resp, launch, |ui| crate::context_menus::layer(app, ui, li));
     }
     ui.separator();
     layer_properties(app, ui);

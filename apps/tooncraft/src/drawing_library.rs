@@ -176,9 +176,13 @@ fn shot_items(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State) -> Option<Op
                 }
             }
             let text = tlf!("{name} ({n} frames)", name = name, n = len);
-            if ui.selectable_label(st.chosen == i, text).clicked() {
+            let r = ui.selectable_label(st.chosen == i, text);
+            if r.clicked() || r.secondary_clicked() {
                 st.chosen = i;
             }
+            // right-click, or the Menu key / Shift+F10 on the focused item
+            let launch = if st.chosen == i { "library" } else { "" };
+            crate::context_menus::attach(ui, &r, launch, |ui| crate::context_menus::library_item(app, ui, i));
         });
     }
     ui.separator();
