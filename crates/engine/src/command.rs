@@ -109,6 +109,18 @@ pub enum Command {
     SetPalettes {
         palettes: Vec<tooncraft_doc::palette::Palette>,
     },
+    /// Change a swatch of the shot's palette `palette` (0-based): its colour, and its name when
+    /// given. `update_paint` (default true): paint in the old colour on every unlocked layer takes
+    /// the new one, opacity kept. One undo step.
+    EditSwatch {
+        palette: usize,
+        swatch: usize,
+        rgb: [u8; 3],
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default = "yes")]
+        update_paint: bool,
+    },
     /// Save the layer's cells `from..=to` (0-based frames, either order) as a drawing-library item
     /// called `name`, with its own copies of the drawings. One undo step.
     SaveToLibrary {
@@ -138,6 +150,19 @@ pub enum Command {
     MoveLibraryItem {
         item: usize,
         to: usize,
+    },
+    /// Write library item `item` to `path` as a drawing file (`.toondrawings`) to use in other
+    /// shots. Not an undo step.
+    SaveLibraryFile {
+        item: usize,
+        path: String,
+    },
+    /// Add the drawing file at `path` to the library; drawings made for another canvas size are
+    /// centred as `placement` says (default: fit). One undo step.
+    OpenLibraryFile {
+        path: String,
+        #[serde(default)]
+        placement: crate::import::Placement,
     },
     /// In every drawing of the layer, give the pixels close to `from` (within `tolerance` per
     /// channel) the colour `to`, keeping their opacity (antialiased edges stay soft). One undo
@@ -1030,11 +1055,14 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.touch();
             Ok(())
         }
+        Command::EditSwatch { palette, swatch, rgb, name, update_paint } => crate::drawing::edit_swatch(e, palette, swatch, rgb, name, update_paint),
         Command::SaveToLibrary { layer, from, to, name } => crate::drawing_library::save(e, layer, from, to, &name),
         Command::InsertFromLibrary { item, layer, frame, linked } => crate::drawing_library::insert(e, item, layer, frame, linked),
         Command::RenameLibraryItem { item, name } => crate::drawing_library::rename(e, item, &name),
         Command::RemoveLibraryItem { item } => crate::drawing_library::remove(e, item),
         Command::MoveLibraryItem { item, to } => crate::drawing_library::move_item(e, item, to),
+        Command::SaveLibraryFile { item, path } => crate::drawing_library::save_file(e, item, &path),
+        Command::OpenLibraryFile { path, placement } => crate::drawing_library::open_file(e, &path, placement),
         Command::RecolourLayer { layer, from, to, tolerance } => crate::drawing::recolour(e, layer, from, to, tolerance),
         Command::SetSymmetry { symmetry } => {
             e.project.symmetry = symmetry.sanitized();

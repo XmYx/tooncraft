@@ -18,7 +18,7 @@ mod command;
 mod curves_tests;
 pub mod demo;
 pub mod drawing;
-mod drawing_library;
+pub mod drawing_library;
 #[cfg(test)]
 mod drawing_tests;
 mod effects;
@@ -92,6 +92,8 @@ pub enum EngineError {
     NotVector,
     #[error("layer “{0}” has its transparency locked, so it cannot take a fill")]
     TransparencyLocked(String),
+    #[error("there is no swatch {1} in palette {0}")]
+    NoSwatch(usize, usize),
     #[error("there is no library item {0}")]
     NoLibraryItem(usize),
 }
@@ -516,6 +518,8 @@ mod history_tests;
 mod layerops_tests;
 #[cfg(test)]
 mod library_tests;
+#[cfg(test)]
+mod swatch_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
