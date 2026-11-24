@@ -130,7 +130,7 @@ pub(crate) fn to_canvas_pen(view_rotation: f32, flip: bool, tilt_x: f32, tilt_y:
 fn begin(app: &mut ToonApp, s: Sample) {
     let mut brush = app.brush();
     // Flipping the pen to its eraser end erases with the eraser's settings.
-    if app.tablet.pen().is_some_and(|p| p.eraser) {
+    if app.tablet.eraser_end() {
         brush = tooncraft_brush::Brush { color: brush.color, ..app.brushes[4] };
     }
     match app.engine.begin_stroke(app.layer, app.frame, brush) {
@@ -160,6 +160,8 @@ fn end(app: &mut ToonApp) {
 fn touch_gestures(app: &mut ToonApp, ui: &egui::Ui, events: &[Event], rect: Rect) -> Vec<usize> {
     use tooncraft_engine::touch::{Gesture, Phase};
     let now = ui.input(|i| i.time);
+    // only a real tablet reading: with Windows Ink the pen itself arrives as touches, and the
+    // pointer hooks do not say which touch is the pen, so those touches must still draw
     if app.tablet.pen().is_some() {
         app.touch.pen_seen(now);
     }
@@ -203,6 +205,35 @@ fn touch_gestures(app: &mut ToonApp, ui: &egui::Ui, events: &[Event], rect: Rect
     rejected
 }
 
+/// Pen side buttons (Preferences ▸ Pen): while the pen is near, a press of a mapped button over
+/// the canvas runs its command. Returns, per button, whether it is mapped right now (so the
+/// middle button does not also pan and the right one does not open the menu).
+fn side_buttons(app: &mut ToonApp, ui: &egui::Ui, events: &[Event], hovered: bool) -> [bool; 2] {
+    use crate::tablet::{SideButton, side_button_command};
+    let near = app.tablet.pen_near();
+    let buttons = app.preferences.prefs.pen_buttons.clone();
+    let mapped = SideButton::ALL.map(|b| near && side_button_command(&buttons, b).is_some());
+    let mut pressed: Vec<SideButton> = app.tablet.take_press().into_iter().collect();
+    for e in events {
+        if let Event::PointerButton { button, pressed: true, .. } = e {
+            match button {
+                PointerButton::Middle => pressed.push(SideButton::Lower),
+                PointerButton::Secondary => pressed.push(SideButton::Upper),
+                _ => {}
+            }
+        }
+    }
+    if !hovered || !near || app.engine.is_stroking() {
+        return mapped;
+    }
+    for b in pressed {
+        if let Some(id) = side_button_command(&buttons, b) {
+            crate::commands::run(app, ui.ctx(), id);
+        }
+    }
+    mapped
+}
+
 fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Response) {
     let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
     let (events, mods, hover, space, scroll, zoom, multi) =
@@ -227,8 +258,10 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             app.view.rotate(m.rotation_delta);
         }
     }
+    // a pen side button mapped to a command runs it instead of panning or opening the menu
+    let mapped = side_buttons(app, ui, &events, hovered);
     let panning = space || app.tool == Tool::Hand;
-    if resp.dragged_by(PointerButton::Middle) || (panning && resp.dragged_by(PointerButton::Primary)) {
+    if (resp.dragged_by(PointerButton::Middle) && !mapped[0]) || (panning && resp.dragged_by(PointerButton::Primary)) {
         app.view.pan += resp.drag_delta();
         ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
         return;
@@ -811,7 +844,12 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             (false, None) => Some((size.x / 2.0, size.y / 2.0)),
         };
         crate::timeline::keyboard_menu(ui, &resp, now, |ui| crate::context_menus::canvas(app, ui, kat));
-        resp.context_menu(|ui| crate::context_menus::canvas(app, ui, at));
+        // a pen's upper side button mapped to a command does not also open the menu
+        let upper_mapped =
+            app.tablet.pen_near() && crate::tablet::side_button_command(&app.preferences.prefs.pen_buttons, crate::tablet::SideButton::Upper).is_some();
+        if !upper_mapped {
+            resp.context_menu(|ui| crate::context_menus::canvas(app, ui, at));
+        }
     }
     // ----- drawing -----
     let pal = crate::theme::palette(app.light_theme);

@@ -351,7 +351,13 @@ pub fn autosave_dir() -> Option<PathBuf> {
 
 impl ToonApp {
     pub fn new(cc: &eframe::CreationContext<'_>, cli: Cli) -> Self {
-        Self::with_context(&cc.egui_ctx, cli)
+        #[allow(unused_mut)]
+        let mut app = Self::with_context(&cc.egui_ctx, cli);
+        #[cfg(target_os = "windows")]
+        if app.preferences.prefs.wintab {
+            app.tablet.start_wintab(cc);
+        }
+        app
     }
 
     /// Build the app on a context (also used by the UI tests).
@@ -1192,6 +1198,9 @@ impl ToonApp {
 
     /// Per-frame logic outside drawing: playback clock, autosave.
     pub fn tick(&mut self, ctx: &egui::Context) {
+        // WinTab's queued pen packets (Windows, WinTab mode); nothing elsewhere
+        let focused = ctx.input(|i| i.focused);
+        self.tablet.poll(focused);
         // long shots: drawings far from the playhead go to the page file
         if !self.engine.is_stroking()
             && let Err(e) = self.engine.page(self.frame)

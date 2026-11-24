@@ -152,6 +152,7 @@ tooncraft	Cancel Distort
 tooncraft	Canvas	
 tooncraft	Canvas Size	
 tooncraft	Canvas Size…	
+tooncraft	Canvas menu	
 tooncraft	Canvas weave	
 tooncraft	Canvas zoom	
 tooncraft	Canvas: {layer}, frame {frame}	
@@ -674,6 +675,7 @@ tooncraft	Loop
 tooncraft	Loop in	
 tooncraft	Loop out	
 tooncraft	Loop playback	
+tooncraft	Lower button (middle click)	
 tooncraft	Luminosity	
 tooncraft	Magic Wand	
 tooncraft	Magic wand	
@@ -892,6 +894,7 @@ tooncraft	Palette {n}
 tooncraft	Palette: {name}	
 tooncraft	Palettes	
 tooncraft	Pan	
+tooncraft	Pan the view	
 tooncraft	Panels become a locked reference layer with their timings and camera moves	
 tooncraft	Paper	
 tooncraft	Paper colour	
@@ -912,8 +915,10 @@ tooncraft	Peg “{name}”
 tooncraft	Pegs	
 tooncraft	Pen	
 tooncraft	Pen down: arrow keys draw, Enter lifts	
+tooncraft	Pen input: {backend}	
 tooncraft	Pen lifted	
 tooncraft	Pen rotation	
+tooncraft	Pen side buttons over the canvas (while the pen is near)	
 tooncraft	Pencil	
 tooncraft	Pencils	
 tooncraft	Perspective, one point	
@@ -998,6 +1003,7 @@ tooncraft	Re-time Layer
 tooncraft	Re-time the selected frames (or the whole layer)	
 tooncraft	Re-timed on {n}s; no drawing was deleted	
 tooncraft	Reach	
+tooncraft	Read the pen through WinTab (turn Windows Ink off in the tablet driver; on restart)	
 tooncraft	Recent	
 tooncraft	Recent colour #{hex}	
 tooncraft	Recent colours	
@@ -1375,6 +1381,7 @@ tooncraft	Unsaved changes
 tooncraft	Up	
 tooncraft	Update Marker	
 tooncraft	Update paint in this colour	
+tooncraft	Upper button (right click)	
 tooncraft	Use Brush	
 tooncraft	Use Colour	
 tooncraft	Use brush {name}	

@@ -545,12 +545,12 @@ Weight: 4
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
 | Pen pressure and tilt on X11 and macOS | all | D | S | Shared photocraft-tablet reader, also under Xwayland |
-| Pen pressure and tilt on Windows | all | P | S | Windows Ink touch force only; no tilt |
+| Pen pressure and tilt on Windows | all | P | S | Windows Ink gives pressure (as touch force), the eraser end and the barrel button; Preferences ▸ Pen ▸ WinTab reads pressure, tilt and rotation through the shared WinTab backend. Built and type-checked for Windows, not yet run on Windows hardware |
 | Pen input in Wayland-native windows | all | M | M | |
 | Pen eraser end switches tool | TV CS | D | S | |
-| Pen side buttons mapped to actions | TV CS | M | S | |
+| Pen side buttons mapped to actions | TV CS | D | S | Preferences ▸ Pen: each side button (sent as a middle or right click on X11 and macOS, the barrel button through the pointer hooks on Windows) runs any command over the canvas while the pen is near, instead of panning or opening the menu |
 | Touch gestures: pinch zoom and twist, taps for undo and redo | CS PD | D | S | Pinch and twist; a two-finger tap undoes and a three-finger tap redoes (the stroke the first finger began is dropped) |
-| Palm rejection while the pen is near | CS PD | P | S | Touches are ignored while the pen is seen and for 1.2 s after; the pen is seen through the tablet reader (X11, Xwayland, macOS), so not yet on Windows or Wayland-native windows |
+| Palm rejection while the pen is near | CS PD | P | S | Touches are ignored while the pen is seen and for 1.2 s after; the pen is seen through the tablet reader (X11, Xwayland, macOS, Windows in WinTab mode). Not with Windows Ink (the pointer hooks do not say which touch is the pen) or in Wayland-native windows |
 | Global pressure curve and calibration | TV CS PD | D | S | Preferences ▸ Pen (`--open pen`): one curve for every brush, applied to pen and touch pressure (the mouse keeps its own setting); a calibration pad records test strokes and Fit Curve to My Hand makes the hardest press (95th percentile) full pressure |
 | End-to-end stroke latency measured | — | P | S | Engine latency per sample is measured; input-to-screen is not |
 | iPad and Android tablet builds | CS PD | O | XL | Out of scope: the suite targets desktop Linux, macOS and Windows |
