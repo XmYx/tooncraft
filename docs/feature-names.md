@@ -54,6 +54,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Grain texture, Grain from Image, Canvas weave, Speckle, Clouds | Descriptive | Use |
 | Wet mixing, Colour pickup, Watercolour, Smudge, Smear fade | Generic painting words | Use (common) |
 | Undo History, Step, Recent colours, Blur, Fine blur | Generic words | Use (common) |
+| Reference Viewer, Open Image, Fit | Generic words | Use (common) |
 | Two-finger tap (undo), three-finger tap (redo), palm rejection | Generic touch terms | Use (common) |
 | Markers, Add Marker, Next Marker, Timecode, Ping-pong, Play Selection, Zoom In / Out, Drawing names, Set Name, Show {name} here | Generic timeline words (marker, timecode and ping-pong are standard terms) | Use (common) |
 | Sound, Import Sound, Start Sound Here | Generic | Use |

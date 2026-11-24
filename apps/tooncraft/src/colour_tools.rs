@@ -21,6 +21,8 @@ pub struct State {
     pub window: bool,
     /// The swatch being edited: (shot palette index, swatch index, name, colour, update the paint).
     pub edit: Option<SwatchEdit>,
+    /// The reference viewer window.
+    pub viewer: crate::reference_viewer::Viewer,
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -87,6 +87,9 @@ mod pegs;
 mod pen_ui_tests;
 mod pipeline;
 mod preferences;
+mod reference_viewer;
+#[cfg(test)]
+mod reference_viewer_ui_tests;
 mod rulers_ui;
 #[cfg(test)]
 mod rulers_ui_tests;

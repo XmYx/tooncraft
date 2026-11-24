@@ -29,6 +29,7 @@ tooncraft	A layer below for colour that follows this layer's drawings and timing
 tooncraft	A new layer	
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
 tooncraft	A palette holds up to {n} commands	
+tooncraft	A picture to draw from, with an eyedropper	
 tooncraft	A short bouncing-ball shot to try things on	
 tooncraft	A shot keeps at least one layer	
 tooncraft	A take holds at most {n} keys: the rest was not recorded	
@@ -246,6 +247,7 @@ tooncraft	Could not keep the workspace: {error}
 tooncraft	Could not make the folder {dir}: {error}	
 tooncraft	Could not open the effects: {error}	
 tooncraft	Could not open the palette: {error}	
+tooncraft	Could not open the reference: {error}	
 tooncraft	Could not open {file}: {error}	
 tooncraft	Could not save the effects: {error}	
 tooncraft	Could not save the palette: {error}	
@@ -420,6 +422,7 @@ tooncraft	Finish the stroke first
 tooncraft	First / last frame	
 tooncraft	First Frame	
 tooncraft	First frame	
+tooncraft	Fit	
 tooncraft	Fit / actual size	
 tooncraft	Fit Curve to My Hand	
 tooncraft	Fit inside the canvas	
@@ -825,6 +828,7 @@ tooncraft	No pen readings yet (a mouse gives none).
 tooncraft	No pixels of that colour on the layer	
 tooncraft	No pixels of this colour in the drawing	
 tooncraft	No recent shots	
+tooncraft	No reference picture: open one	
 tooncraft	No room for more palettes	
 tooncraft	No settings folder on this system, so My Drawings is not available.	
 tooncraft	No shape yet: nothing is kept	
@@ -880,9 +884,11 @@ tooncraft	Opacity jitter
 tooncraft	Opacity per step	
 tooncraft	Open (A I)	
 tooncraft	Open Drawing File…	
+tooncraft	Open Image…	
 tooncraft	Open Palette…	
 tooncraft	Open Recent	
 tooncraft	Open Stack…	
+tooncraft	Open a picture to draw from	
 tooncraft	Open the Demo Shot	
 tooncraft	Open the menu on a brush	
 tooncraft	Open the menu on a library item	
@@ -966,6 +972,7 @@ tooncraft	Pick Colour Here
 tooncraft	Pick another colour first	
 tooncraft	Pick colour	
 tooncraft	Picked #{hex}	
+tooncraft	Picked #{hex} from the reference	
 tooncraft	Picker	
 tooncraft	Picker Window	
 tooncraft	Pin This Frame	
@@ -1070,7 +1077,10 @@ tooncraft	Redo up to here
 tooncraft	Redo {action}	
 tooncraft	Reference	
 tooncraft	Reference Image…	
+tooncraft	Reference Viewer	
 tooncraft	Reference image added under the drawing, locked	
+tooncraft	Reference picture {name}: click, or arrows and Enter, to pick a colour	
+tooncraft	Reference {name} open: click it to pick a colour	
 tooncraft	Reload	
 tooncraft	Reload Library	
 tooncraft	Remove	
@@ -1511,6 +1521,7 @@ tooncraft	not set
 tooncraft	of {total}	
 tooncraft	peg key	
 tooncraft	stroke {ms} ms	
+tooncraft	the file is larger than {mb} MB	
 tooncraft	the file is too large	
 tooncraft	to	
 tooncraft	x {x}  y {y}	
