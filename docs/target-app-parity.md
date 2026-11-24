@@ -379,8 +379,8 @@ Weight: 7
 | Motion blur from movement | TV TB | D | M | Motion blur from movement: the layer's drawing averaged over 2–16 points of a shutter up to 2 frames wide, along its peg and camera movement |
 | Distortions: ripple, wave, turbulence, displacement | TV TB | D | M | Ripple, wave and turbulence, animated over frames; Displace by layer moves the picture by another layer's colour or brightness |
 | Lens looks: vignette, chromatic aberration, flares | TV TB PD | D | S | Vignette, colour fringe and a keyframable lens flare (core, ring, rays, ghosts) that lights a layer even without a drawing |
-| Tone and highlight from mattes, lighting from normals | TV TB | M | L | |
-| Particles (rain, snow, sparks) | TV TB | M | L | |
+| Tone and highlight from mattes, lighting from normals | TV TB | D | L | Tone from a matte (shade or highlight where another layer covers the drawing, offset and softened) and Light from normals (from a normal-map layer or the drawing's own rounded shape; direction, height, roundness, colour) |
+| Particles (rain, snow, sparks) | TV TB | D | L | Particles: rain, snow, sparks and dust from an emitter rectangle with rate, life, speed, direction, spread, gravity, size and colour; each frame is worked out on its own (up to 20 000 alive), so renders repeat exactly |
 | Time effects: trails, frame blending, time remap | TV TB PD | D | M | Trails (up to 16 earlier pictures, fading), Frame blending (mix of the next frame) and Time remap (speed and start, keyable for ramps, reverse and holds) |
 | Transitions between cuts | TV TB PD | D | S | Transition effect: a layer comes in or leaves over a number of frames by dissolve, wipe, iris or push; a cut between two layers is one going out as the other comes in |
 | Effect presets and saved stacks | TV TB | D | S | Five built-in looks added as one undo step; any layer's stack saved to and opened from a .toonfx file |

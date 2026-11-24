@@ -18,8 +18,10 @@
 mod blur;
 mod colour;
 mod distance;
+mod light;
 mod look;
 mod par;
+mod particles;
 mod shape;
 mod time;
 
@@ -64,6 +66,23 @@ pub enum TransitionStyle {
     /// Sliding in along the angle.
     Push,
 }
+
+/// What particles look like and how they move.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ParticleStyle {
+    /// Streaks falling along their direction.
+    #[default]
+    Rain,
+    /// Soft flakes drifting from side to side.
+    Snow,
+    /// Bright streaks fading out over their life.
+    Sparks,
+    /// Faint twinkling motes.
+    Dust,
+}
+
+pub use particles::MAX_LIVE as MAX_PARTICLES;
 
 /// Most samples of a motion blur.
 pub const MAX_BLUR_SAMPLES: u32 = 16;
@@ -172,6 +191,44 @@ pub enum EffectKind {
     /// dissolve, wipe or push along `angle` degrees across `size` pixels, or an iris opening
     /// to radius `size` from `x`, `y`.
     Transition { style: TransitionStyle, start: u32, length: u32, out: bool, angle: f32, x: f32, y: f32, size: f32 },
+    /// Particles from the rectangle `x`, `y`, `width`, `height` (canvas pixels): `rate` new ones
+    /// a frame (0…500), each living `life` frames (1…600), moving `speed` pixels a frame at
+    /// `angle` degrees ± `spread` / 2, pulled down by `gravity` pixels a frame², `size` pixels
+    /// wide (0.5…64), in `colour` at `opacity`. Rendered from the frame alone (no simulation
+    /// state), so every frame is the same each time.
+    Particles {
+        style: ParticleStyle,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        rate: f32,
+        life: u32,
+        speed: f32,
+        angle: f32,
+        spread: f32,
+        gravity: f32,
+        size: f32,
+        colour: [u8; 3],
+        opacity: f32,
+        seed: u32,
+    },
+    /// Tone (multiply `colour`) or, with `highlight`, light (screen `colour`) the drawing where
+    /// another layer (`layer`, its id; a painted shadow or light shape) covers it, moved by
+    /// `offset_x`, `offset_y` pixels and softened by `softness` pixels, `amount` of the way.
+    MatteTone { layer: u64, colour: [u8; 3], amount: f32, offset_x: f32, offset_y: f32, softness: f32, highlight: bool },
+    /// Light the drawing from its normals: from the normal-map layer `normals` (its id), or from
+    /// the drawing's own shape rounded over `depth` pixels. The light comes from `angle` degrees
+    /// across the picture and `elevation` degrees above it, `intensity` 0…2, tinted `colour`.
+    NormalLight {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        normals: Option<u64>,
+        angle: f32,
+        elevation: f32,
+        depth: f32,
+        intensity: f32,
+        colour: [u8; 3],
+    },
 }
 
 impl EffectKind {
@@ -229,6 +286,25 @@ impl EffectKind {
             EffectKind::Trails { count: 4, step: 1, fade: 0.6 },
             EffectKind::FrameBlend { amount: 0.5 },
             EffectKind::TimeRemap { speed: 0.5, offset: 0.0 },
+            EffectKind::Particles {
+                style: ParticleStyle::Snow,
+                x: -w * 0.1,
+                y: -20.0,
+                width: w * 1.2,
+                height: 10.0,
+                rate: 6.0,
+                life: 120,
+                speed: 2.0,
+                angle: 90.0,
+                spread: 30.0,
+                gravity: 0.0,
+                size: 5.0,
+                colour: [255, 255, 255],
+                opacity: 0.9,
+                seed: 1,
+            },
+            EffectKind::MatteTone { layer: 0, colour: [120, 110, 160], amount: 0.6, offset_x: 0.0, offset_y: 0.0, softness: 2.0, highlight: false },
+            EffectKind::NormalLight { normals: None, angle: 225.0, elevation: 45.0, depth: 10.0, intensity: 0.8, colour: [255, 245, 220] },
             EffectKind::Transition {
                 style: TransitionStyle::Wipe,
                 start: 0,
@@ -277,6 +353,9 @@ impl EffectKind {
             EffectKind::FrameBlend { .. } => "frame_blend",
             EffectKind::TimeRemap { .. } => "time_remap",
             EffectKind::Transition { .. } => "transition",
+            EffectKind::Particles { .. } => "particles",
+            EffectKind::MatteTone { .. } => "matte_tone",
+            EffectKind::NormalLight { .. } => "normal_light",
         }
     }
 
@@ -293,7 +372,8 @@ impl EffectKind {
     /// The layer (id) this effect reads, if it reads one.
     pub fn source_layer(&self) -> Option<u64> {
         match self {
-            EffectKind::Displace { layer, .. } => Some(*layer),
+            EffectKind::Displace { layer, .. } | EffectKind::MatteTone { layer, .. } => Some(*layer),
+            EffectKind::NormalLight { normals, .. } => *normals,
             _ => None,
         }
     }
@@ -307,7 +387,7 @@ impl EffectKind {
     /// Does this effect make pixels of its own, so it runs on a layer even where the layer has no
     /// drawing (a lens flare)?
     pub fn generates(&self) -> bool {
-        matches!(self, EffectKind::LensFlare { .. })
+        matches!(self, EffectKind::LensFlare { .. } | EffectKind::Particles { .. })
     }
 
     /// Every number clamped to its range (NaN becomes the range's low end or a neutral value).
@@ -422,6 +502,44 @@ impl EffectKind {
                 y: c(y, -65536.0, 65536.0, 0.0),
                 size: c(size, 1.0, 65536.0, 1.0),
             },
+            Particles { style, x, y, width, height, rate, life, speed, angle, spread, gravity, size, colour, opacity, seed } => {
+                let life = life.clamp(1, 600);
+                Particles {
+                    style,
+                    x: c(x, -65536.0, 65536.0, 0.0),
+                    y: c(y, -65536.0, 65536.0, 0.0),
+                    width: c(width, 0.0, 65536.0, 0.0),
+                    height: c(height, 0.0, 65536.0, 0.0),
+                    // never more than MAX_PARTICLES alive at once
+                    rate: c(rate, 0.0, 500.0, 0.0).min(MAX_PARTICLES as f32 / life as f32),
+                    life,
+                    speed: c(speed, 0.0, 200.0, 0.0),
+                    angle: c(angle, -3600.0, 3600.0, 90.0),
+                    spread: c(spread, 0.0, 360.0, 0.0),
+                    gravity: c(gravity, -10.0, 10.0, 0.0),
+                    size: c(size, 0.5, 64.0, 1.0),
+                    colour,
+                    opacity: c(opacity, 0.0, 1.0, 1.0),
+                    seed,
+                }
+            }
+            MatteTone { layer, colour, amount, offset_x, offset_y, softness, highlight } => MatteTone {
+                layer,
+                colour,
+                amount: c(amount, 0.0, 1.0, 0.0),
+                offset_x: c(offset_x, -500.0, 500.0, 0.0),
+                offset_y: c(offset_y, -500.0, 500.0, 0.0),
+                softness: c(softness, 0.0, 100.0, 0.0),
+                highlight,
+            },
+            NormalLight { normals, angle, elevation, depth, intensity, colour } => NormalLight {
+                normals,
+                angle: c(angle, -3600.0, 3600.0, 0.0),
+                elevation: c(elevation, 5.0, 90.0, 45.0),
+                depth: c(depth, 1.0, 100.0, 1.0),
+                intensity: c(intensity, 0.0, 2.0, 0.0),
+                colour,
+            },
         }
     }
 
@@ -500,6 +618,24 @@ impl EffectKind {
             (Trails { count, step, fade: a }, Trails { fade: b, .. }) => Trails { count: *count, step: *step, fade: l(*a, *b) },
             (FrameBlend { amount: a }, FrameBlend { amount: b }) => FrameBlend { amount: l(*a, *b) },
             (TimeRemap { speed: a, offset: ao }, TimeRemap { speed: b, offset: bo }) => TimeRemap { speed: l(*a, *b), offset: l(*ao, *bo) },
+            (
+                MatteTone { layer, colour: ac, amount: aa, offset_x: ax, offset_y: ay, softness: asf, highlight },
+                MatteTone { colour: bc, amount: ba, offset_x: bx, offset_y: by, softness: bs, .. },
+            ) => MatteTone {
+                layer: *layer,
+                colour: lc(*ac, *bc),
+                amount: l(*aa, *ba),
+                offset_x: l(*ax, *bx),
+                offset_y: l(*ay, *by),
+                softness: l(*asf, *bs),
+                highlight: *highlight,
+            },
+            (
+                NormalLight { normals, angle: aa, elevation: ae, depth: ad, intensity: ai, colour: ac },
+                NormalLight { angle: ba, elevation: be, depth: bd, intensity: bi, colour: bc, .. },
+            ) => {
+                NormalLight { normals: *normals, angle: l(*aa, *ba), elevation: l(*ae, *be), depth: l(*ad, *bd), intensity: l(*ai, *bi), colour: lc(*ac, *bc) }
+            }
             (ColourKey { colour: ac, tolerance: at, softness: asf }, ColourKey { colour: bc, tolerance: bt, softness: bs }) => {
                 ColourKey { colour: lc(*ac, *bc), tolerance: l(*at, *bt), softness: l(*asf, *bs) }
             }
@@ -717,6 +853,10 @@ pub fn reach(kind: &EffectKind) -> Option<u32> {
         EffectKind::MotionBlur { .. } | EffectKind::Trails { .. } | EffectKind::FrameBlend { .. } | EffectKind::TimeRemap { .. } => Some(0),
         EffectKind::Transition { style: TransitionStyle::Push, .. } => None,
         EffectKind::Transition { .. } => Some(0),
+        EffectKind::Particles { .. } => None,
+        EffectKind::MatteTone { offset_x, offset_y, softness, .. } => Some(r(offset_x.abs().max(offset_y.abs()) + softness * 1.5 + 2.0)),
+        // the shape's height is blurred over `depth / 2` and read one pixel either side
+        EffectKind::NormalLight { depth, .. } => Some(r(depth * 1.5 + 2.0)),
         EffectKind::Displace { amount_x, amount_y, .. } => Some(r(amount_x.abs().max(amount_y.abs()))),
     }
 }
@@ -833,6 +973,34 @@ fn apply_at(img: &mut RgbaImage, origin: (u32, u32), kind: &EffectKind, frame: u
         }
         // worked out by the compositor from other frames
         EffectKind::MotionBlur { .. } | EffectKind::Trails { .. } | EffectKind::FrameBlend { .. } | EffectKind::TimeRemap { .. } => {}
+        EffectKind::Particles { style, x, y, width, height, rate, life, speed, angle, spread, gravity, size, colour, opacity, seed } => particles::draw(
+            img,
+            origin,
+            &particles::Emitter {
+                style: *style,
+                rect: (*x, *y, *width, *height),
+                rate: *rate,
+                life: *life,
+                speed: *speed,
+                angle: *angle,
+                spread: *spread,
+                gravity: *gravity,
+                size: *size,
+                colour: *colour,
+                opacity: *opacity,
+                seed: *seed,
+            },
+            frame,
+        ),
+        EffectKind::MatteTone { layer, colour, amount, offset_x, offset_y, softness, highlight } => {
+            if let Some((_, map)) = inputs.layers.iter().find(|(id, _)| id == layer) {
+                light::matte_tone(img, map, *colour, *amount, (*offset_x, *offset_y), *softness, *highlight)
+            }
+        }
+        EffectKind::NormalLight { normals, angle, elevation, depth, intensity, colour } => {
+            let map = normals.and_then(|n| inputs.layers.iter().find(|(id, _)| *id == n)).map(|(_, m)| m);
+            light::normal_light(img, map, &light::Light { angle: *angle, elevation: *elevation, depth: *depth, intensity: *intensity, colour: *colour })
+        }
         EffectKind::Transition { style, start, length, out, angle, x, y, size } => time::apply(
             img,
             origin,
