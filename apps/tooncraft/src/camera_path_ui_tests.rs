@@ -123,3 +123,26 @@ fn away_from_the_handles_the_camera_is_left_alone() {
     drag(&mut h, a, a + egui::vec2(50.0, 50.0), false);
     assert_eq!(keys(&h), before);
 }
+
+#[test]
+fn undo_or_another_tool_mid_drag_drops_the_preview_and_letting_go_sets_nothing() {
+    for (mods, key, what) in [(egui::Modifiers::COMMAND, Key::Z, "undo"), (egui::Modifiers::NONE, Key::P, "the Pencil tool")] {
+        let mut h = harness();
+        let from = screen(&h, 800.0, 400.0);
+        let to = from + egui::vec2(40.0, 25.0);
+        h.drag_at(from);
+        h.run();
+        h.hover_at(to);
+        h.run();
+        assert!(h.state().camera_drag.is_some(), "dragging the frame 10 key");
+        h.key_press_modifiers(mods, key);
+        h.run();
+        let after_key = keys(&h);
+        assert!(h.state().camera_drag.is_none(), "{what} drops the drag");
+        assert!(crate::camera_path::previewed(h.state()).is_none(), "{what}: no previewed camera is left on the canvas");
+        h.drop_at(to);
+        h.run();
+        h.run();
+        assert_eq!(keys(&h), after_key, "{what}: letting go afterwards sets no key");
+    }
+}

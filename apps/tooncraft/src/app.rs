@@ -1000,6 +1000,7 @@ impl ToonApp {
 
     pub fn replace_engine(&mut self, engine: Engine, path: Option<PathBuf>) {
         self.engine = engine;
+        self.camera_drag = None;
         self.path = path;
         self.frame = 0;
         self.layer = self.engine.project.layers.len().saturating_sub(1);
@@ -1228,6 +1229,7 @@ impl ToonApp {
         } else {
             self.stats.last_shown = None;
         }
+        crate::camera_path::settle(self);
         self.autosave_tick();
         // Sound: decode when the soundtrack changed, follow playback, scrub on frame changes.
         self.sound.sync(&self.engine.project);

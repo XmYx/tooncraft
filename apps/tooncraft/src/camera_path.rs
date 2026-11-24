@@ -23,6 +23,8 @@ pub struct CameraDrag {
     /// Canvas pixels where it began and where the pointer is now.
     pub from: (f32, f32),
     pub to: (f32, f32),
+    /// The project's change count when the drag began.
+    pub changes: u64,
 }
 
 impl CameraDrag {
@@ -52,12 +54,17 @@ pub fn path(app: &ToonApp) -> Vec<(u32, f32, f32)> {
     let (w, h) = (p.width(), p.height());
     let preview = previewed(app);
     let cam = preview.as_ref().unwrap_or(&p.camera);
-    (0..p.length().min(MAX_PATH))
-        .map(|f| {
-            let k = cam.at(f, w, h);
-            (f, k.x, k.y)
-        })
-        .collect()
+    cam.sweep(p.length().min(MAX_PATH), w, h).into_iter().map(|k| (k.frame, k.x, k.y)).collect()
+}
+
+/// Once per UI frame: a drag ends without a trace when the tool changed or the project did
+/// (an undo, an edit from elsewhere, another file), so no stale camera is shown outside undo.
+pub fn settle(app: &mut ToonApp) {
+    if let Some(d) = app.camera_drag
+        && (app.tool != crate::app::Tool::Transform || app.engine.changes() != d.changes)
+    {
+        app.camera_drag = None;
+    }
 }
 
 /// The handle under `at` (screen): the current frame's cross, or a key's square. Returns the key
@@ -84,7 +91,7 @@ pub fn input(app: &mut ToonApp, ui: &Ui, resp: &egui::Response, canvas: &dyn Fn(
         let Some(p) = ui.input(|i| i.pointer.press_origin()).or(resp.interact_pointer_pos()) else { return false };
         let Some(key) = grab(app, p, screen) else { return false };
         let at = canvas(p);
-        app.camera_drag = Some(CameraDrag { key, from: at, to: at });
+        app.camera_drag = Some(CameraDrag { key, from: at, to: at, changes: app.engine.changes() });
     }
     if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
         app.camera_drag = None;
