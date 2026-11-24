@@ -57,18 +57,30 @@ fn entry(i: usize) -> String {
 
 pub fn to_bytes(f: &DrawingFile) -> Result<Vec<u8>> {
     let (w, h) = f.drawings.first().map(|d| (d.width, d.height)).unwrap_or((1, 1));
-    if f.drawings.iter().any(|d| (d.width, d.height) != (w, h)) {
-        return Err(InteropError::Encode("the drawings are not all the same size".into()));
+    write(&f.name, &f.cells, (w, h), f.drawings.len(), |i| f.drawings.get(i).cloned().ok_or_else(|| InteropError::Encode(format!("no drawing {i}"))))
+}
+
+/// Encode a drawing file whose `count` drawings, all `size`, come from `drawing(i)` one at a
+/// time, in order: each is encoded to PNG and dropped before the next is asked for, so writing a
+/// long item holds one picture at a time (plus the compressed file).
+pub fn write(name: &str, cells: &[FileCell], size: (u32, u32), count: usize, mut drawing: impl FnMut(usize) -> Result<RgbaImage>) -> Result<Vec<u8>> {
+    if count > MAX_DRAWINGS {
+        return Err(InteropError::Limit(format!("{count} drawings")));
     }
     let head =
-        Head { format: FORMAT.into(), version: VERSION, name: f.name.clone(), width: w, height: h, cells: f.cells.clone(), drawings: f.drawings.len() as u32 };
+        Head { format: FORMAT.into(), version: VERSION, name: name.to_string(), width: size.0, height: size.1, cells: cells.to_vec(), drawings: count as u32 };
     let z = |e: craft_zip::Error| InteropError::Encode(e.to_string());
     let mut zip = craft_zip::Writer::new();
     zip.add("mimetype", MIMETYPE.as_bytes(), craft_zip::Compression::Stored).map_err(z)?;
     let json = serde_json::to_vec_pretty(&head).map_err(|e| InteropError::Encode(e.to_string()))?;
     zip.add("item.json", &json, craft_zip::Compression::Deflated).map_err(z)?;
-    for (i, d) in f.drawings.iter().enumerate() {
-        let png = tooncraft_format::encode_png(d).map_err(|e| InteropError::Encode(e.to_string()))?;
+    for i in 0..count {
+        let d = drawing(i)?;
+        if (d.width, d.height) != size {
+            return Err(InteropError::Encode("the drawings are not all the same size".into()));
+        }
+        let png = tooncraft_format::encode_png(&d).map_err(|e| InteropError::Encode(e.to_string()))?;
+        drop(d);
         zip.add(&entry(i), &png, craft_zip::Compression::Stored).map_err(z)?;
     }
     zip.finish().map_err(z)
@@ -168,6 +180,31 @@ mod tests {
         assert_eq!(back.drawings[0].pixel(3, 3), [200, 20, 20, 255]);
         let p = back.drawings[1].pixel(1, 1);
         assert!(p[3] == 128 && p[2].abs_diff(100) <= 1, "premultiplied colour kept: {p:?}");
+    }
+
+    #[test]
+    fn writing_asks_for_one_drawing_at_a_time_in_order() {
+        let mut asked = Vec::new();
+        let cells = [FileCell::Key(0), FileCell::Key(1), FileCell::Key(2)];
+        let bytes = write("Run", &cells, (8, 6), 3, |i| {
+            asked.push(i);
+            Ok(img(8, 6, [i as u8 * 50, 0, 0, 255]))
+        })
+        .unwrap();
+        assert_eq!(asked, [0, 1, 2], "each drawing is made once, in order, when it is written");
+        let back = from_bytes(&bytes).unwrap();
+        assert_eq!(back.drawings[2].pixel(0, 0), [100, 0, 0, 255]);
+        // a failing or wrongly sized drawing stops the writing at once
+        let mut n = 0;
+        assert!(
+            write("Run", &cells, (8, 6), 3, |i| {
+                n += 1;
+                if i == 1 { Ok(img(4, 4, [0; 4])) } else { Ok(img(8, 6, [0; 4])) }
+            })
+            .is_err()
+        );
+        assert_eq!(n, 2, "nothing is asked for after the bad drawing");
+        assert!(write("Run", &cells, (8, 6), MAX_DRAWINGS + 1, |_| Ok(img(8, 6, [0; 4]))).is_err());
     }
 
     #[test]

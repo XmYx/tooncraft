@@ -135,18 +135,14 @@ pub(crate) fn move_item(e: &mut Engine, item: usize, to: usize) -> Result<()> {
     })
 }
 
-/// The drawing file of library item `item`: its drawings (each once, at the canvas size) and its
-/// cells pointing at them.
-pub fn to_file(p: &tooncraft_doc::Project, item: usize) -> Result<DrawingFile> {
+/// Write library item `item` to `path` as a drawing file (atomically; not an undo step). The
+/// drawings are read and encoded one at a time (a paged drawing is loaded only for its turn).
+pub(crate) fn save_file(e: &mut Engine, item: usize, path: &str) -> Result<()> {
+    let p = &e.project;
     let it = p.library.get(item).ok_or(EngineError::NoLibraryItem(item))?;
     let ids = it.drawings();
-    let mut drawings = Vec::with_capacity(ids.len());
-    for d in &ids {
-        let s = p.drawing_owned(*d)?.ok_or(EngineError::NoDrawing(0))?;
-        drawings.push(s.to_image());
-    }
     let index: BTreeMap<DrawingId, u32> = ids.iter().enumerate().map(|(i, d)| (*d, i as u32)).collect();
-    let cells = it
+    let cells: Vec<FileCell> = it
         .cells
         .iter()
         .map(|c| match c {
@@ -155,13 +151,13 @@ pub fn to_file(p: &tooncraft_doc::Project, item: usize) -> Result<DrawingFile> {
             Cell::Blank => FileCell::Blank,
         })
         .collect();
-    Ok(DrawingFile { name: it.name.clone(), cells, drawings })
-}
-
-/// Write library item `item` to `path` as a drawing file (atomically; not an undo step).
-pub(crate) fn save_file(e: &mut Engine, item: usize, path: &str) -> Result<()> {
-    let f = to_file(&e.project, item)?;
-    let bytes = drawing_file::to_bytes(&f).map_err(|err| EngineError::Import(err.to_string()))?;
+    let drawing = |i: usize| -> std::result::Result<tooncraft_raster::RgbaImage, tooncraft_interop::InteropError> {
+        let bad = |m: String| tooncraft_interop::InteropError::Encode(m);
+        let id = ids.get(i).ok_or_else(|| bad(format!("no drawing {i}")))?;
+        let s = p.drawing_owned(*id).map_err(|err| bad(err.to_string()))?.ok_or_else(|| bad(format!("drawing {} is missing", id.0)))?;
+        Ok(s.to_image())
+    };
+    let bytes = drawing_file::write(&it.name, &cells, (p.width(), p.height()), ids.len(), drawing).map_err(|err| EngineError::Import(err.to_string()))?;
     craft_atomic::atomic_write(std::path::Path::new(path), &bytes).map_err(|err| EngineError::Import(format!("{path}: {err}")))?;
     Ok(())
 }
