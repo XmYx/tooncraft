@@ -155,3 +155,29 @@ fn time_effects_and_transitions_in_the_panel() {
     }
     assert_eq!(h.state().engine.project.layers[0].effects.len(), 5);
 }
+
+#[test]
+fn particles_and_lighting_in_the_panel() {
+    let mut h = harness();
+    assert!(h.state_mut().run(Command::AddLayer { name: "Shadow".into(), index: None }));
+    h.state_mut().layer = 0;
+    h.run();
+    for (name, field) in [("Particles", "New per frame"), ("Tone from a matte", "Highlight (lighten)"), ("Light from normals", "Roundness")] {
+        h.get(By::new().role(Role::ComboBox).label("Add effect")).click();
+        h.run();
+        click(&mut h, name);
+        h.get_by_label(field);
+    }
+    let shadow = h.state().engine.project.layers[1].id.0;
+    assert!(
+        matches!(h.state().engine.project.layers[0].effects[1].kind, EffectKind::MatteTone { layer, .. } if layer == shadow),
+        "the tone reads the other layer"
+    );
+    h.get(By::new().role(Role::ComboBox).label("Normals"));
+    // particles on a layer with no drawing still render
+    let p = &h.state().engine.project;
+    let f = p.length().saturating_sub(1);
+    assert!(p.layers[0].drawing_at(f).is_none());
+    let img = tooncraft_doc::render_frame(p, f, tooncraft_doc::RenderOptions { paper: false, ..Default::default() });
+    assert!(img.data.as_chunks::<4>().0.iter().any(|px| px[3] > 0), "snow has fallen by the last frame");
+}

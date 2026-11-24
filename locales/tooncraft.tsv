@@ -360,6 +360,7 @@ tooncraft	Duplicate Swatch
 tooncraft	Duplicate clip {n} here	
 tooncraft	Duplicate drawing	
 tooncraft	Duration	
+tooncraft	Dust	
 tooncraft	Dynamics	
 tooncraft	Dynamics for {target}	
 tooncraft	Each drawing on {n}s	
@@ -384,6 +385,10 @@ tooncraft	Effects on {layer}, frame {frame}
 tooncraft	Ellipse	
 tooncraft	Ellipse ruler	
 tooncraft	Ellipse select	
+tooncraft	Emitter X	
+tooncraft	Emitter Y	
+tooncraft	Emitter height	
+tooncraft	Emitter width	
 tooncraft	Empty	
 tooncraft	Empty Only	
 tooncraft	Erase	
@@ -544,6 +549,7 @@ tooncraft	Grain rotation
 tooncraft	Grain size	
 tooncraft	Grain strength	
 tooncraft	Grain texture	
+tooncraft	Gravity	
 tooncraft	Green	
 tooncraft	Grid	
 tooncraft	Grow	
@@ -574,6 +580,7 @@ tooncraft	Help
 tooncraft	Hex	
 tooncraft	Hide Layer	
 tooncraft	Hide the previous step	
+tooncraft	Highlight (lighten)	
 tooncraft	History	
 tooncraft	Hold	
 tooncraft	Hold For	
@@ -672,6 +679,7 @@ tooncraft	Keyboard shortcuts
 tooncraft	Keys Only	
 tooncraft	Keys and breakdowns stay put; the drawings between them follow the spacing	
 tooncraft	Keys only	
+tooncraft	Kind	
 tooncraft	Label Colour	
 tooncraft	Label colour	
 tooncraft	Label colour of {name}	
@@ -715,11 +723,15 @@ tooncraft	Letter spacing
 tooncraft	Levels	
 tooncraft	Library	
 tooncraft	Licensed under the MIT License or the Apache License 2.0.	
+tooncraft	Life (frames)	
 tooncraft	Light Table	
 tooncraft	Light Theme	
 tooncraft	Light X	
 tooncraft	Light Y	
 tooncraft	Light colour	
+tooncraft	Light direction	
+tooncraft	Light from normals	
+tooncraft	Light height	
 tooncraft	Light or dark theme	
 tooncraft	Light table	
 tooncraft	Light table opacity	
@@ -762,6 +774,7 @@ tooncraft	Marker removed from frame {n}
 tooncraft	Markers	
 tooncraft	Mask shape	
 tooncraft	Matte	
+tooncraft	Matte layer	
 tooncraft	Matte: keep inside	
 tooncraft	Matte: keep outside	
 tooncraft	Medium	
@@ -830,6 +843,7 @@ tooncraft	New item
 tooncraft	New layer above the current one	
 tooncraft	New name	
 tooncraft	New palette	
+tooncraft	New per frame	
 tooncraft	New shot	
 tooncraft	New shot frame rate	
 tooncraft	New shot height	
@@ -882,6 +896,7 @@ tooncraft	No symmetry
 tooncraft	No video chosen	
 tooncraft	None	
 tooncraft	Normal	
+tooncraft	Normals	
 tooncraft	Not a matte	
 tooncraft	Note for frame {n}	
 tooncraft	Notes	
@@ -989,6 +1004,8 @@ tooncraft	Paper
 tooncraft	Paper colour	
 tooncraft	Paper grain	
 tooncraft	Paper texture	
+tooncraft	Particle colour	
+tooncraft	Particles	
 tooncraft	Paste	
 tooncraft	Paste Frames	
 tooncraft	Paste Frames, Moving Later Frames	
@@ -1090,6 +1107,7 @@ tooncraft	Radial
 tooncraft	Radial menu	
 tooncraft	Radial, mirrored	
 tooncraft	Radius	
+tooncraft	Rain	
 tooncraft	Random	
 tooncraft	Rays	
 tooncraft	Re-time Between Keys	
@@ -1331,6 +1349,7 @@ tooncraft	Smudge
 tooncraft	Smudges	
 tooncraft	Snap strokes to grid lines	
 tooncraft	Snap to grid	
+tooncraft	Snow	
 tooncraft	Soft airbrush	
 tooncraft	Soft blur	
 tooncraft	Soft edge: moving, erasing, copying and filling the selection fade out over this many pixels	
@@ -1348,11 +1367,13 @@ tooncraft	Sound…
 tooncraft	Spacing	
 tooncraft	Spacing chart: no next drawing	
 tooncraft	Spacing chart: {n} drawings between frames {a} and {b}	
+tooncraft	Sparks	
 tooncraft	Speckle	
 tooncraft	Speed	
 tooncraft	Split clip {n} here	
 tooncraft	Split opposite	
 tooncraft	Spray	
+tooncraft	Spread	
 tooncraft	Spread under lines	
 tooncraft	Square, 24 fps	
 tooncraft	Standard definition, 25 fps	
@@ -1418,6 +1439,7 @@ tooncraft	The current colour, half way
 tooncraft	The current layer's drawing alone; draw here too	
 tooncraft	The current layer, from this frame	
 tooncraft	The current tool is not a brush of this kind	
+tooncraft	The drawing's own shape	
 tooncraft	The drawings' own colours	
 tooncraft	The fill bucket and the magic wand look at this layer when set to look at reference layers	
 tooncraft	The flip set holds at most {n} frames	
@@ -1475,7 +1497,9 @@ tooncraft	Tip angle
 tooncraft	Tip from Image…	
 tooncraft	Tip shape	
 tooncraft	Tolerance	
+tooncraft	Tone colour	
 tooncraft	Tone curve	
+tooncraft	Tone from a matte	
 tooncraft	Tongue (L TH)	
 tooncraft	Too many presets	
 tooncraft	Too many saved workspaces	
