@@ -66,7 +66,7 @@ pub fn source_label(s: Source) -> String {
     .to_string()
 }
 
-fn grain_label(k: GrainKind) -> String {
+pub fn grain_label(k: GrainKind) -> String {
     match k {
         GrainKind::Paper => tl!("Paper"),
         GrainKind::Canvas => tl!("Canvas weave"),
@@ -217,6 +217,8 @@ fn grain(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
     b.grain_kind = choice;
     slider(ui, tl!("Grain strength"), &mut b.grain, 0.0..=1.0);
     slider(ui, tl!("Grain size"), &mut b.grain_scale, 0.5..=16.0);
+    slider(ui, tl!("Grain rotation"), &mut b.grain_angle, -180.0..=180.0);
+    slider(ui, tl!("Grain contrast"), &mut b.grain_contrast, 0.1..=tooncraft_brush::MAX_GRAIN_CONTRAST);
     if b.grain_kind == GrainKind::Image {
         let current = b.grain_image;
         let tips: Vec<(u64, String)> = app.engine.project.tips.iter().map(|(id, t)| (*id, t.name.clone())).collect();

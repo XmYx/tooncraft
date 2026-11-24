@@ -492,8 +492,10 @@ tooncraft	Go back to just after this step
 tooncraft	Gradient	
 tooncraft	Gradient map	
 tooncraft	Grain	
+tooncraft	Grain contrast	
 tooncraft	Grain from Image…	
 tooncraft	Grain image	
+tooncraft	Grain rotation	
 tooncraft	Grain size	
 tooncraft	Grain strength	
 tooncraft	Grain texture	
@@ -925,6 +927,7 @@ tooncraft	Panels become a locked reference layer with their timings and camera m
 tooncraft	Paper	
 tooncraft	Paper colour	
 tooncraft	Paper grain	
+tooncraft	Paper texture	
 tooncraft	Paste	
 tooncraft	Paste Frames	
 tooncraft	Paste Frames, Moving Later Frames	
@@ -1310,6 +1313,10 @@ tooncraft	Text
 tooncraft	Text dropped	
 tooncraft	Text placed	
 tooncraft	Texture	
+tooncraft	Texture contrast	
+tooncraft	Texture rotation	
+tooncraft	Texture size	
+tooncraft	Texture strength	
 tooncraft	That brush is not in the library	
 tooncraft	The basic palette cannot be changed; add the colour to a palette of the shot	
 tooncraft	The canvas stays in its place	
