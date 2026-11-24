@@ -13,6 +13,9 @@ mod args;
 mod brush_editor;
 mod brush_library;
 mod brush_presets;
+mod camera_path;
+#[cfg(test)]
+mod camera_path_ui_tests;
 mod canvas;
 mod canvas_header;
 mod canvas_tools;
@@ -55,6 +58,7 @@ mod history_ui_tests;
 mod icons;
 mod import_dialog;
 mod keys;
+mod layer_fx;
 mod layer_ops;
 mod layer_tree;
 mod layers_list;
@@ -66,6 +70,9 @@ mod menu_commands;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+mod motion_record;
+#[cfg(test)]
+mod motion_record_ui_tests;
 mod onion_popover;
 mod panel_chrome;
 mod panel_views;
@@ -76,6 +83,8 @@ mod peg_transform;
 #[cfg(test)]
 mod peg_transform_ui_tests;
 mod pegs;
+#[cfg(test)]
+mod pen_ui_tests;
 mod pipeline;
 mod preferences;
 mod rulers_ui;
@@ -134,6 +143,7 @@ mod unsaved;
 mod unsaved_ui_tests;
 #[cfg(test)]
 mod vector_ui_tests;
+mod video_dialog;
 mod view;
 mod views;
 #[cfg(test)]

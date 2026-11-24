@@ -173,9 +173,9 @@ Weight: 3
 |---|---|---|---|---|
 | Paper colour | all | D | S | Exported or left out per shot |
 | Paper grain that shapes pencil and chalk dabs | TV CS PD | D | S | Hashed grain, so a replay gives the same pixels |
-| Visible paper texture under the drawing | TV CS PD | M | S | |
+| Visible paper texture under the drawing | TV CS PD | D | S | Any grain (also a grain image) shades the paper colour with its own strength, size, rotation and contrast: one repeating tile on the canvas, the same pixels in exports with the paper; `SetPaperTexture`, saved with the shot |
 | Paper and grain library, grain images from files | TV CS PD | D | M | Four built-in grains and tileable grain images saved in the shot |
-| Grain scale, rotation and contrast | TV CS | P | S | Scale only |
+| Grain scale, rotation and contrast | TV CS | D | S | Per brush in the brush editor (`grain_scale`, `grain_angle`, `grain_contrast` in `.toonbrush` files), and for the paper texture |
 | Texture overlay on a layer or a fill | CS PD | M | S | |
 | Canvas size presets | all | D | S | Eleven video, cinema, square and portrait presets with their frame rates in New Shot and Canvas Size, the aspect ratio shown, and the user's own saved presets |
 | Canvas resize and crop with anchors | all | D | S | Drawings move whole pixels, never resampled; one undo step |
@@ -216,7 +216,7 @@ Weight: 5
 | Ellipse selection | all | D | S | The select tool's Ellipse mode |
 | Select by colour with tolerance (magic wand) | all | D | S | Magic Wand mode: tolerance, this drawing or all visible layers, the touching area or that colour everywhere |
 | Add, subtract and intersect selections | all | D | S | A mode option, or Shift (add), Alt (subtract) and both (intersect) while dragging; holes and separate parts stay one selection |
-| Invert, grow, shrink and feather a selection | all | P | S | Invert (Ctrl+Shift+I), grow and shrink by up to 64 px; no feather (selections are hard-edged) |
+| Invert, grow, shrink and feather a selection | all | D | S | Invert (Ctrl+Shift+I), grow and shrink by up to 64 px; Feather in the Select tool's options (up to 64 px) softens the edge, and moving, distorting, erasing, copying and filling the selection blend over it (one undo step each; `feather` in command files) |
 | Painted selection masks (quick mask) | TV CS PD | M | M | |
 | Move, scale and rotate a selection with a live preview | all | D | S | One undo step |
 | Flips and 90° turns | all | D | S | |
@@ -267,8 +267,8 @@ Weight: 6
 | Nested folders with show, lock, fold and opacity | all | D | S | |
 | Clipping layers | TV CS PD | D | S | Several clipping layers on one base |
 | Colour labels with a layer filter | TV TB | D | S | |
-| Painted layer masks | TV TB CS PD | M | M | |
-| Adjustment layers acting on everything below | CS PD | M | M | Effects act on their own layer only |
+| Painted layer masks | TV TB CS PD | D | M | Add Layer Mask (layer menu or Effects panel): every tool paints into the mask while Paint on Layer Mask is on (paint hides, the eraser brings back, or inverted); the mask follows the layer's transform, can be switched off or removed, one undo step each |
+| Adjustment layers acting on everything below | CS PD | D | M | Adjustment Layer: its effect stack acts on everything composited below it, where its drawing has paint (everywhere without one), cut by its mask, with its blend mode and opacity |
 | Reference layers chosen per tool | TB CS | M | S | The fill reference is current or all visible |
 | Layer properties copied between layers | TV CS | D | S | Opacity and keys, blend, colour, folder, peg, depth, effects |
 
@@ -297,7 +297,7 @@ Weight: 9
 | Graph editor for keyed values | TB CS PD | P | L | The Curves panel plots each peg value against frames: drag keys in time and value (one undo step, Escape cancels), move them from the keyboard, ease many keys at once, drag the two ease handles. Camera, opacity and effect keys still edit in their own panels |
 | Several shots or scenes in one project | TV TB | M | L | |
 | Nested sequences (a shot or symbol inside a shot) | TB CS PD | M | L | |
-| Record transforms live while playing | PD | M | M | |
+| Record transforms live while playing | PD | D | M | Record Motion (Transform tool option, Timeline menu): a drag on the canvas plays the shot and keys every frame the layer passes, skipped frames filled; the arrow keys record while it plays; one undo step, Escape drops the take; `set_peg_keys` |
 
 ## Onion skin and light table
 
@@ -352,7 +352,7 @@ Weight: 4
 | Multiplane depth with parallax | TV TB | D | M | |
 | Camera shake | TV TB | D | S | Repeatable |
 | Camera frame on the canvas, crop to it | all | D | S | |
-| Camera path editing on the canvas | TB PD | M | S | |
+| Camera path editing on the canvas | TB PD | D | S | The camera centre's path over the shot with a square per key; with the Transform tool a key's square drags to move it and the current frame's cross drags to key the camera there (one undo step, Escape cancels; the camera frame follows); typed values in the Camera panel (`--camera-path`) |
 | Depth of field by layer depth | TB | M | M | |
 | Several cameras and camera cuts in a shot | TB | M | M | |
 | Free 3D camera over a layered scene | TB | M | L | Depth trucks only |
@@ -432,7 +432,7 @@ Weight: 7
 | Image sequence import | all | D | S | PNG, JPEG, WebP, TIFF, BMP, GIF |
 | Animated GIF import | TV PD | D | S | |
 | Layers from PSD or OpenRaster | TV CS | D | S | |
-| Video file import | TV CS PD | M | M | |
+| Video file import | TV CS PD | D | M | File ▸ Import Video (`import_video`, `tooncraft-cli import-video`): MP4 / QuickTime, H.264 and H.265 (8-bit) through craft-media and craft-video; a picture per drawing, timed by the movie at the shot's rate; start, every n-th, a cap; under the drawing locked and faded to trace over, the shot grown to fit; one undo step |
 | XDTS exposure sheet exchange with drawing folders | TB CS | D | M | |
 | Storyboard or animatic as the starting layout | TB | D | S | BoardCraft panels with timings and camera moves ([interop.md](interop.md)) |
 | Scanned paper: peg-hole registration and clean-up | TV TB | M | L | |
@@ -551,7 +551,7 @@ Weight: 4
 | Pen side buttons mapped to actions | TV CS | M | S | |
 | Touch gestures: pinch zoom and twist, taps for undo and redo | CS PD | D | S | Pinch and twist; a two-finger tap undoes and a three-finger tap redoes (the stroke the first finger began is dropped) |
 | Palm rejection while the pen is near | CS PD | P | S | Touches are ignored while the pen is seen and for 1.2 s after; the pen is seen through the tablet reader (X11, Xwayland, macOS), so not yet on Windows or Wayland-native windows |
-| Global pressure curve and calibration | TV CS PD | M | S | |
+| Global pressure curve and calibration | TV CS PD | D | S | Preferences ▸ Pen (`--open pen`): one curve for every brush, applied to pen and touch pressure (the mouse keeps its own setting); a calibration pad records test strokes and Fit Curve to My Hand makes the hardest press (95th percentile) full pressure |
 | End-to-end stroke latency measured | — | P | S | Engine latency per sample is measured; input-to-screen is not |
 | iPad and Android tablet builds | CS PD | O | XL | Out of scope: the suite targets desktop Linux, macOS and Windows |
 

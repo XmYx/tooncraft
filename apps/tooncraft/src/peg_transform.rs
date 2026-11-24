@@ -62,6 +62,9 @@ fn preview_key(app: &ToonApp, d: &Drag) -> Option<PegKey> {
 
 /// The pegs with the drag's key in place, while a drag is in progress.
 fn previewed_pegs(app: &ToonApp) -> Option<Vec<tooncraft_doc::Peg>> {
+    if let Some(pegs) = crate::motion_record::previewed_pegs(app) {
+        return Some(pegs);
+    }
     let d = app.transform_ui.drag?;
     let k = preview_key(app, &d)?;
     let mut pegs = app.engine.project.pegs.clone();
@@ -261,4 +264,12 @@ pub fn options(app: &mut ToonApp, ui: &mut Ui) {
         app.run(key_command(id, k));
     }
     ui.label(tl!("Drag to move, a corner to scale, the knob to turn, the cross to move the pivot"));
+    let mut armed = app.recorder.armed;
+    if ui
+        .checkbox(&mut armed, tl!("Record Motion"))
+        .on_hover_text(tl!("Drag the layer while the shot plays and every frame it passes is keyed (one undo step; Escape drops the take)"))
+        .changed()
+    {
+        crate::motion_record::set_armed(app, armed);
+    }
 }
