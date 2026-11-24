@@ -51,6 +51,8 @@ mod fx_ui_tests;
 #[cfg(test)]
 mod gaps_ui_tests;
 #[cfg(test)]
+mod gradient_swatch_ui_tests;
+#[cfg(test)]
 mod guidance_ui_tests;
 mod history_panel;
 #[cfg(test)]
