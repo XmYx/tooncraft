@@ -1,0 +1,1 @@
+- 2026-11-24: Feathered selections: a Feather field in the Select tool's options softens the selection's edge, and moving, distorting, erasing, copying and filling it blend over that distance.

@@ -226,6 +226,8 @@ pub struct ToonApp {
     pub mouse_pressure: f32,
     pub view: View,
     pub view_fitted: bool,
+    /// The Second View panel's look and its own pan and zoom.
+    pub view2: crate::views::SecondView,
     pub playback: Playback,
     pub clock: Instant,
     pub textures: TileTextures,
@@ -256,6 +258,8 @@ pub struct ToonApp {
     pub scene_presets: crate::scene_presets::State,
     /// The import options, after images were picked.
     pub import_dialog: Option<crate::import_dialog::Dialog>,
+    /// File ▸ Import Video's window, while it is open.
+    pub video_dialog: Option<crate::video_dialog::Dialog>,
     /// The canvas pixel under the pointer, for the status line.
     pub pointer: Option<(i64, i64)>,
     /// Frames chosen for flipping (in order of the shot, at most [`MAX_FLIP`]).
@@ -307,8 +311,12 @@ pub struct ToonApp {
     pub keys: crate::keys::Keys,
     /// Show the camera frame on the canvas.
     pub show_camera: bool,
+    /// A camera key being dragged on the canvas (see `camera_path`).
+    pub camera_drag: Option<crate::camera_path::CameraDrag>,
     pub peg_ui: crate::pegs::PegUi,
     pub transform_ui: crate::peg_transform::TransformUi,
+    /// Record motion: armed, and the take in progress.
+    pub recorder: crate::motion_record::Recorder,
     pub curve_ui: crate::curves::CurveUi,
     pub layer_ui: crate::layer_tree::LayerUi,
     pub timing_ui: crate::timing_panel::TimingUi,
@@ -409,6 +417,7 @@ impl ToonApp {
             mouse_pressure: 0.75,
             view: View::default(),
             view_fitted: false,
+            view2: Default::default(),
             playback: Playback::default(),
             clock: Instant::now(),
             textures: TileTextures::default(),
@@ -430,6 +439,7 @@ impl ToonApp {
             export_memory: Default::default(),
             find: Default::default(),
             import_dialog: None,
+            video_dialog: None,
             scene_presets: crate::scene_presets::State::new(!cfg!(test) && cli.screenshot.is_none()),
             flip: Vec::new(),
             pointer: None,
@@ -459,8 +469,10 @@ impl ToonApp {
             sound: crate::sound::Sound::default(),
             keys: crate::keys::Keys::new(!cfg!(test) && cli.screenshot.is_none()),
             show_camera: true,
+            camera_drag: None,
             peg_ui: Default::default(),
             transform_ui: Default::default(),
+            recorder: Default::default(),
             curve_ui: Default::default(),
             layer_ui: Default::default(),
             timing_ui: Default::default(),
@@ -487,12 +499,20 @@ impl ToonApp {
         if let Some(name) = &cli.panel {
             app.workspace.raise(Pane::from_name(name));
         }
+        if let Some(look) = cli.second_view.as_deref().and_then(crate::views::Look::from_id) {
+            app.view2.look = look;
+            app.workspace.raise(Pane::SecondView);
+        }
         crate::text_tool::register_fonts(&mut app);
         if let Some(t) = cli.tool.as_deref().and_then(|n| Tool::ALL.into_iter().find(|t| t.id() == n)) {
             app.tool = t;
         }
         match cli.open.as_deref() {
             Some("preferences") => app.preferences.open = true,
+            Some("pen") => {
+                app.preferences.open = true;
+                app.preferences.tab = crate::preferences::Tab::Pen;
+            }
             Some("export") => crate::export_dialog::open(&mut app, "mp4"),
             Some("shortcuts") => app.show_shortcuts = true,
             Some("find") => app.find.open = true,
@@ -501,6 +521,8 @@ impl ToonApp {
             Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
             Some("colour-picker") => app.colour.window = true,
             Some("icons") => app.show_icons = true,
+            Some("import-video") => app.video_dialog = Some(crate::video_dialog::Dialog::new(None)),
+            Some("radial") => crate::tool_palettes::open_radial(&mut app, ctx),
             _ => {}
         }
         if cli.demo && cli.screenshot.is_some() {
@@ -535,6 +557,12 @@ impl ToonApp {
         {
             app.workspace.raise(Pane::from_name(name));
         }
+        if cli.record_motion {
+            let layer = app.layer;
+            app.run(Command::AddPegForLayer { layer, name: tl!("Peg 1").to_owned() });
+            app.tool = Tool::Transform;
+            crate::motion_record::set_armed(&mut app, true);
+        }
         if cli.light_table {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
@@ -544,8 +572,19 @@ impl ToonApp {
                 app.workspace.raise(Pane::Onion);
             }
         }
+        if cli.camera_path {
+            let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+            let last = app.engine.project.length().saturating_sub(1);
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.35, y: h * 0.45, zoom: 1.6, angle: 0.0 });
+            app.run(Command::SetCameraKey { frame: last / 2, x: w * 0.5, y: h * 0.35, zoom: 1.4, angle: 0.0 });
+            app.run(Command::SetCameraKey { frame: last, x: w * 0.65, y: h * 0.55, zoom: 1.2, angle: -6.0 });
+            app.tool = Tool::Transform;
+        }
         if cli.rulers {
             crate::rulers_ui::demo(&mut app);
+        }
+        if !cli.fx.is_empty() {
+            crate::effects_panel::launch(&mut app, &cli.fx);
         }
         if let Some(target) = cli.context_menu.as_deref() {
             crate::context_menus::prepare_launch(&mut app, target);
@@ -765,6 +804,7 @@ impl ToonApp {
             skew_x: 0.0,
             skew_y: 0.0,
             resample,
+            feather: self.sel.feather,
         };
         if self.run(cmd) {
             let t = tooncraft_engine::select::affine(&poly, dx, dy, scale.0, scale.1, angle);
@@ -775,7 +815,7 @@ impl ToonApp {
     pub fn delete_selected_pixels(&mut self) {
         if let Some(poly) = self.selection.clone() {
             let (layer, frame, rings) = (self.layer, self.frame, crate::selection_tools::extra_rings(self));
-            self.run(Command::ClearSelection { layer, frame, polygon: poly, rings });
+            self.run(Command::ClearSelection { layer, frame, polygon: poly, rings, feather: self.sel.feather });
         }
     }
 
@@ -786,7 +826,7 @@ impl ToonApp {
     }
 
     pub fn copy_pixels(&mut self, cut: bool) {
-        let Some(mask) = crate::selection_tools::mask(self) else { return };
+        let Some(mask) = crate::selection_tools::soft_mask(self) else { return };
         let Some(s) = self.engine.project.drawing_at(self.layer, self.frame).and_then(|d| self.engine.project.drawing(d)) else { return };
         let img = tooncraft_raster::select::copy(s, &mask);
         self.pixel_clipboard = Some((img.to_straight(), img.width, img.height, (mask.x as f32, mask.y as f32)));
@@ -989,6 +1029,8 @@ impl ToonApp {
 
     pub fn replace_engine(&mut self, engine: Engine, path: Option<PathBuf>) {
         self.engine = engine;
+        self.recorder.forget();
+        self.camera_drag = None;
         self.path = path;
         self.frame = 0;
         self.layer = self.engine.project.layers.len().saturating_sub(1);
@@ -1230,6 +1272,8 @@ impl ToonApp {
         } else {
             self.stats.last_shown = None;
         }
+        crate::motion_record::tick(self, ctx);
+        crate::camera_path::settle(self);
         self.autosave_tick();
         // Sound: decode when the soundtrack changed, follow playback, scrub on frame changes.
         self.sound.sync(&self.engine.project);
@@ -1324,7 +1368,11 @@ impl ToonApp {
                 crate::menus::context(ui, self, &["file.new", "file.open"]);
                 crate::start_screen::menu(self, ui);
                 ui.separator();
-                crate::menus::context(ui, self, &["file.save", "file.save_as", "file.save_version", crate::menus::SEP, "file.import_images"]);
+                crate::menus::context(
+                    ui,
+                    self,
+                    &["file.save", "file.save_as", "file.save_version", crate::menus::SEP, "file.import_images", "file.import_video"],
+                );
                 ui.menu_button(tl!("Import from Other Apps"), |ui| {
                     if ui.button(tl!("Layers from PSD or OpenRaster…")).clicked()
                         && let Some(f) = rfd::FileDialog::new().add_filter(tl!("Layered images"), &["psd", "psb", "ora"]).pick_file()
@@ -1497,7 +1545,7 @@ impl ToonApp {
         use egui::{Key, KeyboardShortcut, Modifiers};
         // commands picked in Find Command run through the registry, like their menu items
         for id in std::mem::take(&mut self.find.pending) {
-            crate::commands::run(self, ctx, &id);
+            crate::command_search::run(self, ctx, &id);
         }
         let cmd = |k| KeyboardShortcut::new(Modifiers::COMMAND, k);
         let cmd_shift = |k| KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, k);
@@ -1556,7 +1604,7 @@ impl ToonApp {
         }
         // Single keys only when no text field or focused grid/canvas takes the keyboard.
         let focus = ctx.memory(|m| m.focused());
-        let own_focus = focus.is_some_and(|f| f == crate::canvas::canvas_id() || f == crate::timeline::grid_id());
+        let own_focus = focus.is_some_and(|f| crate::views::is_drawing_view(f) || crate::views::owns_keys(f) || f == crate::timeline::grid_id());
         // Copy / cut / paste of exposure-sheet cells (egui turns Ctrl+C/X/V into these events).
         if focus == Some(crate::timeline::grid_id()) || (focus.is_none() && !ctx.egui_wants_keyboard_input()) {
             let (copy, cut, paste, shift) = ctx.input(|i| {
@@ -1580,7 +1628,7 @@ impl ToonApp {
             if paste {
                 self.paste_cells(shift, false);
             }
-        } else if focus == Some(crate::canvas::canvas_id()) {
+        } else if focus.is_some_and(crate::views::is_drawing_view) {
             let (copy, cut, paste) = ctx.input(|i| {
                 let mut r = (false, false, false);
                 for e in &i.events {
@@ -1612,7 +1660,8 @@ impl ToonApp {
             self.selection = None;
         }
         // the Curves graph uses Ctrl+A to choose every key
-        if focus != Some(crate::curves::graph_id()) && ctx.input_mut(|i| i.consume_shortcut(&cmd(Key::A))) && !ctx.egui_wants_keyboard_input() {
+        // (a text field keeps its own Ctrl+A: the key is only taken when no text field has focus)
+        if focus != Some(crate::curves::graph_id()) && !ctx.egui_wants_keyboard_input() && ctx.input_mut(|i| i.consume_shortcut(&cmd(Key::A))) {
             crate::commands::try_run(self, ctx, "edit.select_all");
         }
         // Alt+arrows pan the canvas from the keyboard.
@@ -1647,7 +1696,11 @@ impl ToonApp {
         }
         let plain = |i: &egui::InputState, k| i.modifiers.is_none() && i.key_pressed(k);
         // Remappable commands (craft-keymap); Enter stays with the canvas's keyboard pen.
-        let canvas_focused = focus == Some(crate::canvas::canvas_id());
+        let canvas_focused = focus.is_some_and(crate::views::is_drawing_view);
+        // the camera and side looks and the navigator take +, − and the arrows themselves
+        let view_keys = focus.is_some_and(crate::views::owns_keys);
+        // the Transform tool has no keyboard pen, so there Enter plays (record motion's keys)
+        let pen_keys = canvas_focused && self.tool != Tool::Transform;
         // while a polyline is being placed, Enter finishes it and Backspace removes a point
         let placing = !self.aids.path.is_empty();
         crate::draw_aids::path_keys(self, ctx);
@@ -1656,7 +1709,8 @@ impl ToonApp {
         } else {
             self.keys.dispatch_filtered(ctx, |id| {
                 !(placing && id == "frame.play")
-                    && !(canvas_focused && (id == "frame.play" || (id == "frame.clear" && self.keyboard_pen.is_some_and(|p| p.down))))
+                    && !(view_keys && (id == "frame.hold_more" || id == "frame.hold_less"))
+                    && !(pen_keys && (id == "frame.play" || (id == "frame.clear" && self.keyboard_pen.is_some_and(|p| p.down))))
                     // the Transform tool turns the peg with [ and ] on the focused canvas
                     && !(canvas_focused && self.tool == Tool::Transform && (id == "brush.smaller" || id == "brush.bigger"))
             })
@@ -1668,7 +1722,7 @@ impl ToonApp {
                 plain(i, Key::ArrowUp) && !own_focus,
                 plain(i, Key::ArrowDown) && !own_focus,
                 plain(i, Key::Backspace),
-                plain(i, Key::Plus),
+                plain(i, Key::Plus) && !view_keys,
             ]
         });
         // plain arrows, Backspace and + are fixed second keys of registry commands
@@ -1708,12 +1762,14 @@ impl ToonApp {
         crate::command_search::window(self, ctx);
         crate::icons::reference_window(ctx, &mut self.show_icons);
         crate::import_dialog::window(self, ctx);
+        crate::video_dialog::window(self, ctx);
         crate::export_dialog::window(self, ctx);
         crate::colour_tools::picker_window(self, ctx);
         crate::preferences::window(self, ctx);
         crate::scene_menus::window(self, ctx);
         crate::unsaved::window(self, ctx);
         crate::canvas_tools::dialog(self, ctx);
+        crate::tool_palettes::radial(self, ctx);
         if let Some(offer) = &self.recovery {
             let (path, when) = (offer.path.clone(), offer.when.clone());
             let mut decided = None;
