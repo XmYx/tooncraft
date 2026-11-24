@@ -493,6 +493,10 @@ impl ToonApp {
         }
         match cli.open.as_deref() {
             Some("preferences") => app.preferences.open = true,
+            Some("pen") => {
+                app.preferences.open = true;
+                app.preferences.tab = crate::preferences::Tab::Pen;
+            }
             Some("export") => crate::export_dialog::open(&mut app, "mp4"),
             Some("shortcuts") => app.show_shortcuts = true,
             Some("find") => app.find.open = true,

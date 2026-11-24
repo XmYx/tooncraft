@@ -435,6 +435,7 @@ fn a_layer_can_have_its_own_onion_settings() {
 fn launch_options_open_windows_layouts_and_tools() {
     for (cli, check) in [
         (Cli { open: Some("preferences".into()), ..Cli::default() }, &(|a: &ToonApp| a.preferences.open) as &dyn Fn(&ToonApp) -> bool),
+        (Cli { open: Some("pen".into()), ..Cli::default() }, &(|a: &ToonApp| a.preferences.open && a.preferences.tab == crate::preferences::Tab::Pen)),
         (Cli { open: Some("export".into()), ..Cli::default() }, &|a: &ToonApp| a.export_dialog.is_some()),
         (Cli { open: Some("find".into()), ..Cli::default() }, &|a: &ToonApp| a.find.open),
         (Cli { open: Some("new-shot".into()), ..Cli::default() }, &|a: &ToonApp| a.new_shot.is_some()),
