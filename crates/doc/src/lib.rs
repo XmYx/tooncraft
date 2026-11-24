@@ -28,7 +28,10 @@ pub mod timing;
 pub use camera::{Camera, CameraKey, Shake};
 pub use exposure::{Cell, ExposureError, reverse_cells};
 pub use markers::{MAX_MARKER_TEXT, MAX_MARKERS, MAX_NAME, parse_timecode, timecode};
-pub use onion::{LightTable, MAX_STEPS as ONION_MAX_STEPS, OnionMode, OnionSkin, Pin};
+pub use onion::{
+    LightTable, MAX_PICK_OFFSET as ONION_MAX_PICK_OFFSET, MAX_PICKED as ONION_MAX_PICKED, MAX_PIN_SHIFT, MAX_STEPS as ONION_MAX_STEPS, OnionMode, OnionSkin,
+    PickError, Pin, PinShift,
+};
 pub use peg::{Channel, Ease, Peg, PegId, PegKey};
 pub use render::{RenderOptions, render_camera, render_frame, render_region};
 pub use sound::{AudioTrack, Soundtrack, VolumeKey};
@@ -95,6 +98,8 @@ pub enum DocError {
     TooManyPegs,
     #[error("there is no peg {0}")]
     NoPeg(u64),
+    #[error("there is no light-table pin {0}")]
+    NoSuchPin(usize),
     #[error("a drawing could not be read back from the page file")]
     PageRead,
     #[error("a drawing could not be written to the page file (is the disk full?)")]
@@ -988,6 +993,16 @@ impl Project {
             Some(id) => peg::chain(&self.pegs, id, frame),
             None => Affine::IDENTITY,
         }
+    }
+
+    /// Where a light-table pin of layer `layer` is shown: the layer's transform at the pinned
+    /// frame, then the pin's shift, turned about the canvas centre.
+    pub fn pin_transform(&self, layer: usize, pin: &Pin) -> Affine {
+        let t = self.layer_transform(layer, pin.frame);
+        if pin.shift.is_none() {
+            return t;
+        }
+        t.then(&pin.shift.affine((self.width() as f32 / 2.0, self.height() as f32 / 2.0)))
     }
 
     /// Canvas positions of a peg's pivot over `from..=to` (its motion path), at most 10 000

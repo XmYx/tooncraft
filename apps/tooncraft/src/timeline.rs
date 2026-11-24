@@ -597,6 +597,8 @@ pub fn cell_tooltip(app: &ToonApp, resp: egui::Response, cell: Cell, drawing: Op
 
 /// Set how many steps the onion skin shows on one side so it reaches frame `to`.
 pub fn set_onion_reach(app: &mut ToonApp, before: bool, to: u32) {
+    // dragging a reach bracket goes back to stepping
+    app.engine.project.onion.pick = false;
     let frame = app.frame;
     let Some(l) = app.engine.project.layers.get(app.layer) else { return };
     let o = &app.engine.project.onion;
@@ -638,6 +640,13 @@ pub fn onion_span(app: &ToonApp) -> Option<(u32, u32)> {
     let len = p.length();
     let frame = app.frame;
     let l = p.layers.get(app.layer)?;
+    if o.pick {
+        let offs = o.picked_offsets();
+        let last = len.saturating_sub(1) as i64;
+        let lo = offs.first().map_or(frame as i64, |v| (frame as i64 + *v as i64).min(frame as i64)).clamp(0, last);
+        let hi = offs.last().map_or(frame as i64, |v| (frame as i64 + *v as i64).max(frame as i64)).clamp(0, last);
+        return Some((lo as u32, hi as u32));
+    }
     let span = match o.mode {
         tooncraft_doc::OnionMode::Frames => (frame.saturating_sub(o.before as u32), (frame + o.after as u32).min(len.saturating_sub(1))),
         tooncraft_doc::OnionMode::Drawings => {
