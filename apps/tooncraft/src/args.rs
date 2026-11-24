@@ -10,7 +10,7 @@ Options:
   --screenshot <PNG>         render the window once to PNG and quit
   --panel <NAME>             bring a panel to the front (timeline, layers, brush, colour, onion, camera,
                              pegs, library, effects, sound, lipsync, timing, history, drawings,
-                             curves, palette)
+                             curves, palette, tool-properties)
   --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size,
                              start, scene, colour-picker, icons, radial, import-video
   --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet

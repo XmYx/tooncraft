@@ -76,6 +76,7 @@ pub fn view(pane: Pane) -> PanelView {
         Pane::Drawings => panel("drawings", &["drawing-library"], Icon::Drawings, tlm!("Drawing Library"), crate::drawing_library::panel),
         Pane::Curves => panel("curves", &["curve"], Icon::Curves, tlm!("Curves"), crate::curves::panel),
         Pane::Palette => panel("palette", &["tool-palette"], Icon::ToolPalette, tlm!("Tool Palette"), crate::tool_palettes::panel),
+        Pane::ToolProperties => panel("tool-properties", &["properties"], Icon::Settings, tlm!("Tool Properties"), crate::tool_options::panel),
     }
 }
 
@@ -115,8 +116,23 @@ mod tests {
     fn the_documented_launch_names_resolve() {
         // the --panel names in args.rs USAGE
         for n in [
-            "timeline", "layers", "brush", "colour", "onion", "camera", "pegs", "library", "effects", "sound", "lipsync", "timing", "history", "drawings",
-            "curves", "palette",
+            "timeline",
+            "layers",
+            "brush",
+            "colour",
+            "onion",
+            "camera",
+            "pegs",
+            "library",
+            "effects",
+            "sound",
+            "lipsync",
+            "timing",
+            "history",
+            "drawings",
+            "curves",
+            "palette",
+            "tool-properties",
         ] {
             assert!(by_name(n).is_some(), "{n}");
             assert!(crate::args::USAGE.contains(n), "{n} is documented");

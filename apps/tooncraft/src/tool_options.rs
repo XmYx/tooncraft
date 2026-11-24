@@ -14,7 +14,24 @@ pub const HEIGHT: f32 = 28.0;
 const BAR: egui::Vec2 = vec2(72.0, 4.0);
 
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
-    ui.horizontal_wrapped(|ui| {
+    ui.horizontal_wrapped(|ui| body(app, ui));
+}
+
+/// The Tool Properties panel: the same settings as the bar, laid out to the panel's width, for a
+/// side-panel layout. Its widgets have their own ids, so the bar and the panel can both show.
+pub fn panel(app: &mut ToonApp, ui: &mut egui::Ui) {
+    ui.push_id("tool-properties", |ui| {
+        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.set_max_width(ui.available_width());
+                body(app, ui);
+            });
+        });
+    });
+}
+
+fn body(app: &mut ToonApp, ui: &mut egui::Ui) {
+    {
         ui.spacing_mut().item_spacing.x = 6.0;
         tool_menu(app, ui);
         ui.separator();
@@ -55,7 +72,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             Tool::Transform => crate::peg_transform::options(app, ui),
             _ => {}
         }
-    });
+    }
 }
 
 /// The tool's glyph and name; a click lists the other tools of its group.
