@@ -4,6 +4,7 @@
 //! tooncraft-cli brush make <kind> <file.toonbrush> [--name NAME]   write a built-in brush
 //! tooncraft-cli brush info <file.toonbrush>                        every setting as JSON
 //! tooncraft-cli brush preview <file.toonbrush> <out.png> [--size WxH]
+//! tooncraft-cli brush import-abr <file.abr> <dir>                  every brush of an ABR brush file
 //! ```
 
 use std::path::Path;
@@ -12,8 +13,36 @@ use tooncraft_brush::{Brush, BrushKind, Images, Source, Target};
 use tooncraft_engine::preset::Preset;
 
 pub fn run(positional: &[String], name: Option<&str>, size: (u32, u32)) -> Result<(), String> {
-    let usage = || "usage: tooncraft-cli brush (make <kind> <file> | info <file> | preview <file> <out.png>)".to_string();
+    let usage = || "usage: tooncraft-cli brush (make <kind> <file> | info <file> | preview <file> <out.png> | import-abr <file.abr> <dir>)".to_string();
     match positional.first().map(String::as_str) {
+        Some("import-abr") => {
+            let (file, dir) = (Path::new(positional.get(1).ok_or_else(usage)?), Path::new(positional.get(2).ok_or_else(usage)?));
+            if std::fs::metadata(file).map_err(|e| e.to_string())?.len() > 512 << 20 {
+                return Err("the brush file is too large".into());
+            }
+            let stem = file.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "brush".into());
+            let got = tooncraft_interop::abr::read(&std::fs::read(file).map_err(|e| e.to_string())?, &stem)?;
+            std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+            let mut used = std::collections::HashSet::new();
+            for b in &got.brushes {
+                // a file name from the brush name: letters, digits, spaces and dashes, unique
+                let base: String = b.name.chars().map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' { c } else { '_' }).collect();
+                let base = if base.trim().is_empty() { "brush".to_string() } else { base.trim().to_string() };
+                let mut name = base.clone();
+                let mut n = 2;
+                while !used.insert(name.to_lowercase()) {
+                    name = format!("{base} {n}");
+                    n += 1;
+                }
+                let out = dir.join(format!("{name}.{}", tooncraft_engine::preset::EXTENSION));
+                Preset::new(&b.name, &b.brush, b.tip.as_ref(), None).save(&out)?;
+                println!("wrote {}", out.display());
+            }
+            for w in &got.warnings {
+                eprintln!("warning: {w}");
+            }
+            Ok(())
+        }
         Some("make") => {
             let kind = positional
                 .get(1)

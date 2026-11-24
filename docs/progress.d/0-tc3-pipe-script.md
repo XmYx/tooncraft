@@ -1,0 +1,1 @@
+- 2026-11-24: Scripting: Rhai in a new `tooncraft-script` crate (commands through `run`, the shot and layers to read, sandboxed, one undo step per run with a full rollback on failure), `tooncraft-cli run-script` and `batch-script`, and three example scripts.

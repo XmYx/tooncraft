@@ -21,6 +21,7 @@ tooncraft-doc = { path = "crates/doc" }
 tooncraft-format = { path = "crates/format" }
 tooncraft-engine = { path = "crates/engine" }
 tooncraft-interop = { path = "crates/interop" }
+tooncraft-script = { path = "crates/script" }
 
 # shared Craft libraries (storytold/craft-libs), pinned by commit like the other Craft apps
 craft-atomic = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
@@ -32,6 +33,8 @@ craft-i18n = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa
 craft-fonts-build = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 craft-video = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["h264-encode", "h264-decode", "hevc-encode", "hevc-decode", "av1-encode", "prores", "vp8-encode"] }
 craft-webp = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", features = ["vp8"] }
+# scripting (MIT OR Apache-2.0), sandboxed: no file, network or module access of its own
+rhai = { version = "1.27", default-features = false, features = ["std", "serde"] }
 craft-pdf = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["write", "write-simple-text"] }
 craft-exr = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", features = ["decode"] }
 craft-tga = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }

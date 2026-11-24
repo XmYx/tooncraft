@@ -19,6 +19,10 @@ pub struct Dab {
     pub pressure: f32,
     /// This dab's colour (straight RGB) when colour jitter changed it.
     pub color: Option<[u8; 3]>,
+    /// Which cell of a tip made of several cells it shows.
+    pub cell: u16,
+    /// Distance from the start of the stroke, in brush diameters (ribbon tips).
+    pub along: f32,
 }
 
 /// Shape parameters precomputed for a stroke.
@@ -29,6 +33,8 @@ pub(crate) struct Shape {
     pub grain: f32,
     pub texture: Grain,
     pub tip: Option<std::sync::Arc<crate::Tip>>,
+    pub tip_mode: crate::TipMode,
+    pub cells: u16,
 }
 
 impl Dab {
@@ -47,7 +53,14 @@ impl Dab {
         let d = (u * u + v * v).sqrt();
         let r = self.radius.max(0.25);
         let mut a = if let Some(tip) = &shape.tip {
-            tip.sample(u / r, v / r)
+            if shape.tip_mode == crate::TipMode::Ribbon {
+                // the image runs along the stroke: its x is the distance along, one image per
+                // diameter, so overlapping dabs agree and the band is seamless
+                let x = (self.along + u / (2.0 * r)).rem_euclid(1.0);
+                tip.sample_cell(x * 2.0 - 1.0, v / r, self.cell, shape.cells)
+            } else {
+                tip.sample_cell(u / r, v / r, self.cell, shape.cells)
+            }
         } else if shape.kind == BrushKind::Airbrush || shape.hardness <= 0.0 {
             // gaussian-like falloff, zero at the radius
             let t = (d / r).min(1.0);

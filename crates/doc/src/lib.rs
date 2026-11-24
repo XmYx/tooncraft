@@ -14,6 +14,7 @@ pub mod colour_art;
 pub mod comp;
 mod exposure;
 pub mod guides;
+pub mod ik;
 pub mod library;
 pub mod markers;
 mod onion;

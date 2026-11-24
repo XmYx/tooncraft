@@ -33,6 +33,8 @@ pub enum Tool {
     Gradient,
     /// Copy pixels from a point set with Alt+click.
     Clone,
+    /// Push, twirl, pinch or bloat pixels.
+    Liquify,
     Hand,
     /// Move, scale and turn the current layer's peg on the canvas.
     Transform,
@@ -74,7 +76,7 @@ pub enum XformKind {
 }
 
 impl Tool {
-    pub const ALL: [Tool; 18] = [
+    pub const ALL: [Tool; 19] = [
         Tool::Pencil,
         Tool::Ink,
         Tool::Airbrush,
@@ -88,6 +90,7 @@ impl Tool {
         Tool::Shape,
         Tool::Gradient,
         Tool::Clone,
+        Tool::Liquify,
         Tool::Hand,
         Tool::Transform,
         Tool::Text,
@@ -123,6 +126,7 @@ impl Tool {
             Tool::Shape => tl!("Shapes"),
             Tool::Gradient => tl!("Gradient"),
             Tool::Clone => tl!("Clone stamp"),
+            Tool::Liquify => tl!("Liquify"),
             Tool::Hand => tl!("Hand"),
             Tool::Transform => tl!("Transform layer"),
             Tool::Text => tl!("Text"),
@@ -148,6 +152,7 @@ impl Tool {
             Tool::Shape => "shape",
             Tool::Gradient => "gradient",
             Tool::Clone => "clone",
+            Tool::Liquify => "liquify",
             Tool::Hand => "hand",
             Tool::Transform => "transform",
             Tool::Text => "text",
@@ -538,6 +543,7 @@ impl ToonApp {
             Some("scene") => crate::scene_menus::open_settings(&mut app),
             Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
             Some("colour-picker") => app.colour.window = true,
+            Some("reference") => app.colour.viewer.open = true,
             Some("icons") => app.show_icons = true,
             Some("import-video") => app.video_dialog = Some(crate::video_dialog::Dialog::new(None)),
             Some("radial") => crate::tool_palettes::open_radial(&mut app, ctx),
@@ -605,6 +611,29 @@ impl ToonApp {
             app.run(Command::AddPegForLayer { layer, name: tl!("Peg 1").to_owned() });
             app.tool = Tool::Transform;
             crate::motion_record::set_armed(&mut app, true);
+        }
+        if cli.ik {
+            let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+            let mut parent = None;
+            for (name, x) in [(tl!("Shoulder"), 0.3), (tl!("Elbow"), 0.45), (tl!("Hand"), 0.6)] {
+                app.run(Command::AddPeg { name: name.to_owned(), parent });
+                if let Some(id) = app.engine.project.pegs.last().map(|p| p.id) {
+                    app.run(Command::SetPegPivot { peg: id, x: w * x, y: h * 0.4 });
+                    parent = Some(id);
+                }
+            }
+            if let Some(hand) = parent {
+                let layer = app.layer;
+                app.run(Command::SetLayerPeg { layer, peg: Some(hand) });
+                if let Some(at) = tooncraft_doc::peg::pivot_on_canvas(&app.engine.project.pegs, hand, 0) {
+                    let keys = tooncraft_doc::ik::solve(&app.engine.project.pegs, hand, 0, (at.0 - w * 0.05, at.1 + h * 0.2), 2);
+                    let commands = keys.into_iter().map(|(peg, k)| crate::peg_transform::key_command(peg, k)).collect();
+                    app.run(Command::Batch { label: "Move with IK".into(), commands });
+                }
+                app.peg_ui.selected = Some(hand);
+            }
+            app.tool = Tool::Transform;
+            app.transform_ui.ik = true;
         }
         if cli.cameras {
             let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
@@ -862,7 +891,7 @@ impl ToonApp {
             resample,
             feather: self.sel.feather,
         };
-        if self.run(cmd) {
+        if crate::selection_tools::run_transform(self, cmd, None) {
             let t = tooncraft_engine::select::affine(&poly, dx, dy, scale.0, scale.1, angle);
             crate::selection_tools::map_rings(self, |p| t.apply(p.0, p.1));
         }
@@ -1591,6 +1620,9 @@ impl ToonApp {
                         "edit.redo",
                         "edit.history",
                         crate::menus::SEP,
+                        "edit.record_macro",
+                        "edit.play_macro",
+                        crate::menus::SEP,
                         "edit.cut",
                         "edit.copy",
                         "edit.paste",
@@ -1871,6 +1903,7 @@ impl ToonApp {
         crate::video_dialog::window(self, ctx);
         crate::export_dialog::window(self, ctx);
         crate::colour_tools::picker_window(self, ctx);
+        crate::reference_viewer::window(self, ctx);
         crate::preferences::window(self, ctx);
         crate::scene_menus::window(self, ctx);
         crate::unsaved::window(self, ctx);
