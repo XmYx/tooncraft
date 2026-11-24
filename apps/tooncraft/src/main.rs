@@ -19,6 +19,9 @@ mod camera_path_ui_tests;
 mod canvas;
 mod canvas_header;
 mod canvas_tools;
+mod clone_tool;
+#[cfg(test)]
+mod clone_ui_tests;
 mod color;
 mod colour_layers_ui;
 #[cfg(test)]
@@ -50,6 +53,8 @@ mod frame_cache;
 mod fx_ui_tests;
 #[cfg(test)]
 mod gaps_ui_tests;
+#[cfg(test)]
+mod gradient_swatch_ui_tests;
 #[cfg(test)]
 mod guidance_ui_tests;
 mod history_panel;

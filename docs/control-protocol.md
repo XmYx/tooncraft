@@ -70,6 +70,9 @@ hand a script can do.
 | `set_marker`, `remove_marker` | `frame`, `text` (empty removes it, 500 characters at most); `frame` |
 | `set_drawing_name`, `expose_named` | `layer`, `frame`, `name` (names the drawing shown there; names are unique ignoring case); `layer`, `frame`, `name` (show that drawing at the frame, only that frame changes) |
 | `edit_swatch` | `palette`, `swatch` (0-based, a shot palette), `rgb`, optional `name`, `update_paint` (default true: paint in the old colour on every unlocked layer takes the new one) |
+| `clone_stamp` | `layer`, `frame`, `offset` (source minus destination, pixels), `points` (the path, at most 20 000), optional `source_layer` (another layer's drawing at the same frame), `tip` (`size` 1…1000 px, `hardness` and `opacity` 0…1) |
+| `gradient` | `layer`, `frame`, `kind` (`linear` / `radial`), `from`, `to`, `start`, `end` (RGBA), optional `area` and `area_rings` (polygons); optional `stops` (`at` 0…1 and `rgba`, at most 16; with two or more they replace `start` and `end`) |
+| `set_palettes` | `palettes`: each a `name` and `swatches` (`name`, `rgb`, optional `alpha` (255 when absent) and `gradient` stops as for `gradient`) |
 | `set_length`, `set_fps`, `set_paper`, `set_paper_texture` (`texture`: `kind`, `image`, `scale`, `angle`, `contrast`, `strength`), `set_onion`, `toggle_pin`, `set_light_table`, `purge_unused` | as named |
 | `shift_pin` | `index`, `x`, `y` (canvas pixels), `turn` (tenths of a degree): shift and trace a light-table pin; a setting, not an undo step |
 | `save_to_library` | `layer`, `from`, `to` (0-based frames, either order), `name`: the drawings and timing of those frames become a drawing-library item with its own copies of the drawings |
