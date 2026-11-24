@@ -450,7 +450,7 @@ Weight: 4
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
 | Headless command line: create, script, export, check | TV TB | D | M | `tooncraft-cli`; every action is an engine command |
-| Replay recorded actions (macros) | TV CS | P | M | JSON-lines command files replay; no recording in the app |
+| Replay recorded actions (macros) | TV CS | D | M | Edit ▸ Record Macro keeps every command and stroke (undo takes a step out, redo puts it back) up to 256 steps, saved as a JSON-lines command file; Edit ▸ Play Macro… plays one back as a single undo step that changes nothing when a step fails; the same files run with `tooncraft-cli run` |
 | Batch processing of many shots | TV TB | P | S | Through shell scripts around the CLI |
 | Embedded scripting language with an object API | TV TB | M | L | |
 | Control from other programs over a socket | TB | M | M | **Ours:** planned on craft-control with an MCP server for agents |

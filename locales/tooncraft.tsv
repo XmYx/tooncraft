@@ -241,7 +241,9 @@ tooncraft	Could not make the folder {dir}: {error}
 tooncraft	Could not open the effects: {error}	
 tooncraft	Could not open the palette: {error}	
 tooncraft	Could not open {file}: {error}	
+tooncraft	Could not play {name}: {error}	
 tooncraft	Could not save the effects: {error}	
+tooncraft	Could not save the macro: {error}	
 tooncraft	Could not save the palette: {error}	
 tooncraft	Could not save: {error}	
 tooncraft	Create	
@@ -971,6 +973,7 @@ tooncraft	Placement
 tooncraft	Play	
 tooncraft	Play / stop	
 tooncraft	Play Around	
+tooncraft	Play Macro…	
 tooncraft	Play Selection	
 tooncraft	Play Sound	
 tooncraft	Play around this frame	
@@ -978,6 +981,7 @@ tooncraft	Playback
 tooncraft	Playback loops back after this frame	
 tooncraft	Playback speed; the sound plays only at 100 %	
 tooncraft	Playback starts here	
+tooncraft	Played {name}: {n} steps as one undo step	
 tooncraft	Point {n} X	
 tooncraft	Point {n} in	
 tooncraft	Point {n} out	
@@ -1036,6 +1040,8 @@ tooncraft	Recent shots not saved: {error}
 tooncraft	Recolour Every Drawing of the Layer	
 tooncraft	Recolour Layer	
 tooncraft	Recoloured	
+tooncraft	Record Macro	
+tooncraft	Recording a macro: every step from now on is kept until you stop	
 tooncraft	Recover	
 tooncraft	Recover unsaved work	
 tooncraft	Recovered; save to keep it	
@@ -1145,6 +1151,7 @@ tooncraft	Saved to the library as {name}
 tooncraft	Saved workspace {name}	
 tooncraft	Saved {file}	
 tooncraft	Saved {file} ({size} KB)	
+tooncraft	Saved {n} steps to {file}	
 tooncraft	Scale 200 %	
 tooncraft	Scale 50 %	
 tooncraft	Scale X	
@@ -1283,6 +1290,9 @@ tooncraft	Steps after
 tooncraft	Steps before	
 tooncraft	Stop	
 tooncraft	Stop Following the Line Layer	
+tooncraft	Stop Recording and Save Macro… ({n} steps)	
+tooncraft	Stopped recording: no steps were recorded	
+tooncraft	Stopped recording; the macro was not saved	
 tooncraft	Straight line from the last stroke	
 tooncraft	Straight ruler	
 tooncraft	Straightened	
@@ -1383,6 +1393,7 @@ tooncraft	Tool Palette
 tooncraft	Tool palette	
 tooncraft	Tool: {tool}	
 tooncraft	ToonCraft found a recovery copy from {when} that is newer than the shot. Open it?	
+tooncraft	ToonCraft macro	
 tooncraft	ToonCraft shot	
 tooncraft	Top	
 tooncraft	Top and bottom	
