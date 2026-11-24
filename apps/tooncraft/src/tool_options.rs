@@ -4,7 +4,6 @@
 //! in the box), then the options of that tool. The full brush settings are in the Brush panel.
 
 use egui::{Color32, Sense, Stroke, vec2};
-use tooncraft_engine::FillReference;
 
 use crate::app::{Tool, ToonApp};
 
@@ -14,7 +13,22 @@ pub const HEIGHT: f32 = 28.0;
 const BAR: egui::Vec2 = vec2(72.0, 4.0);
 
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
-    ui.horizontal_wrapped(|ui| {
+    ui.horizontal_wrapped(|ui| body(app, ui));
+}
+
+/// The Tool Properties panel: the same settings as the bar, one per line, for a
+/// side-panel layout. Its widgets have their own ids, so the bar and the panel can both show.
+pub fn panel(app: &mut ToonApp, ui: &mut egui::Ui) {
+    ui.push_id("tool-properties", |ui| {
+        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            // one setting per line: a side panel is narrow and tall
+            ui.vertical(|ui| body(app, ui));
+        });
+    });
+}
+
+fn body(app: &mut ToonApp, ui: &mut egui::Ui) {
+    {
         ui.spacing_mut().item_spacing.x = 6.0;
         tool_menu(app, ui);
         ui.separator();
@@ -31,6 +45,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         match app.tool {
             Tool::Fill => fill_options(app, ui),
             Tool::Gradient => crate::draw_aids::gradient_options(app, ui),
+            Tool::Clone => crate::clone_tool::options(app, ui),
+            Tool::Contour => crate::contour_tool::options(app, ui),
+            Tool::Liquify => crate::liquify_tool::options(app, ui),
             Tool::Text => crate::text_tool::options(app, ui),
             Tool::Picker => {
                 ui.label(tl!("Click the canvas to pick a colour (Alt+click with any brush)"));
@@ -55,7 +72,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             Tool::Transform => crate::peg_transform::options(app, ui),
             _ => {}
         }
-    });
+    }
 }
 
 /// The tool's glyph and name; a click lists the other tools of its group.
@@ -110,6 +127,11 @@ pub enum Scale {
 /// and a box to type in. The box is the keyboard path (arrow keys and typing); it carries the
 /// name for assistive technology. Returns whether the value changed.
 pub fn scrub(ui: &mut egui::Ui, name: &str, v: &mut f32, range: std::ops::RangeInclusive<f32>, scale: Scale, suffix: &str) -> bool {
+    // one unit, so a wrapping row (the Tool Properties panel) never parts the name from its bar
+    ui.horizontal(|ui| scrub_row(ui, name, v, range, scale, suffix)).inner
+}
+
+fn scrub_row(ui: &mut egui::Ui, name: &str, v: &mut f32, range: std::ops::RangeInclusive<f32>, scale: Scale, suffix: &str) -> bool {
     let (lo, hi) = (*range.start(), *range.end());
     if !v.is_finite() {
         *v = lo;
@@ -193,20 +215,7 @@ fn fill_options(app: &mut ToonApp, ui: &mut egui::Ui) {
     if scrub(ui, tl!("Tolerance"), &mut tolerance, 0.0..=255.0, Scale::Linear, "") {
         app.fill.tolerance = tolerance.round().clamp(0.0, 255.0) as u8;
     }
-    let l = ui.label(tl!("Look at"));
-    let text = |r: FillReference| match r {
-        FillReference::Layer => tl!("This layer"),
-        FillReference::AllLayers => tl!("All visible layers"),
-    };
-    egui::ComboBox::from_id_salt("fill-ref")
-        .selected_text(text(app.fill_reference))
-        .show_ui(ui, |ui| {
-            for r in [FillReference::AllLayers, FillReference::Layer] {
-                ui.selectable_value(&mut app.fill_reference, r, text(r));
-            }
-        })
-        .response
-        .labelled_by(l.id);
+    crate::layer_fx::reference_picker(ui, "fill-ref", &mut app.fill_reference);
     ui.separator();
     let l = ui.label(tl!("Close gaps"));
     ui.add(egui::DragValue::new(&mut app.fill.gap).range(0..=tooncraft_raster::fill::MAX_GAP).suffix(" px")).labelled_by(l.id);

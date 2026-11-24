@@ -225,6 +225,13 @@ fn any_kind() -> impl Strategy<Value = EffectKind> {
         (f(), f(), f()).prop_map(|(hue, saturation, lightness)| EffectKind::HueSaturation { hue, saturation, lightness }),
         (col(), f()).prop_map(|(colour, amount)| EffectKind::Tint { colour, amount }),
         (f(), f(), any::<u32>(), any::<bool>()).prop_map(|(amount, size, seed, animated)| EffectKind::Grain { amount, size, seed, animated }),
+        (0usize..5, f(), f(), f(), f()).prop_map(|(k, scale, angle, contrast, amount)| EffectKind::Texture {
+            kind: tooncraft_brush::GrainKind::ALL[k],
+            scale,
+            angle,
+            contrast,
+            amount
+        }),
         (f(), f()).prop_map(|(radius, intensity)| EffectKind::LightWrap { radius, intensity }),
         f().prop_map(|threshold| EffectKind::AlphaThreshold { threshold }),
         (col(), f(), f()).prop_map(|(colour, tolerance, softness)| EffectKind::ColourKey { colour, tolerance, softness }),
@@ -248,6 +255,44 @@ fn any_kind() -> impl Strategy<Value = EffectKind> {
             amount_x,
             amount_y,
             brightness
+        }),
+        (0u8..4, (f(), f(), f(), f()), (f(), any::<u32>(), f(), f()), (f(), f(), f()), (col(), f(), any::<u32>())).prop_map(
+            |(st, (x, y, width, height), (rate, life, speed, angle), (spread, gravity, size), (colour, opacity, seed))| EffectKind::Particles {
+                style: [ParticleStyle::Rain, ParticleStyle::Snow, ParticleStyle::Sparks, ParticleStyle::Dust][st as usize % 4],
+                x,
+                y,
+                width,
+                height,
+                rate,
+                life,
+                speed,
+                angle,
+                spread,
+                gravity,
+                size,
+                colour,
+                opacity,
+                seed
+            }
+        ),
+        (any::<u64>(), col(), f(), f(), f(), f(), any::<bool>()).prop_map(|(layer, colour, amount, offset_x, offset_y, softness, highlight)| {
+            EffectKind::MatteTone { layer, colour, amount, offset_x, offset_y, softness, highlight }
+        }),
+        (proptest::option::of(any::<u64>()), f(), f(), f(), f(), col())
+            .prop_map(|(normals, angle, elevation, depth, intensity, colour)| EffectKind::NormalLight { normals, angle, elevation, depth, intensity, colour }),
+        (f(), any::<u32>()).prop_map(|(shutter, samples)| EffectKind::MotionBlur { shutter, samples }),
+        (any::<u32>(), any::<u32>(), f()).prop_map(|(count, step, fade)| EffectKind::Trails { count, step, fade }),
+        f().prop_map(|amount| EffectKind::FrameBlend { amount }),
+        (f(), f()).prop_map(|(speed, offset)| EffectKind::TimeRemap { speed, offset }),
+        (0u8..4, 0u32..20, any::<u32>(), any::<bool>(), f(), f(), f(), f()).prop_map(|(st, start, length, out, angle, x, y, size)| EffectKind::Transition {
+            style: [TransitionStyle::Dissolve, TransitionStyle::Wipe, TransitionStyle::Iris, TransitionStyle::Push][st as usize % 4],
+            start,
+            length,
+            out,
+            angle,
+            x,
+            y,
+            size
         }),
         (col(), col(), f()).prop_map(|(dark, light, amount)| EffectKind::GradientMap { dark, light, amount }),
         any::<u32>().prop_map(|levels| EffectKind::Posterize { levels }),
@@ -395,4 +440,42 @@ fn flares_generate_and_displacement_reads_its_layer() {
     let layers = [(7u64, map)];
     apply_stack_with(&mut line, (0, 0), std::slice::from_ref(&shift), 0, Inputs { below: None, layers: &layers });
     assert!(line.pixel(15, 4)[3] > 200, "moved by the map: {:?}", line.pixel(15, 4));
+}
+
+#[test]
+fn a_texture_thins_the_paint_in_its_valleys_and_stays_on_the_canvas() {
+    let k = |amount| EffectKind::Texture { kind: tooncraft_brush::GrainKind::Canvas, scale: 3.0, angle: 0.0, contrast: 1.5, amount };
+    let mut img = RgbaImage::filled(64, 64, [200, 40, 40, 255]);
+    run(k(1.0), &mut img);
+    let alphas: std::collections::BTreeSet<u8> = img.data.as_chunks::<4>().0.iter().map(|p| p[3]).collect();
+    assert!(alphas.len() > 10 && *alphas.iter().next().unwrap_or(&255) < 160, "the weave shows: {alphas:?}");
+    assert!(img.data.as_chunks::<4>().0.iter().all(|p| p[0] <= p[3]), "still premultiplied");
+    // nothing where there is no paint, nothing at amount 0
+    let mut clear = RgbaImage::transparent(16, 16);
+    run(k(1.0), &mut clear);
+    assert_eq!(clear, RgbaImage::transparent(16, 16));
+    let mut none = RgbaImage::filled(16, 16, [10, 20, 30, 255]);
+    run(k(0.0), &mut none);
+    assert_eq!(none, RgbaImage::filled(16, 16, [10, 20, 30, 255]));
+    // fixed to the canvas: a piece rendered at an offset matches the same place of the whole
+    let mut whole = RgbaImage::filled(64, 64, [90, 90, 90, 255]);
+    apply_stack_with(&mut whole, (0, 0), &[Effect::new(k(0.8))], 0, Inputs { below: None, layers: &[] });
+    let mut part = RgbaImage::filled(16, 16, [90, 90, 90, 255]);
+    apply_stack_with(&mut part, (20, 30), &[Effect::new(k(0.8))], 0, Inputs { below: None, layers: &[] });
+    for (x, y) in [(0, 0), (7, 9), (15, 15)] {
+        assert_eq!(part.pixel(x, y), whole.pixel(20 + x, 30 + y));
+    }
+    // an image grain cannot be seen by effects: it reads as paper
+    let e = EffectKind::Texture { kind: tooncraft_brush::GrainKind::Image, scale: f32::NAN, angle: 1e9, contrast: -1.0, amount: 7.0 }.sanitized();
+    assert_eq!(e, EffectKind::Texture { kind: tooncraft_brush::GrainKind::Paper, scale: 3.0, angle: e_angle(&e), contrast: 0.1, amount: 1.0 });
+}
+
+fn e_angle(e: &EffectKind) -> f32 {
+    match e {
+        EffectKind::Texture { angle, .. } => {
+            assert!((-180.0..180.0).contains(angle));
+            *angle
+        }
+        _ => 0.0,
+    }
 }

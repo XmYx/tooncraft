@@ -23,6 +23,7 @@ pub fn effect_name(k: &EffectKind) -> String {
         EffectKind::HueSaturation { .. } => tl!("Hue and saturation"),
         EffectKind::Tint { .. } => tl!("Tint"),
         EffectKind::Grain { .. } => tl!("Grain"),
+        EffectKind::Texture { .. } => tl!("Texture overlay"),
         EffectKind::LightWrap { .. } => tl!("Light wrap"),
         EffectKind::AlphaThreshold { .. } => tl!("Hard edges"),
         EffectKind::Mask { .. } => tl!("Soft mask"),
@@ -38,8 +39,67 @@ pub fn effect_name(k: &EffectKind) -> String {
         EffectKind::Smooth { .. } => tl!("Smooth lines"),
         EffectKind::LensFlare { .. } => tl!("Lens flare"),
         EffectKind::Displace { .. } => tl!("Displace by layer"),
+        EffectKind::MotionBlur { .. } => tl!("Motion blur from movement"),
+        EffectKind::Trails { .. } => tl!("Trails"),
+        EffectKind::FrameBlend { .. } => tl!("Frame blending"),
+        EffectKind::TimeRemap { .. } => tl!("Time remap"),
+        EffectKind::Transition { .. } => tl!("Transition"),
+        EffectKind::Particles { .. } => tl!("Particles"),
+        EffectKind::MatteTone { .. } => tl!("Tone from a matte"),
+        EffectKind::NormalLight { .. } => tl!("Light from normals"),
     }
     .to_string()
+}
+
+fn transition_name(s: tooncraft_fx::TransitionStyle) -> String {
+    use tooncraft_fx::TransitionStyle as T;
+    match s {
+        T::Dissolve => tl!("Dissolve"),
+        T::Wipe => tl!("Wipe"),
+        T::Iris => tl!("Iris"),
+        T::Push => tl!("Push"),
+    }
+    .to_string()
+}
+
+fn particle_name(s: tooncraft_fx::ParticleStyle) -> String {
+    use tooncraft_fx::ParticleStyle as P;
+    match s {
+        P::Rain => tl!("Rain"),
+        P::Snow => tl!("Snow"),
+        P::Sparks => tl!("Sparks"),
+        P::Dust => tl!("Dust"),
+    }
+    .to_string()
+}
+
+/// A layer picker for effects that read another layer; `none` adds a "no layer" choice.
+fn layer_pick(ui: &mut egui::Ui, salt: (&str, usize), label: &str, cx: &ParamContext, value: &mut Option<u64>, none: Option<&str>) -> bool {
+    let mut ch = false;
+    let l = ui.label(label);
+    let current =
+        value.and_then(|v| cx.layers.iter().find(|(i, _)| *i == v).map(|(_, n)| n.clone())).unwrap_or_else(|| none.unwrap_or(tl!("None")).to_string());
+    egui::ComboBox::from_id_salt(salt)
+        .selected_text(current)
+        .show_ui(ui, |ui| {
+            if let Some(n) = none {
+                ch |= ui.selectable_value(value, None, n).changed();
+            }
+            for (lid, name) in &cx.layers {
+                ch |= ui.selectable_value(value, Some(*lid), name).changed();
+            }
+        })
+        .response
+        .labelled_by(l.id);
+    ui.end_row();
+    ch
+}
+
+fn count(ui: &mut egui::Ui, label: &str, v: &mut u32, range: std::ops::RangeInclusive<u32>) -> bool {
+    let l = ui.label(label);
+    let r = ui.add(egui::DragValue::new(v).range(range)).labelled_by(l.id).changed();
+    ui.end_row();
+    r
 }
 
 fn mask_shape_name(s: MaskShape) -> String {
@@ -143,6 +203,24 @@ fn params(ui: &mut egui::Ui, id: usize, k: &mut EffectKind, cx: &ParamContext) -
             ch |= num(ui, tl!("Amount"), amount, 0.0..=1.0, 0.005);
             ch |= num(ui, tl!("Grain size"), size, 1.0..=16.0, 0.05);
             ch |= check(ui, tl!("New grain every frame"), animated);
+        }
+        EffectKind::Texture { kind, scale, angle, contrast, amount } => {
+            let l = ui.label(tl!("Texture"));
+            let before = *kind;
+            egui::ComboBox::from_id_salt(format!("{cid}-texture-kind"))
+                .selected_text(crate::brush_editor::grain_label(*kind))
+                .show_ui(ui, |ui| {
+                    for k in tooncraft_brush::GrainKind::ALL.into_iter().filter(|k| *k != tooncraft_brush::GrainKind::Image) {
+                        ui.selectable_value(kind, k, crate::brush_editor::grain_label(k));
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+            ch |= *kind != before;
+            ch |= num(ui, tl!("Amount"), amount, 0.0..=1.0, 0.005);
+            ch |= num(ui, tl!("Texture size"), scale, 0.5..=64.0, 0.05);
+            ch |= num(ui, tl!("Texture rotation"), angle, -180.0..=180.0, 0.5);
+            ch |= num(ui, tl!("Texture contrast"), contrast, 0.1..=tooncraft_brush::MAX_GRAIN_CONTRAST, 0.01);
         }
         EffectKind::LightWrap { radius, intensity } => {
             ch |= num(ui, tl!("Radius"), radius, 0.0..=200.0, 0.1);
@@ -265,6 +343,94 @@ fn params(ui: &mut egui::Ui, id: usize, k: &mut EffectKind, cx: &ParamContext) -
             ch |= num(ui, tl!("Across"), amount_x, -200.0..=200.0, 0.1);
             ch |= num(ui, tl!("Down"), amount_y, -200.0..=200.0, 0.1);
             ch |= check(ui, tl!("By brightness"), brightness);
+        }
+        EffectKind::MotionBlur { shutter, samples } => {
+            ch |= num(ui, tl!("Shutter (frames)"), shutter, 0.0..=2.0, 0.01);
+            ch |= count(ui, tl!("Samples"), samples, 2..=tooncraft_fx::MAX_BLUR_SAMPLES);
+        }
+        EffectKind::Trails { count: n, step, fade } => {
+            ch |= count(ui, tl!("Copies"), n, 1..=tooncraft_fx::MAX_TRAILS);
+            ch |= count(ui, tl!("Frames apart"), step, 1..=24);
+            ch |= num(ui, tl!("Fade"), fade, 0.0..=1.0, 0.005);
+        }
+        EffectKind::FrameBlend { amount } => ch |= num(ui, tl!("Mix of the next frame"), amount, 0.0..=1.0, 0.005),
+        EffectKind::TimeRemap { speed, offset } => {
+            ch |= num(ui, tl!("Speed"), speed, -8.0..=8.0, 0.01);
+            ch |= num(ui, tl!("Start at frame"), offset, -100_000.0..=100_000.0, 0.1);
+        }
+        EffectKind::Transition { style, start, length, out, angle, x, y, size } => {
+            let l = ui.label(tl!("Style"));
+            egui::ComboBox::from_id_salt(("fx-transition", id))
+                .selected_text(transition_name(*style))
+                .show_ui(ui, |ui| {
+                    use tooncraft_fx::TransitionStyle as T;
+                    for s in [T::Dissolve, T::Wipe, T::Iris, T::Push] {
+                        ch |= ui.selectable_value(style, s, transition_name(s)).changed();
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+            ui.end_row();
+            // frames are shown 1-based
+            let mut first = start.saturating_add(1);
+            if count(ui, tl!("First frame"), &mut first, 1..=u32::MAX) {
+                *start = first.saturating_sub(1);
+                ch = true;
+            }
+            ch |= count(ui, tl!("Frames"), length, 1..=10_000);
+            ch |= check(ui, tl!("Out (the layer leaves)"), out);
+            ch |= num(ui, tl!("Angle"), angle, -3600.0..=3600.0, 0.5);
+            ch |= num(ui, tl!("Centre X"), x, -65536.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Centre Y"), y, -65536.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Distance"), size, 1.0..=65536.0, 1.0);
+        }
+        EffectKind::Particles { style, x, y, width, height, rate, life, speed, angle, spread, gravity, size, colour: c, opacity, .. } => {
+            let l = ui.label(tl!("Kind"));
+            egui::ComboBox::from_id_salt(("fx-particles", id))
+                .selected_text(particle_name(*style))
+                .show_ui(ui, |ui| {
+                    use tooncraft_fx::ParticleStyle as P;
+                    for s in [P::Rain, P::Snow, P::Sparks, P::Dust] {
+                        ch |= ui.selectable_value(style, s, particle_name(s)).changed();
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+            ui.end_row();
+            ch |= num(ui, tl!("Emitter X"), x, -65536.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Emitter Y"), y, -65536.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Emitter width"), width, 0.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Emitter height"), height, 0.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("New per frame"), rate, 0.0..=500.0, 0.1);
+            ch |= count(ui, tl!("Life (frames)"), life, 1..=600);
+            ch |= num(ui, tl!("Speed"), speed, 0.0..=200.0, 0.1);
+            ch |= num(ui, tl!("Direction"), angle, -3600.0..=3600.0, 0.5);
+            ch |= num(ui, tl!("Spread"), spread, 0.0..=360.0, 0.5);
+            ch |= num(ui, tl!("Gravity"), gravity, -10.0..=10.0, 0.01);
+            ch |= num(ui, tl!("Size"), size, 0.5..=64.0, 0.1);
+            ch |= num(ui, tl!("Opacity"), opacity, 0.0..=1.0, 0.005);
+            ch |= colour(ui, &cid, tl!("Particle colour"), c);
+        }
+        EffectKind::MatteTone { layer, colour: c, amount, offset_x, offset_y, softness, highlight } => {
+            let mut v = Some(*layer);
+            if layer_pick(ui, ("fx-tone-layer", id), tl!("Matte layer"), cx, &mut v, None) {
+                *layer = v.unwrap_or(*layer);
+                ch = true;
+            }
+            ch |= check(ui, tl!("Highlight (lighten)"), highlight);
+            ch |= colour(ui, &cid, tl!("Tone colour"), c);
+            ch |= num(ui, tl!("Amount"), amount, 0.0..=1.0, 0.005);
+            ch |= num(ui, tl!("Offset X"), offset_x, -500.0..=500.0, 0.5);
+            ch |= num(ui, tl!("Offset Y"), offset_y, -500.0..=500.0, 0.5);
+            ch |= num(ui, tl!("Softness"), softness, 0.0..=100.0, 0.1);
+        }
+        EffectKind::NormalLight { normals, angle, elevation, depth, intensity, colour: c } => {
+            ch |= layer_pick(ui, ("fx-normals", id), tl!("Normals"), cx, normals, Some(tl!("The drawing's own shape")));
+            ch |= num(ui, tl!("Light direction"), angle, -3600.0..=3600.0, 0.5);
+            ch |= num(ui, tl!("Light height"), elevation, 5.0..=90.0, 0.5);
+            ch |= num(ui, tl!("Roundness"), depth, 1.0..=100.0, 0.1);
+            ch |= num(ui, tl!("Intensity"), intensity, 0.0..=2.0, 0.01);
+            ch |= colour(ui, &cid, tl!("Light colour"), c);
         }
     });
     ch
@@ -494,6 +660,14 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         selection: app.selection.clone(),
     };
     if let Some(mut k) = pick {
+        // a transition starts at the current frame
+        if let EffectKind::Transition { start, .. } = &mut k {
+            *start = app.frame;
+        }
+        // a tone starts on the nearest other layer
+        if let (EffectKind::MatteTone { layer, .. }, Some((id, _))) = (&mut k, cx.layers.first()) {
+            *layer = *id;
+        }
         // a displacement starts on the nearest other layer
         if let EffectKind::Displace { layer, .. } = &mut k
             && let Some((id, _)) = cx.layers.first()

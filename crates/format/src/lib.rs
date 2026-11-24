@@ -157,6 +157,10 @@ struct ProjectJson {
     light_table: LightTable,
     #[serde(default)]
     camera: tooncraft_doc::Camera,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    cameras: Vec<tooncraft_doc::ShotCamera>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    camera_cuts: Vec<tooncraft_doc::CameraCut>,
     #[serde(default)]
     folders: Vec<tooncraft_doc::Folder>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -177,6 +181,10 @@ struct ProjectJson {
     library: Vec<tooncraft_doc::library::Item>,
     #[serde(default, skip_serializing_if = "no_rulers")]
     rulers: tooncraft_doc::rulers::Rulers,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    poses: Vec<tooncraft_doc::pose::Pose>,
+    #[serde(default, skip_serializing_if = "tooncraft_doc::comp::CompGraph::is_empty")]
+    comp: tooncraft_doc::comp::CompGraph,
 }
 
 fn no_rulers(r: &tooncraft_doc::rulers::Rulers) -> bool {
@@ -248,7 +256,11 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             vectors: p.vectors.iter().map(|(d, v)| VectorEntry { drawing: *d, strokes: v.clone() }).collect(),
             library: p.library.clone(),
             rulers: p.rulers.clone(),
+            poses: p.poses.clone(),
+            comp: p.comp.clone(),
             camera: p.camera.clone(),
+            cameras: p.cameras.clone(),
+            camera_cuts: p.camera_cuts.clone(),
             folders: p.folders.clone(),
             pegs: p.pegs.clone(),
             marks: p.marks.iter().map(|(d, m)| MarkEntry { drawing: *d, mark: *m }).collect(),
@@ -396,6 +408,8 @@ fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::P
     p.symmetry = pj.symmetry.sanitized();
     p.palettes = tooncraft_doc::palette::sanitize_all(pj.palettes);
     p.rulers = pj.rulers.sanitized();
+    p.comp = pj.comp.sanitized();
+    p.poses = pj.poses.into_iter().take(tooncraft_doc::pose::MAX_POSES).map(tooncraft_doc::pose::Pose::sanitized).collect();
     let none = std::collections::BTreeSet::new();
     for d in &m.drawings {
         let want = 8 + d.tiles as u64 * (4 + TILE_BYTES as u64);
@@ -414,6 +428,7 @@ fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::P
     let ids: std::collections::BTreeSet<DrawingId> = p.drawing_ids().collect();
     p.library = tooncraft_doc::library::sanitize_all(pj.library, |d| ids.contains(&d));
     p.camera = pj.camera.sanitized(p.width(), p.height());
+    (p.cameras, p.camera_cuts) = tooncraft_doc::camera::sanitize_cameras(pj.cameras, pj.camera_cuts, p.width(), p.height());
     p.set_pegs(pj.pegs);
     // vector strokes only for drawings that exist, sanitized, within one budget for the shot
     // (the id set, not `drawing()`: that would read paged drawings back into memory)

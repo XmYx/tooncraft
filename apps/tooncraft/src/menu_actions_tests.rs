@@ -178,7 +178,7 @@ fn swatch_items_duplicate_and_select_by_colour() {
     a.colour.current = 0;
     assert!(act::can_edit_swatch(&a).is_err());
     let mut p = Palette::new("Shot");
-    p.swatches.push(Swatch { name: "Red".into(), rgb: RED });
+    p.swatches.push(Swatch::colour("Red", RED));
     assert!(a.run(Command::SetPalettes { palettes: vec![p] }));
     a.colour.current = 1;
     act::duplicate_swatch(&mut a, 0);

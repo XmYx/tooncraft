@@ -1,0 +1,1 @@
+- 2026-11-24: Image tips laid along the stroke: animated tips of several cells (in turn, at random or by timeline frame), pattern brushes (copies end to end, turned along the stroke) and ribbon brushes (the image stretched along the stroke as one band).

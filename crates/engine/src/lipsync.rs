@@ -79,6 +79,25 @@ pub(crate) fn detect(e: &mut Engine, layer: usize, from: u32, settings: Settings
     write(e, layer, from, &changes, "Lip sync")
 }
 
+/// Key the mouths of a typed line on `layer` from `from`: over the voiced frames of the shot's
+/// sound, or `min_hold` frames per shape when the shot has no sound.
+pub(crate) fn from_text(e: &mut Engine, layer: usize, from: u32, text: &str, settings: Settings) -> Result<usize> {
+    if text.chars().count() > tooncraft_lipsync::text::MAX_CHARS {
+        return Err(EngineError::Import(format!("the line is longer than {} characters", tooncraft_lipsync::text::MAX_CHARS)));
+    }
+    if tooncraft_lipsync::text::line_mouths(text).is_empty() {
+        return Err(EngineError::Import("the line has no words to say".into()));
+    }
+    let p = &e.project;
+    let mouths = match crate::audio::mix_project(p, from.min(p.length()), p.length()) {
+        Some(Ok(mix)) => tooncraft_lipsync::text::from_text(text, &mix.mono(), mix.rate, p.fps(), settings),
+        Some(Err(err)) => return Err(EngineError::Import(err)),
+        None => tooncraft_lipsync::text::from_text_even(text, settings.sanitized().min_hold),
+    };
+    let changes = tooncraft_lipsync::changes(&mouths);
+    write(e, layer, from, &changes, "Lip sync from dialogue")
+}
+
 /// Key a mouth sheet's changes on `layer` from `from` (frames are rescaled when the sheet says
 /// another frame rate).
 pub(crate) fn import(e: &mut Engine, layer: usize, path: &str, from: u32) -> Result<usize> {

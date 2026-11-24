@@ -206,6 +206,9 @@ pub static ALL: &[Cmd] = &[
     tool!("tool.select", "Select", Select, "S"),
     tool!("tool.shape", "Shapes", Shape, "U"),
     tool!("tool.gradient", "Gradient", Gradient, "G"),
+    when(cmd("tool.contour", tlm!("Contour"), Some(Icon::Contour), G::Tool, Remap("Shift+P"), pick_tool), not_stroking),
+    when(cmd("tool.liquify", tlm!("Liquify"), Some(Icon::Liquify), G::Tool, Remap("Shift+K"), pick_tool), not_stroking),
+    when(cmd("tool.clone", tlm!("Clone stamp"), Some(Icon::CloneStamp), G::Tool, Remap("J"), pick_tool), not_stroking),
     tool!("tool.hand", "Hand", Hand, "H"),
     tool!("tool.transform", "Transform layer", Transform, "Q"),
     tool!("tool.text", "Text", Text, "T"),
@@ -219,6 +222,7 @@ pub static ALL: &[Cmd] = &[
     cmd("frame.next_drawing", tlm!("Next drawing"), Some(Icon::NextDrawing), G::Frame, Remap("Ctrl+Right"), |a, _, _| a.step_drawing(true)),
     cmd("view.radial_menu", tlm!("Radial menu"), Some(Icon::Radial), G::View, Remap("V"), |a, ctx, _| crate::tool_palettes::open_radial(a, ctx)),
     cmd("app.find_command", tlm!("Find a command"), Some(Icon::Search), G::Help, Remap("Ctrl+Shift+P"), |a, _, _| a.find.open = true),
+    toggle(cmd("select.quick_mask", tlm!("Quick Mask"), None, G::Select, Remap("Shift+Q"), |a, _, _| crate::quick_mask::toggle(a)), crate::quick_mask::is_on),
     cmd("select.invert", tlm!("Invert selection"), None, G::Select, Remap("Ctrl+Shift+I"), |a, _, _| crate::selection_tools::invert(a)),
     cmd("frame.swap_next", tlm!("Show the next drawing of the layer here"), None, G::Frame, Remap("Ctrl+Alt+Down"), |a, _, _| a.swap_step(true)),
     cmd("frame.swap_prev", tlm!("Show the previous drawing of the layer here"), None, G::Frame, Remap("Ctrl+Alt+Up"), |a, _, _| a.swap_step(false)),
@@ -352,6 +356,13 @@ pub static ALL: &[Cmd] = &[
         a.engine.redo_label().map(|l| tlf!("Redo {action}", action = l))
     }),
     cmd("edit.history", tlm!("Undo History"), Some(Icon::History), G::Edit, NoKey, |a, _, _| a.workspace.raise(Pane::History)),
+    named(
+        toggle(when(cmd("edit.record_macro", tlm!("Record Macro"), None, G::Edit, NoKey, |a, _, _| crate::macro_ui::toggle(a)), not_stroking), |a| {
+            a.engine.is_recording()
+        }),
+        |a| a.engine.is_recording().then(|| tlf!("Stop Recording and Save Macro… ({n} steps)", n = a.engine.recorded_steps())),
+    ),
+    when(cmd("edit.play_macro", tlm!("Play Macro…"), None, G::Edit, NoKey, |a, _, _| crate::macro_ui::open(a)), not_stroking),
     cmd("edit.cut", tlm!("Cut"), Some(Icon::Cut), G::Edit, Fixed("Ctrl+X"), |a, _, _| {
         if a.selection.is_some() {
             a.copy_pixels(true);
@@ -496,6 +507,7 @@ pub static ALL: &[Cmd] = &[
     when(cmd("layer.add_peg", tlm!("Add Peg"), Some(Icon::Peg), G::Layer, NoKey, mc::run_layer), mc::can_add_peg),
     when(cmd("layer.move_up", tlm!("Move Layer Up"), None, G::Layer, NoKey, mc::run_layer), mc::not_top),
     when(cmd("layer.move_down", tlm!("Move Layer Down"), None, G::Layer, NoKey, mc::run_layer), mc::not_bottom),
+    toggle(cmd("layer.reference", tlm!("Reference Layer"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::is_reference),
     toggle(cmd("layer.adjustment", tlm!("Adjustment Layer"), Some(Icon::Effects), G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::is_adjustment),
     when(cmd("layer.mask_add", tlm!("Add Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::no_mask),
     toggle(
@@ -691,8 +703,8 @@ mod tests {
         ] {
             assert!(get(id).is_some_and(|c| matches!(c.key, Key::Remap(_))), "{id}");
         }
-        // 51, then the zoom and rotate-view tools, then the radial menu
-        assert_eq!(remappable().count(), 54);
+        // 51, then the zoom and rotate-view tools, then the radial menu, then the clone stamp, then quick mask, then liquify, then the contour tool
+        assert_eq!(remappable().count(), 58);
     }
 
     #[test]
