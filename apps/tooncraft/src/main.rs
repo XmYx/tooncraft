@@ -87,6 +87,8 @@ mod menu_commands;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+#[cfg(test)]
+mod mesh_warp_ui_tests;
 mod motion_record;
 #[cfg(test)]
 mod motion_record_ui_tests;
