@@ -95,6 +95,8 @@ mod pegs;
 #[cfg(test)]
 mod pen_ui_tests;
 mod pipeline;
+#[cfg(test)]
+mod poses_ui_tests;
 mod preferences;
 mod rulers_ui;
 #[cfg(test)]

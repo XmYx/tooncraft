@@ -1,0 +1,1 @@
+- 2026-11-24: Pose library: save a peg and the pegs below it as a named pose with the shot and put it back on any frame from the Pegs panel (`save_pose`, `apply_pose`); one undo step each.
