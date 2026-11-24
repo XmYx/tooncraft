@@ -173,9 +173,9 @@ Weight: 3
 |---|---|---|---|---|
 | Paper colour | all | D | S | Exported or left out per shot |
 | Paper grain that shapes pencil and chalk dabs | TV CS PD | D | S | Hashed grain, so a replay gives the same pixels |
-| Visible paper texture under the drawing | TV CS PD | M | S | |
+| Visible paper texture under the drawing | TV CS PD | D | S | Any grain (also a grain image) shades the paper colour with its own strength, size, rotation and contrast: one repeating tile on the canvas, the same pixels in exports with the paper; `SetPaperTexture`, saved with the shot |
 | Paper and grain library, grain images from files | TV CS PD | D | M | Four built-in grains and tileable grain images saved in the shot |
-| Grain scale, rotation and contrast | TV CS | P | S | Scale only |
+| Grain scale, rotation and contrast | TV CS | D | S | Per brush in the brush editor (`grain_scale`, `grain_angle`, `grain_contrast` in `.toonbrush` files), and for the paper texture |
 | Texture overlay on a layer or a fill | CS PD | M | S | |
 | Canvas size presets | all | D | S | Eleven video, cinema, square and portrait presets with their frame rates in New Shot and Canvas Size, the aspect ratio shown, and the user's own saved presets |
 | Canvas resize and crop with anchors | all | D | S | Drawings move whole pixels, never resampled; one undo step |

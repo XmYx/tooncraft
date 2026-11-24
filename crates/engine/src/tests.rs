@@ -973,3 +973,26 @@ fn import_options_by_name_into_a_layer_and_placement() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn paper_texture_command_sets_saves_and_refuses_a_missing_image() {
+    let mut e = engine();
+    let cmd: Command =
+        serde_json::from_str(r#"{"cmd":"set_paper_texture","texture":{"kind":"canvas","scale":4,"angle":15,"contrast":1.5,"strength":0.6}}"#).unwrap();
+    e.apply(cmd).unwrap();
+    let t = e.project.paper.texture;
+    assert_eq!((t.kind, t.strength), (tooncraft_brush::GrainKind::Canvas, 0.6));
+    assert!(e.is_dirty(), "a setting change is unsaved work");
+    let back = tooncraft_format::from_bytes(&tooncraft_format::to_bytes(&e.project).unwrap()).unwrap();
+    assert_eq!(back.paper.texture, t, "saved with the shot");
+    // an image that is not in the tip table is refused and changes nothing
+    let missing = tooncraft_doc::PaperTexture { kind: tooncraft_brush::GrainKind::Image, image: Some(77), ..t };
+    assert_eq!(e.apply(Command::SetPaperTexture { texture: missing }), Err(EngineError::NoGrainImage(77)));
+    assert_eq!(e.project.paper.texture, t);
+    // hostile numbers are clamped
+    e.apply(Command::SetPaperTexture { texture: tooncraft_doc::PaperTexture { strength: 9.0, scale: f32::NAN, ..t } }).unwrap();
+    assert_eq!((e.project.paper.texture.strength, e.project.paper.texture.scale), (1.0, 3.0));
+    // a file without a texture loads with plain paper
+    let plain = tooncraft_format::from_bytes(&tooncraft_format::to_bytes(&engine().project).unwrap()).unwrap();
+    assert!(plain.paper.texture.is_off());
+}
