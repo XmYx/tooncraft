@@ -17,7 +17,7 @@ fn toggle(app: &mut ToonApp, ui: &mut Ui, id: &str, label: &str, menu: fn(&mut T
     let Some(icon) = c.icon else { return };
     let on = c.checked.is_some_and(|f| f(app));
     let resp = ui.add(IconButton::new(icon, label).active(on).shortcut(c.key_text(app)));
-    let now = resp.has_focus() && crate::timeline::menu_key(ui);
+    let now = resp.has_focus() && crate::timeline::menu_key(ui) || id == "view.onion" && crate::context_menus::launch_now(ui.ctx(), "onion");
     crate::timeline::keyboard_menu(ui, &resp, now, |ui| menu(app, ui));
     resp.context_menu(|ui| menu(app, ui));
     if resp.clicked() {

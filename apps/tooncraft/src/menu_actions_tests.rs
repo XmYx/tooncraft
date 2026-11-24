@@ -128,7 +128,6 @@ fn paste_reversed_plays_the_copied_frames_backwards_and_keeps_the_clipboard() {
 #[test]
 fn ruler_items_set_and_clear_the_loop_and_the_onion_range() {
     let mut a = app();
-    assert!(act::has_loop(&a).is_err());
     a.frame = 1;
     act::set_loop_at(&mut a, 3, true);
     act::set_loop_at(&mut a, 6, false);
@@ -136,8 +135,6 @@ fn ruler_items_set_and_clear_the_loop_and_the_onion_range() {
     assert_eq!(a.frame, 1, "the playhead stays");
     act::set_loop_at(&mut a, 9_999, false);
     assert_eq!(a.tl.range, Some((3, a.engine.project.length() - 1)));
-    act::clear_loop(&mut a);
-    assert!(a.tl.range.is_none());
     act::onion_range(&mut a, 5);
     let o = a.engine.project.onion;
     assert!(o.enabled && o.before == 5 && o.after == 5);

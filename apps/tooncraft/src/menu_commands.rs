@@ -181,15 +181,7 @@ fn ruler_frame(a: &ToonApp) -> u32 {
 
 pub fn run_ruler(a: &mut ToonApp, _: &egui::Context, id: &'static str) {
     let f = ruler_frame(a);
-    match id {
-        "ruler.loop_in" => act::set_loop_at(a, f, true),
-        "ruler.loop_out" => act::set_loop_at(a, f, false),
-        _ => act::clear_loop(a),
-    }
-}
-
-pub fn has_loop(a: &ToonApp) -> Enabled {
-    act::has_loop(a)
+    act::set_loop_at(a, f, id == "ruler.loop_in");
 }
 
 fn range_of(id: &str) -> u8 {

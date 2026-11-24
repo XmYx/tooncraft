@@ -1,0 +1,1 @@
+- 2026-11-24: The ruler menu's Clear uses the timeline's own Clear In and Out command, and `--context-menu` opens the tool flyout, a panel stack's menu and the onion settings too.

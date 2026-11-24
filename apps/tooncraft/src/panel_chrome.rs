@@ -130,7 +130,12 @@ impl DockContent<Pane> for Chrome<'_> {
         let pane = *active;
         let name = tlf!("{panel} panel menu", panel = pane.label());
         let resp = ui.add(IconButton::new(Icon::More, name).size(ui.max_rect().height().min(24.0)));
-        egui::Popup::menu(&resp).show(|ui| stack_menu(self, ui, pane, floating));
+        // `--context-menu tab`: the first stack drawn opens its menu
+        let mut popup = egui::Popup::menu(&resp);
+        if crate::context_menus::launch_now(ui.ctx(), "tab") {
+            popup = popup.open_memory(Some(egui::SetOpenCommand::Bool(true)));
+        }
+        popup.show(|ui| stack_menu(self, ui, pane, floating));
     }
 
     /// The tab's right-click menu: Reset Panel (craft-ui adds Float, Move To and Close after it).

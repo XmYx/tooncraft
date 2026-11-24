@@ -154,7 +154,7 @@ fn ruler_menu_sets_and_clears_the_loop_and_the_onion_range() {
     h.run();
     let ruler = || By::new().label("Frame ruler");
     open_menu(&mut h, ruler(), false);
-    assert!(disabled(&h, "Clear Loop"), "no loop yet");
+    assert!(disabled(&h, "Clear In and Out"), "no loop yet");
     choose(&mut h, "Set Loop In Here");
     assert_eq!(h.state().tl.range.map(|r| r.0), Some(3));
     open_menu(&mut h, ruler(), true);
@@ -163,7 +163,7 @@ fn ruler_menu_sets_and_clears_the_loop_and_the_onion_range() {
     let o = h.state().engine.project.onion;
     assert!(o.enabled && o.before == 3 && o.after == 3);
     open_menu(&mut h, ruler(), false);
-    choose(&mut h, "Clear Loop");
+    choose(&mut h, "Clear In and Out");
     assert!(h.state().tl.range.is_none());
 }
 
@@ -295,9 +295,16 @@ fn panel_tab_menu_has_reset_panel() {
 
 #[test]
 fn the_launch_option_opens_each_menu() {
-    for (target, item) in
-        [("canvas", "Pick Colour Here"), ("selection", "Fill Selection"), ("cell", "Hold For"), ("ruler", "Set Loop In Here"), ("layer", "Add Peg")]
-    {
+    for (target, item) in [
+        ("canvas", "Pick Colour Here"),
+        ("selection", "Fill Selection"),
+        ("cell", "Hold For"),
+        ("ruler", "Set Loop In Here"),
+        ("layer", "Add Peg"),
+        ("tool", "Reset Tool Settings"),
+        ("tab", "Reset Panel"),
+        ("onion", "More Onion Settings…"),
+    ] {
         let ctx = egui::Context::default();
         let cli = Cli { context_menu: Some(target.into()), ..Default::default() };
         let app = ToonApp::with_context(&ctx, cli).without_autosave();

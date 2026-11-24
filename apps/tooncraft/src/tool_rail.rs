@@ -282,7 +282,8 @@ fn group_button(app: &mut ToonApp, ui: &mut egui::Ui, g: usize) {
     }
     // open the flyout: hold, right-click, or the Menu key / Shift+F10 on the focused button
     let held = many && resp.is_pointer_button_down_on() && ui.input(|i| i.pointer.press_start_time().is_some_and(|s| i.time - s > HOLD_SECONDS));
-    let keyboard = resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Menu) || (i.modifiers.shift && i.key_pressed(egui::Key::F10)));
+    let keyboard = resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Menu) || (i.modifiers.shift && i.key_pressed(egui::Key::F10)))
+        || active && crate::context_menus::launch_now(ui.ctx(), "tool");
     let right_click = resp.secondary_clicked() || keyboard;
     let open = (right_click || held).then_some(egui::SetOpenCommand::Bool(true));
     if right_click {
