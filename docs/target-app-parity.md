@@ -24,34 +24,34 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 | | Value | Kind |
 |---|---|---|
 | In-scope feature rows | 314 | counted |
-| Done / exceeds / partial / missing | 234 / 3 / 21 / 56 | counted |
+| Done / exceeds / partial / missing | 267 / 3 / 16 / 28 | counted |
 | Out of scope (not in any denominator) | 4 | counted |
-| **Row parity**, (D + X + ½·P) / rows | **78.8 %** | counted |
-| **Weighted parity**, area weights × size-weighted rows | **62.6 %** | counted |
-| Size-weighted parity over all rows, no area weights | 62.2 % | counted |
-| **UI parity**, rows of the reference-layout area | **90.4 %** | counted |
+| **Row parity**, (D + X + ½·P) / rows | **88.5 %** | counted |
+| **Weighted parity**, area weights × size-weighted rows | **75.7 %** | counted |
+| Size-weighted parity over all rows, no area weights | 74.8 % | counted |
+| **UI parity**, rows of the reference-layout area | **94.7 %** | counted |
 
 | Area | Weight | Rows | D | X | P | M | Out | Row parity | Effort parity |
 |---|---|---|---|---|---|---|---|---|---|
-| Brush engine | 9 (9 %) | 29 | 20 | 0 | 2 | 7 | 1 | 72 % | 58 % |
-| Paper and textures | 3 (3 %) | 10 | 9 | 0 | 0 | 1 | 0 | 90 % | 91 % |
-| Drawing tools | 7 (7 %) | 17 | 12 | 0 | 2 | 3 | 0 | 76 % | 58 % |
-| Selection and transform | 5 (5 %) | 14 | 10 | 0 | 0 | 4 | 0 | 71 % | 56 % |
-| Colour and paint | 7 (7 %) | 18 | 14 | 0 | 1 | 3 | 0 | 81 % | 60 % |
-| Layers | 6 (6 %) | 13 | 12 | 0 | 0 | 1 | 0 | 92 % | 93 % |
+| Brush engine | 9 (9 %) | 29 | 25 | 0 | 1 | 3 | 1 | 88 % | 78 % |
+| Paper and textures | 3 (3 %) | 10 | 10 | 0 | 0 | 0 | 0 | 100 % | 100 % |
+| Drawing tools | 7 (7 %) | 17 | 14 | 0 | 2 | 1 | 0 | 88 % | 63 % |
+| Selection and transform | 5 (5 %) | 14 | 14 | 0 | 0 | 0 | 0 | 100 % | 100 % |
+| Colour and paint | 7 (7 %) | 18 | 15 | 0 | 0 | 3 | 0 | 83 % | 67 % |
+| Layers | 6 (6 %) | 13 | 13 | 0 | 0 | 0 | 0 | 100 % | 100 % |
 | Timeline and exposure sheet | 9 (9 %) | 20 | 17 | 0 | 1 | 2 | 0 | 88 % | 70 % |
 | Onion skin and light table | 4 (4 %) | 11 | 11 | 0 | 0 | 0 | 0 | 100 % | 100 % |
-| Animation tools | 9 (9 %) | 18 | 9 | 1 | 2 | 6 | 0 | 61 % | 37 % |
-| Camera | 4 (4 %) | 8 | 5 | 0 | 0 | 3 | 0 | 62 % | 47 % |
-| Effects and compositing | 7 (7 %) | 22 | 16 | 0 | 0 | 6 | 0 | 73 % | 46 % |
-| Audio and lip-sync | 4 (4 %) | 14 | 11 | 0 | 1 | 2 | 0 | 82 % | 72 % |
-| Import, export and pipeline | 7 (7 %) | 28 | 21 | 0 | 2 | 5 | 1 | 79 % | 68 % |
-| Scripting and automation | 4 (4 %) | 7 | 1 | 0 | 2 | 4 | 0 | 29 % | 22 % |
+| Animation tools | 9 (9 %) | 18 | 10 | 1 | 3 | 4 | 0 | 69 % | 48 % |
+| Camera | 4 (4 %) | 8 | 6 | 0 | 0 | 2 | 0 | 75 % | 60 % |
+| Effects and compositing | 7 (7 %) | 22 | 21 | 0 | 1 | 0 | 0 | 98 % | 90 % |
+| Audio and lip-sync | 4 (4 %) | 14 | 12 | 0 | 1 | 1 | 0 | 89 % | 83 % |
+| Import, export and pipeline | 7 (7 %) | 28 | 24 | 0 | 1 | 3 | 1 | 88 % | 78 % |
+| Scripting and automation | 4 (4 %) | 7 | 3 | 0 | 1 | 3 | 0 | 50 % | 44 % |
 | UI and workspace | 5 (5 %) | 14 | 12 | 1 | 1 | 0 | 0 | 96 % | 94 % |
-| UI parity with the reference layout | 5 (5 %) | 47 | 41 | 0 | 3 | 3 | 0 | 90 % | 77 % |
-| Tablet and input | 4 (4 %) | 9 | 4 | 0 | 3 | 2 | 1 | 61 % | 55 % |
+| UI parity with the reference layout | 5 (5 %) | 47 | 44 | 0 | 1 | 2 | 0 | 95 % | 81 % |
+| Tablet and input | 4 (4 %) | 9 | 6 | 0 | 3 | 0 | 1 | 83 % | 85 % |
 | Collaboration and review | 2 (2 %) | 5 | 2 | 0 | 0 | 3 | 1 | 40 % | 22 % |
-| Stability and performance | 4 (4 %) | 10 | 7 | 1 | 1 | 1 | 0 | 85 % | 69 % |
+| Stability and performance | 4 (4 %) | 10 | 8 | 1 | 0 | 1 | 0 | 90 % | 75 % |
 <!-- parity:end -->
 
 ## How to read the map
