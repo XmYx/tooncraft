@@ -32,6 +32,7 @@ tooncraft	A shot keeps at least one layer
 tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
 tooncraft	A window of its own	
 tooncraft	About ToonCraft	
+tooncraft	Across	
 tooncraft	Actual Size	
 tooncraft	Actual size	
 tooncraft	Add	
@@ -98,6 +99,7 @@ tooncraft	Apply Skew
 tooncraft	Around	
 tooncraft	Arrange	
 tooncraft	As a GIMP palette (.gpl)	
+tooncraft	At most {n} offsets	
 tooncraft	Audio tracks	
 tooncraft	Autosave every	
 tooncraft	Back to its first layout	
@@ -274,6 +276,7 @@ tooncraft	Distort
 tooncraft	Divide	
 tooncraft	Done	
 tooncraft	Don’t Save	
+tooncraft	Down	
 tooncraft	Drag around an area to fill it	
 tooncraft	Drag around the centre to turn the view; double-click puts it upright	
 tooncraft	Drag from start to end; inside the selection when there is one	
@@ -345,6 +348,7 @@ tooncraft	Erasers
 tooncraft	Every drawing of the layer	
 tooncraft	Every panel back in its first place	
 tooncraft	Every unlocked layer: paint in the old colour takes the new one	
+tooncraft	Exact frames	
 tooncraft	Exclusion	
 tooncraft	Export	
 tooncraft	Export Brush…	
@@ -791,6 +795,8 @@ tooncraft	Off
 tooncraft	Off: that colour everywhere in the picture	
 tooncraft	Offset X	
 tooncraft	Offset Y	
+tooncraft	Offset {n} is out of range: use −{max} to +{max}, not 0	
+tooncraft	Offsets	
 tooncraft	On fours	
 tooncraft	On ones	
 tooncraft	On the current layer at the current frame, as new drawings	
@@ -956,6 +962,7 @@ tooncraft	Purge Unused Drawings
 tooncraft	Put the current layer in a new folder inside its folder	
 tooncraft	Put this brush's own settings back (the colour stays)	
 tooncraft	Put this tab's settings back	
+tooncraft	Put {pin} back where it was drawn	
 tooncraft	Quarter size	
 tooncraft	Quit	
 tooncraft	Radial	
@@ -1025,6 +1032,7 @@ tooncraft	Reset Brush
 tooncraft	Reset Panel	
 tooncraft	Reset Panels	
 tooncraft	Reset Rotation	
+tooncraft	Reset Shift	
 tooncraft	Reset Tool Settings	
 tooncraft	Reset Workspace	
 tooncraft	Reset {what}	
@@ -1122,6 +1130,9 @@ tooncraft	Shapes
 tooncraft	Sheet	
 tooncraft	Sheet and timeline	
 tooncraft	Sheet down the page (layers as columns)	
+tooncraft	Shift and trace: move {pin} across; the drawing does not change	
+tooncraft	Shift and trace: move {pin} down; the drawing does not change	
+tooncraft	Shift and trace: turn {pin}; the drawing does not change	
 tooncraft	Shift: 15° lines, squares, circles	
 tooncraft	Shortcut changed	
 tooncraft	Shortcut…	
@@ -1138,6 +1149,7 @@ tooncraft	Show layers labelled
 tooncraft	Show onion skin	
 tooncraft	Show pinned frames	
 tooncraft	Show the camera frame	
+tooncraft	Show the frames at these offsets from the current one instead of stepping, such as -4 -2 +2	
 tooncraft	Show the next drawing of the layer here	
 tooncraft	Show the previous drawing of the layer here	
 tooncraft	Show the start window when opening with no shot	
@@ -1313,6 +1325,7 @@ tooncraft	Transform layer
 tooncraft	Transform selection	
 tooncraft	Trim start	
 tooncraft	Turbulence	
+tooncraft	Turn	
 tooncraft	Type a frame number to go there	
 tooncraft	Type the text; Ctrl+Enter places it, Escape drops it	
 tooncraft	UHD, 24 fps	
@@ -1327,6 +1340,7 @@ tooncraft	Undo {action}
 tooncraft	Unlock Layer	
 tooncraft	Unlock Transparency	
 tooncraft	Unpin This Frame	
+tooncraft	Unpin {pin}	
 tooncraft	Unsaved changes	
 tooncraft	Update Marker	
 tooncraft	Update paint in this colour	
@@ -1439,3 +1453,4 @@ tooncraft	{w}×{h} · {fps} fps
 tooncraft	“{layer}” hangs from	
 tooncraft	“{layer}” hangs from no peg	
 tooncraft	“{name}” has changes that are not saved. Save the shot first?	
+tooncraft	“{word}” is not a frame offset	

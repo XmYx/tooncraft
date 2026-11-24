@@ -859,6 +859,17 @@ pub enum Command {
         layer: usize,
         frame: u32,
     },
+    /// Shift and trace: show light-table pin `index` moved by `(x, y)` canvas pixels and turned
+    /// by `turn` tenths of a degree, without changing its drawing.
+    ShiftPin {
+        index: usize,
+        #[serde(default)]
+        x: i32,
+        #[serde(default)]
+        y: i32,
+        #[serde(default)]
+        turn: i32,
+    },
     SetLightTable {
         #[serde(default)]
         enabled: Option<bool>,
@@ -1793,7 +1804,13 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::TogglePin { layer, frame } => {
             frame_ok(e, frame)?;
             let id = e.project.layer(layer)?.id;
-            e.project.light_table.toggle(Pin { layer: id, frame });
+            e.project.light_table.toggle(Pin::new(id, frame));
+            e.touch();
+            Ok(())
+        }
+        Command::ShiftPin { index, x, y, turn } => {
+            let pin = e.project.light_table.pins.get_mut(index).ok_or(DocError::NoSuchPin(index))?;
+            pin.shift = tooncraft_doc::PinShift { x, y, turn }.sanitized();
             e.touch();
             Ok(())
         }

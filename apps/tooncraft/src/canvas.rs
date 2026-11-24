@@ -822,7 +822,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             if let Some(d) = p.drawing_at(li, pin.frame)
                 && let Some(s) = p.drawing(d)
             {
-                draw_surface(tex, &ctx, &c, d, s, p.light_table.opacity, Some(p.light_table.tint), &p.layer_transform(li, pin.frame), false);
+                draw_surface(tex, &ctx, &c, d, s, p.light_table.opacity, Some(p.light_table.tint), &p.pin_transform(li, pin), false);
             }
         }
     }

@@ -14,7 +14,8 @@ fn sample() -> Project {
     }
     p.layers[0].cells = vec![Cell::Key(a), Cell::Hold, Cell::Key(b), Cell::Blank, Cell::Blank, Cell::Blank];
     p.add_layer("Colour", 0).unwrap();
-    p.light_table.toggle(tooncraft_doc::Pin { layer: p.layers[1].id, frame: 2 });
+    p.light_table.toggle(tooncraft_doc::Pin::new(p.layers[1].id, 2));
+    p.light_table.pins[0].shift = tooncraft_doc::PinShift { x: 7, y: -3, turn: 150 };
     p.onion.before = 3;
     p.tips.insert(7, std::sync::Arc::new(tooncraft_brush::Tip::new("leaf", 2, 2, vec![0, 255, 128, 64]).unwrap()));
     p.camera.enabled = true;
