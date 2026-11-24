@@ -39,6 +39,7 @@ mod context_menus_ui_tests;
 mod curves;
 #[cfg(test)]
 mod curves_ui_tests;
+mod display_session;
 mod dock;
 #[cfg(test)]
 mod dock_ui_tests;
@@ -199,9 +200,18 @@ fn main() -> eframe::Result {
         }
     };
     let size = if cli.screenshot.is_some() { [1600.0, 1000.0] } else { [1500.0, 940.0] };
-    let options = eframe::NativeOptions {
+    #[allow(unused_mut)]
+    let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_title("ToonCraft").with_app_id(APP_ID).with_inner_size(size).with_min_inner_size([900.0, 600.0]),
         ..Default::default()
     };
+    // a pen on a Wayland session works only through Xwayland (see display_session.rs)
+    #[cfg(target_os = "linux")]
+    if display_session::choose_xwayland() {
+        options.event_loop_builder = Some(Box::new(|b| {
+            use winit::platform::x11::EventLoopBuilderExtX11;
+            b.with_x11();
+        }));
+    }
     eframe::run_native("ToonCraft", options, Box::new(move |cc| Ok(Box::new(app::ToonApp::new(cc, cli)))))
 }
