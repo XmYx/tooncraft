@@ -58,17 +58,89 @@ impl VPoint {
     }
 }
 
-/// One line: its points and colour (straight RGBA).
+/// How a line's two ends look.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Cap {
+    /// A half circle past the end.
+    #[default]
+    Round,
+    /// Cut square at the end point.
+    Flat,
+    /// A half square past the end.
+    Square,
+}
+
+/// How a line turns a corner.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Join {
+    #[default]
+    Round,
+    /// Pointed (the outer edges meet), cut when the point would be over 4 widths long.
+    Sharp,
+    /// Cut straight across the outer corner.
+    Cut,
+}
+
+/// A line's ends and corners; round and round (the default) is how lines always looked.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LineStyle {
+    #[serde(default)]
+    pub cap: Cap,
+    #[serde(default)]
+    pub join: Join,
+}
+
+impl LineStyle {
+    pub fn is_round(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// Longest sharp corner, in half widths, before it is cut.
+pub const MITER_LIMIT: f32 = 4.0;
+/// Most outline polygons one stroke makes.
+pub const MAX_OUTLINE_PARTS: usize = 400_000;
+
+/// One line: its points, colour (straight RGBA) and how its ends and corners look.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct VStroke {
     pub points: Vec<VPoint>,
     pub color: [u8; 4],
+    #[serde(default, skip_serializing_if = "LineStyle::is_round")]
+    pub style: LineStyle,
 }
 
 /// The vector strokes of one drawing, painted in order.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct VDrawing {
     pub strokes: Vec<VStroke>,
+}
+
+/// A circle as a polygon, with more sides for bigger ones.
+fn circle(c: (f32, f32), r: f32) -> Vec<(f32, f32)> {
+    let n = ((r * 2.0).ceil() as usize).clamp(8, 64);
+    (0..n)
+        .map(|k| {
+            let a = k as f32 / n as f32 * std::f32::consts::TAU;
+            (c.0 + r * a.cos(), c.1 + r * a.sin())
+        })
+        .collect()
+}
+
+/// `poly` turning counter-clockwise (positive area in y-down pixels is clockwise on screen;
+/// only consistency matters for the non-zero rule).
+fn counter_clockwise(mut poly: Vec<(f32, f32)>) -> Vec<(f32, f32)> {
+    let mut area = 0.0f32;
+    for i in 0..poly.len() {
+        let (a, b) = (poly[i], poly[(i + 1) % poly.len()]);
+        area += a.0 * b.1 - b.0 * a.1;
+    }
+    if area < 0.0 {
+        poly.reverse();
+    }
+    poly
 }
 
 /// Distance from `p` to the segment `a`–`b`.
@@ -156,7 +228,112 @@ impl VStroke {
         if points.is_empty() {
             return Err(VectorError::Empty);
         }
-        Ok(Self { points, color })
+        Ok(Self { points, color, style: LineStyle::default() })
+    }
+
+    /// The line as filled polygons, all turning the same way so the non-zero rule fills their
+    /// union: a quad for each piece between samples (`step` pixels apart), the corner shape at
+    /// each inner sample and the end shapes. At most [`MAX_OUTLINE_PARTS`] polygons.
+    pub fn outline(&self, step: f32) -> Vec<Vec<(f32, f32)>> {
+        let pts = self.samples(step);
+        let mut out: Vec<Vec<(f32, f32)>> = Vec::new();
+        let push = |out: &mut Vec<Vec<(f32, f32)>>, poly: Vec<(f32, f32)>| {
+            if out.len() < MAX_OUTLINE_PARTS && poly.len() >= 3 {
+                out.push(counter_clockwise(poly));
+            }
+        };
+        // drop repeated points: they have no direction
+        let mut p: Vec<VPoint> = Vec::with_capacity(pts.len());
+        for q in pts {
+            if p.last().is_none_or(|l: &VPoint| (q.x - l.x).hypot(q.y - l.y) > 1e-3) {
+                p.push(q);
+            }
+        }
+        let half = |v: &VPoint| (v.width * 0.5).max(0.35);
+        if p.len() == 1 {
+            // a dot: its cap shape on both sides
+            if let Some(v) = p.first() {
+                match self.style.cap {
+                    Cap::Round => push(&mut out, circle((v.x, v.y), half(v))),
+                    Cap::Flat | Cap::Square => {
+                        let h = half(v);
+                        push(&mut out, vec![(v.x - h, v.y - h), (v.x + h, v.y - h), (v.x + h, v.y + h), (v.x - h, v.y + h)]);
+                    }
+                }
+            }
+            return out;
+        }
+        let dir = |a: &VPoint, b: &VPoint| {
+            let (dx, dy) = (b.x - a.x, b.y - a.y);
+            let l = dx.hypot(dy).max(1e-6);
+            (dx / l, dy / l)
+        };
+        for w in p.windows(2) {
+            let (a, b) = (&w[0], &w[1]);
+            let (dx, dy) = dir(a, b);
+            let (nx, ny) = (-dy, dx);
+            let (ha, hb) = (half(a), half(b));
+            push(
+                &mut out,
+                vec![(a.x + nx * ha, a.y + ny * ha), (b.x + nx * hb, b.y + ny * hb), (b.x - nx * hb, b.y - ny * hb), (a.x - nx * ha, a.y - ny * ha)],
+            );
+        }
+        for w in p.windows(3) {
+            let (a, v, b) = (&w[0], &w[1], &w[2]);
+            let (d1, d2) = (dir(a, v), dir(v, b));
+            let turn = d1.0 * d2.1 - d1.1 * d2.0;
+            if turn.abs() < 1e-4 && d1.0 * d2.0 + d1.1 * d2.1 > 0.0 {
+                continue; // straight on: nothing to fill
+            }
+            let h = half(v);
+            // the outer side is opposite the turn
+            let s = if turn > 0.0 { -1.0 } else { 1.0 };
+            let o1 = (v.x - d1.1 * h * s, v.y + d1.0 * h * s);
+            let o2 = (v.x - d2.1 * h * s, v.y + d2.0 * h * s);
+            match self.style.join {
+                Join::Round => push(&mut out, circle((v.x, v.y), h)),
+                Join::Cut => push(&mut out, vec![(v.x, v.y), o1, o2]),
+                Join::Sharp => {
+                    // where the two outer edges meet
+                    let (mx, my) = (d1.0 - d2.0, d1.1 - d2.1);
+                    let cos = (d1.0 * d2.0 + d1.1 * d2.1).clamp(-1.0, 1.0);
+                    let len = h / ((1.0 + cos) * 0.5).sqrt().max(1e-3);
+                    let ml = mx.hypot(my);
+                    if len <= MITER_LIMIT * h && ml > 1e-4 {
+                        let bis = ((o1.0 + o2.0) * 0.5 - v.x, (o1.1 + o2.1) * 0.5 - v.y);
+                        let bl = bis.0.hypot(bis.1).max(1e-6);
+                        let tip = (v.x + bis.0 / bl * len, v.y + bis.1 / bl * len);
+                        push(&mut out, vec![(v.x, v.y), o1, tip, o2]);
+                    } else {
+                        push(&mut out, vec![(v.x, v.y), o1, o2]);
+                    }
+                }
+            }
+        }
+        // the ends
+        let ends = [(p.first(), p.get(1)), (p.last(), p.len().checked_sub(2).and_then(|i| p.get(i)))];
+        for (end, next) in ends {
+            let (Some(e), Some(n)) = (end, next) else { continue };
+            let (ox, oy) = dir(n, e); // outwards
+            let h = half(e);
+            match self.style.cap {
+                Cap::Round => push(&mut out, circle((e.x, e.y), h)),
+                Cap::Flat => {}
+                Cap::Square => {
+                    let (nx, ny) = (-oy, ox);
+                    push(
+                        &mut out,
+                        vec![
+                            (e.x + nx * h, e.y + ny * h),
+                            (e.x + nx * h + ox * h, e.y + ny * h + oy * h),
+                            (e.x - nx * h + ox * h, e.y - ny * h + oy * h),
+                            (e.x - nx * h, e.y - ny * h),
+                        ],
+                    );
+                }
+            }
+        }
+        out
     }
 
     pub fn sanitized(mut self) -> Option<Self> {
@@ -175,9 +352,24 @@ impl VStroke {
         }
         let n = p.len() as isize;
         let at = |i: isize| -> VPoint { p[i.clamp(0, n - 1) as usize] };
+        // with sharp or cut corners, a point where the line turns more than 60° is a corner:
+        // the curve comes into it and leaves it without rounding it off (round corners keep
+        // the smooth curve lines always had)
+        let corners = self.style.join != Join::Round;
+        let corner = |i: isize| -> bool {
+            if !corners || i <= 0 || i >= n - 1 {
+                return false;
+            }
+            let (a, b, c) = (at(i - 1), at(i), at(i + 1));
+            let (ux, uy, vx, vy) = (b.x - a.x, b.y - a.y, c.x - b.x, c.y - b.y);
+            let (lu, lv) = (ux.hypot(uy), vx.hypot(vy));
+            lu > 1e-6 && lv > 1e-6 && (ux * vx + uy * vy) / (lu * lv) < 0.5
+        };
         let mut out = Vec::new();
         for i in 0..n - 1 {
-            let (p0, p1, p2, p3) = (at(i - 1), at(i), at(i + 1), at(i + 2));
+            let p0 = if corner(i) { at(i) } else { at(i - 1) };
+            let p3 = if corner(i + 1) { at(i + 1) } else { at(i + 2) };
+            let (p1, p2) = (at(i), at(i + 1));
             let len = (p2.x - p1.x).hypot(p2.y - p1.y);
             let parts = ((len / step).ceil() as usize).clamp(1, 4096);
             for k in 0..parts {

@@ -1,0 +1,1 @@
+- 2026-11-24: Macros: Edit ▸ Record Macro keeps the commands and strokes taken (undo and redo follow), saves them as a command file, and Play Macro… plays one back as a single undo step.

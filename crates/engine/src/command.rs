@@ -118,6 +118,16 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "is_hard")]
         feather: f32,
     },
+    /// Liquify along `points`: push, twirl, pinch or bloat the pixels under a soft brush.
+    Liquify {
+        layer: usize,
+        frame: u32,
+        #[serde(default)]
+        mode: crate::liquify::LiquifyMode,
+        #[serde(default)]
+        brush: crate::liquify::LiquifyBrush,
+        points: Vec<(f32, f32)>,
+    },
     /// The clone stamp along `points`: each pixel takes the one at `offset` (source minus
     /// destination) on `source_layer` (this layer when absent) at the same frame.
     CloneStamp {
@@ -521,6 +531,9 @@ pub enum Command {
         points: Vec<tooncraft_vector::VPoint>,
         #[serde(default = "vector_tolerance")]
         tolerance: f32,
+        /// Ends and corners (round and round when absent).
+        #[serde(default, skip_serializing_if = "tooncraft_vector::LineStyle::is_round")]
+        style: tooncraft_vector::LineStyle,
     },
     /// Change one stroke of a vector drawing: move a point, its width, smooth, erase to the
     /// crossings, delete, recolour.
@@ -679,6 +692,16 @@ pub enum Command {
         #[serde(default)]
         settings: tooncraft_lipsync::Settings,
     },
+    /// Key the mouths of a typed line of dialogue on the layer from `from`: laid over the voiced
+    /// frames of the shot's sound, or (with no sound) `settings.min_hold` frames per shape.
+    LipSyncText {
+        layer: usize,
+        #[serde(default)]
+        from: u32,
+        text: String,
+        #[serde(default)]
+        settings: tooncraft_lipsync::Settings,
+    },
     /// Key a mouth timing sheet (ToonCraft mouth sheet or switch data) on the layer from `from`.
     ImportMouthSheet {
         layer: usize,
@@ -740,6 +763,22 @@ pub enum Command {
         #[serde(default)]
         resample: tooncraft_raster::select::Resample,
         /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
+    },
+    /// Warp the pixels inside `polygon` with a grid of `cols` × `rows` cells over its box:
+    /// `points` ((cols + 1) × (rows + 1), row by row) are where the grid's points go.
+    MeshWarpSelection {
+        layer: usize,
+        frame: u32,
+        polygon: Vec<(f32, f32)>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        rings: Vec<Vec<(f32, f32)>>,
+        cols: u32,
+        rows: u32,
+        points: Vec<(f32, f32)>,
+        #[serde(default)]
+        resample: tooncraft_raster::select::Resample,
         #[serde(default, skip_serializing_if = "is_hard")]
         feather: f32,
     },
@@ -1271,6 +1310,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             };
             crate::drawing::gradient(e, layer, frame, kind, from, to, &stops, area.as_deref(), &area_rings, feather)
         }
+        Command::Liquify { layer, frame, mode, brush, points } => {
+            frame_ok(e, frame)?;
+            crate::liquify::liquify(e, layer, frame, mode, brush, &points)
+        }
         Command::CloneStamp { layer, frame, source_layer, offset, tip, points } => {
             frame_ok(e, frame)?;
             crate::clone::clone_stamp(e, layer, frame, source_layer, offset, tip, &points)
@@ -1473,6 +1516,9 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::DistortSelection { layer, frame, polygon, rings, corners, resample, feather } => {
             crate::select::distort(e, layer, frame, (&polygon, &rings, feather), corners, resample)
         }
+        Command::MeshWarpSelection { layer, frame, polygon, rings, cols, rows, points, resample, feather } => {
+            crate::select::mesh_warp(e, layer, frame, (&polygon, &rings, feather), cols, rows, &points, resample)
+        }
         Command::ClearSelection { layer, frame, polygon, rings, feather } => crate::select::clear(e, layer, frame, (&polygon, &rings, feather)),
         Command::PastePixels { layer, frame, x, y, width, height, rgba } => crate::select::paste(e, layer, frame, (x, y), width, height, &rgba),
         Command::SetSound { path, offset } => crate::audio::set(e, path.as_deref(), offset),
@@ -1662,7 +1708,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.vector = vector;
             Ok(())
         }),
-        Command::VectorStroke { layer, frame, color, points, tolerance } => crate::vector::add_stroke(e, layer, frame, color, &points, tolerance),
+        Command::VectorStroke { layer, frame, color, points, tolerance, style } => crate::vector::add_stroke(e, layer, frame, color, &points, tolerance, style),
         Command::EditVector { layer, frame, edit } => crate::vector::edit(e, layer, frame, edit),
         Command::SetLayerDepth { layer, depth } => edit_layers(e, "Layer depth", |e| {
             let d = if depth.is_finite() { depth.clamp(tooncraft_doc::camera::MIN_DEPTH, tooncraft_doc::camera::MAX_DEPTH) } else { 0.0 };
@@ -1772,6 +1818,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }),
         Command::LipSync { layer, from, settings } => crate::lipsync::detect(e, layer, from, settings).map(|_| ()),
+        Command::LipSyncText { layer, from, text, settings } => crate::lipsync::from_text(e, layer, from, &text, settings).map(|_| ()),
         Command::ImportMouthSheet { layer, path, from } => crate::lipsync::import(e, layer, &path, from).map(|_| ()),
         Command::SetAudioTrack { track, name, muted, solo, volume } => crate::audio::set_track(e, track, |t| {
             if let Some(v) = name {

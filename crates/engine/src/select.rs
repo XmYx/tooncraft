@@ -71,6 +71,33 @@ pub(crate) fn transform(
     Ok(())
 }
 
+/// Warp the selection with a grid: see [`select::mesh_warp`]. One undo step.
+pub(crate) fn mesh_warp(
+    e: &mut Engine,
+    layer: usize,
+    frame: u32,
+    (poly, rings, feather): Area,
+    cols: u32,
+    rows: u32,
+    points: &[(f32, f32)],
+    resample: Resample,
+) -> Result<()> {
+    e.check_unlocked(layer)?;
+    let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;
+    let (w, h) = (e.project.width(), e.project.height());
+    let Some(mask) = soft_mask(w, h, poly, rings, feather) else { return Ok(()) };
+    let s = e.project.drawing_mut(d).ok_or(EngineError::NoDrawing(frame))?;
+    s.begin_capture();
+    let r = select::mesh_warp(s, &mask, cols, rows, points, resample);
+    let tiles = s.take_capture();
+    if let Err(err) = r {
+        s.swap_snapshot(tiles);
+        return Err(err.into());
+    }
+    e.push(Entry { label: "Mesh warp".into(), parts: vec![Part::Tiles { drawing: d, tiles }] });
+    Ok(())
+}
+
 pub(crate) fn distort(e: &mut Engine, layer: usize, frame: u32, (poly, rings, feather): Area, corners: [(f32, f32); 4], resample: Resample) -> Result<()> {
     e.check_unlocked(layer)?;
     let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;

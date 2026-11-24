@@ -1,0 +1,1 @@
+- 2026-11-24: Vector lines get ends (round, flat, square) and corners (round, sharp, cut), chosen in the brush options on a vector layer and changed on a drawn line with `edit_vector` `set_style`; non-round lines are filled as exact outlines, and their sharp turns stay corners.

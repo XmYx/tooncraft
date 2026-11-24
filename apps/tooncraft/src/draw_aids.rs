@@ -48,6 +48,8 @@ pub struct DrawAids {
     pub gradient_drag: Option<((f32, f32), (f32, f32))>,
     /// The clone stamp tool's settings and stroke.
     pub clone: crate::clone_tool::CloneTool,
+    /// The liquify tool's settings and stroke.
+    pub liquify: crate::liquify_tool::LiquifyTool,
     /// The gradient's own stops (from a gradient swatch or the stop editor); empty: the
     /// current colour to white or to transparent.
     pub gradient_stops: Vec<Stop>,
@@ -77,6 +79,7 @@ impl Default for DrawAids {
             gradient_to_transparent: true,
             gradient_drag: None,
             clone: Default::default(),
+            liquify: Default::default(),
             gradient_stops: Vec::new(),
             snap_grid: false,
             hold_straighten: true,
@@ -346,6 +349,10 @@ fn symmetry_name(m: SymmetryMode) -> String {
 
 /// Symmetry and hold-to-straighten for the brush tools (tool options bar).
 pub fn brush_options(app: &mut ToonApp, ui: &mut egui::Ui) {
+    if app.engine.project.layers.get(app.layer).is_some_and(|l| l.vector) {
+        line_style_options(app, ui);
+        ui.separator();
+    }
     let mut sym = app.engine.project.symmetry;
     // label and control stay together when the row wraps (the Tool Properties panel)
     ui.horizontal(|ui| {
@@ -440,6 +447,42 @@ pub fn gradient_options(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     ui.checkbox(&mut app.aids.snap_grid, tl!("Snap to grid"));
     ui.label(tl!("Drag from start to end; inside the selection when there is one"));
+}
+
+/// On a vector layer: the ends and corners of the next lines drawn.
+pub fn line_style_options(app: &mut ToonApp, ui: &mut egui::Ui) {
+    use tooncraft_vector::{Cap, Join};
+    let cap_name = |c: Cap| match c {
+        Cap::Round => tl!("Round"),
+        Cap::Flat => tl!("Flat"),
+        Cap::Square => tl!("Square"),
+    };
+    let join_name = |j: Join| match j {
+        Join::Round => tl!("Round"),
+        Join::Sharp => tl!("Sharp"),
+        Join::Cut => tl!("Cut"),
+    };
+    let style = &mut app.engine.line_style;
+    let l = ui.label(tl!("Line ends"));
+    egui::ComboBox::from_id_salt("line-ends")
+        .selected_text(cap_name(style.cap))
+        .show_ui(ui, |ui| {
+            for c in [Cap::Round, Cap::Flat, Cap::Square] {
+                ui.selectable_value(&mut style.cap, c, cap_name(c));
+            }
+        })
+        .response
+        .labelled_by(l.id);
+    let l = ui.label(tl!("Corners"));
+    egui::ComboBox::from_id_salt("line-corners")
+        .selected_text(join_name(style.join))
+        .show_ui(ui, |ui| {
+            for j in [Join::Round, Join::Sharp, Join::Cut] {
+                ui.selectable_value(&mut style.join, j, join_name(j));
+            }
+        })
+        .response
+        .labelled_by(l.id);
 }
 
 /// The gradient's stops: a preview strip, then each stop's colour and position.

@@ -76,6 +76,10 @@ mod layer_ops;
 mod layer_tree;
 mod layers_list;
 mod lipsync_panel;
+mod liquify_tool;
+#[cfg(test)]
+mod liquify_ui_tests;
+mod macro_ui;
 mod menu_actions;
 #[cfg(test)]
 mod menu_actions_tests;
@@ -83,6 +87,8 @@ mod menu_commands;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+#[cfg(test)]
+mod mesh_warp_ui_tests;
 mod motion_record;
 #[cfg(test)]
 mod motion_record_ui_tests;
@@ -104,6 +110,9 @@ mod pipeline;
 #[cfg(test)]
 mod poses_ui_tests;
 mod preferences;
+mod quick_mask;
+#[cfg(test)]
+mod quick_mask_ui_tests;
 mod reference_viewer;
 #[cfg(test)]
 mod reference_viewer_ui_tests;
