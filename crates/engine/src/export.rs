@@ -534,6 +534,102 @@ pub fn exr_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, pro
     })
 }
 
+/// Samples one layered OpenEXR frame may hold in memory (all layers and the composite).
+pub const MAX_LAYERED_EXR_SAMPLES: usize = 1 << 28;
+
+/// Write `<dir>/<prefix>_0001.exr`, …: one OpenEXR file per frame holding the composite as the
+/// main picture (`R`, `G`, `B`, `A`) and every visible layer, through the camera, as a layer of
+/// its own (`<name>.R`, `<name>.G`, …). Samples are linear and premultiplied, as compositing
+/// applications expect.
+pub fn exr_layered_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, mut progress: impl FnMut(u32)) -> Result<Vec<PathBuf>> {
+    o.check(p)?;
+    let names = exr_layer_names(p);
+    let (w, h) = o.size(p);
+    let pictures = names.iter().flatten().count() + 1;
+    let samples = (w as usize).saturating_mul(h as usize).saturating_mul(4).saturating_mul(pictures);
+    if samples > MAX_LAYERED_EXR_SAMPLES {
+        return Err(ExportError::Encode("too many layers at this size for one file; export at a smaller size or hide some layers".into()));
+    }
+    std::fs::create_dir_all(dir).map_err(|e| ExportError::Io(dir.display().to_string(), e))?;
+    let digits = o.digit_count();
+    let linear = srgb_to_linear_table();
+    let mut out = Vec::new();
+    for f in o.start..o.end {
+        let mut channels = exr_channels("", &o.render(p, f, o.paper), &linear);
+        for (i, name) in names.iter().enumerate() {
+            let Some(name) = name else { continue };
+            let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: false, only_layer: Some(i), ..Default::default() })
+                .reduced(o.scale.clamp(1, MAX_SCALE));
+            channels.extend(exr_channels(name, &img, &linear));
+        }
+        let bytes = craft_exr::decode::write(w, h, &channels, craft_exr::decode::Compression::Zip16).map_err(codec_err)?;
+        let path = dir.join(format!("{prefix}_{:0digits$}.exr", f + 1));
+        craft_atomic::atomic_write(&path, &bytes).map_err(|e| ExportError::Io(path.display().to_string(), e))?;
+        out.push(path);
+        progress(f);
+    }
+    Ok(out)
+}
+
+/// The OpenEXR layer name of each layer of `p` (`None` for hidden layers): dots become
+/// underscores (a dot separates layer and channel), an empty name becomes `Layer N`, and a name
+/// already taken gets ` 2`, ` 3`, …
+fn exr_layer_names(p: &Project) -> Vec<Option<String>> {
+    let mut taken = std::collections::HashSet::new();
+    p.layers
+        .iter()
+        .enumerate()
+        .map(|(i, l)| {
+            if !l.visible {
+                return None;
+            }
+            let base: String = l.name.trim().chars().filter(|c| !c.is_control()).map(|c| if c == '.' { '_' } else { c }).take(200).collect();
+            let base = if base.is_empty() { format!("Layer {}", i + 1) } else { base };
+            let mut name = base.clone();
+            let mut n = 2;
+            while !taken.insert(name.clone()) {
+                name = format!("{base} {n}");
+                n += 1;
+            }
+            Some(name)
+        })
+        .collect()
+}
+
+/// sRGB 8-bit to linear light.
+fn srgb_to_linear_table() -> [f32; 256] {
+    let mut t = [0.0f32; 256];
+    for (i, v) in t.iter_mut().enumerate() {
+        let c = i as f32 / 255.0;
+        *v = if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) };
+    }
+    t
+}
+
+/// Four half-float channels (`<layer>.R` … or `R` … for the main picture) from a premultiplied
+/// sRGB image: un-premultiplied, made linear, premultiplied again.
+fn exr_channels(layer: &str, img: &tooncraft_raster::RgbaImage, linear: &[f32; 256]) -> Vec<craft_exr::decode::Channel> {
+    use craft_exr::decode::{Channel, Samples, f16};
+    let straight = img.to_straight();
+    let n = straight.len() / 4;
+    let mut planes: [Vec<f16>; 4] = std::array::from_fn(|_| Vec::with_capacity(n));
+    for px in straight.as_chunks::<4>().0 {
+        let a = f32::from(px[3]) / 255.0;
+        for c in 0..3 {
+            planes[c].push(f16::from_f32(linear[px[c] as usize] * a));
+        }
+        planes[3].push(f16::from_f32(a));
+    }
+    let name = |c: &str| if layer.is_empty() { c.to_string() } else { format!("{layer}.{c}") };
+    let [r, g, b, a] = planes;
+    vec![
+        Channel { name: name("R"), samples: Samples::F16(r) },
+        Channel { name: name("G"), samples: Samples::F16(g) },
+        Channel { name: name("B"), samples: Samples::F16(b) },
+        Channel { name: name("A"), samples: Samples::F16(a) },
+    ]
+}
+
 pub fn tiff_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, progress: impl FnMut(u32)) -> Result<Vec<PathBuf>> {
     frame_files(p, dir, prefix, "tif", o, progress, |img, alpha| {
         let eo = craft_image_codecs::EncodeOptions { tiff_compression: craft_image_codecs::TiffCompression::Lzw, ..Default::default() };

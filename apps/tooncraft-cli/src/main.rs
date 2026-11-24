@@ -8,7 +8,7 @@
 //! tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   apply JSON-lines commands, then save
 //! tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
 //! tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
-//! tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
+//! tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --exr-layers <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
 //! tooncraft-cli check <file.toon>                          interrupted saves, backup, load check
 //! tooncraft-cli bench [--json]                             stroke latency, fill, compositing, save
 //! tooncraft-cli brush (make <kind> <file> | info <file> | preview <file> <png> [--size WxH])
@@ -36,7 +36,7 @@ const USAGE: &str = "usage:
   tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   (text commands use the fonts given, by file name)
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
   tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
-  tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --exr-layers <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
   tooncraft-cli check <file.toon>
   tooncraft-cli scrub <file.toon>          step through every frame; time and memory (TOONCRAFT_PAGE_BUDGET_MB)
   tooncraft-cli bench [--json]
@@ -78,6 +78,7 @@ impl Args {
                         | "webp-frame"
                         | "tga"
                         | "tiff"
+                        | "exr-layers"
                         | "psd-frames"
                         | "quality"
                         | "prores-layers"
@@ -360,6 +361,10 @@ fn run() -> Result<(), String> {
                 let files = export::tiff_sequence(&e.project, Path::new(dir), "frame", o, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {} TIFF files to {dir}", files.len());
+            } else if let Some(dir) = rest.flag("exr-layers") {
+                let files = export::exr_layered_sequence(&e.project, Path::new(dir), "frame", o, progress).map_err(|e| e.to_string())?;
+                eprintln!();
+                println!("wrote {} layered OpenEXR files to {dir}", files.len());
             } else if let Some(file) = rest.flag("psd-frames") {
                 let bytes = tooncraft_interop::psd::export_frames(&e.project, o.start, o.end, rest.has("psb")).map_err(|e| e.to_string())?;
                 std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
