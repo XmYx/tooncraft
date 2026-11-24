@@ -1,0 +1,1 @@
+- 2026-11-24: More video codecs: Export ▸ Video in Other Codecs writes H.265 (MP4 or MOV), AV1 (MP4) and H.264 in a QuickTime movie, with the sound; `tooncraft-cli export --mov`, `--codec h265|av1`.

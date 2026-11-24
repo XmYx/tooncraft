@@ -179,6 +179,9 @@ fn export_webp_tga_tiff_and_layered_frames() {
     assert!(dir.join("tga/frame_0002.tga").is_file());
     let (ok, out) = cli(&["export", s, "--tiff", &d("tif"), "--range", "2..3"]);
     assert!(ok && out.contains("2 TIFF files"), "{out}");
+    let (ok, out) = cli(&["export", s, "--exr-layers", &d("exr"), "--range", "2..3"]);
+    assert!(ok && out.contains("2 layered OpenEXR files"), "{out}");
+    assert_eq!(&std::fs::read(dir.join("exr/frame_0003.exr")).unwrap()[..4], &[0x76, 0x2F, 0x31, 0x01]);
     let (ok, out) = cli(&["export", s, "--psd-frames", &d("all.psd"), "--range", "1..3"]);
     assert!(ok && out.contains("3 frames"), "{out}");
     let psd = std::fs::read(dir.join("all.psd")).unwrap();
@@ -186,6 +189,14 @@ fn export_webp_tga_tiff_and_layered_frames() {
     assert_eq!(&psd[4..6], &[0, 1]);
     assert!(cli(&["export", s, "--psd-frames", &d("all.psb"), "--psb", "--range", "1..2"]).0);
     assert_eq!(&std::fs::read(dir.join("all.psb")).unwrap()[4..6], &[0, 2]);
+    // the exposure sheet and frames to print
+    let (ok, out) = cli(&["export", s, "--sheet-pdf", &d("sheet.pdf"), "--paper", "letter"]);
+    assert!(ok && out.contains("pages"), "{out}");
+    assert!(std::fs::read(dir.join("sheet.pdf")).unwrap().starts_with(b"%PDF-"));
+    let (ok, out) = cli(&["export", s, "--frames-pdf", &d("frames.pdf"), "--per-page", "6", "--range", "1..7"]);
+    assert!(ok && out.contains("7 frames, 6 to a page"), "{out}");
+    assert!(!cli(&["export", s, "--frames-pdf", &d("bad.pdf"), "--per-page", "5"]).0, "5 to a page is not a grid");
+    assert!(!cli(&["export", s, "--sheet-pdf", &d("bad.pdf"), "--paper", "a3"]).0);
     // bad input is an error
     assert!(!cli(&["export", s, "--webp", &d("c.webp"), "--quality", "300", "--lossy"]).0);
     assert!(!cli(&["export", s, "--tga", &d("tga2"), "--range", "9..2"]).0);
@@ -238,6 +249,30 @@ fn text_commands_use_the_fonts_given() {
     let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap(), "--font", junk.to_str().unwrap()]);
     assert!(!ok && out.contains("not a font"), "{out}");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn export_video_codecs() {
+    struct Gone(std::path::PathBuf);
+    impl Drop for Gone {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-codecs-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let _gone = Gone(dir.clone());
+    let shot = dir.join("s.toon");
+    let shot_s = shot.to_str().unwrap();
+    assert!(cli(&["demo", shot_s, "--size", "160x120"]).0);
+    for (flag, name, codec) in [("--mov", "a.mov", "h264"), ("--mp4", "b.mp4", "h265"), ("--mp4", "c.mp4", "av1")] {
+        let out = dir.join(name);
+        let (ok, msg) = cli(&["export", shot_s, flag, out.to_str().unwrap(), "--codec", codec, "--range", "1..3"]);
+        assert!(ok && out.is_file(), "{name}: {msg}");
+    }
+    let (ok, msg) = cli(&["export", shot_s, "--mp4", dir.join("d.mp4").to_str().unwrap(), "--codec", "mpeg1"]);
+    assert!(!ok && msg.contains("--codec"), "{msg}");
 }
 
 /// Removes a test's folder when the test ends, also when it fails.

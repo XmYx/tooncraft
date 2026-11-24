@@ -1,0 +1,1 @@
+- 2026-11-24: Exposure Sheet to Print and Frames to Print (Export menu, `tooncraft-cli export --sheet-pdf` and `--frames-pdf`): the exposure sheet laid out as on paper, and 1 to 12 frames to a page, on A4 or US Letter, through craft-pdf.
