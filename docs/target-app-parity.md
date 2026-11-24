@@ -24,12 +24,12 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 | | Value | Kind |
 |---|---|---|
 | In-scope feature rows | 314 | counted |
-| Done / exceeds / partial / missing | 211 / 3 / 31 / 69 | counted |
+| Done / exceeds / partial / missing | 213 / 3 / 30 / 68 | counted |
 | Out of scope (not in any denominator) | 4 | counted |
-| **Row parity**, (D + X + ½·P) / rows | **73.1 %** | counted |
+| **Row parity**, (D + X + ½·P) / rows | **73.6 %** | counted |
 | **Weighted parity**, area weights × size-weighted rows | **56.1 %** | counted |
-| Size-weighted parity over all rows, no area weights | 56.9 % | counted |
-| **UI parity**, rows of the reference-layout area | **85.1 %** | counted |
+| Size-weighted parity over all rows, no area weights | 57.2 % | counted |
+| **UI parity**, rows of the reference-layout area | **88.3 %** | counted |
 
 | Area | Weight | Rows | D | X | P | M | Out | Row parity | Effort parity |
 |---|---|---|---|---|---|---|---|---|---|
@@ -48,7 +48,7 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 | Import, export and pipeline | 7 (7 %) | 28 | 20 | 0 | 2 | 6 | 1 | 75 % | 62 % |
 | Scripting and automation | 4 (4 %) | 7 | 1 | 0 | 2 | 4 | 0 | 29 % | 22 % |
 | UI and workspace | 5 (5 %) | 14 | 8 | 1 | 3 | 2 | 0 | 75 % | 67 % |
-| UI parity with the reference layout | 5 (5 %) | 47 | 38 | 0 | 4 | 5 | 0 | 85 % | 72 % |
+| UI parity with the reference layout | 5 (5 %) | 47 | 40 | 0 | 3 | 4 | 0 | 88 % | 74 % |
 | Tablet and input | 4 (4 %) | 9 | 3 | 0 | 3 | 3 | 1 | 50 % | 45 % |
 | Collaboration and review | 2 (2 %) | 5 | 2 | 0 | 0 | 3 | 1 | 40 % | 22 % |
 | Stability and performance | 4 (4 %) | 10 | 7 | 1 | 1 | 1 | 0 | 85 % | 69 % |
