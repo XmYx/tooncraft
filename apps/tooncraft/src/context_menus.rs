@@ -357,3 +357,31 @@ pub fn launch_now(ctx: &egui::Context, target: &str) -> bool {
     }
     wanted
 }
+
+/// The tool button's menu after its variants (the rail's flyout draws those): reset the tool's
+/// brush and open the shortcut editor at the tool. Disabled items say why in their tooltip.
+pub fn tool_button_extras(app: &mut ToonApp, ui: &mut Ui, tool: Tool) {
+    let reset = crate::menu_actions::can_reset_tool(tool);
+    let r = ui.add_enabled(reset.is_ok(), egui::Button::new(tl!("Reset Tool Settings")));
+    let r = match &reset {
+        Err(why) => r.on_disabled_hover_text(why),
+        Ok(()) => r,
+    };
+    if r.clicked() {
+        crate::menu_actions::reset_tool(app, tool);
+        ui.close();
+    }
+    let key = app.keys.text(&format!("tool.{}", tool.id()));
+    if ui.button(tl!("Shortcut…")).on_hover_text(tlf!("Now {key}", key = key)).clicked() {
+        crate::menu_actions::edit_tool_shortcut(app, tool);
+        ui.close();
+    }
+}
+
+/// The panel tab's own items (the docking library adds Float, Move To and Close).
+pub fn panel_tab(app: &mut ToonApp, ui: &mut Ui, pane: crate::dock::Pane) {
+    if ui.button(tl!("Reset Panel")).on_hover_text(tl!("Put the panel back in its first place")).clicked() {
+        crate::menu_actions::reset_panel(app, pane);
+        ui.close();
+    }
+}
