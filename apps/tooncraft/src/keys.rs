@@ -23,6 +23,8 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("tool.hand", "Hand", "H"),
     ("tool.transform", "Transform layer", "Q"),
     ("tool.text", "Text", "T"),
+    ("tool.zoom", "Zoom view", "Z"),
+    ("tool.rotate_view", "Rotate view", "R"),
     ("frame.play", "Play / stop", "Enter"),
     ("frame.prev", "Previous frame", ","),
     ("frame.next", "Next frame", "."),

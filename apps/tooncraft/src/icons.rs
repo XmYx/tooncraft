@@ -119,5 +119,25 @@ pub fn tool(p: &Painter, rect: Rect, tool: Tool, color: Color32) {
             p.line_segment([at(-0.8, -0.85), at(-0.8, -0.6)], st);
             p.line_segment([at(0.8, -0.85), at(0.8, -0.6)], st);
         }
+        Tool::Zoom => {
+            // a magnifier with a plus
+            p.circle_stroke(at(-0.2, -0.2), s * 0.7, st);
+            p.line_segment([at(0.3, 0.3), at(1.0, 1.0)], Stroke::new(2.0, color));
+            p.line_segment([at(-0.55, -0.2), at(0.15, -0.2)], st);
+            p.line_segment([at(-0.2, -0.55), at(-0.2, 0.15)], st);
+        }
+        Tool::RotateView => {
+            // three quarters of a circle and an arrow head
+            let pts: Vec<Pos2> = (0..=18)
+                .map(|k| {
+                    let a = -0.6 + k as f32 / 18.0 * 4.7;
+                    at(0.85 * a.cos(), 0.85 * a.sin())
+                })
+                .collect();
+            p.add(Shape::line(pts, st));
+            let tip = at(0.85 * (-0.6f32).cos(), 0.85 * (-0.6f32).sin());
+            p.line_segment([tip, tip + vec2(-0.45 * s, -0.05 * s)], st);
+            p.line_segment([tip, tip + vec2(0.05 * s, 0.45 * s)], st);
+        }
     }
 }

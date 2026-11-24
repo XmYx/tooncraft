@@ -74,6 +74,8 @@ mod selection_tools;
 mod selection_ui_tests;
 mod sheet;
 #[cfg(test)]
+mod shell_chrome_ui_tests;
+#[cfg(test)]
 mod shell_ui_tests;
 mod sound;
 mod sound_panel;
@@ -94,6 +96,7 @@ mod timeline_rows_ui_tests;
 #[cfg(test)]
 mod timeline_ui_tests;
 mod timing_panel;
+mod tool_rail;
 mod top_bar;
 #[cfg(test)]
 mod touch_ui_tests;
@@ -105,6 +108,7 @@ mod unsaved_ui_tests;
 #[cfg(test)]
 mod vector_ui_tests;
 mod view;
+mod workspaces;
 
 use args::{Cli, Launch};
 

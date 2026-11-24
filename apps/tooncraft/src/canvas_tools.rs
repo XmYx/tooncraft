@@ -22,7 +22,6 @@ pub struct CanvasUi {
     pub resize: Option<(u32, u32, (u8, u8))>,
     /// Saved workspaces by name.
     pub workspaces: Vec<(String, Layout<Pane>)>,
-    pub new_workspace: String,
     /// Where workspaces are kept (`None`: not saved, as in tests).
     store: Option<PathBuf>,
 }
@@ -32,7 +31,7 @@ impl CanvasUi {
     pub fn new(persist: bool) -> Self {
         let store = if persist { crate::keys::overrides_path().and_then(|p| p.parent().map(|d| d.join("workspaces.json"))) } else { None };
         let workspaces = store.as_ref().and_then(|p| std::fs::read(p).ok()).map(|b| parse(&b)).unwrap_or_default();
-        Self { field_guide: false, safe_areas: false, resize: None, workspaces, new_workspace: String::new(), store }
+        Self { field_guide: false, safe_areas: false, resize: None, workspaces, store }
     }
 
     fn save(&self) -> Result<(), String> {
@@ -145,61 +144,13 @@ pub fn layout_by_name(name: &str) -> Option<Layout<Pane>> {
     })
 }
 
-/// View menu entries (guides, canvas size, workspaces).
+/// View menu entries (guides, canvas size). Workspaces are in Window ▸ Workspace.
 pub fn view_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.checkbox(&mut app.canvas_ui.field_guide, tl!("Field Guide"));
     ui.checkbox(&mut app.canvas_ui.safe_areas, tl!("Safe Areas"));
     if ui.button(tl!("Canvas Size…")).clicked() {
         app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1)));
     }
-    ui.menu_button(tl!("Workspaces"), |ui| {
-        if ui.button(tl!("Drawing (standard)")).clicked() {
-            app.workspace.layout = Workspace::default().layout;
-        }
-        if ui.button(tl!("Timing")).clicked() {
-            app.workspace.layout = timing_layout();
-        }
-        if ui.button(tl!("Ink and Paint")).clicked() {
-            app.workspace.layout = ink_paint_layout();
-        }
-        if ui.button(tl!("Exposure Sheet")).on_hover_text(tl!("The sheet down the right side, layers as columns")).clicked() {
-            app.workspace.layout = sheet_layout();
-            app.tl.vertical = true;
-        }
-        let saved: Vec<String> = app.canvas_ui.workspaces.iter().map(|(n, _)| n.clone()).collect();
-        if !saved.is_empty() {
-            ui.separator();
-        }
-        for name in saved {
-            ui.horizontal(|ui| {
-                if ui.button(&name).clicked()
-                    && let Some((_, l)) = app.canvas_ui.workspaces.iter().find(|(n, _)| *n == name)
-                {
-                    app.workspace.layout = l.clone();
-                }
-                if ui.small_button(tlf!("Delete {name}", name = name)).clicked()
-                    && let Err(e) = app.canvas_ui.delete_workspace(&name)
-                {
-                    app.set_status(e);
-                }
-            });
-        }
-        ui.separator();
-        ui.horizontal(|ui| {
-            let l = ui.label(tl!("Name"));
-            ui.add(egui::TextEdit::singleline(&mut app.canvas_ui.new_workspace).desired_width(110.0)).labelled_by(l.id);
-            if ui.button(tl!("Save Workspace")).clicked() {
-                let (name, layout) = (app.canvas_ui.new_workspace.clone(), app.workspace.layout.clone());
-                match app.canvas_ui.save_workspace(&name, &layout) {
-                    Ok(()) => {
-                        app.set_status(tlf!("Saved workspace {name}", name = name.trim()));
-                        app.canvas_ui.new_workspace.clear();
-                    }
-                    Err(e) => app.set_status(e),
-                }
-            }
-        });
-    });
 }
 
 fn anchor_name(col: u8, row: u8) -> String {
