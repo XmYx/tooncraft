@@ -37,6 +37,9 @@ pub struct State {
     typed_for: Vec<(f32, f32)>,
     /// Width and height change together.
     pub keep_proportions: bool,
+    /// Soft edge of the selection, pixels (0: hard): moving, erasing, copying and filling blend
+    /// over this distance.
+    pub feather: f32,
 }
 
 impl State {
@@ -96,7 +99,14 @@ pub fn set_rings(app: &mut ToonApp, mut rings: Vec<Vec<(f32, f32)>>) {
     app.sel.distort = None;
 }
 
-/// The current selection as a mask.
+/// The current selection as a mask with its feather (soft values at the edge), for copying.
+pub fn soft_mask(app: &ToonApp) -> Option<Mask> {
+    let main = app.selection.as_ref()?;
+    let (w, h) = (app.engine.project.width(), app.engine.project.height());
+    tooncraft_engine::select::soft_mask(w, h, main, &extra_rings(app), app.sel.feather)
+}
+
+/// The current selection as a mask (hard-edged: the outline the tools combine and trace).
 pub fn mask(app: &ToonApp) -> Option<Mask> {
     let main = app.selection.as_ref()?;
     let (w, h) = (app.engine.project.width(), app.engine.project.height());
@@ -261,7 +271,7 @@ pub fn start_distort(app: &mut ToonApp) {
 pub fn apply_distort(app: &mut ToonApp) {
     let (Some(corners), Some(main)) = (app.sel.distort, app.selection.clone()) else { return };
     let (layer, frame, rings, resample) = (app.layer, app.frame, extra_rings(app), app.sel.resample);
-    if app.run(Command::DistortSelection { layer, frame, polygon: main, rings, corners, resample }) {
+    if app.run(Command::DistortSelection { layer, frame, polygon: main, rings, corners, resample, feather: app.sel.feather }) {
         set_rings(app, vec![corners.to_vec()]);
     }
     app.sel.distort = None;
@@ -285,6 +295,7 @@ pub fn apply_skew(app: &mut ToonApp) {
         skew_x: kx,
         skew_y: ky,
         resample,
+        feather: app.sel.feather,
     };
     if app.run(cmd) {
         let t = tooncraft_raster::select::Affine::about_skewed(tooncraft_engine::select::pivot(&main), 0.0, 0.0, 1.0, 1.0, 0.0, (kx, ky));
@@ -372,6 +383,10 @@ pub fn options(app: &mut ToonApp, ui: &mut egui::Ui) {
         let n = app.sel.grow_by;
         grow(app, -n);
     }
+    let l = ui.label(tl!("Feather"));
+    ui.add(egui::DragValue::new(&mut app.sel.feather).range(0.0..=select::MAX_FEATHER).max_decimals(1).suffix(tl!(" px")))
+        .labelled_by(l.id)
+        .on_hover_text(tl!("Soft edge: moving, erasing, copying and filling the selection fade out over this many pixels"));
     ui.separator();
     let l = ui.label(tl!("Resampling"));
     egui::ComboBox::from_id_salt("select-resample")

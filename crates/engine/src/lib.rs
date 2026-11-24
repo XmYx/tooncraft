@@ -13,6 +13,9 @@ mod boards;
 pub mod burnin;
 #[cfg(test)]
 mod cells_tests;
+pub mod clone;
+#[cfg(test)]
+mod clone_tests;
 mod command;
 #[cfg(test)]
 mod curves_tests;
@@ -106,6 +109,8 @@ pub enum EngineError {
     NoLibraryItem(usize),
     #[error("text: {0}")]
     Text(String),
+    #[error("there is no grain image {0} in this shot")]
+    NoGrainImage(u64),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
