@@ -109,13 +109,19 @@ fn colour_effects() {
 #[test]
 fn feathered_mask() {
     let mut img = RgbaImage::filled(100, 10, [0, 0, 0, 255]);
-    run(EffectKind::Mask { shape: MaskShape::Rectangle, x: 25.0, y: 5.0, width: 50.0, height: 100.0, feather: 20.0, invert: false }, &mut img);
+    run(
+        EffectKind::Mask { shape: MaskShape::Rectangle, x: 25.0, y: 5.0, width: 50.0, height: 100.0, feather: 20.0, invert: false, points: Vec::new() },
+        &mut img,
+    );
     assert_eq!(img.pixel(10, 5)[3], 255);
     assert_eq!(img.pixel(80, 5)[3], 0);
     let mid = img.pixel(50, 5)[3];
     assert!((100..160).contains(&mid), "half way through the feather: {mid}");
     let mut inv = RgbaImage::filled(100, 10, [0, 0, 0, 255]);
-    run(EffectKind::Mask { shape: MaskShape::Rectangle, x: 25.0, y: 5.0, width: 50.0, height: 100.0, feather: 20.0, invert: true }, &mut inv);
+    run(
+        EffectKind::Mask { shape: MaskShape::Rectangle, x: 25.0, y: 5.0, width: 50.0, height: 100.0, feather: 20.0, invert: true, points: Vec::new() },
+        &mut inv,
+    );
     assert_eq!((inv.pixel(10, 5)[3], inv.pixel(80, 5)[3]), (0, 255));
 }
 
@@ -222,14 +228,40 @@ fn any_kind() -> impl Strategy<Value = EffectKind> {
         (f(), f()).prop_map(|(radius, intensity)| EffectKind::LightWrap { radius, intensity }),
         f().prop_map(|threshold| EffectKind::AlphaThreshold { threshold }),
         (col(), f(), f()).prop_map(|(colour, tolerance, softness)| EffectKind::ColourKey { colour, tolerance, softness }),
-        (any::<bool>(), f(), f(), f(), f(), f(), any::<bool>()).prop_map(|(e, x, y, width, height, feather, invert)| EffectKind::Mask {
-            shape: if e { MaskShape::Ellipse } else { MaskShape::Rectangle },
+        (0u8..3, f(), f(), f(), f(), f(), any::<bool>(), proptest::collection::vec((f(), f()), 0..12)).prop_map(
+            |(e, x, y, width, height, feather, invert, pts)| EffectKind::Mask {
+                shape: [MaskShape::Rectangle, MaskShape::Ellipse, MaskShape::Drawn][e as usize % 3],
+                x,
+                y,
+                width,
+                height,
+                feather,
+                invert,
+                points: pts.into_iter().map(|(a, b)| [a, b]).collect(),
+            }
+        ),
+        (f(), f(), f(), f(), f(), f(), col(), any::<u32>(), any::<u32>()).prop_map(|(x, y, through_x, through_y, size, intensity, colour, rays, ghosts)| {
+            EffectKind::LensFlare { x, y, through_x, through_y, size, intensity, colour, rays, ghosts }
+        }),
+        (any::<u64>(), f(), f(), any::<bool>()).prop_map(|(layer, amount_x, amount_y, brightness)| EffectKind::Displace {
+            layer,
+            amount_x,
+            amount_y,
+            brightness
+        }),
+        (f(), any::<u32>()).prop_map(|(shutter, samples)| EffectKind::MotionBlur { shutter, samples }),
+        (any::<u32>(), any::<u32>(), f()).prop_map(|(count, step, fade)| EffectKind::Trails { count, step, fade }),
+        f().prop_map(|amount| EffectKind::FrameBlend { amount }),
+        (f(), f()).prop_map(|(speed, offset)| EffectKind::TimeRemap { speed, offset }),
+        (0u8..4, 0u32..20, any::<u32>(), any::<bool>(), f(), f(), f(), f()).prop_map(|(st, start, length, out, angle, x, y, size)| EffectKind::Transition {
+            style: [TransitionStyle::Dissolve, TransitionStyle::Wipe, TransitionStyle::Iris, TransitionStyle::Push][st as usize % 4],
+            start,
+            length,
+            out,
+            angle,
             x,
             y,
-            width,
-            height,
-            feather,
-            invert
+            size
         }),
         (col(), col(), f()).prop_map(|(dark, light, amount)| EffectKind::GradientMap { dark, light, amount }),
         any::<u32>().prop_map(|levels| EffectKind::Posterize { levels }),
@@ -319,4 +351,62 @@ fn presets_and_saved_stacks() {
     // hostile numbers come back clamped
     let hostile = crate::stack_to_json(&[blur(1e30)]).unwrap();
     assert_eq!(crate::stack_from_json(&hostile).unwrap()[0].kind, EffectKind::Blur { radius: MAX_RADIUS });
+}
+
+/// A drawn mask shape seen through a part of the canvas equals the whole canvas, and a shape
+/// with fixed points (from [`resample_closed`]) blends between keys.
+#[test]
+fn drawn_masks_and_their_keys() {
+    let tri = vec![[10.0, 10.0], [80.0, 12.0], [30.0, 70.0]];
+    let mask =
+        |points: Vec<[f32; 2]>| EffectKind::Mask { shape: MaskShape::Drawn, x: 0.0, y: 0.0, width: 0.0, height: 0.0, feather: 12.0, invert: false, points };
+    let mut full = RgbaImage::filled(96, 80, [40, 40, 40, 255]);
+    let mut part = full.crop(20, 16, 40, 30);
+    apply_stack(&mut full, &[Effect::new(mask(tri.clone()))], 0, None);
+    apply_stack_at(&mut part, (20, 16), &[Effect::new(mask(tri.clone()))], 0, None);
+    assert_eq!(part, full.crop(20, 16, 40, 30));
+    assert_eq!(full.pixel(40, 30)[3], 255, "inside the triangle");
+    assert_eq!(full.pixel(90, 75)[3], 0, "outside it");
+    let a = resample_closed(&tri, MASK_SHAPE_POINTS);
+    let b: Vec<[f32; 2]> = a.iter().map(|p| [p[0] + 10.0, p[1]]).collect();
+    let mut e = Effect::new(mask(a.clone()));
+    e.set_key(0, mask(a.clone()));
+    e.set_key(10, mask(b));
+    let EffectKind::Mask { points, .. } = e.at(5) else { panic!("kind") };
+    assert_eq!(points.len(), MASK_SHAPE_POINTS);
+    assert!((points[0][0] - (a[0][0] + 5.0)).abs() < 1e-3, "half way between the keys");
+}
+
+/// A lens flare lights a layer with no paint of its own; displacement needs its map.
+#[test]
+fn flares_generate_and_displacement_reads_its_layer() {
+    let flare = Effect::new(EffectKind::LensFlare {
+        x: 20.0,
+        y: 20.0,
+        through_x: 48.0,
+        through_y: 40.0,
+        size: 6.0,
+        intensity: 1.0,
+        colour: [255, 255, 255],
+        rays: 4,
+        ghosts: 2,
+    });
+    assert!(generates(std::slice::from_ref(&flare)));
+    assert_eq!(stack_reach(std::slice::from_ref(&flare), 0), None, "a flare can light the whole picture");
+    let mut img = RgbaImage::transparent(96, 80);
+    apply_stack(&mut img, std::slice::from_ref(&flare), 0, None);
+    assert!(img.pixel(20, 20)[3] > 200);
+    let shift = Effect::new(EffectKind::Displace { layer: 7, amount_x: 5.0, amount_y: 0.0, brightness: false });
+    assert_eq!(source_layers(&[shift.clone(), shift.clone()]), vec![7], "each layer once");
+    let mut line = RgbaImage::transparent(40, 10);
+    for y in 0..10 {
+        line.set_pixel(10, y, [0, 0, 0, 255]);
+    }
+    let mut without = line.clone();
+    apply_stack(&mut without, std::slice::from_ref(&shift), 0, None);
+    assert_eq!(without, line, "no map given, nothing moves");
+    let map = RgbaImage::filled(40, 10, [255, 128, 0, 255]);
+    let layers = [(7u64, map)];
+    apply_stack_with(&mut line, (0, 0), std::slice::from_ref(&shift), 0, Inputs { below: None, layers: &layers });
+    assert!(line.pixel(15, 4)[3] > 200, "moved by the map: {:?}", line.pixel(15, 4));
 }

@@ -21,12 +21,15 @@ mod distance;
 mod look;
 mod par;
 mod shape;
+mod time;
 
 use serde::{Deserialize, Serialize};
 use tooncraft_raster::{BlendMode, RgbaImage};
 
 pub use blur::gaussian;
+pub use look::MAX_GHOSTS;
 pub use par::set_max_threads;
+pub use shape::resample_closed;
 
 /// Most effects on one layer.
 pub const MAX_EFFECTS: usize = 32;
@@ -44,7 +47,34 @@ pub enum MaskShape {
     #[default]
     Rectangle,
     Ellipse,
+    /// A closed polygon drawn on the canvas (the mask's `points`).
+    Drawn,
 }
+
+/// How a transition brings a layer in (or takes it out).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TransitionStyle {
+    #[default]
+    Dissolve,
+    /// An edge sweeping across at the transition's angle.
+    Wipe,
+    /// A circle opening from the centre.
+    Iris,
+    /// Sliding in along the angle.
+    Push,
+}
+
+/// Most samples of a motion blur.
+pub const MAX_BLUR_SAMPLES: u32 = 16;
+/// Most copies a trail leaves.
+pub const MAX_TRAILS: u32 = 16;
+
+/// Most points of a drawn mask shape.
+pub const MAX_MASK_POINTS: usize = 1024;
+/// Points a drawn mask shape is resampled to when it is set from a selection, so every key of a
+/// mask has as many points and blends point by point.
+pub const MASK_SHAPE_POINTS: usize = 96;
 
 /// An effect and its parameters. Distances are canvas pixels, colours straight RGB, amounts 0…1
 /// unless noted.
@@ -80,9 +110,20 @@ pub enum EffectKind {
     LightWrap { radius: f32, intensity: f32 },
     /// Hard edges: alpha at or above `threshold` becomes opaque, the rest transparent.
     AlphaThreshold { threshold: f32 },
-    /// Keep only what is inside a rectangle or ellipse centred at `x`, `y` (canvas pixels), with
-    /// a soft edge `feather` pixels wide; `invert` keeps the outside.
-    Mask { shape: MaskShape, x: f32, y: f32, width: f32, height: f32, feather: f32, invert: bool },
+    /// Keep only what is inside a rectangle or ellipse centred at `x`, `y` (canvas pixels), or
+    /// inside the drawn polygon `points` (canvas pixels), with a soft edge `feather` pixels
+    /// wide; `invert` keeps the outside.
+    Mask {
+        shape: MaskShape,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        feather: f32,
+        invert: bool,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        points: Vec<[f32; 2]>,
+    },
     /// Make pixels close to `colour` transparent (scanned paper, coloured backdrops): within
     /// `tolerance` (0…1 colour distance) they go, within `tolerance + softness` they fade.
     ColourKey { colour: [u8; 3], tolerance: f32, softness: f32 },
@@ -107,6 +148,30 @@ pub enum EffectKind {
     Turbulence { amount: f32, scale: f32, seed: u32, animated: bool },
     /// Smooth jagged lines (`radius` 0…20 pixels).
     Smooth { radius: f32 },
+    /// Light from a bright point at `x`, `y` (canvas pixels): a core `size` pixels wide with a
+    /// ring, `rays` star rays (0, or 2…32) and `ghosts` discs (0…16) on the line from the light
+    /// through `through_x`, `through_y` (usually the middle of the picture). `intensity` 0…4.
+    LensFlare { x: f32, y: f32, through_x: f32, through_y: f32, size: f32, intensity: f32, colour: [u8; 3], rays: u32, ghosts: u32 },
+    /// Move the picture by another layer's pixels (`layer`, its id): red moves across by up to
+    /// `amount_x` pixels, green down by up to `amount_y` (mid grey: no move), or with
+    /// `brightness` its brightness moves both. Where that layer is transparent nothing moves.
+    Displace { layer: u64, amount_x: f32, amount_y: f32, brightness: bool },
+    /// Blur from the layer's own movement (its peg and the camera): the drawing is drawn at
+    /// `samples` (2…16) points of a shutter open for `shutter` frames (0…2) around the frame
+    /// and averaged.
+    MotionBlur { shutter: f32, samples: u32 },
+    /// Copies of the layer's last `count` (1…16) pictures, `step` frames apart (1…24), each
+    /// `fade` (0…1) as strong as the one after it, under the layer.
+    Trails { count: u32, step: u32, fade: f32 },
+    /// Mix `amount` (0…1) of the next frame's picture into this one (smooths a change).
+    FrameBlend { amount: f32 },
+    /// Show the layer's frame `offset + speed × frame` (rounded, held at the shot's ends):
+    /// slow motion, fast motion, reversed or held. Key `speed` and `offset` to ramp.
+    TimeRemap { speed: f32, offset: f32 },
+    /// Bring the layer in (or, with `out`, take it out) over `length` frames from `start`:
+    /// dissolve, wipe or push along `angle` degrees across `size` pixels, or an iris opening
+    /// to radius `size` from `x`, `y`.
+    Transition { style: TransitionStyle, start: u32, length: u32, out: bool, angle: f32, x: f32, y: f32, size: f32 },
 }
 
 impl EffectKind {
@@ -128,7 +193,16 @@ impl EffectKind {
             EffectKind::Grain { amount: 0.15, size: 1.0, seed: 1, animated: true },
             EffectKind::LightWrap { radius: 10.0, intensity: 0.6 },
             EffectKind::AlphaThreshold { threshold: 0.5 },
-            EffectKind::Mask { shape: MaskShape::Ellipse, x: w / 2.0, y: h / 2.0, width: w * 0.6, height: h * 0.6, feather: 40.0, invert: false },
+            EffectKind::Mask {
+                shape: MaskShape::Ellipse,
+                x: w / 2.0,
+                y: h / 2.0,
+                width: w * 0.6,
+                height: h * 0.6,
+                feather: 40.0,
+                invert: false,
+                points: Vec::new(),
+            },
             EffectKind::ColourKey { colour: [255, 255, 255], tolerance: 0.1, softness: 0.1 },
             EffectKind::GradientMap { dark: [30, 20, 60], light: [255, 220, 160], amount: 1.0 },
             EffectKind::Posterize { levels: 4 },
@@ -139,6 +213,32 @@ impl EffectKind {
             EffectKind::Wave { amplitude: 4.0, wavelength: 60.0, angle: 0.0, speed: 0.05 },
             EffectKind::Turbulence { amount: 3.0, scale: 40.0, seed: 1, animated: true },
             EffectKind::Smooth { radius: 1.5 },
+            EffectKind::LensFlare {
+                x: w * 0.25,
+                y: h * 0.25,
+                through_x: w / 2.0,
+                through_y: h / 2.0,
+                size: w.min(h) * 0.06,
+                intensity: 1.0,
+                colour: [255, 230, 190],
+                rays: 6,
+                ghosts: 4,
+            },
+            EffectKind::Displace { layer: 0, amount_x: 8.0, amount_y: 8.0, brightness: false },
+            EffectKind::MotionBlur { shutter: 0.5, samples: 8 },
+            EffectKind::Trails { count: 4, step: 1, fade: 0.6 },
+            EffectKind::FrameBlend { amount: 0.5 },
+            EffectKind::TimeRemap { speed: 0.5, offset: 0.0 },
+            EffectKind::Transition {
+                style: TransitionStyle::Wipe,
+                start: 0,
+                length: 12,
+                out: false,
+                angle: 0.0,
+                x: w / 2.0,
+                y: h / 2.0,
+                size: w.hypot(h) / 2.0,
+            },
         ]
     }
 
@@ -170,6 +270,13 @@ impl EffectKind {
             EffectKind::Wave { .. } => "wave",
             EffectKind::Turbulence { .. } => "turbulence",
             EffectKind::Smooth { .. } => "smooth",
+            EffectKind::LensFlare { .. } => "lens_flare",
+            EffectKind::Displace { .. } => "displace",
+            EffectKind::MotionBlur { .. } => "motion_blur",
+            EffectKind::Trails { .. } => "trails",
+            EffectKind::FrameBlend { .. } => "frame_blend",
+            EffectKind::TimeRemap { .. } => "time_remap",
+            EffectKind::Transition { .. } => "transition",
         }
     }
 
@@ -181,6 +288,26 @@ impl EffectKind {
     /// Does this effect read the layers below it (light wrap)?
     pub fn needs_below(&self) -> bool {
         matches!(self, EffectKind::LightWrap { .. })
+    }
+
+    /// The layer (id) this effect reads, if it reads one.
+    pub fn source_layer(&self) -> Option<u64> {
+        match self {
+            EffectKind::Displace { layer, .. } => Some(*layer),
+            _ => None,
+        }
+    }
+
+    /// Does the compositor work this effect out from the layer at other frames or other
+    /// transforms (motion blur, trails, frame blending, time remap)? Its pixel pass does nothing.
+    pub fn is_time(&self) -> bool {
+        matches!(self, EffectKind::MotionBlur { .. } | EffectKind::Trails { .. } | EffectKind::FrameBlend { .. } | EffectKind::TimeRemap { .. })
+    }
+
+    /// Does this effect make pixels of its own, so it runs on a layer even where the layer has no
+    /// drawing (a lens flare)?
+    pub fn generates(&self) -> bool {
+        matches!(self, EffectKind::LensFlare { .. })
     }
 
     /// Every number clamped to its range (NaN becomes the range's low end or a neutral value).
@@ -223,8 +350,14 @@ impl EffectKind {
             Grain { amount, size, seed, animated } => Grain { amount: c(amount, 0.0, 1.0, 0.0), size: c(size, 1.0, 16.0, 1.0), seed, animated },
             LightWrap { radius, intensity } => LightWrap { radius: c(radius, 0.0, MAX_RADIUS, 0.0), intensity: c(intensity, 0.0, 2.0, 0.0) },
             AlphaThreshold { threshold } => AlphaThreshold { threshold: c(threshold, 0.0, 1.0, 0.5) },
-            Mask { shape, x, y, width, height, feather, invert } => Mask {
+            Mask { shape, x, y, width, height, feather, invert, points } => Mask {
                 shape,
+                points: points
+                    .into_iter()
+                    .filter(|p| p[0].is_finite() && p[1].is_finite())
+                    .take(MAX_MASK_POINTS)
+                    .map(|p| p.map(|v| v.clamp(-65536.0, 65536.0)))
+                    .collect(),
                 x: c(x, -65536.0, 65536.0, 0.0),
                 y: c(y, -65536.0, 65536.0, 0.0),
                 width: c(width, 0.0, 65536.0, 0.0),
@@ -261,6 +394,34 @@ impl EffectKind {
                 Turbulence { amount: c(amount, 0.0, 100.0, 0.0), scale: c(scale, 2.0, 1000.0, 40.0), seed, animated }
             }
             Smooth { radius } => Smooth { radius: c(radius, 0.0, 20.0, 0.0) },
+            LensFlare { x, y, through_x, through_y, size, intensity, colour, rays, ghosts } => LensFlare {
+                x: c(x, -65536.0, 65536.0, 0.0),
+                y: c(y, -65536.0, 65536.0, 0.0),
+                through_x: c(through_x, -65536.0, 65536.0, 0.0),
+                through_y: c(through_y, -65536.0, 65536.0, 0.0),
+                size: c(size, 1.0, 4096.0, 1.0),
+                intensity: c(intensity, 0.0, 4.0, 0.0),
+                colour,
+                rays: if rays < 2 { 0 } else { rays.min(32) },
+                ghosts: ghosts.min(look::MAX_GHOSTS),
+            },
+            Displace { layer, amount_x, amount_y, brightness } => {
+                Displace { layer, amount_x: c(amount_x, -200.0, 200.0, 0.0), amount_y: c(amount_y, -200.0, 200.0, 0.0), brightness }
+            }
+            MotionBlur { shutter, samples } => MotionBlur { shutter: c(shutter, 0.0, 2.0, 0.0), samples: samples.clamp(2, MAX_BLUR_SAMPLES) },
+            Trails { count, step, fade } => Trails { count: count.clamp(1, MAX_TRAILS), step: step.clamp(1, 24), fade: c(fade, 0.0, 1.0, 0.5) },
+            FrameBlend { amount } => FrameBlend { amount: c(amount, 0.0, 1.0, 0.0) },
+            TimeRemap { speed, offset } => TimeRemap { speed: c(speed, -8.0, 8.0, 1.0), offset: c(offset, -100_000.0, 100_000.0, 0.0) },
+            Transition { style, start, length, out, angle, x, y, size } => Transition {
+                style,
+                start,
+                length: length.clamp(1, 10_000),
+                out,
+                angle: c(angle, -3600.0, 3600.0, 0.0),
+                x: c(x, -65536.0, 65536.0, 0.0),
+                y: c(y, -65536.0, 65536.0, 0.0),
+                size: c(size, 1.0, 65536.0, 1.0),
+            },
         }
     }
 
@@ -304,9 +465,41 @@ impl EffectKind {
             }
             (LightWrap { radius: ar, intensity: ai }, LightWrap { radius: br, intensity: bi }) => LightWrap { radius: l(*ar, *br), intensity: l(*ai, *bi) },
             (AlphaThreshold { threshold: a }, AlphaThreshold { threshold: b }) => AlphaThreshold { threshold: l(*a, *b) },
-            (Mask { shape, x: ax, y: ay, width: aw, height: ah, feather: af, invert }, Mask { x: bx, y: by, width: bw, height: bh, feather: bf, .. }) => {
-                Mask { shape: *shape, x: l(*ax, *bx), y: l(*ay, *by), width: l(*aw, *bw), height: l(*ah, *bh), feather: l(*af, *bf), invert: *invert }
+            (
+                Mask { shape, x: ax, y: ay, width: aw, height: ah, feather: af, invert, points: ap },
+                Mask { x: bx, y: by, width: bw, height: bh, feather: bf, points: bp, .. },
+            ) => Mask {
+                shape: *shape,
+                x: l(*ax, *bx),
+                y: l(*ay, *by),
+                width: l(*aw, *bw),
+                height: l(*ah, *bh),
+                feather: l(*af, *bf),
+                invert: *invert,
+                // shapes with as many points blend point by point; others hold
+                points: if ap.len() == bp.len() { ap.iter().zip(bp).map(|(p, q)| [l(p[0], q[0]), l(p[1], q[1])]).collect() } else { ap.clone() },
+            },
+            (
+                LensFlare { x: ax, y: ay, through_x: atx, through_y: aty, size: asz, intensity: ai, colour: ac, rays, ghosts },
+                LensFlare { x: bx, y: by, through_x: btx, through_y: bty, size: bsz, intensity: bi, colour: bc, .. },
+            ) => LensFlare {
+                x: l(*ax, *bx),
+                y: l(*ay, *by),
+                through_x: l(*atx, *btx),
+                through_y: l(*aty, *bty),
+                size: l(*asz, *bsz),
+                intensity: l(*ai, *bi),
+                colour: lc(*ac, *bc),
+                rays: *rays,
+                ghosts: *ghosts,
+            },
+            (Displace { layer, amount_x: ax, amount_y: ay, brightness }, Displace { amount_x: bx, amount_y: by, .. }) => {
+                Displace { layer: *layer, amount_x: l(*ax, *bx), amount_y: l(*ay, *by), brightness: *brightness }
             }
+            (MotionBlur { shutter: a, samples }, MotionBlur { shutter: b, .. }) => MotionBlur { shutter: l(*a, *b), samples: *samples },
+            (Trails { count, step, fade: a }, Trails { fade: b, .. }) => Trails { count: *count, step: *step, fade: l(*a, *b) },
+            (FrameBlend { amount: a }, FrameBlend { amount: b }) => FrameBlend { amount: l(*a, *b) },
+            (TimeRemap { speed: a, offset: ao }, TimeRemap { speed: b, offset: bo }) => TimeRemap { speed: l(*a, *b), offset: l(*ao, *bo) },
             (ColourKey { colour: ac, tolerance: at, softness: asf }, ColourKey { colour: bc, tolerance: bt, softness: bs }) => {
                 ColourKey { colour: lc(*ac, *bc), tolerance: l(*at, *bt), softness: l(*asf, *bs) }
             }
@@ -455,6 +648,37 @@ pub fn needs_below(effects: &[Effect]) -> bool {
     effects.iter().any(|e| e.enabled && e.kind.needs_below())
 }
 
+/// The layers (ids) the enabled effects read, each once, in stack order.
+pub fn source_layers(effects: &[Effect]) -> Vec<u64> {
+    let mut out: Vec<u64> = Vec::new();
+    for id in effects.iter().take(MAX_EFFECTS).filter(|e| e.enabled).filter_map(|e| e.kind.source_layer()) {
+        if !out.contains(&id) {
+            out.push(id);
+        }
+    }
+    out
+}
+
+/// The enabled time effects of a stack at `frame` (see [`EffectKind::is_time`]), in order.
+pub fn time_effects(effects: &[Effect], frame: u32) -> Vec<EffectKind> {
+    effects.iter().take(MAX_EFFECTS).filter(|e| e.enabled && e.kind.is_time()).map(|e| e.at(frame).sanitized()).collect()
+}
+
+/// Does an enabled effect make pixels of its own (see [`EffectKind::generates`])?
+pub fn generates(effects: &[Effect]) -> bool {
+    effects.iter().take(MAX_EFFECTS).any(|e| e.enabled && e.kind.generates())
+}
+
+/// What a stack may read besides its own layer: the composite under the layer (light wrap) and
+/// other layers' pixels (displacement), each the same size and place as the image the stack runs
+/// on. An effect whose input is missing leaves the picture as it is.
+#[derive(Clone, Copy, Default)]
+pub struct Inputs<'a> {
+    pub below: Option<&'a RgbaImage>,
+    /// (layer id, its pixels) for [`source_layers`].
+    pub layers: &'a [(u64, RgbaImage)],
+}
+
 /// Run the enabled effects of a stack over `img` (premultiplied, the whole canvas), in order.
 /// `below` is the composite under the layer, for light wrap (without it light wrap does nothing).
 pub fn apply_stack(img: &mut RgbaImage, effects: &[Effect], frame: u32, below: Option<&RgbaImage>) {
@@ -489,6 +713,11 @@ pub fn reach(kind: &EffectKind) -> Option<u32> {
         EffectKind::Ripple { amplitude, .. } | EffectKind::Wave { amplitude, .. } => Some(r(*amplitude)),
         EffectKind::Turbulence { amount, .. } => Some(r(*amount)),
         EffectKind::Smooth { radius } => Some(r(radius * 3.0)),
+        EffectKind::LensFlare { .. } => None,
+        EffectKind::MotionBlur { .. } | EffectKind::Trails { .. } | EffectKind::FrameBlend { .. } | EffectKind::TimeRemap { .. } => Some(0),
+        EffectKind::Transition { style: TransitionStyle::Push, .. } => None,
+        EffectKind::Transition { .. } => Some(0),
+        EffectKind::Displace { amount_x, amount_y, .. } => Some(r(amount_x.abs().max(amount_y.abs()))),
     }
 }
 
@@ -501,16 +730,21 @@ pub fn stack_reach(effects: &[Effect], frame: u32) -> Option<u32> {
 /// position `origin`. Pixels outside `img` must be transparent and further than the stack's
 /// [`stack_reach`] from anything drawn; then the result equals running on the whole canvas.
 pub fn apply_stack_at(img: &mut RgbaImage, origin: (u32, u32), effects: &[Effect], frame: u32, below: Option<&RgbaImage>) {
+    apply_stack_with(img, origin, effects, frame, Inputs { below, layers: &[] });
+}
+
+/// [`apply_stack_at`] with every input a stack may read ([`Inputs`]).
+pub fn apply_stack_with(img: &mut RgbaImage, origin: (u32, u32), effects: &[Effect], frame: u32, inputs: Inputs<'_>) {
     for e in effects.iter().take(MAX_EFFECTS) {
         if !e.enabled || e.mix <= 0.0 {
             continue;
         }
         let k = e.at(frame).sanitized();
         if e.blend == BlendMode::Normal && (e.mix.is_nan() || e.mix >= 1.0) {
-            apply_at(img, origin, &k, frame, below);
+            apply_at(img, origin, &k, frame, inputs);
         } else {
             let input = img.clone();
-            apply_at(img, origin, &k, frame, below);
+            apply_at(img, origin, &k, frame, inputs);
             combine(img, &input, e.blend, e.mix);
         }
     }
@@ -534,10 +768,11 @@ fn combine(out: &mut RgbaImage, input: &RgbaImage, mode: BlendMode, mix: f32) {
 
 /// Run one effect over `img` (premultiplied, the whole canvas). Parameters are expected sanitized.
 pub fn apply(img: &mut RgbaImage, kind: &EffectKind, frame: u32, below: Option<&RgbaImage>) {
-    apply_at(img, (0, 0), kind, frame, below);
+    apply_at(img, (0, 0), kind, frame, Inputs { below, layers: &[] });
 }
 
-fn apply_at(img: &mut RgbaImage, origin: (u32, u32), kind: &EffectKind, frame: u32, below: Option<&RgbaImage>) {
+fn apply_at(img: &mut RgbaImage, origin: (u32, u32), kind: &EffectKind, frame: u32, inputs: Inputs<'_>) {
+    let below = inputs.below;
     if img.width == 0 || img.height == 0 || img.data.len() != img.width as usize * img.height as usize * 4 {
         return;
     }
@@ -562,7 +797,8 @@ fn apply_at(img: &mut RgbaImage, origin: (u32, u32), kind: &EffectKind, frame: u
             }
         }
         EffectKind::AlphaThreshold { threshold } => colour::alpha_threshold(img, *threshold),
-        EffectKind::Mask { shape, x, y, width, height, feather, invert } => {
+        EffectKind::Mask { shape: MaskShape::Drawn, feather, invert, points, .. } => shape::drawn(img, origin, points, *feather, *invert),
+        EffectKind::Mask { shape, x, y, width, height, feather, invert, .. } => {
             shape::mask(img, *shape, (*x - origin.0 as f32, *y - origin.1 as f32, *width, *height), *feather, *invert)
         }
         EffectKind::ColourKey { colour, tolerance, softness } => colour::key(img, *colour, *tolerance, *softness),
@@ -577,6 +813,31 @@ fn apply_at(img: &mut RgbaImage, origin: (u32, u32), kind: &EffectKind, frame: u
             look::turbulence(img, origin, *amount, *scale, seed.wrapping_add(if *animated { frame } else { 0 }))
         }
         EffectKind::Smooth { radius } => look::smooth(img, *radius),
+        EffectKind::LensFlare { x, y, through_x, through_y, size, intensity, colour, rays, ghosts } => look::lens_flare(
+            img,
+            origin,
+            &look::Flare {
+                light: (*x, *y),
+                through: (*through_x, *through_y),
+                size: *size,
+                intensity: *intensity,
+                colour: *colour,
+                rays: *rays,
+                ghosts: *ghosts,
+            },
+        ),
+        EffectKind::Displace { layer, amount_x, amount_y, brightness } => {
+            if let Some((_, map)) = inputs.layers.iter().find(|(id, _)| id == layer) {
+                look::displace_by(img, map, *amount_x, *amount_y, *brightness)
+            }
+        }
+        // worked out by the compositor from other frames
+        EffectKind::MotionBlur { .. } | EffectKind::Trails { .. } | EffectKind::FrameBlend { .. } | EffectKind::TimeRemap { .. } => {}
+        EffectKind::Transition { style, start, length, out, angle, x, y, size } => time::apply(
+            img,
+            origin,
+            &time::Transition { style: *style, shown: time::shown(*start, *length, *out, frame), angle: *angle, centre: (*x, *y), size: *size },
+        ),
     }
 }
 

@@ -30,6 +30,15 @@ pub fn selection_mask(w: u32, h: u32, poly: &[(f32, f32)], rings: &[Vec<(f32, f3
     select::rings_mask(w, h, &all)
 }
 
+/// A selection as the commands take it: the main ring, the other rings, the feather (pixels).
+pub type Area<'a> = (&'a [(f32, f32)], &'a [Vec<(f32, f32)>], f32);
+
+/// [`selection_mask`] with its edge softened by `feather` pixels (0: hard).
+pub fn soft_mask(w: u32, h: u32, poly: &[(f32, f32)], rings: &[Vec<(f32, f32)>], feather: f32) -> Option<Mask> {
+    let m = selection_mask(w, h, poly, rings)?;
+    select::feather(&m, feather, w, h)
+}
+
 /// The affine of a transform command's numbers.
 pub fn affine(poly: &[(f32, f32)], dx: f32, dy: f32, sx: f32, sy: f32, angle: f32) -> Affine {
     Affine::about(pivot(poly), dx, dy, sx, sy, angle)
@@ -40,8 +49,7 @@ pub(crate) fn transform(
     e: &mut Engine,
     layer: usize,
     frame: u32,
-    poly: &[(f32, f32)],
-    rings: &[Vec<(f32, f32)>],
+    (poly, rings, feather): Area,
     (dx, dy, sx, sy, angle): (f32, f32, f32, f32, f32),
     skew: (f32, f32),
     resample: Resample,
@@ -49,7 +57,7 @@ pub(crate) fn transform(
     e.check_unlocked(layer)?;
     let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;
     let (w, h) = (e.project.width(), e.project.height());
-    let Some(mask) = selection_mask(w, h, poly, rings) else { return Ok(()) };
+    let Some(mask) = soft_mask(w, h, poly, rings, feather) else { return Ok(()) };
     let t = Affine::about_skewed(pivot(poly), dx, dy, sx, sy, angle, skew);
     let s = e.project.drawing_mut(d).ok_or(EngineError::NoDrawing(frame))?;
     s.begin_capture();
@@ -63,19 +71,11 @@ pub(crate) fn transform(
     Ok(())
 }
 
-pub(crate) fn distort(
-    e: &mut Engine,
-    layer: usize,
-    frame: u32,
-    poly: &[(f32, f32)],
-    rings: &[Vec<(f32, f32)>],
-    corners: [(f32, f32); 4],
-    resample: Resample,
-) -> Result<()> {
+pub(crate) fn distort(e: &mut Engine, layer: usize, frame: u32, (poly, rings, feather): Area, corners: [(f32, f32); 4], resample: Resample) -> Result<()> {
     e.check_unlocked(layer)?;
     let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;
     let (w, h) = (e.project.width(), e.project.height());
-    let Some(mask) = selection_mask(w, h, poly, rings) else { return Ok(()) };
+    let Some(mask) = soft_mask(w, h, poly, rings, feather) else { return Ok(()) };
     let s = e.project.drawing_mut(d).ok_or(EngineError::NoDrawing(frame))?;
     s.begin_capture();
     let r = select::distort(s, &mask, corners, resample);
@@ -99,11 +99,26 @@ pub fn wand(e: &Engine, layer: usize, frame: u32, x: u32, y: u32, tolerance: u8,
 /// it is.
 #[allow(clippy::too_many_arguments)]
 pub fn wand_with(e: &Engine, layer: usize, frame: u32, x: u32, y: u32, tolerance: u8, all_layers: bool, contiguous: bool) -> Option<Mask> {
+    let reference = if all_layers { crate::FillReference::AllLayers } else { crate::FillReference::Layer };
+    wand_looking_at(e, layer, frame, (x, y), tolerance, reference, contiguous)
+}
+
+/// [`wand_with`] looking at the picture `reference` gives (this layer, all visible layers, or the
+/// reference layers and this one).
+pub fn wand_looking_at(
+    e: &Engine,
+    layer: usize,
+    frame: u32,
+    (x, y): (u32, u32),
+    tolerance: u8,
+    reference: crate::FillReference,
+    contiguous: bool,
+) -> Option<Mask> {
     let (w, h) = (e.project.width(), e.project.height());
     if x >= w || y >= h || w as u64 * h as u64 > select::MAX_SELECTION_PIXELS {
         return None;
     }
-    let opts = tooncraft_doc::RenderOptions { paper: false, only_layer: (!all_layers).then_some(layer), effects: false, ..Default::default() };
+    let opts = reference.render_options(layer);
     let img = tooncraft_doc::render_region(&e.project, frame, (0, 0, w, h), opts);
     if !contiguous {
         let seed = img.pixel(x, y);
@@ -130,11 +145,11 @@ pub fn colour_mask(e: &Engine, layer: usize, frame: u32, rgb: [u8; 3], tolerance
     data.contains(&255).then_some(Mask { x: 0, y: 0, width: w, height: h, data })
 }
 
-pub(crate) fn clear(e: &mut Engine, layer: usize, frame: u32, poly: &[(f32, f32)], rings: &[Vec<(f32, f32)>]) -> Result<()> {
+pub(crate) fn clear(e: &mut Engine, layer: usize, frame: u32, (poly, rings, feather): Area) -> Result<()> {
     e.check_unlocked(layer)?;
     let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;
     let (w, h) = (e.project.width(), e.project.height());
-    let Some(mask) = selection_mask(w, h, poly, rings) else { return Ok(()) };
+    let Some(mask) = soft_mask(w, h, poly, rings, feather) else { return Ok(()) };
     let s = e.project.drawing_mut(d).ok_or(EngineError::NoDrawing(frame))?;
     s.begin_capture();
     select::clear(s, &mask);

@@ -108,6 +108,19 @@ fn gaussian_c<const C: usize>(data: &mut Vec<u8>, w: usize, h: usize, sigma: f32
     *data = transpose_c::<C>(&t, h, w);
 }
 
+/// Gaussian blur of a one-byte plane `w`×`h` (standard deviation `sigma`), in place.
+pub(crate) fn gaussian_plane(data: &mut Vec<u8>, w: usize, h: usize, sigma: f32) {
+    gaussian_c::<1>(data, w, h, sigma);
+}
+
+/// How far (pixels) the blur of standard deviation `sigma` reaches.
+pub(crate) fn support(sigma: f32) -> usize {
+    if sigma.is_nan() || sigma < 0.3 {
+        return 0;
+    }
+    boxes(sigma.min(crate::MAX_RADIUS)).iter().sum::<usize>() + 1
+}
+
 /// Gaussian blur with standard deviation `sigma` pixels, in place.
 pub fn gaussian(img: &mut RgbaImage, sigma: f32) {
     let (w, h) = (img.width as usize, img.height as usize);

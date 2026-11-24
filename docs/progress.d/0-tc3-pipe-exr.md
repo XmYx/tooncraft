@@ -1,0 +1,1 @@
+- 2026-11-24: Layered OpenEXR Sequence (Export menu, `tooncraft-cli export --exr-layers`): one file per frame with the composite and each visible layer as its own RGBA layer, for compositing.

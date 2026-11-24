@@ -18,6 +18,7 @@
 //! | [`otio`] | export | edit decisions as OpenTimelineIO: a track per layer, a clip per exposure, markers |
 //! | [`drawing_file`] | export, import | one drawing-library item (drawings and timing) as a `.toondrawings` file |
 //! | [`palette`] | export, import | colour palettes: GIMP `.gpl` (read through craft-palette), Photoshop swatches `.aco` |
+//! | [`video`] | import | the pictures of an MP4 or QuickTime movie (H.264, H.265) with their times |
 //!
 //! Imported files are hostile: every reader bounds its allocations and returns an error for
 //! truncated or corrupt input, never a panic. Imported pixels are premultiplied RGBA8
@@ -42,6 +43,7 @@ pub mod palette;
 pub mod prores;
 pub mod psd;
 pub mod sheet_pdf;
+pub mod video;
 pub mod xdts;
 
 #[cfg(test)]

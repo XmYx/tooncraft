@@ -179,6 +179,9 @@ fn export_webp_tga_tiff_and_layered_frames() {
     assert!(dir.join("tga/frame_0002.tga").is_file());
     let (ok, out) = cli(&["export", s, "--tiff", &d("tif"), "--range", "2..3"]);
     assert!(ok && out.contains("2 TIFF files"), "{out}");
+    let (ok, out) = cli(&["export", s, "--exr-layers", &d("exr"), "--range", "2..3"]);
+    assert!(ok && out.contains("2 layered OpenEXR files"), "{out}");
+    assert_eq!(&std::fs::read(dir.join("exr/frame_0003.exr")).unwrap()[..4], &[0x76, 0x2F, 0x31, 0x01]);
     let (ok, out) = cli(&["export", s, "--psd-frames", &d("all.psd"), "--range", "1..3"]);
     assert!(ok && out.contains("3 frames"), "{out}");
     let psd = std::fs::read(dir.join("all.psd")).unwrap();
@@ -246,4 +249,62 @@ fn text_commands_use_the_fonts_given() {
     let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap(), "--font", junk.to_str().unwrap()]);
     assert!(!ok && out.contains("not a font"), "{out}");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn export_video_codecs() {
+    struct Gone(std::path::PathBuf);
+    impl Drop for Gone {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-codecs-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let _gone = Gone(dir.clone());
+    let shot = dir.join("s.toon");
+    let shot_s = shot.to_str().unwrap();
+    assert!(cli(&["demo", shot_s, "--size", "160x120"]).0);
+    for (flag, name, codec) in [("--mov", "a.mov", "h264"), ("--mp4", "b.mp4", "h265"), ("--mp4", "c.mp4", "av1")] {
+        let out = dir.join(name);
+        let (ok, msg) = cli(&["export", shot_s, flag, out.to_str().unwrap(), "--codec", codec, "--range", "1..3"]);
+        assert!(ok && out.is_file(), "{name}: {msg}");
+    }
+    let (ok, msg) = cli(&["export", shot_s, "--mp4", dir.join("d.mp4").to_str().unwrap(), "--codec", "mpeg1"]);
+    assert!(!ok && msg.contains("--codec"), "{msg}");
+}
+
+/// Removes a test's folder when the test ends, also when it fails.
+struct Gone(std::path::PathBuf);
+
+impl Drop for Gone {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+#[test]
+fn import_video_round_trip() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-video-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let _gone = Gone(dir.clone());
+    let src = dir.join("src.toon");
+    let src_s = src.to_str().unwrap();
+    assert!(cli(&["demo", src_s, "--size", "160x120"]).0);
+    let movie = dir.join("demo.mp4");
+    let (ok, out) = cli(&["export", src_s, "--mp4", movie.to_str().unwrap(), "--range", "1..4"]);
+    assert!(ok, "{out}");
+    let shot = dir.join("roto.toon");
+    let shot_s = shot.to_str().unwrap();
+    assert!(cli(&["new", shot_s, "--size", "160x120", "--fps", "12", "--frames", "2"]).0);
+    let (ok, out) = cli(&["import-video", shot_s, movie.to_str().unwrap(), "--every", "2"]);
+    assert!(ok, "{out}");
+    let (ok, out) = cli(&["info", shot_s]);
+    assert!(ok && out.contains("\"demo\"") && out.contains("#-#-"), "{out}");
+    let (ok, out) = cli(&["import-video", shot_s, dir.join("missing.mp4").to_str().unwrap()]);
+    assert!(!ok, "{out}");
+    let (ok, out) = cli(&["import-video", shot_s, movie.to_str().unwrap(), "--from", "-1"]);
+    assert!(!ok && out.contains("--from"), "{out}");
 }
