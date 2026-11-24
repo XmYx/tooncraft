@@ -113,6 +113,7 @@ tooncraft	Any colour
 tooncraft	Apply	
 tooncraft	Apply Box	
 tooncraft	Apply Distort	
+tooncraft	Apply Mesh Warp	
 tooncraft	Apply Pose	
 tooncraft	Apply Skew	
 tooncraft	Around	
@@ -176,6 +177,7 @@ tooncraft	Camera name
 tooncraft	Camera {n}	
 tooncraft	Cancel	
 tooncraft	Cancel Distort	
+tooncraft	Cancel Mesh Warp	
 tooncraft	Cannot read this video: {reason}	
 tooncraft	Canvas	
 tooncraft	Canvas Size	
@@ -185,6 +187,7 @@ tooncraft	Canvas weave
 tooncraft	Canvas zoom	
 tooncraft	Canvas: {layer}, frame {frame}	
 tooncraft	Category	
+tooncraft	Cells along each side of the mesh	
 tooncraft	Centre	
 tooncraft	Centre X	
 tooncraft	Centre Y	
@@ -330,6 +333,7 @@ tooncraft	Drag from start to end; inside the selection when there is one
 tooncraft	Drag further from the pivot to scale or turn	
 tooncraft	Drag inside to move, a corner to scale, the top knob to rotate	
 tooncraft	Drag the four corners freely (perspective), then Apply	
+tooncraft	Drag the grid's points to bend the selection, then Apply	
 tooncraft	Drag the handles to move, scale or turn the selection	
 tooncraft	Drag the layer while the shot plays and every frame it passes is keyed (one undo step; Escape drops the take)	
 tooncraft	Drag to move this end of the loop range, or use the arrow keys when it has the focus	
@@ -813,6 +817,7 @@ tooncraft	Merge down
 tooncraft	Merge every visible layer into one	
 tooncraft	Merge every visible layer into one and remove the hidden layers	
 tooncraft	Merge the layer into the one below it	
+tooncraft	Mesh Warp	
 tooncraft	Mirror View	
 tooncraft	Mirror four ways	
 tooncraft	Mirror left and right	

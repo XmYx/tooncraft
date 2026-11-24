@@ -501,6 +501,23 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
     let tol = 10.0 / app.view.zoom.max(0.01);
     let mods = ui_mods(resp);
     let op = crate::selection_tools::combine_for(app, mods);
+    // mesh warp: the grid's points are the only handles
+    if let Some((cols, rows, mut pts)) = app.sel.mesh.clone() {
+        if resp.drag_started() {
+            app.sel.dragging = pts.iter().position(|k| (k.0 - c.x).hypot(k.1 - c.y) <= tol);
+        }
+        if resp.dragged()
+            && let Some(i) = app.sel.dragging
+            && let Some(p) = pts.get_mut(i)
+        {
+            *p = (c.x, c.y);
+            app.sel.mesh = Some((cols, rows, pts));
+        }
+        if resp.drag_stopped() {
+            app.sel.dragging = None;
+        }
+        return;
+    }
     // free distort: the four corners are the only handles
     if let Some(mut q) = app.sel.distort {
         if resp.drag_started() {
@@ -667,6 +684,22 @@ fn draw_selection(painter: &egui::Painter, app: &ToonApp, c: &Ctx, pal: &crate::
     ants(&app.selecting);
     for r in crate::selection_tools::extra_rings(app) {
         ants(&r);
+    }
+    if let Some((cols, rows, pts)) = &app.sel.mesh {
+        let at = |i: u32, j: u32| pts.get((j * (cols + 1) + i) as usize).copied().unwrap_or((0.0, 0.0));
+        let st = Stroke::new(1.0, pal.playhead);
+        for j in 0..=*rows {
+            let line: Vec<Pos2> = (0..=*cols).map(|i| to(&at(i, j))).collect();
+            painter.add(Shape::line(line, st));
+        }
+        for i in 0..=*cols {
+            let line: Vec<Pos2> = (0..=*rows).map(|j| to(&at(i, j))).collect();
+            painter.add(Shape::line(line, st));
+        }
+        for k in pts {
+            painter.circle(to(k), 4.5, pal.panel, Stroke::new(1.5, pal.playhead));
+        }
+        return;
     }
     if let Some(q) = app.sel.distort {
         ants(&q);

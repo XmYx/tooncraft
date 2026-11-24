@@ -222,7 +222,7 @@ Weight: 5
 | Flips and 90° turns | all | D | S | |
 | Cut, copy and paste pixels between drawings | all | D | S | |
 | Free distort, perspective and skew | all | D | S | Distort: drag four corner handles (perspective), then Apply; skew by degrees; each one undo step |
-| Mesh warp | TV CS PD | M | M | |
+| Mesh warp | TV CS PD | D | M | Selection options: Mesh Warp puts a grid (1 to 8 cells a side) over the selection; drag its points and Apply bends the pixels, each cell bilinearly, as one undo step (`mesh_warp_selection` command, up to 16 cells a side) |
 | Liquify (push, twirl, pinch) | TV CS PD | M | M | |
 | Transform across several drawings or layers at once | TV TB CS | M | M | |
 | Resampling choice (nearest, bilinear, bicubic) | TV CS | D | S | For moving, scaling, turning, skewing and distorting a selection |

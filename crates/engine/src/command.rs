@@ -743,6 +743,22 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "is_hard")]
         feather: f32,
     },
+    /// Warp the pixels inside `polygon` with a grid of `cols` × `rows` cells over its box:
+    /// `points` ((cols + 1) × (rows + 1), row by row) are where the grid's points go.
+    MeshWarpSelection {
+        layer: usize,
+        frame: u32,
+        polygon: Vec<(f32, f32)>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        rings: Vec<Vec<(f32, f32)>>,
+        cols: u32,
+        rows: u32,
+        points: Vec<(f32, f32)>,
+        #[serde(default)]
+        resample: tooncraft_raster::select::Resample,
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
+    },
     /// Erase the pixels inside `polygon`.
     ClearSelection {
         layer: usize,
@@ -1472,6 +1488,9 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }
         Command::DistortSelection { layer, frame, polygon, rings, corners, resample, feather } => {
             crate::select::distort(e, layer, frame, (&polygon, &rings, feather), corners, resample)
+        }
+        Command::MeshWarpSelection { layer, frame, polygon, rings, cols, rows, points, resample, feather } => {
+            crate::select::mesh_warp(e, layer, frame, (&polygon, &rings, feather), cols, rows, &points, resample)
         }
         Command::ClearSelection { layer, frame, polygon, rings, feather } => crate::select::clear(e, layer, frame, (&polygon, &rings, feather)),
         Command::PastePixels { layer, frame, x, y, width, height, rgba } => crate::select::paste(e, layer, frame, (x, y), width, height, &rgba),

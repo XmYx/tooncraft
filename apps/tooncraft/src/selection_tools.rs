@@ -40,6 +40,10 @@ pub struct State {
     /// Soft edge of the selection, pixels (0: hard): moving, erasing, copying and filling blend
     /// over this distance.
     pub feather: f32,
+    /// Mesh warp in progress: cells across, cells down and where the grid's points are.
+    pub mesh: Option<(u32, u32, Vec<(f32, f32)>)>,
+    /// Cells along each side of a new mesh warp grid.
+    pub mesh_cells: u32,
 }
 
 impl State {
@@ -49,6 +53,7 @@ impl State {
             grow_by: 4,
             contiguous: true,
             keep_proportions: true,
+            mesh_cells: 3,
             wand_reference: tooncraft_engine::FillReference::Layer,
             ..Self::default()
         }
@@ -267,6 +272,38 @@ pub fn start_distort(app: &mut ToonApp) {
     }
 }
 
+/// Start a mesh warp: a grid of `mesh_cells` × `mesh_cells` over the selection's box, its
+/// points the handles.
+pub fn start_mesh(app: &mut ToonApp) {
+    if let Some(m) = mask(app) {
+        let n = app.sel.mesh_cells.clamp(1, tooncraft_raster::select::MAX_MESH_CELLS);
+        let (x0, y0, w, h) = (m.x as f32, m.y as f32, m.width as f32, m.height as f32);
+        let points = (0..=n).flat_map(|j| (0..=n).map(move |i| (x0 + w * i as f32 / n as f32, y0 + h * j as f32 / n as f32))).collect();
+        app.sel.mesh = Some((n, n, points));
+        app.sel.distort = None;
+    }
+}
+
+/// Apply the mesh warp in progress (one undo step); the selection becomes the grid's outline.
+pub fn apply_mesh(app: &mut ToonApp) {
+    let (Some((cols, rows, points)), Some(main)) = (app.sel.mesh.clone(), app.selection.clone()) else { return };
+    let (layer, frame, rings, resample, feather) = (app.layer, app.frame, extra_rings(app), app.sel.resample, app.sel.feather);
+    if app.run(Command::MeshWarpSelection { layer, frame, polygon: main, rings, cols, rows, points: points.clone(), resample, feather }) {
+        set_rings(app, vec![mesh_outline(cols, rows, &points)]);
+    }
+    app.sel.mesh = None;
+}
+
+/// The outline of a mesh grid: its border points in order round it.
+pub fn mesh_outline(cols: u32, rows: u32, points: &[(f32, f32)]) -> Vec<(f32, f32)> {
+    let at = |i: u32, j: u32| points.get((j * (cols + 1) + i) as usize).copied().unwrap_or((0.0, 0.0));
+    let mut out: Vec<(f32, f32)> = (0..cols).map(|i| at(i, 0)).collect();
+    out.extend((0..rows).map(|j| at(cols, j)));
+    out.extend((1..=cols).rev().map(|i| at(i, rows)));
+    out.extend((1..=rows).rev().map(|j| at(0, j)));
+    out
+}
+
 /// Apply the distort in progress (one undo step); the selection becomes the new quad.
 pub fn apply_distort(app: &mut ToonApp) {
     let (Some(corners), Some(main)) = (app.sel.distort, app.selection.clone()) else { return };
@@ -404,6 +441,22 @@ pub fn options(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.add(egui::DragValue::new(&mut app.sel.skew.1).range(-60.0..=60.0).suffix("°")).labelled_by(l2.id).on_hover_text(tl!("Skew along y, degrees"));
     if ui.add_enabled(has, egui::Button::new(tl!("Apply Skew"))).clicked() {
         apply_skew(app);
+    }
+    if app.sel.mesh.is_some() {
+        if ui.button(tl!("Apply Mesh Warp")).clicked() {
+            apply_mesh(app);
+        }
+        if ui.button(tl!("Cancel Mesh Warp")).clicked() {
+            app.sel.mesh = None;
+        }
+    } else {
+        let l = ui.label(tl!("Grid"));
+        ui.add(egui::DragValue::new(&mut app.sel.mesh_cells).range(1..=8).suffix(" × "))
+            .labelled_by(l.id)
+            .on_hover_text(tl!("Cells along each side of the mesh"));
+        if ui.add_enabled(has, egui::Button::new(tl!("Mesh Warp"))).on_hover_text(tl!("Drag the grid's points to bend the selection, then Apply")).clicked() {
+            start_mesh(app);
+        }
     }
     if app.sel.distort.is_some() {
         if ui.button(tl!("Apply Distort")).clicked() {

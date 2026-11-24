@@ -224,3 +224,5 @@ A crash mid-stroke loses that stroke (at most one autosave interval of 45 s othe
   edited lines.
 - The pen reader (`photocraft-tablet`) belongs in craft-libs as `craft-tablet` (item I1).
 - `craft-palette` reads GIMP palettes but has no writer and no Photoshop `.aco` reader. ToonCraft writes `.gpl` and reads `.aco` in `tooncraft-interop::palette` until craft-palette grows them; both are small and ready to move there.
+
+- Quick mask (#113) rebuilds its tint preview (at most 2048 px a side) on every painted frame; updating only the stroke's dirty rectangle would keep big canvases smoother.
