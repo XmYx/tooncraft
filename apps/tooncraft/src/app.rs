@@ -35,6 +35,10 @@ pub enum Tool {
     /// Move, scale and turn the current layer's peg on the canvas.
     Transform,
     Text,
+    /// Click to zoom the view in (Alt+click out), drag left and right to zoom smoothly.
+    Zoom,
+    /// Drag around the view's centre to turn the view (not the drawing).
+    RotateView,
 }
 
 /// How the select tool draws a new selection.
@@ -68,7 +72,7 @@ pub enum XformKind {
 }
 
 impl Tool {
-    pub const ALL: [Tool; 15] = [
+    pub const ALL: [Tool; 17] = [
         Tool::Pencil,
         Tool::Ink,
         Tool::Airbrush,
@@ -84,6 +88,8 @@ impl Tool {
         Tool::Hand,
         Tool::Transform,
         Tool::Text,
+        Tool::Zoom,
+        Tool::RotateView,
     ];
 
     pub fn brush(self) -> Option<BrushKind> {
@@ -116,6 +122,8 @@ impl Tool {
             Tool::Hand => tl!("Hand"),
             Tool::Transform => tl!("Transform layer"),
             Tool::Text => tl!("Text"),
+            Tool::Zoom => tl!("Zoom view"),
+            Tool::RotateView => tl!("Rotate view"),
         }
         .to_string()
     }
@@ -138,6 +146,8 @@ impl Tool {
             Tool::Hand => "hand",
             Tool::Transform => "transform",
             Tool::Text => "text",
+            Tool::Zoom => "zoom",
+            Tool::RotateView => "rotate_view",
         }
     }
 }
@@ -301,6 +311,10 @@ pub struct ToonApp {
     pub layer_ui: crate::layer_tree::LayerUi,
     pub timing_ui: crate::timing_panel::TimingUi,
     pub canvas_ui: crate::canvas_tools::CanvasUi,
+    /// The built-in workspaces and their kept edits.
+    pub workspaces: crate::workspaces::Workspaces,
+    /// The tool rail's own state (the transform-selection variant).
+    pub rail: crate::tool_rail::State,
     pub shape: tooncraft_engine::shapes::ShapeKind,
     /// A shape being dragged: (from, to) in canvas pixels.
     pub shape_drag: Option<((f32, f32), (f32, f32))>,
@@ -448,6 +462,8 @@ impl ToonApp {
             layer_ui: Default::default(),
             timing_ui: Default::default(),
             canvas_ui: crate::canvas_tools::CanvasUi::new(!cfg!(test) && cli.screenshot.is_none()),
+            workspaces: crate::workspaces::Workspaces::new(!cfg!(test) && cli.screenshot.is_none()),
+            rail: crate::tool_rail::State::default(),
             shape: tooncraft_engine::shapes::ShapeKind::Line,
             shape_drag: None,
             aids: crate::draw_aids::DrawAids::default(),
@@ -501,9 +517,12 @@ impl ToonApp {
         crate::preferences::apply_tool_defaults(&mut app);
         app.thumbnails = cli.thumbnails || app.preferences.prefs.thumbnails;
         // launch options win over the preferences
-        if let Some(l) = cli.layout.as_deref().and_then(crate::canvas_tools::layout_by_name) {
-            app.workspace.layout = l;
-            app.tl.vertical = cli.layout.as_deref() == Some("sheet");
+        if let Some(kind) = cli.layout.as_deref().and_then(crate::workspaces::Kind::from_name) {
+            crate::workspaces::show_preset(&mut app, kind);
+        } else if let Some(edit) = app.workspaces.edit(crate::workspaces::Kind::Draw).cloned() {
+            // Draw as the user left it last time
+            app.workspace.layout = edit.layout;
+            app.tl.vertical = edit.vertical;
         }
         if cli.vertical {
             app.tl.vertical = true;
@@ -1257,11 +1276,10 @@ impl ToonApp {
         let ctx = ui.ctx().clone();
         self.textures.begin_frame();
         self.shortcuts(&ctx);
-        egui::Panel::top("menu").show(ui, |ui| self.menu_bar(ui));
-        egui::Panel::top("top-bar").show(ui, |ui| crate::top_bar::show(self, ui));
+        egui::Panel::top("top-bar").exact_size(crate::top_bar::HEIGHT).show(ui, |ui| crate::top_bar::show(self, ui));
         egui::Panel::top("tool-options").show(ui, |ui| crate::panels::tool_options(self, ui));
         egui::Panel::bottom("status").show(ui, |ui| self.status_bar(ui));
-        egui::Panel::left("tools").exact_size(46.0).resizable(false).show(ui, |ui| crate::panels::toolbar(self, ui));
+        egui::Panel::left("tools").exact_size(crate::tool_rail::WIDTH).resizable(false).show(ui, |ui| crate::tool_rail::show(self, ui));
         egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| crate::dock::show(self, ui));
         self.dialogs(&ctx);
         self.textures.end_frame();
@@ -1328,7 +1346,7 @@ impl ToonApp {
         });
     }
 
-    fn menu_bar(&mut self, ui: &mut egui::Ui) {
+    pub(crate) fn menu_bar(&mut self, ui: &mut egui::Ui) {
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button(tl!("File"), |ui| {
                 crate::menus::context(ui, self, &["file.new", "file.open"]);
@@ -1978,5 +1996,12 @@ impl eframe::App for ToonApp {
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.draw(ui);
+    }
+
+    fn on_exit(&mut self) {
+        // the active workspace keeps the panel changes made since the last switch
+        if let Err(e) = crate::workspaces::keep_current(self) {
+            log::warn!("workspace not kept: {e}");
+        }
     }
 }
