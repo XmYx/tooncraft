@@ -57,6 +57,23 @@ pub enum Command {
         #[serde(default)]
         reference: FillReference,
     },
+    /// Fill with swatch `swatch` of the shot's palette `palette`, and link the paint to the
+    /// swatch so editing it later recolours this paint (and not other paint of that colour).
+    /// `all_frames`: the same point in every drawing on the layer.
+    SwatchFill {
+        palette: usize,
+        swatch: usize,
+        layer: usize,
+        frame: u32,
+        x: u32,
+        y: u32,
+        #[serde(default)]
+        options: FillOptions,
+        #[serde(default)]
+        reference: FillReference,
+        #[serde(default)]
+        all_frames: bool,
+    },
     /// Fill the same point in every drawing exposed on the layer (one undo step).
     FillAllFrames {
         layer: usize,
@@ -1290,6 +1307,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::Fill { layer, frame, x, y, color, options, reference } => {
             frame_ok(e, frame)?;
             e.fill(layer, frame, x, y, color, options, reference).map(|_| ())
+        }
+        Command::SwatchFill { palette, swatch, layer, frame, x, y, options, reference, all_frames } => {
+            frame_ok(e, frame)?;
+            crate::drawing::swatch_fill(e, (palette, swatch), layer, frame, (x, y), options, reference, all_frames)
         }
         Command::FillAllFrames { layer, x, y, color, options, reference } => e.fill_all(layer, x, y, color, options, reference).map(|_| ()),
         Command::Shape { layer, frame, brush, shape, from, to, constrain } => {
