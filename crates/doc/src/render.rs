@@ -76,7 +76,8 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
         for pin in &p.light_table.pins {
             let Some(li) = p.layer_index(pin.layer) else { continue };
             if let Some(s) = p.drawing_at(li, pin.frame).and_then(|d| p.drawing(d)) {
-                draw(s, &mut img, (x, y), map(li, pin.frame).as_ref(), p.light_table.opacity, Some(p.light_table.tint));
+                let t = p.pin_transform(li, pin).then(&space);
+                draw(s, &mut img, (x, y), non_identity(t).as_ref(), p.light_table.opacity, Some(p.light_table.tint));
             }
         }
     }
@@ -539,5 +540,73 @@ mod tests {
         assert!(lines.pixel(10, 20)[3] > 0, "the edge shows");
         p.onion.hide_previous = true;
         assert_eq!(render_frame(&p, 1, o).pixel(10, 20)[3], 0, "the previous step is hidden");
+    }
+
+    /// A project with two layers, each with a dot drawn on frame 0 and nothing on frame 1: the
+    /// onion skin at frame 1 is the only thing that paints.
+    fn two_layer_dots() -> Project {
+        let mut p = Project::new("t", 64, 64, 24, 2).unwrap();
+        p.add_layer("B", 1).unwrap();
+        for (li, x) in [(0usize, 5u32), (1, 40)] {
+            let d = p.add_drawing(None).unwrap();
+            let e = p.add_drawing(None).unwrap();
+            let o = ((5 * 64 + x) * 4) as usize;
+            p.drawing_mut(d).unwrap().tile_mut(0).unwrap().bytes_mut()[o..o + 4].copy_from_slice(&[0, 0, 0, 255]);
+            p.layers[li].cells = vec![Cell::Key(d), Cell::Key(e)];
+        }
+        p
+    }
+
+    #[test]
+    fn onion_on_all_layers_shows_every_visible_layer() {
+        let mut p = two_layer_dots();
+        let o = RenderOptions { onion_layer: Some(0), paper: false, ..Default::default() };
+        let cur = render_frame(&p, 1, o);
+        assert!(cur.pixel(5, 5)[3] > 0, "the current layer's onion shows");
+        assert_eq!(cur.pixel(40, 5)[3], 0, "the other layer's onion does not");
+        p.onion.all_layers = true;
+        let all = render_frame(&p, 1, o);
+        assert!(all.pixel(5, 5)[3] > 0 && all.pixel(40, 5)[3] > 0, "both layers' onion skins show");
+        p.layers[1].visible = false;
+        assert_eq!(render_frame(&p, 1, o).pixel(40, 5)[3], 0, "a hidden layer shows no onion skin");
+        p.layers[1].visible = true;
+        p.layers[1].onion = Some(crate::OnionSkin { enabled: false, ..Default::default() });
+        assert_eq!(render_frame(&p, 1, o).pixel(40, 5)[3], 0, "a layer left out of the onion skin stays out");
+    }
+
+    #[test]
+    fn exact_frames_show_only_the_picked_offsets() {
+        let mut p = Project::new("t", 16, 16, 24, 5).unwrap();
+        let mut cells = Vec::new();
+        for x in 0..5u32 {
+            let d = p.add_drawing(None).unwrap();
+            let o = (x * 4) as usize;
+            p.drawing_mut(d).unwrap().tile_mut(0).unwrap().bytes_mut()[o..o + 4].copy_from_slice(&[0, 0, 0, 255]);
+            cells.push(Cell::Key(d));
+        }
+        p.layers[0].cells = cells;
+        p.onion.pick = true;
+        p.onion.picked = crate::OnionSkin::parse_picked("-3 +1").unwrap();
+        let img = render_frame(&p, 3, RenderOptions { onion_layer: Some(0), paper: false, ..Default::default() });
+        let shown: Vec<u32> = (0..5).filter(|x| img.pixel(*x, 0)[3] > 0).collect();
+        assert_eq!(shown, vec![0, 3, 4], "frame 0 (-3), the current frame 3 and frame 4 (+1); not 1 or 2");
+    }
+
+    #[test]
+    fn a_shifted_pin_moves_on_the_light_table_and_the_drawing_stays() {
+        let mut p = two_layer_dots();
+        p.light_table.toggle(crate::Pin::new(p.layers[0].id, 0));
+        let o = RenderOptions { light_table: true, paper: false, ..Default::default() };
+        assert!(render_frame(&p, 1, o).pixel(5, 5)[3] > 0, "the pin shows where it was drawn");
+        let d = p.drawing_at(0, 0).unwrap();
+        let before = p.drawing(d).cloned();
+        p.light_table.pins[0].shift = crate::PinShift { x: 10, y: 3, turn: 0 };
+        let img = render_frame(&p, 1, o);
+        assert_eq!(img.pixel(5, 5)[3], 0, "moved away");
+        assert!(img.pixel(15, 8)[3] > 0, "shown 10 across and 3 down");
+        assert_eq!(p.drawing(d).cloned(), before, "the drawing itself is unchanged");
+        // a half turn about the centre (32, 32) takes (5, 5) to (59, 59)
+        p.light_table.pins[0].shift = crate::PinShift { x: 0, y: 0, turn: 1800 };
+        assert!(render_frame(&p, 1, o).pixel(58, 58)[3] > 0);
     }
 }
