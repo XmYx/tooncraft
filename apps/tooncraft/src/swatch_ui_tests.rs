@@ -42,8 +42,8 @@ fn the_colour_has_its_own_opacity_set_from_the_keyboard_and_paint_uses_it() {
     h.run();
     let a = h.state().color[3];
     assert!((120..=135).contains(&a), "about half after 50 steps down: {a}");
-    // choosing another hue keeps the opacity
-    h.get(By::new().role(egui::Role::SpinButton).label("Hue")).click();
+    // choosing another hue (typed into the focused field) keeps the opacity
+    h.get(By::new().role(egui::Role::SpinButton).label("Hue")).focus();
     h.run();
     h.key_press_modifiers(egui::Modifiers::COMMAND, Key::A);
     h.get(By::new().role(egui::Role::SpinButton).label("Hue")).type_text("120");
@@ -125,4 +125,46 @@ fn the_picker_window_opens_chooses_a_swatch_and_closes() {
     h.get(By::new().label("Picker Window")).click();
     h.run();
     assert!(!h.state().colour.window);
+}
+
+#[test]
+fn the_swatch_menu_opens_from_the_keyboard() {
+    let mut h = harness();
+    let mut p = Palette::new("Characters");
+    p.push("skin", SKIN);
+    p.push("shadow", [180, 140, 120]);
+    let app = h.state_mut();
+    assert!(app.run(Command::SetPalettes { palettes: vec![p] }));
+    app.colour.current = 1;
+    h.run();
+    let swatch = By::new().role(egui::Role::Button).label("Swatch shadow, #B48C78");
+    h.get(swatch.clone()).scroll_to_me();
+    h.run();
+    h.get(swatch).focus();
+    h.run();
+    h.key_press_modifiers(egui::Modifiers::SHIFT, Key::F10);
+    h.run();
+    h.get_by_label("Edit Swatch…").focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    let ed = h.state().colour.edit.clone().expect("the editor opened from the keyboard");
+    assert_eq!((ed.swatch, ed.name.as_str()), (1, "shadow"));
+    h.get_by_label("Cancel").focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    assert!(h.state().colour.edit.is_none());
+    // the Menu key, then Remove from Palette
+    let swatch = By::new().role(egui::Role::Button).label("Swatch skin, #FAD2BE");
+    h.get(swatch).focus();
+    h.run();
+    h.key_press(Key::Menu);
+    h.run();
+    h.get_by_label("Remove from Palette").focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    let names: Vec<String> = h.state().engine.project.palettes[0].swatches.iter().map(|s| s.name.clone()).collect();
+    assert_eq!(names, ["shadow"]);
 }

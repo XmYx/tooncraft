@@ -216,16 +216,24 @@ pub fn palettes(app: &mut ToonApp, ui: &mut Ui) {
                 chosen = Some(s.rgb);
             }
             if app.colour.current > 0 {
-                resp.context_menu(|ui| {
+                let palette = app.colour.current - 1;
+                let mut items = |ui: &mut Ui| {
                     if ui.button(tl!("Edit Swatch…")).clicked() {
-                        app.colour.edit = Some(SwatchEdit { palette: app.colour.current - 1, swatch: i, name: s.name.clone(), rgb: s.rgb, update_paint: true });
+                        app.colour.edit = Some(SwatchEdit { palette, swatch: i, name: s.name.clone(), rgb: s.rgb, update_paint: true });
                         ui.close();
                     }
                     if ui.button(tl!("Remove from Palette")).clicked() {
                         remove = Some(i);
                         ui.close();
                     }
-                });
+                };
+                // Shift+F10 or the Menu key on the focused swatch opens the same menu
+                let now = resp.has_focus() && crate::timeline::menu_key(ui);
+                if now || egui::Popup::is_id_open(ui.ctx(), resp.id.with("keyboard-menu")) {
+                    crate::timeline::keyboard_menu(ui, &resp, now, &mut items);
+                } else {
+                    resp.context_menu(&mut items);
+                }
             }
         }
     });
