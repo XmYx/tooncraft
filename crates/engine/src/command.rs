@@ -521,6 +521,9 @@ pub enum Command {
         points: Vec<tooncraft_vector::VPoint>,
         #[serde(default = "vector_tolerance")]
         tolerance: f32,
+        /// Ends and corners (round and round when absent).
+        #[serde(default, skip_serializing_if = "tooncraft_vector::LineStyle::is_round")]
+        style: tooncraft_vector::LineStyle,
     },
     /// Change one stroke of a vector drawing: move a point, its width, smooth, erase to the
     /// crossings, delete, recolour.
@@ -1672,7 +1675,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.vector = vector;
             Ok(())
         }),
-        Command::VectorStroke { layer, frame, color, points, tolerance } => crate::vector::add_stroke(e, layer, frame, color, &points, tolerance),
+        Command::VectorStroke { layer, frame, color, points, tolerance, style } => crate::vector::add_stroke(e, layer, frame, color, &points, tolerance, style),
         Command::EditVector { layer, frame, edit } => crate::vector::edit(e, layer, frame, edit),
         Command::SetLayerDepth { layer, depth } => edit_layers(e, "Layer depth", |e| {
             let d = if depth.is_finite() { depth.clamp(tooncraft_doc::camera::MIN_DEPTH, tooncraft_doc::camera::MAX_DEPTH) } else { 0.0 };
