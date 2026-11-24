@@ -1,0 +1,1 @@
+- 2026-11-24: Record Motion: with the Transform tool, a drag on the canvas plays the shot and keys every frame the layer passes (skipped frames filled), or the arrow keys while it plays; one undo step, Escape drops the take (`set_peg_keys`).

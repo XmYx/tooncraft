@@ -33,11 +33,20 @@ struct Drag {
     to: (f32, f32),
 }
 
-#[derive(Default)]
 pub struct TransformUi {
     drag: Option<Drag>,
     /// The key while one of its number fields is being dragged (applied once, on release).
     typed: Option<PegKey>,
+    /// Inverse kinematics: moving the peg turns the pegs it hangs from instead.
+    pub ik: bool,
+    /// How many pegs above it IK turns.
+    pub ik_joints: usize,
+}
+
+impl Default for TransformUi {
+    fn default() -> Self {
+        Self { drag: None, typed: None, ik: false, ik_joints: 2 }
+    }
 }
 
 #[cfg(test)]
@@ -60,12 +69,49 @@ fn preview_key(app: &ToonApp, d: &Drag) -> Option<PegKey> {
     }
 }
 
+/// The keys an IK move of `peg` by `by` (canvas pixels) sets at the current frame; `None` when
+/// IK is off or the peg hangs from nothing.
+fn ik_keys(app: &ToonApp, peg: PegId, frame: u32, by: (f32, f32)) -> Option<Vec<(PegId, PegKey)>> {
+    if !app.transform_ui.ik {
+        return None;
+    }
+    let pegs = &app.engine.project.pegs;
+    let at = peg::pivot_on_canvas(pegs, peg, frame)?;
+    let keys = tooncraft_doc::ik::solve(pegs, peg, frame, (at.0 + by.0, at.1 + by.1), app.transform_ui.ik_joints);
+    (!keys.is_empty()).then_some(keys)
+}
+
+/// The keys a drag sets: the IK chain's, or the peg's own.
+fn drag_keys(app: &ToonApp, d: &Drag) -> Option<Vec<(PegId, PegKey)>> {
+    if d.grab == Grab::Peg(PegDrag::Move)
+        && let Some(keys) = ik_keys(app, d.peg, d.frame, (d.to.0 - d.from.0, d.to.1 - d.from.1))
+    {
+        return Some(keys);
+    }
+    preview_key(app, d).map(|k| vec![(d.peg, k)])
+}
+
+/// One undo step for the keys.
+fn keys_command(keys: Vec<(PegId, PegKey)>) -> Command {
+    match keys.as_slice() {
+        [(peg, k)] => key_command(*peg, *k),
+        _ => Command::Batch { label: "Move with IK".into(), commands: keys.into_iter().map(|(peg, k)| key_command(peg, k)).collect() },
+    }
+}
+
 /// The pegs with the drag's key in place, while a drag is in progress.
 fn previewed_pegs(app: &ToonApp) -> Option<Vec<tooncraft_doc::Peg>> {
+    if let Some(pegs) = crate::motion_record::previewed_pegs(app) {
+        return Some(pegs);
+    }
     let d = app.transform_ui.drag?;
-    let k = preview_key(app, &d)?;
+    let keys = drag_keys(app, &d)?;
     let mut pegs = app.engine.project.pegs.clone();
-    pegs.iter_mut().find(|q| q.id == d.peg)?.set_key(k);
+    for (id, k) in keys {
+        if let Some(q) = pegs.iter_mut().find(|q| q.id == id) {
+            q.set_key(k);
+        }
+    }
     Some(pegs)
 }
 
@@ -156,9 +202,9 @@ fn finish(app: &mut ToonApp, d: &Drag) {
         return;
     }
     match d.grab {
-        Grab::Peg(_) => match preview_key(app, d) {
-            Some(k) => {
-                app.run(key_command(d.peg, k));
+        Grab::Peg(_) => match drag_keys(app, d) {
+            Some(keys) => {
+                app.run(keys_command(keys));
             }
             None => app.set_status(tl!("Drag further from the pivot to scale or turn")),
         },
@@ -190,6 +236,13 @@ pub fn keyboard(app: &mut ToonApp, ui: &Ui) -> bool {
     if dx == 0.0 && dy == 0.0 && turn == 0.0 && scale == 0.0 {
         return false;
     }
+    if turn == 0.0
+        && scale == 0.0
+        && let Some(keys) = ik_keys(app, id, app.frame, (dx, dy))
+    {
+        app.run(keys_command(keys));
+        return true;
+    }
     let mut k = match (dx, dy) {
         (0.0, 0.0) => app.engine.project.peg(id).map(|p| p.at(app.frame)),
         // a nudge moves the drawing that far on the canvas, whatever the parent pegs do
@@ -220,6 +273,19 @@ pub fn overlay(app: &ToonApp, painter: &egui::Painter, screen: &dyn Fn(f32, f32)
     painter.circle_stroke(pivot, 6.0, st);
     painter.line_segment([pivot - vec2(9.0, 0.0), pivot + vec2(9.0, 0.0)], st);
     painter.line_segment([pivot - vec2(0.0, 9.0), pivot + vec2(0.0, 9.0)], st);
+    // with IK, the chain it turns: a line from joint to joint, a dot on each
+    if app.transform_ui.ik {
+        let pegs = previewed_pegs(app).unwrap_or_else(|| app.engine.project.pegs.clone());
+        let mut ids = vec![id];
+        ids.extend(tooncraft_doc::ik::joints_above(&pegs, id, app.transform_ui.ik_joints));
+        let pts: Vec<Pos2> = ids.iter().filter_map(|j| peg::pivot_on_canvas(&pegs, *j, app.frame)).map(|(x, y)| screen(x, y)).collect();
+        if pts.len() >= 2 {
+            painter.add(egui::Shape::line(pts.clone(), Stroke::new(3.0, accent.gamma_multiply(0.6))));
+        }
+        for q in pts.iter().skip(1) {
+            painter.circle(*q, 5.0, panel, st);
+        }
+    }
 }
 
 /// Tool options: typed values for the peg's key at this frame, or a button to add a peg.
@@ -261,4 +327,21 @@ pub fn options(app: &mut ToonApp, ui: &mut Ui) {
         app.run(key_command(id, k));
     }
     ui.label(tl!("Drag to move, a corner to scale, the knob to turn, the cross to move the pivot"));
+    ui.checkbox(&mut app.transform_ui.ik, tl!("Inverse Kinematics"))
+        .on_hover_text(tl!("Moving the peg turns the pegs it hangs from, so a hand pulls its arm along"));
+    if app.transform_ui.ik {
+        let l = ui.label(tl!("Joints"));
+        ui.add(egui::DragValue::new(&mut app.transform_ui.ik_joints).range(1..=tooncraft_doc::ik::MAX_IK_JOINTS)).labelled_by(l.id);
+        if tooncraft_doc::ik::joints_above(&app.engine.project.pegs, id, 1).is_empty() {
+            ui.weak(tl!("This peg hangs from no other peg: IK has nothing to turn"));
+        }
+    }
+    let mut armed = app.recorder.armed;
+    if ui
+        .checkbox(&mut armed, tl!("Record Motion"))
+        .on_hover_text(tl!("Drag the layer while the shot plays and every frame it passes is keyed (one undo step; Escape drops the take)"))
+        .changed()
+    {
+        crate::motion_record::set_armed(app, armed);
+    }
 }

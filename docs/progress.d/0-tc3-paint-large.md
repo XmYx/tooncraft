@@ -1,0 +1,1 @@
+- 2026-11-24: Large brushes: dabs that touch 24 tiles or more are stamped on several threads (identical pixels), so dry brushes up to 1000 px stay inside a 60 Hz frame per dab; the bench measures 500 and 1000 px brushes.

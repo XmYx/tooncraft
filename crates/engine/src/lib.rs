@@ -13,6 +13,9 @@ mod boards;
 pub mod burnin;
 #[cfg(test)]
 mod cells_tests;
+pub mod clone;
+#[cfg(test)]
+mod clone_tests;
 mod command;
 #[cfg(test)]
 mod curves_tests;
@@ -137,6 +140,15 @@ fn mirror_sample(m: &tooncraft_doc::symmetry::Mirror, s: Sample) -> Sample {
     let (x, y) = m.apply(s.x, s.y);
     let (tx, ty) = m.apply_vector(s.tilt_x, s.tilt_y);
     Sample { x, y, tilt_x: tx, tilt_y: ty, ..s }
+}
+
+/// Commands applied as one step; see [`Engine::begin_group`].
+#[must_use = "a group ends with end_group or abandon_group"]
+pub struct Group {
+    before: Project,
+    undo: Vec<Entry>,
+    redo: Vec<Entry>,
+    changes: u64,
 }
 
 /// A project with its history.
@@ -287,6 +299,34 @@ impl Engine {
         Ok(self.undo.len())
     }
 
+    /// Start a group: what is applied until [`Engine::end_group`] becomes one undo step, and
+    /// [`Engine::abandon_group`] puts the shot and its history back as they were. Scripts run in
+    /// a group.
+    pub fn begin_group(&mut self) -> Group {
+        Group { before: self.project.clone(), undo: std::mem::take(&mut self.undo), redo: std::mem::take(&mut self.redo), changes: self.changes }
+    }
+
+    /// Close a group as one undo step labelled `label` (nothing when nothing changed).
+    pub fn end_group(&mut self, g: Group, label: &str) {
+        let changed = self.changes != g.changes;
+        self.undo = g.undo;
+        if changed {
+            self.redo.clear();
+            self.push(Entry { label: label.to_string(), parts: vec![Part::Whole(Box::new(g.before))] });
+        } else {
+            self.redo = g.redo;
+        }
+    }
+
+    /// Drop a group's work: the shot, its history and its change count return to how they were
+    /// at [`Engine::begin_group`].
+    pub fn abandon_group(&mut self, g: Group) {
+        self.project = g.before;
+        self.undo = g.undo;
+        self.redo = g.redo;
+        self.changes = g.changes;
+    }
+
     pub(crate) fn push(&mut self, entry: Entry) {
         if entry.parts.is_empty() {
             return;
@@ -367,11 +407,20 @@ impl Engine {
         let surface = self.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
         let stroke = Stroke::begin_with(surface, brush, images);
         let (w, h) = (self.project.width(), self.project.height());
-        let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush))).collect();
+        let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush).at_frame(frame))).collect();
         let vector = vector::Live::begin(&self.project, layer, frame, drawing, brush);
         let snap = self.project.rulers.snapper(w, h);
-        self.live =
-            Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, vector, snap, held: Default::default() });
+        self.live = Some(LiveStroke {
+            last: None,
+            drawing,
+            created,
+            engine: StrokeEngine::new(brush).at_frame(frame),
+            stroke,
+            mirrors,
+            vector,
+            snap,
+            held: Default::default(),
+        });
         Ok(())
     }
 
@@ -554,10 +603,7 @@ impl Engine {
         let space = self.project.layer_transform(layer, frame).inverse().filter(|t| !t.is_identity(1e-6));
         // repainting looks at this layer's own paint only
         let reference = if options.mode == fill::FillMode::Repaint { FillReference::Layer } else { reference };
-        let opts = match reference {
-            FillReference::Layer => RenderOptions { paper: false, only_layer: Some(layer), space, effects: false, ..Default::default() },
-            FillReference::AllLayers => RenderOptions { paper: false, space, effects: false, ..Default::default() },
-        };
+        let opts = RenderOptions { space, ..reference.render_options(layer) };
         let reference_img = tooncraft_doc::render_region(&self.project, frame, rect, opts);
         let seed_alpha = reference_img.pixel(x - rect.0, y - rect.1)[3];
         match options.mode {

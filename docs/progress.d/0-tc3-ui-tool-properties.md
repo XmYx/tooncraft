@@ -1,0 +1,1 @@
+- 2026-11-24: Tool Properties panel: the current tool's settings (the tool options bar's, laid out to the panel's width) in a dockable side panel, so the main window can have the properties at the side; the bar stays.

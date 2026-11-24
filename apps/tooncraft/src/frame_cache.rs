@@ -1,6 +1,7 @@
 //! Composited frames for the canvas when a layer needs the CPU compositor (blend modes, effects,
-//! mattes). Frames are cached per project version and frame, bounded by a memory budget, and a
-//! worker thread renders the frames after the playhead ahead of time, so playback with effects
+//! mattes). Frames are cached per project version and frame, bounded by a memory budget, and
+//! worker threads (up to [`MAX_WORKERS`], sharing one claim list so no frame is rendered twice)
+//! render the frames after the playhead ahead of time, so playback with effects
 //! shows finished frames instead of computing them in the UI thread. A frame that is not ready
 //! (scrubbing, a cold start) is rendered on the spot.
 
@@ -35,13 +36,34 @@ struct Job {
 }
 
 struct Worker {
-    jobs: Sender<Job>,
-    done: Receiver<(u64, u32, RgbaImage)>,
+    /// One job queue per thread; every thread gets the same list and takes the frames no one has
+    /// claimed yet, so a frame that costs more than a playback frame lasts is still ready in time.
+    jobs: Vec<Sender<Job>>,
+    done: Receiver<(u64, u32, Surface)>,
+}
+
+/// Most threads rendering ahead.
+pub const MAX_WORKERS: usize = 4;
+
+/// Threads to render ahead with: a quarter of the cores (each frame's effects also split rows
+/// over threads), at least one and at most [`MAX_WORKERS`].
+fn worker_count() -> usize {
+    std::thread::available_parallelism().map_or(1, |n| n.get() / 4).clamp(1, MAX_WORKERS)
 }
 
 fn spawn(claims: Claims) -> Option<Worker> {
-    let (jobs, rx) = channel::<Job>();
     let (tx, done) = channel();
+    let mut jobs = Vec::new();
+    for i in 0..worker_count() {
+        let (job_tx, rx) = channel::<Job>();
+        if spawn_one(i, rx, tx.clone(), claims.clone()) {
+            jobs.push(job_tx);
+        }
+    }
+    (!jobs.is_empty()).then_some(Worker { jobs, done })
+}
+
+fn spawn_one(i: usize, rx: Receiver<Job>, tx: Sender<(u64, u32, Surface)>, claims: Claims) -> bool {
     let run = move || {
         // a job that arrived while the last one was being rendered
         let mut pending: Option<Job> = None;
@@ -70,13 +92,15 @@ fn spawn(claims: Claims) -> Option<Worker> {
                     continue;
                 }
                 let img = tooncraft_doc::render_frame(&job.project, *f, RenderOptions { paper: false, ..Default::default() });
-                if tx.send((job.generation, *f, img)).is_err() {
+                // the tiles are made here too, so the UI thread only stores the frame
+                let Some(s) = to_surface(&img) else { continue };
+                if tx.send((job.generation, *f, s)).is_err() {
                     return;
                 }
             }
         }
     };
-    std::thread::Builder::new().name("tooncraft-frames".into()).spawn(run).ok().map(|_| Worker { jobs, done })
+    std::thread::Builder::new().name(format!("tooncraft-frames-{i}")).spawn(run).is_ok()
 }
 
 pub struct FrameCache {
@@ -166,11 +190,8 @@ impl FrameCache {
                 got.push(r);
             }
         }
-        for (g, f, img) in got {
-            let t0 = std::time::Instant::now();
-            let s = (g == self.generation && !self.frames.contains_key(&f)).then(|| to_surface(&img)).flatten();
-            self.tiles_ms += t0.elapsed().as_secs_f64() * 1000.0;
-            if let Some(s) = s {
+        for (g, f, s) in got {
+            if g == self.generation && !self.frames.contains_key(&f) {
                 self.rendered_ahead += 1;
                 self.insert(f, s);
             }
@@ -198,8 +219,12 @@ impl FrameCache {
         let budget_frames = (self.budget / (p.width() as u64 * p.height() as u64 * 4).max(1)).max(1) as u32;
         let n = AHEAD.min(len).min(budget_frames);
         let frames: Vec<u32> = (1..=n).map(|k| (frame + k) % len).filter(|f| !self.frames.contains_key(f)).collect();
-        if !frames.is_empty() && w.jobs.send(Job { generation, project: p.clone(), frames }).is_err() {
-            self.worker = None;
+        if !frames.is_empty() {
+            // every thread gets the list; the claims share the frames out
+            let sent = w.jobs.iter().filter(|j| j.send(Job { generation, project: p.clone(), frames: frames.clone() }).is_ok()).count();
+            if sent == 0 {
+                self.worker = None;
+            }
         }
         self.asked = Some((generation, frame));
     }
@@ -232,6 +257,24 @@ impl FrameCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn several_workers_render_each_frame_once() {
+        assert!((1..=MAX_WORKERS).contains(&worker_count()));
+        let p = tooncraft_engine::demo::demo(160, 90).unwrap().project;
+        let mut c = FrameCache::default();
+        c.prefetch(&p, 7, 0);
+        let want = AHEAD.min(p.length()) as u64;
+        let start = std::time::Instant::now();
+        while c.rendered_ahead < want && start.elapsed().as_secs() < 30 {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+            c.collect();
+        }
+        assert_eq!(c.rendered_ahead, want, "every frame after the playhead arrived once");
+        let claimed = c.claims.lock().unwrap().iter().filter(|(g, _)| *g == 7).count() as u64;
+        assert_eq!(claimed, want, "and was claimed once, by one worker");
+        assert_eq!(c.tiles_ms, 0.0, "the workers made the tiles");
+    }
 
     #[test]
     fn caches_per_version_and_renders_ahead() {
