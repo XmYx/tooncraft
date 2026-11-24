@@ -682,6 +682,7 @@ tooncraft	Light wrap
 tooncraft	Lighten	
 tooncraft	Lightness	
 tooncraft	Line	
+tooncraft	Line of dialogue	
 tooncraft	Line spacing	
 tooncraft	Linear	
 tooncraft	Linear burn	
@@ -739,6 +740,8 @@ tooncraft	Motion path
 tooncraft	Mouse pressure	
 tooncraft	Mouth chart of {layer}	
 tooncraft	Mouth sheet	
+tooncraft	Mouths from the Typed Line	
+tooncraft	Mouths keyed from the line; edit them in the exposure sheet	
 tooncraft	Mouths keyed from the sound; edit them in the exposure sheet	
 tooncraft	Move / scale / rotate the selection	
 tooncraft	Move Item Down	
@@ -1273,6 +1276,7 @@ tooncraft	Split clip {n} here
 tooncraft	Split opposite	
 tooncraft	Spray	
 tooncraft	Spread under lines	
+tooncraft	Spreads the line's mouths over the voiced frames of the sound, or holds each for the frames above when the shot has no sound	
 tooncraft	Square, 24 fps	
 tooncraft	Standard definition, 25 fps	
 tooncraft	Standard definition, 30 fps	
@@ -1406,6 +1410,7 @@ tooncraft	Trim start
 tooncraft	Turbulence	
 tooncraft	Turn	
 tooncraft	Type a frame number to go there	
+tooncraft	Type the line as it is spoken	
 tooncraft	Type the text; Ctrl+Enter places it, Escape drops it	
 tooncraft	UHD, 24 fps	
 tooncraft	Under the drawing, locked and faded, to trace over	

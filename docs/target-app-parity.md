@@ -403,7 +403,7 @@ Weight: 4
 | Split and duplicate clips | TB CS PD | D | S | Split a clip at the current frame, or copy it to start there; one undo step each |
 | Record a voice track from the microphone | TB CS PD | M | M | craft-audio has no capture yet |
 | Mouth-chart lip-sync detection | TB | P | M | Offline, model-free rules; checked on synthetic sounds, not on a speech corpus |
-| Lip-sync from the typed line of dialogue | TB | M | M | |
+| Lip-sync from the typed line of dialogue | TB | D | M | Lip Sync panel ▸ Line of dialogue and Mouths from the Typed Line (`lip_sync_text`): spelling rules give the mouths, spread in order over the voiced frames of the sound, resting in silence, or held a set number of frames without sound; one undo step, edited in the sheet like any timing |
 | Lip-sync result as editable exposure keys | TB | D | S | |
 | Mouth timing sheets in and out | TB | D | S | Our text sheet and the common switch-data `.dat` |
 

@@ -592,6 +592,16 @@ pub enum Command {
         #[serde(default)]
         settings: tooncraft_lipsync::Settings,
     },
+    /// Key the mouths of a typed line of dialogue on the layer from `from`: laid over the voiced
+    /// frames of the shot's sound, or (with no sound) `settings.min_hold` frames per shape.
+    LipSyncText {
+        layer: usize,
+        #[serde(default)]
+        from: u32,
+        text: String,
+        #[serde(default)]
+        settings: tooncraft_lipsync::Settings,
+    },
     /// Key a mouth timing sheet (ToonCraft mouth sheet or switch data) on the layer from `from`.
     ImportMouthSheet {
         layer: usize,
@@ -1552,6 +1562,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }),
         Command::LipSync { layer, from, settings } => crate::lipsync::detect(e, layer, from, settings).map(|_| ()),
+        Command::LipSyncText { layer, from, text, settings } => crate::lipsync::from_text(e, layer, from, &text, settings).map(|_| ()),
         Command::ImportMouthSheet { layer, path, from } => crate::lipsync::import(e, layer, &path, from).map(|_| ()),
         Command::SetAudioTrack { track, name, muted, solo, volume } => crate::audio::set_track(e, track, |t| {
             if let Some(v) = name {

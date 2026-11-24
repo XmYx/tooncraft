@@ -1157,3 +1157,34 @@ fn shift_pin_moves_a_pin_as_a_setting_and_refuses_a_missing_one() {
     assert_eq!(e.project.light_table.pins[0].shift.x, tooncraft_doc::MAX_PIN_SHIFT);
     assert_eq!(e.project.light_table.pins[0].shift.turn, 0);
 }
+
+#[test]
+fn a_typed_line_keys_mouths_without_sound() {
+    let mut e = Engine::new(tooncraft_doc::Project::new("Talk", 64, 48, 12, 12).unwrap());
+    let mut ids = Vec::new();
+    for f in 0..3 {
+        e.apply(Command::NewDrawing { layer: 0, frame: f }).unwrap();
+        ids.push(e.project.drawing_at(0, f).unwrap());
+    }
+    use tooncraft_lipsync::Mouth;
+    for (m, d) in [(Mouth::Rest, ids[0]), (Mouth::Closed, ids[1]), (Mouth::Open, ids[2])] {
+        e.apply(Command::SetMouth { layer: 0, mouth: m, drawing: Some(d) }).unwrap();
+    }
+    let c: Command = serde_json::from_str(r#"{"cmd":"lip_sync_text","layer":0,"text":"Mama!","settings":{"min_hold":2}}"#).unwrap();
+    e.apply(c).unwrap();
+    let at = |f| e.project.drawing_at(0, f);
+    // m a m a on twos, then rest
+    let want = [ids[1], ids[1], ids[2], ids[2], ids[1], ids[1], ids[2], ids[2], ids[0], ids[0]];
+    for (f, d) in want.iter().enumerate() {
+        assert_eq!(at(f as u32), Some(*d), "frame {f}");
+    }
+    assert_eq!(e.undo_label(), Some("Lip sync from dialogue"));
+    // nothing to say, or no chart, is an error that changes nothing
+    let before = e.project.clone();
+    assert!(e.apply(Command::LipSyncText { layer: 0, from: 0, text: "123 ...".into(), settings: Default::default() }).is_err());
+    e.apply(Command::AddLayer { name: "Plain".into(), index: None }).unwrap();
+    let before2 = e.project.clone();
+    assert!(e.apply(Command::LipSyncText { layer: 1, from: 0, text: "hello".into(), settings: Default::default() }).is_err());
+    assert_eq!(e.project, before2);
+    assert_ne!(before, before2);
+}
