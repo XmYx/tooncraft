@@ -30,7 +30,7 @@ craft-gif = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa1
 craft-ora = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 craft-i18n = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 craft-fonts-build = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
-craft-video = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["h264-encode", "prores", "vp8-encode"] }
+craft-video = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["h264-encode", "hevc-encode", "av1-encode", "prores", "vp8-encode"] }
 craft-webp = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", features = ["vp8"] }
 craft-tga = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 craft-media = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }

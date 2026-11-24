@@ -659,6 +659,8 @@ tooncraft	Loop in
 tooncraft	Loop out	
 tooncraft	Loop playback	
 tooncraft	Luminosity	
+tooncraft	MP4, AV1…	
+tooncraft	MP4, H.265…	
 tooncraft	Magic Wand	
 tooncraft	Magic wand	
 tooncraft	Make a new peg and hang the current layer from it	
@@ -957,6 +959,7 @@ tooncraft	Put the current layer in a new folder inside its folder
 tooncraft	Put this brush's own settings back (the colour stays)	
 tooncraft	Put this tab's settings back	
 tooncraft	Quarter size	
+tooncraft	QuickTime MOV, H.264…	
 tooncraft	Quit	
 tooncraft	Radial	
 tooncraft	Radial, mirrored	
@@ -1338,8 +1341,12 @@ tooncraft	Use for {mouth}
 tooncraft	Vector lines	
 tooncraft	Vertical	
 tooncraft	Vertical Exposure Sheet	
+tooncraft	Video (MP4, AV1)	
 tooncraft	Video (MP4, H.264)	
 tooncraft	Video (MP4, H.264)…	
+tooncraft	Video (MP4, H.265)	
+tooncraft	Video (QuickTime MOV, H.264)	
+tooncraft	Video in Other Codecs	
 tooncraft	View	
 tooncraft	View rotation; click to set it back to 0°	
 tooncraft	Vignette	

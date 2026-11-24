@@ -239,3 +239,27 @@ fn text_commands_use_the_fonts_given() {
     assert!(!ok && out.contains("not a font"), "{out}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn export_video_codecs() {
+    struct Gone(std::path::PathBuf);
+    impl Drop for Gone {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-codecs-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let _gone = Gone(dir.clone());
+    let shot = dir.join("s.toon");
+    let shot_s = shot.to_str().unwrap();
+    assert!(cli(&["demo", shot_s, "--size", "160x120"]).0);
+    for (flag, name, codec) in [("--mov", "a.mov", "h264"), ("--mp4", "b.mp4", "h265"), ("--mp4", "c.mp4", "av1")] {
+        let out = dir.join(name);
+        let (ok, msg) = cli(&["export", shot_s, flag, out.to_str().unwrap(), "--codec", codec, "--range", "1..3"]);
+        assert!(ok && out.is_file(), "{name}: {msg}");
+    }
+    let (ok, msg) = cli(&["export", shot_s, "--mp4", dir.join("d.mp4").to_str().unwrap(), "--codec", "mpeg1"]);
+    assert!(!ok && msg.contains("--codec"), "{msg}");
+}

@@ -32,6 +32,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Select, Lasso, Rectangle, Transform Selection, Flip Horizontally / Vertically | Generic | Use (common) |
 | Shapes, Line, Rectangle, Ellipse | Generic | Use (common) |
 | Camera, Set Key, Export through the camera | Generic film terms | Use (common) |
+| Video in Other Codecs (H.265, AV1, QuickTime MOV) | Generic, standard codec names | Use |
 | Blend modes: Normal, Multiply, Screen, Overlay, Darken, Lighten, Add, Colour dodge, Colour burn, Hard light, Soft light, Difference, Exclusion, Linear burn, Linear light, Vivid light, Pin light, Hard mix, Subtract, Divide, Hue, Saturation, Colour, Luminosity | Standard compositing names (W3C compositing specification) | Use (common) |
 | Duplicate, Merge Down, Merge Visible, Flatten, Copy look from, Lock transparency, Paint: On top / Behind / Only on paint | Generic layer words and our wording | Use (common) |
 | Folder, Layer colour, Thumbnails | Generic | Use (common) |
