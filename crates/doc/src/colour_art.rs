@@ -18,13 +18,20 @@ pub fn paired(pairs: &[(DrawingId, DrawingId)], line: DrawingId) -> Option<Drawi
 }
 
 /// The colour layer's cells for the line layer's `line` cells: each line key becomes its colour
-/// drawing's key (or a blank when it has none), holds follow it.
+/// drawing's key (or a blank when it has none), holds follow it. The pairs are looked up through
+/// a map built once, so the work is `O((frames + pairs) · log pairs)` (this runs after every
+/// command).
 pub fn follow(line: &[Cell], pairs: &[(DrawingId, DrawingId)]) -> Vec<Cell> {
+    // the first pair for a line drawing wins, as in `paired`
+    let mut map = std::collections::BTreeMap::new();
+    for (l, c) in pairs {
+        map.entry(*l).or_insert(*c);
+    }
     let mut out = Vec::with_capacity(line.len());
     let mut showing = false;
     for cell in line {
         match cell {
-            Cell::Key(d) => match paired(pairs, *d) {
+            Cell::Key(d) => match map.get(d).copied() {
                 Some(c) => {
                     out.push(Cell::Key(c));
                     showing = true;
@@ -125,6 +132,21 @@ mod tests {
         assert!(p.sync_colour_layers());
         assert_eq!(p.layers[c].colour_of, None);
         assert_eq!(p.layers[c].cells[0], Cell::Key(d(6)));
+    }
+
+    #[test]
+    fn following_at_the_limits_is_quick() {
+        // every frame a different line drawing, and as many pairs as a layer may hold: the old
+        // linear lookup was frames × pairs (billions of steps)
+        let frames = crate::MAX_FRAMES as u64;
+        let line: Vec<Cell> = (0..frames).map(|f| Cell::Key(d(f))).collect();
+        let pairs: Vec<(DrawingId, DrawingId)> = (0..MAX_PAIRS as u64).rev().map(|n| (d(n), d(n + 1_000_000))).collect();
+        let t = std::time::Instant::now();
+        let c = follow(&line, &pairs);
+        let took = t.elapsed();
+        assert_eq!(c.len(), line.len());
+        assert_eq!(c[7], Cell::Key(d(1_000_007)));
+        assert!(took.as_secs_f32() < 2.0, "took {took:?}");
     }
 
     fn cell() -> impl Strategy<Value = Cell> {
