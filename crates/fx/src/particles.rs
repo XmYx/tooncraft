@@ -8,6 +8,9 @@ use crate::ParticleStyle;
 
 /// Most particles alive at once.
 pub const MAX_LIVE: u32 = 20_000;
+/// Most pixels all the particles of one frame may touch together (16 4K frames' worth): a hostile
+/// file with many huge, long-tailed particles stops here instead of stalling the render.
+pub const MAX_PIXELS_PER_FRAME: u64 = 128 << 20;
 
 pub(crate) struct Emitter {
     pub style: ParticleStyle,
@@ -98,6 +101,7 @@ pub(crate) fn draw(img: &mut RgbaImage, origin: (u32, u32), e: &Emitter, frame: 
     let last = last.min(first.saturating_add(MAX_LIVE as u64));
     let (w, h) = (img.width as i64, img.height as i64);
     let (ox, oy) = (origin.0 as f32, origin.1 as f32);
+    let mut budget = MAX_PIXELS_PER_FRAME;
     for i in first..=last {
         let age = (f - i as f64 / rate) as f32;
         if age < 0.0 || age as f64 >= life {
@@ -113,6 +117,9 @@ pub(crate) fn draw(img: &mut RgbaImage, origin: (u32, u32), e: &Emitter, frame: 
         if x1 < 0 || y1 < 0 || x0 >= w || y0 >= h || (x1 - x0) * (y1 - y0) > 1 << 16 {
             continue;
         }
+        let area = ((x1.min(w) - x0.max(0)).max(0) * (y1.min(h) - y0.max(0)).max(0)) as u64;
+        let Some(left) = budget.checked_sub(area) else { break };
+        budget = left;
         for y in y0.max(0)..y1.min(h) {
             for x in x0.max(0)..x1.min(w) {
                 let c = (x as f32 + 0.5 + ox, y as f32 + 0.5 + oy);
@@ -185,5 +192,16 @@ mod tests {
         let mut img = RgbaImage::transparent(16, 16);
         draw(&mut img, (0, 0), &e, 100_000);
         // finishes: at most MAX_LIVE particles are looked at
+    }
+
+    #[test]
+    fn a_frame_stops_at_its_pixel_budget() {
+        // 20 000 big sparks with long tails across a large picture: the budget ends the frame
+        let e = Emitter { rate: 1e9, life: 2, size: 64.0, speed: 200.0, rect: (0.0, 0.0, 4000.0, 4000.0), ..emitter(ParticleStyle::Sparks) };
+        let mut img = RgbaImage::transparent(4000, 4000);
+        let t0 = std::time::Instant::now();
+        draw(&mut img, (0, 0), &e, 1);
+        assert!(t0.elapsed().as_secs() < 20, "bounded: {:?}", t0.elapsed());
+        assert!(img.data.as_chunks::<4>().0.iter().any(|p| p[3] > 0), "it still draws until the budget runs out");
     }
 }

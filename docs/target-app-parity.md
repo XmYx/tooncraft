@@ -579,7 +579,7 @@ Weight: 4
 | Crash-safe saving and hostile-file loading | — | X | S | **Ours:** journaled atomic saves, property-tested loader, deny lints on every crate |
 | Real-time playback at the shot's frame rate | all | D | S | |
 | Playback cache of composited frames | TV TB | D | M | Rendered ahead of the playhead |
-| Effects play back in real time | TV TB | P | M | 1080p, 4 effects: 24 fps; 4K drops frames ([performance.md](performance.md)) |
+| Effects play back in real time | TV TB | D | M | Up to four frame workers render ahead and make the tiles: a 4-effect stack plays at 24 fps at 1080p (0 dropped) and 4K (2 dropped at the cold start, load ≈ 50) ([performance.md](performance.md)) |
 | Large shots stay real time (4K, 240 drawings) | TV TB | D | S | Measured: 24.1 fps, 0 dropped |
 | Fast open and save of large shots | all | D | S | 4K 240-drawing shot loads in 0.12 s |
 | Memory bounded on very long shots | TV TB | D | M | Drawings page to disk past a memory budget (1 GB by default); 2000-frame 4K shot scrubs at 317 MB peak ([performance.md](performance.md)) |
