@@ -20,7 +20,7 @@ fn ellipse(cx: f32, cy: f32, rx: f32, ry: f32, start: f32, turns: f32, wobble: f
             let w = 1.0 + (a * 3.0).sin() * wobble;
             // pressure swells in the middle of the line, like a hand-inked circle
             let p = 0.35 + 0.65 * (t * std::f32::consts::PI).sin();
-            Sample { x: cx + a.cos() * rx * w, y: cy + a.sin() * ry * w, pressure: p, tilt_x: 0.0, tilt_y: 0.0, time: t as f64 * 0.6 }
+            Sample { x: cx + a.cos() * rx * w, y: cy + a.sin() * ry * w, pressure: p, tilt_x: 0.0, tilt_y: 0.0, time: t as f64 * 0.6, rotation: 0.0 }
         })
         .collect()
 }

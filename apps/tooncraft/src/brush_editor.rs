@@ -61,6 +61,7 @@ pub fn source_label(s: Source) -> String {
         Source::Speed => tl!("Speed"),
         Source::Rotation => tl!("Direction"),
         Source::Random => tl!("Random"),
+        Source::Barrel => tl!("Pen rotation"),
     }
     .to_string()
 }

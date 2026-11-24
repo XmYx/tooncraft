@@ -137,7 +137,7 @@ Weight: 9
 | Pressure to size and opacity | all | D | S | |
 | Tilt to dab angle and flattening | TV CS PD | D | S | |
 | Speed to size (thin when fast, or thick) | TV CS | D | S | |
-| Pen barrel rotation as an input | TV CS | M | S | The pen sample has no rotation field yet |
+| Pen barrel rotation as an input | TV CS | D | S | The Pen rotation input drives any dab property through its curve; read from the tablet on X11 (also Xwayland) and macOS, turned into canvas space under a rotated or mirrored view |
 | Response curves for every input and dab property | TV CS PD | D | M | A curve for each of five inputs (pressure, tilt, speed, direction, chance) on size, opacity, flow, scatter and angle |
 | Random jitter of size, opacity, angle and scatter | TV CS PD | D | S | The chance input on each property, with quick sliders |
 | Colour jitter per dab and per stroke (hue, saturation, value) | TV CS PD | D | S | Hue, saturation and brightness jitter, per dab or once per stroke; replays exactly |

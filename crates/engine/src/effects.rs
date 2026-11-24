@@ -88,7 +88,7 @@ mod tests {
         let mut e = Engine::new(Project::new("fx", 64, 48, 24, 10).unwrap());
         let brush = tooncraft_brush::Brush::default();
         let samples =
-            (0..20).map(|i| tooncraft_brush::Sample { x: 10.0 + i as f32, y: 20.0, pressure: 1.0, tilt_x: 0.0, tilt_y: 0.0, time: i as f64 * 0.01 }).collect();
+            (0..20).map(|i| tooncraft_brush::Sample { x: 10.0 + i as f32, y: 20.0, pressure: 1.0, tilt_x: 0.0, tilt_y: 0.0, time: i as f64 * 0.01, rotation: 0.0 }).collect();
         e.apply(Command::Stroke { layer: 0, frame: 0, brush, samples }).unwrap();
         e.apply(Command::ExtendHold { layer: 0, frame: 0 }).unwrap();
         e
