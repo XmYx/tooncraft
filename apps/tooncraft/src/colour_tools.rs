@@ -21,6 +21,9 @@ pub struct State {
     pub window: bool,
     /// The swatch being edited: (shot palette index, swatch index, name, colour, update the paint).
     pub edit: Option<SwatchEdit>,
+    /// The shot palette swatch (palette, swatch) the current colour was taken from: fills with
+    /// it are linked to the swatch while the colour still matches.
+    pub from_swatch: Option<(usize, usize)>,
     /// The reference viewer window.
     pub viewer: crate::reference_viewer::Viewer,
 }
@@ -326,7 +329,7 @@ pub fn palettes(app: &mut ToonApp, ui: &mut Ui) {
             let resp = swatch_button(ui, s, swatch_label(s));
             let resp = if s.name.is_empty() { resp } else { resp.on_hover_text(&s.name) };
             if resp.clicked() {
-                chosen = Some(s.clone());
+                chosen = Some((i, s.clone()));
             }
             // right-click, or the Menu key / Shift+F10 on the focused swatch
             let (index, rgb) = (i, s.rgb);
@@ -334,8 +337,9 @@ pub fn palettes(app: &mut ToonApp, ui: &mut Ui) {
             crate::context_menus::attach(ui, &resp, launch, |ui| crate::context_menus::swatch(app, ui, index, rgb));
         }
     });
-    if let Some(s) = chosen {
+    if let Some((i, s)) = chosen {
         use_swatch(app, &s);
+        remember_swatch(app, i);
     }
     if ui.button(tl!("Add Current Colour")).on_hover_text(tl!("With its opacity, to the palette shown (on Basic, a new shot palette)")).clicked() {
         let c = app.color;
@@ -412,14 +416,15 @@ pub fn picker_window(app: &mut ToonApp, ctx: &egui::Context) {
             ui.label(tlf!("Palette: {name}", name = p.name));
             let mut chosen = None;
             ui.horizontal_wrapped(|ui| {
-                for s in &p.swatches {
+                for (i, s) in p.swatches.iter().enumerate() {
                     if swatch_button(ui, s, swatch_label(s)).clicked() {
-                        chosen = Some(s.clone());
+                        chosen = Some((i, s.clone()));
                     }
                 }
             });
-            if let Some(s) = chosen {
+            if let Some((i, s)) = chosen {
                 use_swatch(app, &s);
+                remember_swatch(app, i);
             }
         },
     );
@@ -552,4 +557,18 @@ pub fn recolour(app: &mut ToonApp, ui: &mut Ui) {
             }
         }
     });
+}
+
+/// Remember that the current colour came from swatch `i` of the palette shown (a shot palette;
+/// the built-in Basic one is not linked).
+fn remember_swatch(app: &mut ToonApp, i: usize) {
+    app.colour.from_swatch = app.colour.current.checked_sub(1).map(|p| (p, i));
+}
+
+/// The shot palette swatch a fill should be linked to: the one the colour was taken from, while
+/// the current colour is still that swatch's colour.
+pub fn linked_swatch(app: &ToonApp) -> Option<(usize, usize)> {
+    let (p, i) = app.colour.from_swatch?;
+    let s = app.engine.project.palettes.get(p)?.swatches.get(i)?;
+    (!s.is_gradient() && s.rgb == [app.color[0], app.color[1], app.color[2]]).then_some((p, i))
 }

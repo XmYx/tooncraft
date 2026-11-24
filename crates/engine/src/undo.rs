@@ -45,6 +45,8 @@ pub(crate) enum Part {
     },
     /// The shot's colour palettes.
     Palettes(Vec<tooncraft_doc::palette::Palette>),
+    /// The fill links of one swatch (palette, swatch) only, for a fill made from it.
+    SwatchLinks(usize, usize, Vec<tooncraft_doc::palette::FillLink>),
     /// The shot's named peg poses.
     Poses(Vec<tooncraft_doc::pose::Pose>),
     /// The shot's drawing library (its items, not their drawings).
@@ -68,6 +70,9 @@ impl Entry {
                 Part::Tiles { tiles, .. } => tiles.iter().filter(|(_, t)| t.is_some()).count() as u64 * TILE_BYTES as u64,
                 Part::Drawing { surface: Some(s), .. } => s.memory_bytes(),
                 Part::Whole(p) => p.memory_bytes(),
+                // the links in palettes snapshots count too, so the budget sees them
+                Part::Palettes(v) => (tooncraft_doc::palette::link_runs(v) * 12) as u64,
+                Part::SwatchLinks(_, _, l) => (l.iter().map(|l| l.runs.len()).sum::<usize>() * 12) as u64,
                 _ => 0,
             })
             .sum()
@@ -108,6 +113,10 @@ impl Entry {
                 }
                 Part::Folders(f) => Part::Folders(std::mem::replace(&mut p.folders, f)),
                 Part::Palettes(v) => Part::Palettes(std::mem::replace(&mut p.palettes, v)),
+                Part::SwatchLinks(pi, si, l) => match p.palettes.get_mut(pi).and_then(|x| x.swatches.get_mut(si)) {
+                    Some(s) => Part::SwatchLinks(pi, si, std::mem::replace(&mut s.links, l)),
+                    None => Part::SwatchLinks(pi, si, l),
+                },
                 Part::Poses(v) => Part::Poses(std::mem::replace(&mut p.poses, v)),
                 Part::Comp(g) => Part::Comp(Box::new(std::mem::replace(&mut p.comp, *g))),
                 Part::Library(l) => Part::Library(std::mem::replace(&mut p.library, l)),

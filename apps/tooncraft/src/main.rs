@@ -76,6 +76,8 @@ mod layer_fx;
 mod layer_ops;
 mod layer_tree;
 mod layers_list;
+#[cfg(test)]
+mod linked_style_ui_tests;
 mod lipsync_panel;
 mod liquify_tool;
 #[cfg(test)]

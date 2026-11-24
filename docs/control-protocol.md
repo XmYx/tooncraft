@@ -75,6 +75,7 @@ hand a script can do.
 | `set_marker`, `remove_marker` | `frame`, `text` (empty removes it, 500 characters at most); `frame` |
 | `set_drawing_name`, `expose_named` | `layer`, `frame`, `name` (names the drawing shown there; names are unique ignoring case); `layer`, `frame`, `name` (show that drawing at the frame, only that frame changes) |
 | `edit_swatch` | `palette`, `swatch` (0-based, a shot palette), `rgb`, optional `name`, `update_paint` (default true: paint in the old colour on every unlocked layer takes the new one) |
+| `swatch_fill` | `palette`, `swatch` (a shot palette's swatch), `layer`, `frame`, `x`, `y`, optional `options`, `reference`, `all_frames`: fill with the swatch's colour and link the paint to it, so `edit_swatch` with `update_paint` recolours only linked paint |
 | `clone_stamp` | `layer`, `frame`, `offset` (source minus destination, pixels), `points` (the path, at most 20 000), optional `source_layer` (another layer's drawing at the same frame), `tip` (`size` 1…1000 px, `hardness` and `opacity` 0…1) |
 | `liquify` | `layer`, `frame`, `points` (the path, at most 20 000), `mode` (`push` default, `twirl_left`, `twirl_right`, `pinch`, `bloat`), `brush` (`radius` 2…500 px, `strength` 0…1) |
 | `gradient` | `layer`, `frame`, `kind` (`linear` / `radial`), `from`, `to`, `start`, `end` (RGBA), optional `area` and `area_rings` (polygons); optional `stops` (`at` 0…1 and `rgba`, at most 16; with two or more they replace `start` and `end`) |
