@@ -400,7 +400,7 @@ pub fn panel(app: &mut ToonApp, ui: &mut Ui) {
             }
         }
         if ui.add_enabled(can, egui::Button::new(tl!("Import Brushes (.abr)…"))).clicked()
-            && let Some(f) = rfd::FileDialog::new().add_filter(tl!("Photoshop brushes"), &["abr"]).pick_file()
+            && let Some(f) = rfd::FileDialog::new().add_filter(tl!("ABR brush files"), &["abr"]).pick_file()
         {
             import_abr(app, &f);
         }
@@ -410,7 +410,7 @@ pub fn panel(app: &mut ToonApp, ui: &mut Ui) {
     });
 }
 
-/// Import a Photoshop brush file: every brush in it joins the library, under the category typed
+/// Import an ABR brush file: every brush in it joins the library, under the category typed
 /// in the Category field or, when that is empty, a category named after the file.
 pub fn import_abr(app: &mut ToonApp, path: &std::path::Path) {
     let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| tl!("Imported").to_string());

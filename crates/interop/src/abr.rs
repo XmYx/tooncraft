@@ -1,4 +1,4 @@
-//! Photoshop brush files (`.abr`) as ToonCraft brushes: tips and basic settings.
+//! ABR brush files (`.abr`) as ToonCraft brushes: tips and basic settings.
 //!
 //! The file is read by the shared `craft-psd` reader (legacy v1 / v2 and the sectioned v6+
 //! layout). Each brush becomes a [`Brush`] with an image tip where the file has a sampled tip, or

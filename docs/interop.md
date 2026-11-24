@@ -39,10 +39,10 @@ with `project.json`, format `boardcraft.project`, schema 1 or 2, and `layers/<id
 **Checked against BoardCraft:** the reader is tested on a board written by hand in that format
 (`tooncraft_interop::boards::demo`), not yet on a file saved by BoardCraft itself.
 
-## Photoshop brushes (`.abr`)
+## ABR brush files (`.abr`)
 
 Brushes ▸ **Import Brushes (.abr)…**, or `tooncraft-cli brush import-abr <file.abr> <dir>`, reads a
-Photoshop brush file with the shared `craft-psd` reader (legacy v1 and v2, and the sectioned v6 and
+ABR brush file with the shared `craft-psd` reader (legacy v1 and v2, and the sectioned v6 and
 later layout, sampled and computed tips). Each brush becomes a ToonCraft brush:
 
 * a sampled tip becomes an image tip (its value is paint amount; tips over 1024 px are scaled down

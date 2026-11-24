@@ -4,7 +4,7 @@
 //! tooncraft-cli brush make <kind> <file.toonbrush> [--name NAME]   write a built-in brush
 //! tooncraft-cli brush info <file.toonbrush>                        every setting as JSON
 //! tooncraft-cli brush preview <file.toonbrush> <out.png> [--size WxH]
-//! tooncraft-cli brush import-abr <file.abr> <dir>                  every brush of a Photoshop file
+//! tooncraft-cli brush import-abr <file.abr> <dir>                  every brush of an ABR brush file
 //! ```
 
 use std::path::Path;

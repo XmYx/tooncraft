@@ -1,1 +1,1 @@
-- 2026-11-24: Photoshop brush files: Brushes ▸ Import Brushes (.abr)… and `tooncraft-cli brush import-abr` bring their tips and basic settings in, through the shared craft-psd reader.
+- 2026-11-24: ABR brush files: Brushes ▸ Import Brushes (.abr)… and `tooncraft-cli brush import-abr` bring their tips and basic settings in, through the shared craft-psd reader.
