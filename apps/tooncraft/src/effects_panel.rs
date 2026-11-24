@@ -394,14 +394,17 @@ fn preset_name(id: &str) -> String {
     .to_string()
 }
 
-/// The launch state `--fx a,b`: add those effects (catalogue ids, or `drawn_mask` for a soft mask
-/// with a drawn star) to the current layer and bring the Effects panel up. Unknown ids are
+/// The launch state `--fx a,b`: add those effects (catalogue ids, `drawn_mask` for a soft mask
+/// with a drawn star, or the layer states of [`crate::layer_fx::launch`]) to the current layer and bring the Effects panel up. Unknown ids are
 /// reported in the status bar.
 pub fn launch(app: &mut ToonApp, ids: &[String]) {
     let li = app.layer;
     let (w, h) = (app.engine.project.width(), app.engine.project.height());
     let other = app.engine.project.layers.iter().enumerate().find(|(i, _)| *i != li).map(|(_, l)| l.id.0);
     for id in ids {
+        if crate::layer_fx::launch(app, id) {
+            continue;
+        }
         let kind = if id == "drawn_mask" {
             let (cx, cy, r) = (w as f32 / 2.0, h as f32 / 2.0, w.min(h) as f32 * 0.42);
             let star: Vec<(f32, f32)> = (0..10)
@@ -471,6 +474,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let (w, h) = (app.engine.project.width(), app.engine.project.height());
     ui.label(tlf!("Effects on {layer}, frame {frame}", layer = lname, frame = app.frame + 1));
     layer_section(app, ui, li);
+    crate::layer_fx::section(app, ui);
     ui.separator();
     let l = ui.label(tl!("Add effect"));
     let mut pick: Option<EffectKind> = None;

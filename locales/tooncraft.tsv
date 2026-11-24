@@ -2,6 +2,7 @@
 tooncraft	 MB	
 tooncraft	 fps	
 tooncraft	 fr	
+tooncraft	 frame(s)	
 tooncraft	 frames	
 tooncraft	 px	
 tooncraft	 s	
@@ -50,6 +51,7 @@ tooncraft	Add File to Shot Library
 tooncraft	Add Frames to Library	
 tooncraft	Add Inbetweens	
 tooncraft	Add Layer Above	
+tooncraft	Add Layer Mask	
 tooncraft	Add Marker	
 tooncraft	Add Marker Here	
 tooncraft	Add One-Point Perspective	
@@ -74,6 +76,9 @@ tooncraft	Add to or Remove from Flip Set
 tooncraft	Add {command}	
 tooncraft	Add {name} to favourites	
 tooncraft	Added {n} effects	
+tooncraft	Adjustment	
+tooncraft	Adjustment Layer	
+tooncraft	Adjustment layer	
 tooncraft	After	
 tooncraft	After, step {n}	
 tooncraft	Airbrush	
@@ -103,6 +108,7 @@ tooncraft	Apply Skew
 tooncraft	Around	
 tooncraft	Arrange	
 tooncraft	As a GIMP palette (.gpl)	
+tooncraft	At most (0: as many as fit)	
 tooncraft	At most {n} offsets	
 tooncraft	Audio tracks	
 tooncraft	Autosave every	
@@ -149,6 +155,7 @@ tooncraft	By frames
 tooncraft	Camera	
 tooncraft	Cancel	
 tooncraft	Cancel Distort	
+tooncraft	Cannot read this video: {reason}	
 tooncraft	Canvas	
 tooncraft	Canvas Size	
 tooncraft	Canvas Size…	
@@ -167,6 +174,7 @@ tooncraft	Choose Change, then press the new key. Escape cancels.
 tooncraft	Choose a brush tool first	
 tooncraft	Choose a brush tool to change its settings.	
 tooncraft	Choose a layer	
+tooncraft	Choose a video first	
 tooncraft	Choose frames to flip first (Ctrl+Alt+Enter on each)	
 tooncraft	Choose keys to ease them	
 tooncraft	Choose…	
@@ -461,6 +469,7 @@ tooncraft	Frames per second
 tooncraft	Frames per second of the shot	
 tooncraft	Frames {a}–{b}, {px} px	
 tooncraft	From	
+tooncraft	From frame {frame}, scaled to fit the canvas	
 tooncraft	Full HD, 24 fps	
 tooncraft	Full HD, 25 fps	
 tooncraft	Full HD, 30 fps	
@@ -549,11 +558,14 @@ tooncraft	Import Image Sequence…
 tooncraft	Import Images	
 tooncraft	Import Mouth Sheet…	
 tooncraft	Import Sound…	
+tooncraft	Import Video	
+tooncraft	Import Video…	
 tooncraft	Import from Other Apps	
 tooncraft	Imported	
 tooncraft	Imported layers from {file}	
 tooncraft	Imported the board {file}	
 tooncraft	Imported {count} images	
+tooncraft	Imported {count} video frames	
 tooncraft	In	
 tooncraft	In-between	
 tooncraft	Inbetween	
@@ -577,6 +589,7 @@ tooncraft	Insert frame
 tooncraft	Intensity	
 tooncraft	Into	
 tooncraft	Invert	
+tooncraft	Invert Layer Mask	
 tooncraft	Invert selection	
 tooncraft	Its first {n} commands, on the radial menu's key	
 tooncraft	JPEG Sequence	
@@ -623,6 +636,7 @@ tooncraft	Last Frame
 tooncraft	Last frame	
 tooncraft	Later	
 tooncraft	Layer	
+tooncraft	Layer Mask	
 tooncraft	Layer above	
 tooncraft	Layer above / below	
 tooncraft	Layer below	
@@ -645,6 +659,7 @@ tooncraft	Layers merged
 tooncraft	Left and right	
 tooncraft	Length	
 tooncraft	Length (0: to the end)	
+tooncraft	Lengthen the shot to fit the video	
 tooncraft	Lens flare	
 tooncraft	Letter spacing	
 tooncraft	Levels	
@@ -807,6 +822,7 @@ tooncraft	No shape yet: nothing is kept
 tooncraft	No sound in this shot.	
 tooncraft	No such layer	
 tooncraft	No symmetry	
+tooncraft	No video chosen	
 tooncraft	None	
 tooncraft	Normal	
 tooncraft	Not a matte	
@@ -894,8 +910,12 @@ tooncraft	PNG Sequence per Layer…
 tooncraft	PNG Sequence…	
 tooncraft	Paint	
 tooncraft	Paint bucket	
+tooncraft	Paint into the mask to hide parts of this layer	
+tooncraft	Paint on Layer Mask	
 tooncraft	Paint on top of the drawing, behind it (only filling gaps), or only where there is already paint	
 tooncraft	Paint the text into the drawing (Ctrl+Enter)	
+tooncraft	Painting the layer mask	
+tooncraft	Painting the layer mask: paint hides, the eraser brings the layer back	
 tooncraft	Palette	
 tooncraft	Palette name	
 tooncraft	Palette shown	
@@ -1044,6 +1064,7 @@ tooncraft	Remove
 tooncraft	Remove All Rulers	
 tooncraft	Remove Area	
 tooncraft	Remove Key	
+tooncraft	Remove Layer Mask	
 tooncraft	Remove Marker	
 tooncraft	Remove Marker Here	
 tooncraft	Remove Sound	
@@ -1257,6 +1278,7 @@ tooncraft	Standard definition, 30 fps
 tooncraft	Start	
 tooncraft	Start (now)	
 tooncraft	Start Sound Here	
+tooncraft	Start at	
 tooncraft	Starts at frame	
 tooncraft	Steady line (px)	
 tooncraft	Step by	
@@ -1293,6 +1315,7 @@ tooncraft	TGA Sequence…
 tooncraft	TIFF Sequence	
 tooncraft	TIFF Sequence…	
 tooncraft	Take dropped	
+tooncraft	Take every	
 tooncraft	Teeth on lip (F V)	
 tooncraft	Text	
 tooncraft	Text dropped	
@@ -1309,6 +1332,8 @@ tooncraft	The last palette stays
 tooncraft	The last save of this shot was interrupted and there is no backup.	
 tooncraft	The last save was interrupted and the backup does not open: {error}	
 tooncraft	The layer already hangs from a peg	
+tooncraft	The layer already has a mask	
+tooncraft	The layer has no mask	
 tooncraft	The layer has no other drawing	
 tooncraft	The layer is locked	
 tooncraft	The other tools of this group	
@@ -1327,6 +1352,7 @@ tooncraft	This layer
 tooncraft	This layer already has a colour layer; another one follows it too	
 tooncraft	This layer gets its own steps, opacity and colours; the others keep the shot's	
 tooncraft	This layer hangs from no peg: add one from the tool options	
+tooncraft	This layer's effects change everything below it, where its drawing has paint (everywhere when it has none)	
 tooncraft	This palette is empty: Edit adds commands to it.	
 tooncraft	This tool has no brush settings	
 tooncraft	Three-way	
@@ -1378,6 +1404,7 @@ tooncraft	Turn
 tooncraft	Type a frame number to go there	
 tooncraft	Type the text; Ctrl+Enter places it, Escape drops it	
 tooncraft	UHD, 24 fps	
+tooncraft	Under the drawing, locked and faded, to trace over	
 tooncraft	Undid {action}	
 tooncraft	Undo	
 tooncraft	Undo / redo	
@@ -1396,6 +1423,7 @@ tooncraft	Update Marker
 tooncraft	Update paint in this colour	
 tooncraft	Use Brush	
 tooncraft	Use Colour	
+tooncraft	Use Layer Mask	
 tooncraft	Use brush {name}	
 tooncraft	Use for This Shot	
 tooncraft	Use for {mouth}	
@@ -1404,6 +1432,7 @@ tooncraft	Use the Selection as the Shape
 tooncraft	Vector lines	
 tooncraft	Vertical	
 tooncraft	Vertical Exposure Sheet	
+tooncraft	Video	
 tooncraft	Video (MP4, H.264)	
 tooncraft	Video (MP4, H.264)…	
 tooncraft	View	

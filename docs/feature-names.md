@@ -28,6 +28,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Paste as New Drawings, Paste Frames Moving Later Frames | Our wording | Use |
 | Reverse Selected Frames, Repeat Selected Frames | Descriptive (instead of vendor terms for cycles) | Use |
 | Import Image Sequence | Descriptive | Use |
+| Import Video | Descriptive | Use |
 | Video (MP4, H.264), Animated PNG | Format names (allowed by rule 3) | Use |
 | Select, Lasso, Rectangle, Transform Selection, Flip Horizontally / Vertically | Generic | Use (common) |
 | Shapes, Line, Rectangle, Ellipse | Generic | Use (common) |
@@ -62,6 +63,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Levels, Tone curve, Hue and saturation, Tint, Grain, Light wrap | Generic image-editing and compositing terms | Use (common) |
 | Hard edges (alpha threshold), Soft mask, Keep the outside | Our wording | Use |
 | Mask shape, Drawn shape, Use the Selection as the Shape, Lens flare, Rays, Ghosts, Displace by layer, Map layer, By brightness | Generic compositing and photography terms and our wording | Use (common) |
+| Layer Mask, Add / Remove Layer Mask, Paint on Layer Mask, Use Layer Mask, Invert Layer Mask, Adjustment Layer | Generic image-editing terms | Use (common) |
 | Matte, Keep inside / Keep outside, Colour key, Result blend, Strength, Key opacity here | Generic compositing terms and our wording | Use (common) |
 | Audio track, Clip, Trim start, Fade in / out, Mute, Solo, Export Sound Mix | Generic audio-editing terms | Use (common) |
 | Lip Sync, Mouth chart, Detect Mouths from Sound, Mouth sheet | Generic animation terms and our wording | Use (common) |

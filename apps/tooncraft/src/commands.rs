@@ -330,6 +330,7 @@ pub static ALL: &[Cmd] = &[
     }),
     cmd("file.save_version", tlm!("Save New Version"), None, G::File, Fixed("Ctrl+Alt+S"), |a, _, _| a.save_new_version()),
     cmd("file.import_images", tlm!("Import Image Sequence…"), None, G::File, NoKey, |a, _, _| a.import_images()),
+    cmd("file.import_video", tlm!("Import Video…"), None, G::File, NoKey, |a, _, _| crate::video_dialog::open(a)),
     cmd("file.import_sound", tlm!("Import Sound…"), Some(Icon::Sound), G::File, NoKey, |a, _, _| a.import_sound()),
     when(
         cmd("file.remove_sound", tlm!("Remove Sound"), None, G::File, NoKey, |a, _, _| {
@@ -495,6 +496,21 @@ pub static ALL: &[Cmd] = &[
     when(cmd("layer.add_peg", tlm!("Add Peg"), Some(Icon::Peg), G::Layer, NoKey, mc::run_layer), mc::can_add_peg),
     when(cmd("layer.move_up", tlm!("Move Layer Up"), None, G::Layer, NoKey, mc::run_layer), mc::not_top),
     when(cmd("layer.move_down", tlm!("Move Layer Down"), None, G::Layer, NoKey, mc::run_layer), mc::not_bottom),
+    toggle(cmd("layer.adjustment", tlm!("Adjustment Layer"), Some(Icon::Effects), G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::is_adjustment),
+    when(cmd("layer.mask_add", tlm!("Add Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::no_mask),
+    toggle(
+        when(cmd("layer.mask_edit", tlm!("Paint on Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::has_mask),
+        crate::layer_fx::is_editing,
+    ),
+    toggle(
+        when(cmd("layer.mask_enabled", tlm!("Use Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::has_mask),
+        crate::layer_fx::is_enabled,
+    ),
+    toggle(
+        when(cmd("layer.mask_invert", tlm!("Invert Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::has_mask),
+        crate::layer_fx::is_inverted,
+    ),
+    when(cmd("layer.mask_remove", tlm!("Remove Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::has_mask),
     toggle(cmd("layer.label_red", tlm!("Red"), Some(Icon::Label), G::Layer, NoKey, mc::run_label), mc::label_red),
     toggle(cmd("layer.label_orange", tlm!("Orange"), Some(Icon::Label), G::Layer, NoKey, mc::run_label), mc::label_orange),
     toggle(cmd("layer.label_yellow", tlm!("Yellow"), Some(Icon::Label), G::Layer, NoKey, mc::run_label), mc::label_yellow),

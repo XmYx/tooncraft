@@ -76,3 +76,28 @@ fn flare_and_displacement_settings() {
     h.get_by_label("Rays");
     h.get_by_label("Ghosts towards X");
 }
+
+#[test]
+fn layer_masks_and_adjustment_layers_from_the_effects_panel() {
+    let mut h = harness();
+    click(&mut h, "Add Layer Mask");
+    let m = h.state().engine.project.layers[0].mask.expect("a mask");
+    assert!(m.editing && m.enabled, "a new mask is painted into straight away");
+    assert_eq!(h.state().engine.undo_label(), Some("Add layer mask"));
+    h.get_by_label("Painting the layer mask: paint hides, the eraser brings the layer back");
+    // the toggles map onto the mask, one step each
+    h.get(By::new().role(Role::CheckBox).label("Invert Layer Mask")).click();
+    h.run();
+    assert!(h.state().engine.project.layers[0].mask.is_some_and(|m| m.invert));
+    click(&mut h, "Paint on Layer Mask");
+    assert!(h.state().engine.project.layers[0].mask.is_some_and(|m| !m.editing));
+    click(&mut h, "Remove Layer Mask");
+    assert!(h.state().engine.project.layers[0].mask.is_none());
+    h.get(By::new().role(Role::CheckBox).label("Adjustment layer")).click();
+    h.run();
+    assert!(h.state().engine.project.layers[0].adjustment);
+    // the same commands are in the registry, so the layer menu and Find Command reach them
+    for id in ["layer.adjustment", "layer.mask_add", "layer.mask_edit", "layer.mask_enabled", "layer.mask_invert", "layer.mask_remove"] {
+        assert!(crate::commands::get(id).is_some(), "{id}");
+    }
+}

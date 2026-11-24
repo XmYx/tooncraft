@@ -372,6 +372,8 @@ mod tests {
             opacity_keys: Vec::new(),
             matte: None,
             mouth_chart: Default::default(),
+            mask: None,
+            adjustment: false,
             clip: false,
             lock_alpha: false,
             vector: false,

@@ -55,6 +55,7 @@ mod history_ui_tests;
 mod icons;
 mod import_dialog;
 mod keys;
+mod layer_fx;
 mod layer_ops;
 mod layer_tree;
 mod layers_list;
@@ -137,6 +138,7 @@ mod unsaved;
 mod unsaved_ui_tests;
 #[cfg(test)]
 mod vector_ui_tests;
+mod video_dialog;
 mod view;
 mod workspaces;
 

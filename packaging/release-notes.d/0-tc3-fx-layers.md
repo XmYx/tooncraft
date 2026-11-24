@@ -1,0 +1,1 @@
+- Layers: painted layer masks and adjustment layers (a layer's effects applied to everything below it).
