@@ -42,7 +42,7 @@ pub mod vector;
 #[cfg(test)]
 mod vector_tests;
 
-pub use command::{Command, FillReference, sheet};
+pub use command::{Command, FillReference, MAX_BATCH, sheet};
 pub use undo::Entry;
 
 use tooncraft_brush::{Brush, Sample, Stroke, StrokeEngine};
@@ -544,6 +544,8 @@ mod history_tests;
 mod layerops_tests;
 #[cfg(test)]
 mod library_tests;
+#[cfg(test)]
+mod menu_tests;
 #[cfg(test)]
 mod swatch_tests;
 #[cfg(test)]

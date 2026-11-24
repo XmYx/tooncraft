@@ -311,40 +311,13 @@ impl Layer {
     }
 
     /// Play `from..=to` backwards: the exposures (and blanks) in the range in reverse order, each
-    /// keeping its length.
+    /// keeping its length (see [`reverse_cells`]).
     pub fn reverse_range(&mut self, from: u32, to: u32) -> Result<(), ExposureError> {
         let len = self.cells.len() as u32;
         if from > to || to >= len {
             return Err(ExposureError::BadRange(from, to));
         }
-        let block = self.copy_cells(from, to);
-        // runs of (drawing or blank, length)
-        let mut runs: Vec<(Option<DrawingId>, u32)> = Vec::new();
-        for c in &block {
-            match c {
-                Cell::Key(d) => runs.push((Some(*d), 1)),
-                Cell::Hold => {
-                    if let Some(r) = runs.last_mut() {
-                        r.1 += 1;
-                    }
-                }
-                Cell::Blank => match runs.last_mut() {
-                    Some((None, n)) => *n += 1,
-                    _ => runs.push((None, 1)),
-                },
-            }
-        }
-        runs.reverse();
-        let mut out = Vec::with_capacity(block.len());
-        for (d, n) in runs {
-            for k in 0..n {
-                out.push(match (d, k) {
-                    (Some(d), 0) => Cell::Key(d),
-                    (Some(_), _) => Cell::Hold,
-                    (None, _) => Cell::Blank,
-                });
-            }
-        }
+        let out = reverse_cells(&self.copy_cells(from, to));
         self.paste_cells(from, &out, false);
         Ok(())
     }
@@ -366,6 +339,38 @@ impl Layer {
         }
         Ok(())
     }
+}
+
+/// A block of cells played backwards: its exposures (and blanks) in reverse order, each keeping
+/// its length. The result is as long as `block`; a hold with nothing before it counts as blank.
+pub fn reverse_cells(block: &[Cell]) -> Vec<Cell> {
+    // runs of (drawing or blank, length)
+    let mut runs: Vec<(Option<DrawingId>, usize)> = Vec::new();
+    for c in block {
+        match c {
+            Cell::Key(d) => runs.push((Some(*d), 1)),
+            Cell::Hold if !runs.is_empty() => {
+                if let Some(r) = runs.last_mut() {
+                    r.1 += 1;
+                }
+            }
+            Cell::Hold | Cell::Blank => match runs.last_mut() {
+                Some((None, n)) => *n += 1,
+                _ => runs.push((None, 1)),
+            },
+        }
+    }
+    let mut out = Vec::with_capacity(block.len());
+    for (d, n) in runs.into_iter().rev() {
+        for k in 0..n {
+            out.push(match (d, k) {
+                (Some(d), 0) => Cell::Key(d),
+                (Some(_), _) => Cell::Hold,
+                (None, _) => Cell::Blank,
+            });
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -514,6 +519,27 @@ mod tests {
                 repair(&mut c, |_| true);
                 proptest::prop_assert_eq!(&c, &l.cells);
             }
+        }
+    }
+
+    #[test]
+    fn reverse_cells_keeps_each_exposure_length() {
+        let (a, b) = (Cell::Key(DrawingId(1)), Cell::Key(DrawingId(2)));
+        let block = vec![a, Cell::Hold, Cell::Hold, Cell::Blank, b];
+        assert_eq!(reverse_cells(&block), vec![b, Cell::Blank, a, Cell::Hold, Cell::Hold]);
+        // a hold with nothing before it is blank, and the length is kept
+        assert_eq!(reverse_cells(&[Cell::Hold, b, Cell::Hold]), vec![b, Cell::Hold, Cell::Blank]);
+        assert!(reverse_cells(&[]).is_empty());
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn reverse_cells_is_as_long_and_twice_is_the_original(raw in proptest::collection::vec(0u8..5, 0..80)) {
+            let block: Vec<Cell> = raw.iter().map(|v| match v { 0 => Cell::Blank, 1 => Cell::Hold, d => Cell::Key(DrawingId(*d as u64)) }).collect();
+            let once = reverse_cells(&block);
+            proptest::prop_assert_eq!(once.len(), block.len());
+            // a leading hold becomes blank once; after that, reversing twice gives it back
+            proptest::prop_assert_eq!(reverse_cells(&reverse_cells(&once)), once);
         }
     }
 }

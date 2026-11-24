@@ -115,6 +115,21 @@ pub fn wand_with(e: &Engine, layer: usize, frame: u32, x: u32, y: u32, tolerance
     tooncraft_raster::fill::flood(&img, (0, 0), (x, y), options).ok().flatten()
 }
 
+/// Every pixel of the layer's drawing at `frame` whose colour is within `tolerance` (per channel)
+/// of the straight colour `rgb`, ignoring opacity; fully clear pixels are left out. `None` when
+/// the canvas is too big to select or nothing matches.
+pub fn colour_mask(e: &Engine, layer: usize, frame: u32, rgb: [u8; 3], tolerance: u8) -> Option<Mask> {
+    let (w, h) = (e.project.width(), e.project.height());
+    if w as u64 * h as u64 > select::MAX_SELECTION_PIXELS {
+        return None;
+    }
+    let opts = tooncraft_doc::RenderOptions { paper: false, only_layer: Some(layer), effects: false, ..Default::default() };
+    let img = tooncraft_doc::render_region(&e.project, frame, (0, 0, w, h), opts);
+    let near = |p: &[u8; 4]| p[3] > 0 && (0..3).all(|k| tooncraft_raster::unpremultiply(*p)[k].abs_diff(rgb[k]) <= tolerance);
+    let data: Vec<u8> = img.data.as_chunks::<4>().0.iter().map(|p| if near(p) { 255 } else { 0 }).collect();
+    data.contains(&255).then_some(Mask { x: 0, y: 0, width: w, height: h, data })
+}
+
 pub(crate) fn clear(e: &mut Engine, layer: usize, frame: u32, poly: &[(f32, f32)], rings: &[Vec<(f32, f32)>]) -> Result<()> {
     e.check_unlocked(layer)?;
     let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;

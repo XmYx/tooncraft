@@ -324,6 +324,62 @@ impl Library {
         self.add(&name, category, &brush, tip.as_ref())
     }
 
+    /// The file of a brush the user owns; built-in brushes have none and cannot be changed.
+    pub fn file_of(&self, id: &str) -> Result<&Path, String> {
+        match &self.get(id).ok_or("that brush is not in the library")?.source {
+            Source::File(p) => Ok(p),
+            Source::Builtin(_) => Err("built-in brushes cannot be changed; duplicate one to make your own".into()),
+        }
+    }
+
+    /// Give a brush of the user's a new name (its file keeps its name).
+    pub fn rename(&mut self, id: &str, name: &str) -> Result<(), String> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err("a brush needs a name".into());
+        }
+        let path = self.file_of(id)?.to_path_buf();
+        let (_, brush, tip) = preset::load(&path)?;
+        preset::save(&path, name, &brush, tip.as_ref())?;
+        self.rescan();
+        Ok(())
+    }
+
+    /// A copy of a brush (built-in or the user's) in the same category, named "… copy"; returns
+    /// its id. A built-in brush's copy goes to My brushes.
+    pub fn duplicate(&mut self, id: &str, copy_suffix: &str) -> Result<String, String> {
+        let e = self.get(id).ok_or("that brush is not in the library")?.clone();
+        let (name, brush, tip) = self.load(id)?;
+        let category = if matches!(e.source, Source::Builtin(_)) { MY_BRUSHES.to_string() } else { e.category };
+        self.add(&format!("{name} {copy_suffix}"), &category, &brush, tip.as_ref())
+    }
+
+    /// Save `brush` into a brush of the user's, keeping its name and tip.
+    pub fn overwrite(&mut self, id: &str, brush: &Brush) -> Result<(), String> {
+        let path = self.file_of(id)?.to_path_buf();
+        let (name, old, tip) = preset::load(&path)?;
+        if old.kind != brush.kind {
+            return Err("the current brush is of another kind".into());
+        }
+        preset::save(&path, &name, brush, tip.as_ref())?;
+        self.rescan();
+        Ok(())
+    }
+
+    /// Delete a brush of the user's: its file goes, and so does it from the favourites and recents.
+    pub fn remove(&mut self, id: &str) -> Result<(), String> {
+        let path = self.file_of(id)?.to_path_buf();
+        std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+        self.rescan();
+        self.save_index()
+    }
+
+    /// Write a brush (built-in or the user's) to `dest` as a brush file to share.
+    pub fn export(&self, id: &str, dest: &Path) -> Result<(), String> {
+        let (name, brush, tip) = self.load(id)?;
+        preset::save(dest, &name, &brush, tip.as_ref())
+    }
+
     fn index_path(&self) -> Option<PathBuf> {
         self.dir.as_ref().map(|d| d.join(INDEX))
     }
