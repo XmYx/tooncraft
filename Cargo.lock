@@ -4152,6 +4152,7 @@ dependencies = [
  "tooncraft-fx",
  "tooncraft-lipsync",
  "tooncraft-raster",
+ "tooncraft-vector",
 ]
 
 [[package]]
@@ -4179,6 +4180,7 @@ dependencies = [
  "tooncraft-interop",
  "tooncraft-lipsync",
  "tooncraft-raster",
+ "tooncraft-vector",
 ]
 
 [[package]]
@@ -4196,6 +4198,7 @@ dependencies = [
  "tooncraft-brush",
  "tooncraft-doc",
  "tooncraft-raster",
+ "tooncraft-vector",
 ]
 
 [[package]]
@@ -4241,6 +4244,15 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-raster"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "tooncraft-vector"
 version = "0.1.0"
 dependencies = [
  "proptest",

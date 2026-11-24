@@ -23,6 +23,7 @@ tooncraft	Add Current Brush
 tooncraft	Add Current Colour	
 tooncraft	Add Curve Ruler	
 tooncraft	Add Ellipse Ruler	
+tooncraft	Add File to Shot Library	
 tooncraft	Add Frames to Library	
 tooncraft	Add Inbetweens	
 tooncraft	Add Layer Above	
@@ -175,6 +176,7 @@ tooncraft	Copy Frames
 tooncraft	Copy look from	
 tooncraft	Copy opacity, blend mode, label colour, folder, peg, depth and effects to this layer	
 tooncraft	Copy the layer with its drawings, just above it	
+tooncraft	Could not make the folder {dir}: {error}	
 tooncraft	Could not open the effects: {error}	
 tooncraft	Could not open the palette: {error}	
 tooncraft	Could not open {file}: {error}	
@@ -234,6 +236,7 @@ tooncraft	Drawing Layer
 tooncraft	Drawing Library	
 tooncraft	Drawing at frame {n}: {mark}	
 tooncraft	Drawing duplicated	
+tooncraft	Drawing files	
 tooncraft	Drawing names	
 tooncraft	Drawing thumbnails in the cells	
 tooncraft	Drawing {id}	
@@ -303,6 +306,7 @@ tooncraft	Favourites
 tooncraft	Feather	
 tooncraft	Field Guide	
 tooncraft	File	
+tooncraft	File {name}	
 tooncraft	Fill	
 tooncraft	Fill Empty Frames	
 tooncraft	Fill only empty areas; a click on paint does nothing	
@@ -478,6 +482,7 @@ tooncraft	Keep the bottom in place
 tooncraft	Keep the bottom left in place	
 tooncraft	Keep the bottom right in place	
 tooncraft	Keep the centre in place	
+tooncraft	Keep the chosen item for other shots	
 tooncraft	Keep the left side in place	
 tooncraft	Keep the outside	
 tooncraft	Keep the right side in place	
@@ -543,6 +548,7 @@ tooncraft	Lock
 tooncraft	Lock Layer	
 tooncraft	Lock Transparency	
 tooncraft	Lock transparency	
+tooncraft	Lock {layer}	
 tooncraft	Lock {name}	
 tooncraft	Look at	
 tooncraft	Look at all visible layers	
@@ -600,6 +606,7 @@ tooncraft	Moving the {kind}
 tooncraft	Multiply	
 tooncraft	Mute clip {n}	
 tooncraft	Mute {track}	
+tooncraft	My Drawings	
 tooncraft	My brushes	
 tooncraft	Name	
 tooncraft	Name of this drawing	
@@ -635,6 +642,7 @@ tooncraft	Next panel
 tooncraft	No Colour	
 tooncraft	No Mark	
 tooncraft	No command matches	
+tooncraft	No drawing files yet: save an item here to use it in other shots.	
 tooncraft	No drawing here to swap	
 tooncraft	No drawings have names yet	
 tooncraft	No drawings yet: select frames on the timeline and add them.	
@@ -651,6 +659,7 @@ tooncraft	No pegs yet. Add one in the Pegs panel to see its keys here.
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
 tooncraft	No pixels of that colour on the layer	
 tooncraft	No recent shots	
+tooncraft	No settings folder on this system, so My Drawings is not available.	
 tooncraft	No sound in this shot.	
 tooncraft	No symmetry	
 tooncraft	None	
@@ -694,6 +703,7 @@ tooncraft	Opacity jitter
 tooncraft	Opacity per step	
 tooncraft	Open	
 tooncraft	Open (A I)	
+tooncraft	Open Drawing File…	
 tooncraft	Open Palette…	
 tooncraft	Open Recent	
 tooncraft	Open Stack…	
@@ -848,6 +858,7 @@ tooncraft	Redo {action}
 tooncraft	Reference	
 tooncraft	Reference Image…	
 tooncraft	Reference image added under the drawing, locked	
+tooncraft	Reload	
 tooncraft	Reload Library	
 tooncraft	Remove	
 tooncraft	Remove All Rulers	
@@ -910,6 +921,8 @@ tooncraft	Saturation jitter
 tooncraft	Save	
 tooncraft	Save / save as	
 tooncraft	Save As…	
+tooncraft	Save Drawing File…	
+tooncraft	Save Item to My Drawings	
 tooncraft	Save New Version	
 tooncraft	Save Palette…	
 tooncraft	Save Preset…	
@@ -1142,6 +1155,7 @@ tooncraft	Update paint in this colour
 tooncraft	Use brush {name}	
 tooncraft	Use for This Shot	
 tooncraft	Use for {mouth}	
+tooncraft	Vector lines	
 tooncraft	Vertical	
 tooncraft	Video (MP4, H.264)	
 tooncraft	Video (MP4, H.264)…	
@@ -1195,6 +1209,7 @@ tooncraft	no drawing
 tooncraft	none	
 tooncraft	not set	
 tooncraft	of {total}	
+tooncraft	peg key	
 tooncraft	stroke {ms} ms	
 tooncraft	the file is too large	
 tooncraft	to	

@@ -14,6 +14,10 @@ A ZIP archive (PKWARE APPNOTE), written and read with craft-zip.
 `angle`, `scale_x`, `scale_y`, `skew`, `ease`) and `camera.shakes`; a layer may name its `peg` and its
 `depth`, and `clip` (clipped to the layer below). Folders may carry `locked`, `color` and `parent`
 (the folder they are in). `project.marks` lists `{drawing, mark}` (`key`, `breakdown`, `inbetween`).
+`project.vectors` lists `{drawing, strokes}`: each stroke has `color` and `points` (`x`, `y`, `width`),
+the centre line of a line on a layer with `"vector": true`; the drawing's tiles hold the painted line,
+so readers that ignore `vectors` still show it. Loaders keep strokes only for drawings that exist,
+clamp every number and refuse a shot with more than 4 000 000 vector points.
 Older readers ignore these fields; loaders drop unknown parents, break loops and clamp values.
 
 Layers list bottom to top; each has `id`, `name`, `visible`, `locked`, `opacity` and `cells`, one per
@@ -36,6 +40,15 @@ single clip.
 `project.library` is the shot's drawing library: `[{"name", "cells"}]`, cells as on a layer (the first is
 never a hold). Its drawings are ordinary entries of `drawings`. Loading keeps at most 256 items of 1024
 cells, cuts names to 80 characters, turns keys to missing drawings into blanks and drops empty items.
+
+## Drawing files
+
+A `.toondrawings` file is one drawing-library item to use in other shots: a ZIP whose first entry is
+a stored `mimetype` (`application/vnd.storyteller.tooncraft-drawings`), then `item.json`
+(`{"format":"tooncraft-drawings","version":1,"name","width","height","cells":["blank" | "hold" | {"key": <drawing index>}],"drawings":<count>}`)
+and `drawings/<index>.png`, one straight-alpha PNG per drawing at `width`×`height`. Readers cap the file
+at 256 MB, the drawings at 1024 and the pictures at the declared size before decoding, and repair the
+cells like a shot's (keys past the drawings and orphan holds become blanks, at most 1024 cells kept).
 
 A layer's `mouth_chart` maps mouths (`rest`, `closed`, `open`, `wide`, `round`, `pucker`, `teeth`,
 `tongue`, `consonant`) to drawing ids.

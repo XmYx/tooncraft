@@ -200,8 +200,8 @@ Weight: 7
 | Text tool | TV TB CS | M | M | |
 | Clone stamp | TV CS | M | S | |
 | Reference image viewer with eyedropper | TV CS PD | M | S | |
-| Vector stroke layers (strokes kept as editable curves) | TB CS | M | XL | Harmony and Clip Studio draw on vector layers by default |
-| Vector line editing: reshape, width, erase to the intersection | TB CS | M | L | Needs the vector stroke layers |
+| Vector stroke layers (strokes kept as editable curves) | TB CS | P | XL | The Layers panel's Vector lines switch: pen strokes on that layer are kept as centre lines with a width per point (`tooncraft-vector`), painted into the drawing's tiles so fill, onion skin and export read them; saved in the shot. Not yet: shapes, symmetry copies, duplicate drawing keeping the lines, a vector view of the line |
+| Vector line editing: reshape, width, erase to the intersection | TB CS | P | L | Commands move a point, set a width, smooth, delete, recolour and cut a line back to its crossings (one undo step each); the eraser on a vector layer cuts the line it touches back to its crossings. No point-dragging tool on the canvas yet |
 | 3D reference models and posable figures | TB CS | M | XL | |
 
 ## Selection and transform
@@ -438,7 +438,7 @@ Weight: 7
 | Scene export for compositing apps (layers, camera, timing) | TV TB | M | M | |
 | Printed exposure sheets and frames (PDF) | TV TB | M | S | |
 | Shot list and edit decisions out (EDL or OTIO) | TB | D | S | OpenTimelineIO: a track per layer, a clip per exposure, gaps and markers |
-| Asset library shared between shots | TB CS | M | M | |
+| Asset library shared between shots | TB CS | P | M | Drawings with their timing, through My Drawings (`.toondrawings` files in the user's folder, or anywhere); no shared sounds, templates or rigs |
 | Reading the references' native project files | all | O | XL | Out of scope: the native project formats of TVPaint, Harmony, Clip Studio and Procreate are proprietary and undocumented; exchange goes through PSD, XDTS and image sequences |
 
 ## Scripting and automation
@@ -516,7 +516,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
 | Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue, the colour's own opacity and the brush's opacity |
 | Picker with alpha and a gradient | TB | P | S | A floating Colour Picker window (`--open colour-picker`) as well as the docked one; the colour has its own opacity; no gradient swatches |
-| Timeline layer rows with toggles | TB | P | S | Visibility in the row; lock and the rest in the Layers panel and the row's right-click menu |
+| Timeline layer rows with toggles | TB | D | S | Show and lock toggles in each row (named check boxes, keyboard reachable); a mark on every cell where the layer's pegs are keyed, named "peg key" for screen readers; the rest in the Layers panel and the row's right-click menu |
 | Timeline buttons | TB | D | S | |
 | Selected range highlight | TB | D | S | |
 | Right-click menu on timeline cells | TB | D | S | Swap drawing, marks, hold for, fill empty frames, frame and clipboard commands |
@@ -530,7 +530,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Separate drawing, reference and perspective views | TB | M | M | One canvas |
 | Curve editor | TB | D | L | The Curves panel beside the timeline: value buttons, the graph with keys, other values faintly behind, an ease box with handles and typed values (`--panel curves`) |
 | Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
-| Library window for drawings | TB | P | L | The Drawing Library panel: the shot's reusable drawings with thumbnails, names and lengths; add the selected frames, insert as copies or linked, rename, reorder, remove; no library shared between shots yet |
+| Library window for drawings | TB | D | L | The Drawing Library panel: the shot's reusable drawings with thumbnails, names and lengths; add the selected frames, insert as copies or linked, rename, reorder, remove; My Drawings keeps items in the user's folder for every shot |
 | Preferences, shortcut editor with search, playback speed | TB | D | S | (`--open preferences`, `--open shortcuts`) |
 | Scene settings in one window | TB | D | S | Scene ▸ Scene Settings: size with presets, frame rate, length and duration, loop, ping-pong and speed (`--open scene`) |
 | Export dialog with range, size and options | TB | D | S | (`--open export`) |

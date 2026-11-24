@@ -1,0 +1,18 @@
+[package]
+name = "tooncraft-vector"
+description = "ToonCraft vector strokes: editable centre lines with width, smoothing and erase to crossings (UI-free)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
