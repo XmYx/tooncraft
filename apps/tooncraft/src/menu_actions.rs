@@ -176,16 +176,6 @@ pub fn set_loop_at(app: &mut ToonApp, frame: u32, start: bool) {
     app.frame = keep;
 }
 
-pub fn has_loop(app: &ToonApp) -> Enabled {
-    if app.tl.range.is_none() { Err(tl!("No loop range is set").to_string()) } else { Ok(()) }
-}
-
-/// Play the whole shot again.
-pub fn clear_loop(app: &mut ToonApp) {
-    app.tl.range = None;
-    app.set_status(tl!("Loop range cleared"));
-}
-
 /// Show `steps` drawings either side in the onion skin, and turn it on.
 pub fn onion_range(app: &mut ToonApp, steps: u8) {
     let o = OnionSkin { enabled: true, before: steps, after: steps, ..app.engine.project.onion };

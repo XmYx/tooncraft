@@ -476,7 +476,6 @@ pub static ALL: &[Cmd] = &[
     cmd("cell.fill_empty", tlm!("Fill Empty Frames"), None, G::Frame, NoKey, mc::run_cells),
     cmd("ruler.loop_in", tlm!("Set Loop In Here"), Some(Icon::Loop), G::Timeline, NoKey, mc::run_ruler),
     cmd("ruler.loop_out", tlm!("Set Loop Out Here"), Some(Icon::Loop), G::Timeline, NoKey, mc::run_ruler),
-    when(cmd("ruler.clear_loop", tlm!("Clear Loop"), Some(Icon::Close), G::Timeline, NoKey, mc::run_ruler), mc::has_loop),
     toggle(cmd("onion.range_1", tlm!("1 Each Side"), Some(Icon::Onion), G::View, NoKey, mc::run_onion_range), mc::range_1),
     toggle(cmd("onion.range_2", tlm!("2 Each Side"), Some(Icon::Onion), G::View, NoKey, mc::run_onion_range), mc::range_2),
     toggle(cmd("onion.range_3", tlm!("3 Each Side"), Some(Icon::Onion), G::View, NoKey, mc::run_onion_range), mc::range_3),
