@@ -500,8 +500,8 @@ mod tests {
         assert!(pen_pressure(&calibrated(&spiky), 0.6) > 0.9);
         // too few readings, a heavy hand, or junk: the straight line
         assert!(calibrated(&light[..5]).is_linear());
-        assert!(calibrated(&vec![0.99; 50]).is_linear());
-        assert!(calibrated(&vec![f32::NAN; 50]).is_linear());
+        assert!(calibrated(&[0.99; 50]).is_linear());
+        assert!(calibrated(&[f32::NAN; 50]).is_linear());
         assert!(calibrated(&[]).is_linear());
     }
 }
