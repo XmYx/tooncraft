@@ -79,6 +79,33 @@ impl Tip {
         top + (bottom - top) * ty
     }
 
+    /// Coverage at `(u, v)` in -1 … 1 across cell `cell` of a tip made of `cells` cells side by
+    /// side (bilinear inside the cell, 0 outside it). `cells` is clamped to the tip's width.
+    pub fn sample_cell(&self, u: f32, v: f32, cell: u16, cells: u16) -> f32 {
+        let cells = (cells.max(1) as u32).min(self.width.max(1));
+        if cells <= 1 {
+            return self.sample(u, v);
+        }
+        if !(-1.0..=1.0).contains(&u) || !(-1.0..=1.0).contains(&v) {
+            return 0.0;
+        }
+        let cw = self.width / cells;
+        let x0 = (cell as u32 % cells) * cw;
+        let x = x0 as f32 + (u + 1.0) * 0.5 * cw as f32 - 0.5;
+        let y = (v + 1.0) * 0.5 * self.height as f32 - 0.5;
+        let (fx, fy) = (x.floor(), y.floor());
+        let (tx, ty) = (x - fx, y - fy);
+        let get = |x: f32, y: f32| -> f32 {
+            if x < x0 as f32 || y < 0.0 || x >= (x0 + cw) as f32 || y >= self.height as f32 {
+                return 0.0;
+            }
+            self.alpha.get(y as usize * self.width as usize + x as usize).copied().unwrap_or(0) as f32 / 255.0
+        };
+        let top = get(fx, fy) + (get(fx + 1.0, fy) - get(fx, fy)) * tx;
+        let bottom = get(fx, fy + 1.0) + (get(fx + 1.0, fy + 1.0) - get(fx, fy + 1.0)) * tx;
+        top + (bottom - top) * ty
+    }
+
     /// Coverage at `(u, v)` in -1 … 1 across the tip (bilinear), 0 outside.
     pub fn sample(&self, u: f32, v: f32) -> f32 {
         if !(-1.0..=1.0).contains(&u) || !(-1.0..=1.0).contains(&v) {

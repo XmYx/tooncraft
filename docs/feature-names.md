@@ -16,6 +16,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Hold one frame longer / shorter | Our wording | Use |
 | Second View; Shot, Drawing, Camera and Side looks | Plain words for what each look shows; avoids the reference apps' names for their extra viewers | Use |
 | Navigator | Used descriptively by many drawing and image apps for a small overview of the picture | Use (common) |
+| Tool Properties | Plain words for a panel of the current tool's settings; used descriptively by many drawing apps | Use (common) |
 | Re-time layer, "each drawing on Ns" | Industry phrase "on twos / threes" | Use |
 | Steady line | Our name for the pulled-string stabilizer; avoids vendor names for it | Use |
 | Smoothing | Descriptive | Use |
@@ -57,6 +58,10 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Grain texture, Grain from Image, Canvas weave, Speckle, Clouds | Descriptive | Use |
 | Wet mixing, Colour pickup, Watercolour, Smudge, Smear fade | Generic painting words | Use (common) |
 | Undo History, Step, Recent colours, Blur, Fine blur | Generic words | Use (common) |
+| Line ends (Round, Flat, Square), Corners (Round, Sharp, Cut) | Generic drawing words | Use (common) |
+| Clone stamp, Copy from, Aligned, Hardness | Generic painting words (clone stamp is the common term) | Use (common) |
+| Gradient swatch, Edit Stops, Add Stop, Two Colours, Add Gradient to Palette | Generic colour words and our wording | Use (common) |
+| Reference Viewer, Open Image, Fit | Generic words | Use (common) |
 | Two-finger tap (undo), three-finger tap (redo), palm rejection | Generic touch terms | Use (common) |
 | Markers, Add Marker, Next Marker, Timecode, Ping-pong, Play Selection, Zoom In / Out, Drawing names, Set Name, Show {name} here | Generic timeline words (marker, timecode and ping-pong are standard terms) | Use (common) |
 | Sound, Import Sound, Start Sound Here | Generic | Use |
@@ -68,6 +73,8 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Mask shape, Drawn shape, Use the Selection as the Shape, Lens flare, Rays, Ghosts, Displace by layer, Map layer, By brightness | Generic compositing and photography terms and our wording | Use (common) |
 | Layer Mask, Add / Remove Layer Mask, Paint on Layer Mask, Use Layer Mask, Invert Layer Mask, Adjustment Layer | Generic image-editing terms | Use (common) |
 | Reference Layer, Reference layers, Look at | Generic animation and paint terms | Use (common) |
+| Motion blur from movement, Shutter, Trails, Frame blending, Time remap, Transition, Dissolve, Wipe, Iris, Push | Generic film and compositing terms | Use (common) |
+| Particles, Rain, Snow, Sparks, Dust, Emitter, Tone from a matte, Highlight, Light from normals, Normals, Roundness | Generic compositing and lighting terms | Use (common) |
 | Matte, Keep inside / Keep outside, Colour key, Result blend, Strength, Key opacity here | Generic compositing terms and our wording | Use (common) |
 | Audio track, Clip, Trim start, Fade in / out, Mute, Solo, Export Sound Mix | Generic audio-editing terms | Use (common) |
 | Lip Sync, Mouth chart, Detect Mouths from Sound, Mouth sheet | Generic animation terms and our wording | Use (common) |
@@ -77,3 +84,6 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Colour layer, Add Colour Layer, Colour of …, Stop Following the Line Layer | Generic ink-and-paint terms and our wording | Use (common) |
 | Feather (selection) | Generic image-editing term for a soft selection edge, used descriptively by many apps | Use (common) |
 | Tool Palette, Radial menu, Use in the radial menu | Generic UI terms (a palette of buttons; a ring menu) | Use (common) |
+| Line of dialogue, Mouths from the Typed Line | Descriptive | Use |
+| Record Macro, Stop Recording and Save Macro, Play Macro | Descriptive (generic automation term) | Use (common) |
+| Exposure Sheet to Print (PDF), Frames to Print (PDF), Frames per page | Descriptive | Use |

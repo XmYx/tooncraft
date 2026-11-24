@@ -24,10 +24,13 @@ craft-atomic = { workspace = true }
 craft-image-codecs = { workspace = true }
 craft-video = { workspace = true }
 craft-media = { workspace = true }
+craft-pdf = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+# Ubuntu Light for the sheet PDF tests (Ubuntu font licence)
+epaint_default_fonts = "0.37"
 proptest = { workspace = true }
 tooncraft-fx = { workspace = true }

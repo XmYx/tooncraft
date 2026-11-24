@@ -109,6 +109,52 @@ fn shape(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
             crate::layer_ops::compose_combo(ui, &mut b.compose);
             ui.end_row();
         }
+        // how an image tip is laid along the stroke, and tips made of several cells
+        if b.tip.is_some() {
+            use tooncraft_brush::{TipMode, TipOrder};
+            let l = ui.label(tl!("Tip layout"));
+            let name = |m: TipMode| match m {
+                TipMode::Stamp => tl!("Stamp"),
+                TipMode::Pattern => tl!("Pattern along the stroke"),
+                TipMode::Ribbon => tl!("Ribbon"),
+            };
+            egui::ComboBox::from_id_salt("brush-tip-mode")
+                .selected_text(name(b.tip_mode))
+                .show_ui(ui, |ui| {
+                    for m in TipMode::ALL {
+                        ui.selectable_value(&mut b.tip_mode, m, name(m));
+                    }
+                })
+                .response
+                .labelled_by(l.id)
+                .on_hover_text(tl!(
+                    "Stamp: the tip at every dab. Pattern: copies end to end, turned along the stroke. Ribbon: the image stretched along the stroke"
+                ));
+            ui.end_row();
+            let l = ui.label(tl!("Tip cells"));
+            ui.add(egui::DragValue::new(&mut b.tip_cells).range(1..=tooncraft_brush::MAX_TIP_CELLS))
+                .labelled_by(l.id)
+                .on_hover_text(tl!("An animated tip: the image is this many pictures side by side"));
+            ui.end_row();
+            if b.tip_cells > 1 {
+                let l = ui.label(tl!("Cell order"));
+                let name = |o: TipOrder| match o {
+                    TipOrder::Sequence => tl!("In turn along the stroke"),
+                    TipOrder::Random => tl!("Random"),
+                    TipOrder::Frame => tl!("By timeline frame"),
+                };
+                egui::ComboBox::from_id_salt("brush-tip-order")
+                    .selected_text(name(b.tip_order))
+                    .show_ui(ui, |ui| {
+                        for o in TipOrder::ALL {
+                            ui.selectable_value(&mut b.tip_order, o, name(o));
+                        }
+                    })
+                    .response
+                    .labelled_by(l.id);
+                ui.end_row();
+            }
+        }
     });
 }
 
@@ -260,6 +306,18 @@ fn wet(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
     };
     let l = ui.label(label);
     ui.add(egui::Slider::new(&mut b.wet.pickup, 0.0..=1.0).max_decimals(2)).labelled_by(l.id).on_hover_text(hint);
+    if kind == BrushKind::Smudge || kind == BrushKind::Eraser {
+        return;
+    }
+    for (label, hint, v) in [
+        (tl!("Water"), tl!("Thins the paint: watery paint goes on as a pale glaze"), &mut b.wet.dilution),
+        (tl!("Drying"), tl!("How quickly the brush runs out of paint along the stroke"), &mut b.wet.dry),
+        (tl!("Edge pooling"), tl!("Pigment gathers along the inside of the stroke's edge as it dries"), &mut b.wet.edge),
+        (tl!("Bleeding"), tl!("Paint creeps a little way past the edge of the stroke into the paper"), &mut b.wet.bleed),
+    ] {
+        let l = ui.label(label);
+        ui.add(egui::Slider::new(v, 0.0..=1.0).max_decimals(2)).labelled_by(l.id).on_hover_text(hint);
+    }
 }
 
 // ----- the curve editor -----

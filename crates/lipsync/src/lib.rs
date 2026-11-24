@@ -15,6 +15,7 @@
 
 mod fft;
 pub mod sheet;
+pub mod text;
 
 use serde::{Deserialize, Serialize};
 

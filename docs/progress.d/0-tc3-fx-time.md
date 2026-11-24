@@ -1,0 +1,1 @@
+- 2026-11-24: Effects that read other frames: motion blur from movement, trails, frame blending and time remap; and transitions (dissolve, wipe, iris, push) for a layer coming in or leaving. Three Effects rows reach done.
