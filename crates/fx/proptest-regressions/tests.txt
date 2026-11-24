@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 93d7949c60b38d1bad89efd099423150ca6ff5a156a5b53330e6f04e08b6fc0d # shrinks to kinds = [NormalLight { normals: None, angle: NaN, elevation: NaN, depth: NaN, intensity: 39.21431, colour: [0, 0, 0] }], x0 = 0, y0 = 0

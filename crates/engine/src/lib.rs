@@ -13,6 +13,9 @@ mod boards;
 pub mod burnin;
 #[cfg(test)]
 mod cells_tests;
+pub mod clone;
+#[cfg(test)]
+mod clone_tests;
 mod command;
 #[cfg(test)]
 mod curves_tests;
@@ -29,6 +32,7 @@ mod interchange;
 mod layerops;
 pub mod library;
 pub mod lipsync;
+pub mod macros;
 pub mod paging;
 pub mod playback;
 pub mod preset;
@@ -138,6 +142,15 @@ fn mirror_sample(m: &tooncraft_doc::symmetry::Mirror, s: Sample) -> Sample {
     Sample { x, y, tilt_x: tx, tilt_y: ty, ..s }
 }
 
+/// Commands applied as one step; see [`Engine::begin_group`].
+#[must_use = "a group ends with end_group or abandon_group"]
+pub struct Group {
+    before: Project,
+    undo: Vec<Entry>,
+    redo: Vec<Entry>,
+    changes: u64,
+}
+
 /// A project with its history.
 pub struct Engine {
     pub project: Project,
@@ -148,6 +161,8 @@ pub struct Engine {
     /// Fonts the text tool may use (not saved with the shot).
     pub fonts: text::Fonts,
     live: Option<LiveStroke>,
+    /// The macro being recorded (see [`macros`]).
+    recording: Option<macros::Recording>,
     changes: u64,
     saved_at: u64,
     /// Long shots: the page file drawings go to (made on first use) and how many bytes of
@@ -169,6 +184,7 @@ impl Engine {
             saved_at: 0,
             pages: None,
             page_budget: paging::DEFAULT_PAGE_BUDGET,
+            recording: None,
         }
     }
 
@@ -223,6 +239,14 @@ impl Engine {
     }
 
     pub fn undo(&mut self) -> Result<()> {
+        self.undo_inner()?;
+        if let Some(r) = &mut self.recording {
+            r.undone();
+        }
+        Ok(())
+    }
+
+    fn undo_inner(&mut self) -> Result<()> {
         if self.live.is_some() {
             return Err(EngineError::Busy);
         }
@@ -235,6 +259,14 @@ impl Engine {
     }
 
     pub fn redo(&mut self) -> Result<()> {
+        self.redo_inner()?;
+        if let Some(r) = &mut self.recording {
+            r.redone();
+        }
+        Ok(())
+    }
+
+    fn redo_inner(&mut self) -> Result<()> {
         if self.live.is_some() {
             return Err(EngineError::Busy);
         }
@@ -265,6 +297,34 @@ impl Engine {
             self.redo()?;
         }
         Ok(self.undo.len())
+    }
+
+    /// Start a group: what is applied until [`Engine::end_group`] becomes one undo step, and
+    /// [`Engine::abandon_group`] puts the shot and its history back as they were. Scripts run in
+    /// a group.
+    pub fn begin_group(&mut self) -> Group {
+        Group { before: self.project.clone(), undo: std::mem::take(&mut self.undo), redo: std::mem::take(&mut self.redo), changes: self.changes }
+    }
+
+    /// Close a group as one undo step labelled `label` (nothing when nothing changed).
+    pub fn end_group(&mut self, g: Group, label: &str) {
+        let changed = self.changes != g.changes;
+        self.undo = g.undo;
+        if changed {
+            self.redo.clear();
+            self.push(Entry { label: label.to_string(), parts: vec![Part::Whole(Box::new(g.before))] });
+        } else {
+            self.redo = g.redo;
+        }
+    }
+
+    /// Drop a group's work: the shot, its history and its change count return to how they were
+    /// at [`Engine::begin_group`].
+    pub fn abandon_group(&mut self, g: Group) {
+        self.project = g.before;
+        self.undo = g.undo;
+        self.redo = g.redo;
+        self.changes = g.changes;
     }
 
     pub(crate) fn push(&mut self, entry: Entry) {
@@ -326,6 +386,14 @@ impl Engine {
 
     /// Start painting on a layer at a frame.
     pub fn begin_stroke(&mut self, layer: usize, frame: u32, brush: Brush) -> Result<()> {
+        self.begin_stroke_inner(layer, frame, brush)?;
+        if let Some(r) = &mut self.recording {
+            r.stroke_begins(layer, frame, brush);
+        }
+        Ok(())
+    }
+
+    fn begin_stroke_inner(&mut self, layer: usize, frame: u32, brush: Brush) -> Result<()> {
         if self.live.is_some() {
             return Err(EngineError::Busy);
         }
@@ -339,11 +407,20 @@ impl Engine {
         let surface = self.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
         let stroke = Stroke::begin_with(surface, brush, images);
         let (w, h) = (self.project.width(), self.project.height());
-        let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush))).collect();
+        let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush).at_frame(frame))).collect();
         let vector = vector::Live::begin(&self.project, layer, frame, drawing, brush);
         let snap = self.project.rulers.snapper(w, h);
-        self.live =
-            Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, vector, snap, held: Default::default() });
+        self.live = Some(LiveStroke {
+            last: None,
+            drawing,
+            created,
+            engine: StrokeEngine::new(brush).at_frame(frame),
+            stroke,
+            mirrors,
+            vector,
+            snap,
+            held: Default::default(),
+        });
         Ok(())
     }
 
@@ -353,6 +430,9 @@ impl Engine {
 
     /// Add one input sample to the live stroke; returns the number of dabs painted.
     pub fn stroke_to(&mut self, sample: Sample) -> Result<usize> {
+        if let (Some(r), Some(_)) = (&mut self.recording, &self.live) {
+            r.sample(sample);
+        }
         let live = self.live.as_mut().ok_or(EngineError::NotStroking)?;
         if let Some(s) = sample.sanitized() {
             live.last = Some(s);
@@ -387,6 +467,15 @@ impl Engine {
 
     /// Finish the live stroke as one undo step.
     pub fn end_stroke(&mut self) -> Result<()> {
+        let pending = self.recording.as_mut().and_then(macros::Recording::take_stroke);
+        self.end_stroke_inner()?;
+        if let (Some(r), Some(c)) = (&mut self.recording, pending) {
+            r.add(c);
+        }
+        Ok(())
+    }
+
+    fn end_stroke_inner(&mut self) -> Result<()> {
         if let Some(v) = self.live.as_mut().and_then(|l| l.vector.take()) {
             // the dabs were a preview: drop them, then add the line as vector data
             self.cancel_stroke();
@@ -420,6 +509,9 @@ impl Engine {
 
     /// Abandon the live stroke, restoring the drawing.
     pub fn cancel_stroke(&mut self) {
+        if let Some(r) = &mut self.recording {
+            r.take_stroke();
+        }
         if let Some(live) = self.live.take() {
             if let Some(surface) = self.project.drawing_mut(live.drawing) {
                 let tiles = live.stroke.end(surface);
@@ -511,10 +603,7 @@ impl Engine {
         let space = self.project.layer_transform(layer, frame).inverse().filter(|t| !t.is_identity(1e-6));
         // repainting looks at this layer's own paint only
         let reference = if options.mode == fill::FillMode::Repaint { FillReference::Layer } else { reference };
-        let opts = match reference {
-            FillReference::Layer => RenderOptions { paper: false, only_layer: Some(layer), space, effects: false, ..Default::default() },
-            FillReference::AllLayers => RenderOptions { paper: false, space, effects: false, ..Default::default() },
-        };
+        let opts = RenderOptions { space, ..reference.render_options(layer) };
         let reference_img = tooncraft_doc::render_region(&self.project, frame, rect, opts);
         let seed_alpha = reference_img.pixel(x - rect.0, y - rect.1)[3];
         match options.mode {
@@ -542,9 +631,13 @@ impl Engine {
         if self.live.is_some() {
             return Err(EngineError::Busy);
         }
+        let copy = self.recording.as_ref().map(|_| cmd.clone());
         let r = command::apply(self, cmd);
         // colour layers follow their line layers whatever the command changed
         self.project.sync_colour_layers();
+        if let (Ok(()), Some(rec), Some(c)) = (&r, &mut self.recording, copy) {
+            rec.add(c);
+        }
         r
     }
 }

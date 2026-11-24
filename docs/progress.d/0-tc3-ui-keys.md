@@ -1,0 +1,1 @@
+- 2026-11-24: Every action from the keyboard: Find Command lists a "Show <panel>" row for every panel next to the registry's commands, and a test walks the whole registry and every panel through it without the pointer.

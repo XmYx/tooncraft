@@ -80,12 +80,50 @@ pub fn builtin() -> Vec<(String, &'static str, Brush)> {
         b("Wide chalk", "Chalks", Brush { size: 48.0, grain: 0.8, grain_scale: 4.0, ..p(BrushKind::Chalk) }),
         b("Hard eraser", "Erasers", Brush { size: 12.0, hardness: 1.0, ..p(BrushKind::Eraser) }),
         b("Soft eraser", "Erasers", Brush { size: 40.0, hardness: 0.2, ..p(BrushKind::Eraser) }),
-        b("Wet wash", "Watercolours", Brush { size: 70.0, flow: 0.2, hardness: 0.2, wet: tooncraft_brush::Wet { pickup: 0.6 }, ..p(BrushKind::Watercolour) }),
-        b("Dry wash", "Watercolours", Brush { size: 40.0, flow: 0.35, grain: 0.7, wet: tooncraft_brush::Wet { pickup: 0.15 }, ..p(BrushKind::Watercolour) }),
+        b(
+            "Wet wash",
+            "Watercolours",
+            Brush {
+                size: 70.0,
+                flow: 0.2,
+                hardness: 0.2,
+                wet: tooncraft_brush::Wet { pickup: 0.6, dilution: 0.3, edge: 0.5, bleed: 0.35, ..Default::default() },
+                ..p(BrushKind::Watercolour)
+            },
+        ),
+        b(
+            "Dry wash",
+            "Watercolours",
+            Brush {
+                size: 40.0,
+                flow: 0.35,
+                grain: 0.7,
+                wet: tooncraft_brush::Wet { pickup: 0.15, dry: 0.5, edge: 0.25, ..Default::default() },
+                ..p(BrushKind::Watercolour)
+            },
+        ),
         b("Soft smudge", "Smudges", Brush { size: 50.0, hardness: 0.1, flow: 0.4, ..p(BrushKind::Smudge) }),
-        b("Blur", "Smudges", Brush { size: 40.0, hardness: 0.3, flow: 1.0, wet: tooncraft_brush::Wet { pickup: 1.0 }, ..p(BrushKind::Smudge) }),
-        b("Fine blur", "Smudges", Brush { size: 14.0, hardness: 0.5, flow: 1.0, wet: tooncraft_brush::Wet { pickup: 1.0 }, ..p(BrushKind::Smudge) }),
-        b("Hard smudge", "Smudges", Brush { size: 16.0, hardness: 0.8, flow: 0.8, wet: tooncraft_brush::Wet { pickup: 0.15 }, ..p(BrushKind::Smudge) }),
+        b(
+            "Blur",
+            "Smudges",
+            Brush { size: 40.0, hardness: 0.3, flow: 1.0, wet: tooncraft_brush::Wet { pickup: 1.0, ..Default::default() }, ..p(BrushKind::Smudge) },
+        ),
+        b(
+            "Fine blur",
+            "Smudges",
+            Brush { size: 14.0, hardness: 0.5, flow: 1.0, wet: tooncraft_brush::Wet { pickup: 1.0, ..Default::default() }, ..p(BrushKind::Smudge) },
+        ),
+        b(
+            "Hard smudge",
+            "Smudges",
+            Brush {
+                size: 16.0,
+                hardness: 0.8,
+                flow: 0.8,
+                wet: tooncraft_brush::Wet { pickup: 0.15, dry: 0.5, edge: 0.25, ..Default::default() },
+                ..p(BrushKind::Smudge)
+            },
+        ),
     ]
 }
 
