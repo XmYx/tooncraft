@@ -24,8 +24,12 @@ struct Entry {
     used: u64,
 }
 
+/// What the paper texture was made from: rebuilt only when one of these changes.
+type PaperKey = ([u8; 3], tooncraft_doc::PaperTexture, Option<usize>);
+
 pub struct TileTextures {
     map: HashMap<Key, Entry>,
+    paper: Option<(PaperKey, TextureHandle)>,
     frame: u64,
     /// Most texture bytes kept.
     pub budget: usize,
@@ -42,7 +46,7 @@ const OPTIONS: TextureOptions = TextureOptions {
 
 impl Default for TileTextures {
     fn default() -> Self {
-        Self { map: HashMap::new(), frame: 0, budget: 768 << 20, uploads: 0 }
+        Self { map: HashMap::new(), paper: None, frame: 0, budget: 768 << 20, uploads: 0 }
     }
 }
 
@@ -93,6 +97,33 @@ impl TileTextures {
 
     pub fn clear(&mut self) {
         self.map.clear();
+        self.paper = None;
+    }
+
+    /// The repeating paper texture (`tooncraft_doc::PAPER_TILE` square, wrapping), or `None` for
+    /// plain paper. Made once per change of the paper's settings, not per frame.
+    pub fn paper(&mut self, ctx: &egui::Context, p: &tooncraft_doc::Project) -> Option<TextureId> {
+        let t = p.paper.texture.sanitized();
+        if t.is_off() {
+            self.paper = None;
+            return None;
+        }
+        // the image's identity: a replaced image under the same id makes a new texture
+        let image = t.image.and_then(|i| p.tips.get(&i)).map(|a| std::sync::Arc::as_ptr(a) as usize);
+        let key: PaperKey = (p.paper.color, t, image);
+        if let Some((k, tex)) = &self.paper
+            && *k == key
+        {
+            return Some(tex.id());
+        }
+        let n = tooncraft_doc::PAPER_TILE as usize;
+        let img = ColorImage::from_rgba_unmultiplied([n, n], &p.paper_look().tile());
+        let options = TextureOptions { wrap_mode: egui::TextureWrapMode::Repeat, ..OPTIONS };
+        let tex = ctx.load_texture("paper", img, options);
+        let id = tex.id();
+        self.uploads += 1;
+        self.paper = Some((key, tex));
+        Some(id)
     }
 }
 

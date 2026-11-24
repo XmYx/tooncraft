@@ -1,0 +1,1 @@
+- 2026-11-24: Global pressure curve and calibration: Preferences ▸ Pen (`--open pen`) holds one pressure curve for every brush, applied to pen and touch pressure; a calibration pad records test strokes and fits the curve so the artist's hardest press is full pressure.
