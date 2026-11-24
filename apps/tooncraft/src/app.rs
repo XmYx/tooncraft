@@ -31,6 +31,8 @@ pub enum Tool {
     Select,
     Shape,
     Gradient,
+    /// Copy pixels from a point set with Alt+click.
+    Clone,
     Hand,
     /// Move, scale and turn the current layer's peg on the canvas.
     Transform,
@@ -72,7 +74,7 @@ pub enum XformKind {
 }
 
 impl Tool {
-    pub const ALL: [Tool; 17] = [
+    pub const ALL: [Tool; 18] = [
         Tool::Pencil,
         Tool::Ink,
         Tool::Airbrush,
@@ -85,6 +87,7 @@ impl Tool {
         Tool::Select,
         Tool::Shape,
         Tool::Gradient,
+        Tool::Clone,
         Tool::Hand,
         Tool::Transform,
         Tool::Text,
@@ -119,6 +122,7 @@ impl Tool {
             Tool::Select => tl!("Select"),
             Tool::Shape => tl!("Shapes"),
             Tool::Gradient => tl!("Gradient"),
+            Tool::Clone => tl!("Clone stamp"),
             Tool::Hand => tl!("Hand"),
             Tool::Transform => tl!("Transform layer"),
             Tool::Text => tl!("Text"),
@@ -143,6 +147,7 @@ impl Tool {
             Tool::Select => "select",
             Tool::Shape => "shape",
             Tool::Gradient => "gradient",
+            Tool::Clone => "clone",
             Tool::Hand => "hand",
             Tool::Transform => "transform",
             Tool::Text => "text",
