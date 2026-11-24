@@ -35,6 +35,7 @@ tooncraft	Add Sound…
 tooncraft	Add Straight Ruler	
 tooncraft	Add Three-Point Perspective	
 tooncraft	Add Two-Point Perspective	
+tooncraft	Add a Peg for This Layer	
 tooncraft	Add a look	
 tooncraft	Add effect	
 tooncraft	Add light	
@@ -221,8 +222,10 @@ tooncraft	Don’t Save
 tooncraft	Down	
 tooncraft	Drag around an area to fill it	
 tooncraft	Drag from start to end; inside the selection when there is one	
+tooncraft	Drag further from the pivot to scale or turn	
 tooncraft	Drag inside to move, corners to scale, the top knob to rotate	
 tooncraft	Drag the four corners freely (perspective), then Apply	
+tooncraft	Drag to move, a corner to scale, the knob to turn, the cross to move the pivot	
 tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates	
 tooncraft	Draw the peg's other values faintly, each scaled to fit, to compare their timing	
 tooncraft	Drawing	
@@ -545,6 +548,7 @@ tooncraft	Loop a few frames either side of this one, to check an inbetween
 tooncraft	Loop playback	
 tooncraft	Luminosity	
 tooncraft	Magic Wand	
+tooncraft	Make a new peg and hang the current layer from it	
 tooncraft	Mark Drawing	
 tooncraft	Marker	
 tooncraft	Marker added at frame {n}	
@@ -732,6 +736,7 @@ tooncraft	Paste frames, moving later frames right
 tooncraft	Pasted	
 tooncraft	Peg	
 tooncraft	Peg {n}	
+tooncraft	Peg “{name}”	
 tooncraft	Pegs	
 tooncraft	Pen down: arrow keys draw, Enter lifts	
 tooncraft	Pen lifted	
@@ -1069,6 +1074,7 @@ tooncraft	Thicken lines
 tooncraft	This frame	
 tooncraft	This layer	
 tooncraft	This layer gets its own steps, opacity and colours; the others keep the shot's	
+tooncraft	This layer hangs from no peg: add one from the tool options	
 tooncraft	Three-way	
 tooncraft	Threshold	
 tooncraft	Thumbnails	
@@ -1100,6 +1106,8 @@ tooncraft	Touching only
 tooncraft	Track	
 tooncraft	Track {n}	
 tooncraft	Transform Selection	
+tooncraft	Transform cancelled	
+tooncraft	Transform layer	
 tooncraft	Trim start	
 tooncraft	Turbulence	
 tooncraft	Type a frame number to go there	
@@ -1205,3 +1213,4 @@ tooncraft	{tool} selected
 tooncraft	{tool}; right-click or hold for the other tools of the group	
 tooncraft	{w}×{h} · {fps} fps	
 tooncraft	“{layer}” hangs from	
+tooncraft	“{layer}” hangs from no peg	

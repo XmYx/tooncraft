@@ -17,7 +17,7 @@ pub const TOOL_GROUPS: [&[Tool]; 9] = [
     &[Tool::Smudge],
     &[Tool::Fill, Tool::Gradient],
     &[Tool::Picker],
-    &[Tool::Select],
+    &[Tool::Select, Tool::Transform],
     &[Tool::Shape],
     &[Tool::Text],
     &[Tool::Hand],
@@ -225,6 +225,7 @@ pub fn tool_options(app: &mut ToonApp, ui: &mut egui::Ui) {
             Tool::Hand => {
                 ui.label(tl!("Drag to pan; wheel zooms, Alt+wheel rotates"));
             }
+            Tool::Transform => crate::peg_transform::options(app, ui),
             _ => {
                 ui.separator();
                 let l = ui.label(tl!("Mouse pressure"));

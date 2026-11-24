@@ -21,6 +21,7 @@ pub const COMMANDS: &[(&str, &str, &str)] = &[
     ("tool.shape", "Shapes", "U"),
     ("tool.gradient", "Gradient", "G"),
     ("tool.hand", "Hand", "H"),
+    ("tool.transform", "Transform layer", "Q"),
     ("tool.text", "Text", "T"),
     ("frame.play", "Play / stop", "Enter"),
     ("frame.prev", "Previous frame", ","),
