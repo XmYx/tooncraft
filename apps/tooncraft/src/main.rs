@@ -13,6 +13,9 @@ mod args;
 mod brush_editor;
 mod brush_library;
 mod brush_presets;
+mod camera_path;
+#[cfg(test)]
+mod camera_path_ui_tests;
 mod canvas;
 mod canvas_header;
 mod canvas_tools;
@@ -56,7 +59,11 @@ mod history_panel;
 mod history_ui_tests;
 mod icons;
 mod import_dialog;
+#[cfg(test)]
+mod keyboard_reach_ui_tests;
 mod keys;
+#[cfg(test)]
+mod language_ui_tests;
 mod layer_fx;
 mod layer_ops;
 mod layer_tree;
@@ -69,6 +76,9 @@ mod menu_commands;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+mod motion_record;
+#[cfg(test)]
+mod motion_record_ui_tests;
 mod onion_popover;
 mod panel_chrome;
 mod panel_views;
@@ -79,6 +89,8 @@ mod peg_transform;
 #[cfg(test)]
 mod peg_transform_ui_tests;
 mod pegs;
+#[cfg(test)]
+mod pen_ui_tests;
 mod pipeline;
 mod preferences;
 mod rulers_ui;
@@ -139,6 +151,9 @@ mod unsaved_ui_tests;
 mod vector_ui_tests;
 mod video_dialog;
 mod view;
+mod views;
+#[cfg(test)]
+mod views_ui_tests;
 mod workspaces;
 
 use args::{Cli, Launch};

@@ -20,6 +20,9 @@ pub struct RenderOptions {
     pub light_table: bool,
     /// Only this layer (fill reference "current layer", per-layer exports).
     pub only_layer: Option<usize>,
+    /// Only the layers marked as references ([`crate::Layer::reference`]) and this one (the
+    /// fill's and the wand's "reference layers").
+    pub references_with: Option<usize>,
     /// Run the layers' effect stacks (off: only the drawn pixels, as the fill bucket needs).
     pub effects: bool,
     /// A map applied to the whole canvas before compositing (canvas pixels → output pixels);
@@ -29,7 +32,7 @@ pub struct RenderOptions {
 
 impl Default for RenderOptions {
     fn default() -> Self {
-        Self { paper: true, onion_layer: None, light_table: false, only_layer: None, space: None, effects: true }
+        Self { paper: true, onion_layer: None, light_table: false, only_layer: None, references_with: None, space: None, effects: true }
     }
 }
 
@@ -38,13 +41,33 @@ pub fn render_frame(p: &Project, frame: u32, o: RenderOptions) -> RgbaImage {
     render_region(p, frame, (0, 0, p.width(), p.height()), o)
 }
 
-fn background(p: &Project, w: u32, h: u32, paper: bool) -> RgbaImage {
-    if paper {
-        let c = p.paper.color;
-        RgbaImage::filled(w, h, premultiply([c[0], c[1], c[2], 255]))
-    } else {
-        RgbaImage::transparent(w, h)
+fn background(p: &Project, origin: (u32, u32), w: u32, h: u32, paper: bool) -> RgbaImage {
+    if !paper {
+        return RgbaImage::transparent(w, h);
     }
+    let look = p.paper_look();
+    let c = p.paper.color;
+    let mut img = RgbaImage::filled(w, h, premultiply([c[0], c[1], c[2], 255]));
+    if !look.is_plain() {
+        let n = crate::PAPER_TILE;
+        // a region bigger than the tile reads the tile, made once; a small one samples directly
+        // (both give the same pixels)
+        let tile = (w as u64 * h as u64 > n as u64 * n as u64).then(|| look.tile());
+        for y in 0..h {
+            for x in 0..w {
+                let (cx, cy) = (origin.0 + x, origin.1 + y);
+                let c = match &tile {
+                    Some(t) => {
+                        let i = (((cy % n) * n + cx % n) * 4) as usize;
+                        t.get(i..i + 3).map(|v| [v[0], v[1], v[2]]).unwrap_or(p.paper.color)
+                    }
+                    None => look.at(cx, cy),
+                };
+                img.set_pixel(x, y, [c[0], c[1], c[2], 255]);
+            }
+        }
+    }
+    img
 }
 
 fn draw(s: &Surface, img: &mut RgbaImage, origin: (u32, u32), t: Option<&Affine>, opacity: f32, tint: Option<[u8; 3]>) {
@@ -69,7 +92,7 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
     if o.effects && (x, y, w, h) != (0, 0, p.width(), p.height()) && uses_effects(p, frame, o) {
         return render_region(p, frame, (0, 0, p.width(), p.height()), o).crop(x, y, w, h);
     }
-    let mut img = background(p, w, h, o.paper);
+    let mut img = background(p, (x, y), w, h, o.paper);
     let space = o.space.unwrap_or(Affine::IDENTITY);
     let map = |li: usize, f: u32| non_identity(p.layer_transform(li, f).then(&space));
     if o.light_table && p.light_table.enabled {
@@ -135,6 +158,13 @@ fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: R
     let mut li = 0;
     while li < n {
         let Some(layer) = p.layers.get(li) else { break };
+        if let Some(cur) = o.references_with
+            && li != cur
+            && !layer.reference
+        {
+            li += 1;
+            continue;
+        }
         let (visible, opacity) = p.effective_at(layer, frame);
         if let Some(only) = only {
             if only == li {
@@ -374,7 +404,7 @@ pub fn render_camera(p: &Project, frame: u32, o: RenderOptions) -> RgbaImage {
         return render_frame(p, frame, o);
     }
     let (w, h) = (p.width(), p.height());
-    let mut out = background(p, w, h, o.paper);
+    let mut out = background(p, (0, 0), w, h, o.paper);
     layers(p, frame, &mut out, (0, 0), o, |li| {
         let depth = p.layers.get(li).map(|l| l.depth).unwrap_or(0.0);
         let cam = p.camera.layer_map(frame, w, h, depth)?;
@@ -420,6 +450,31 @@ mod tests {
         assert_eq!(render_frame(&p, 1, RenderOptions::default()).pixel(2, 0), [246, 243, 236, 255]);
         let clear = render_region(&p, 2, (1, 0, 4, 4), RenderOptions { paper: false, ..Default::default() });
         assert_eq!((clear.width, clear.pixel(0, 0)), (4, [0, 0, 255, 255]));
+    }
+
+    #[test]
+    fn a_paper_texture_shades_the_paper_and_regions_match_the_whole_frame() {
+        let mut p = Project::new("t", 700, 600, 24, 2).unwrap();
+        let plain = render_frame(&p, 0, RenderOptions::default());
+        p.paper.texture = crate::PaperTexture { strength: 1.0, contrast: 2.0, ..Default::default() };
+        let full = render_frame(&p, 0, RenderOptions::default());
+        assert_ne!(full, plain, "the texture shows");
+        let px: Vec<[u8; 4]> = (0..200).map(|i| full.pixel(i * 3, i * 2)).collect();
+        assert!(px.iter().all(|c| c[0] <= 246 && c[3] == 255), "only darkens, stays opaque");
+        assert!(px.iter().any(|c| c[0] < 236), "valleys are darker");
+        // a small region (sampled directly) and the frame (read from the tile) agree, also past the tile
+        let region = render_region(&p, 0, (510, 500, 8, 8), RenderOptions::default());
+        for (x, y) in [(0, 0), (3, 7), (7, 2)] {
+            assert_eq!(region.pixel(x, y), full.pixel(510 + x, 500 + y));
+        }
+        // without the paper, nothing of the texture is left
+        assert_eq!(
+            render_frame(&p, 0, RenderOptions { paper: false, ..Default::default() }),
+            render_frame(&Project::new("t", 700, 600, 24, 2).unwrap(), 0, RenderOptions { paper: false, ..Default::default() })
+        );
+        // hostile values are clamped
+        let t = crate::PaperTexture { strength: f32::NAN, scale: -4.0, contrast: 99.0, angle: 900.0, ..Default::default() }.sanitized();
+        assert_eq!((t.strength, t.scale, t.contrast, t.angle), (0.0, 0.5, tooncraft_brush::MAX_GRAIN_CONTRAST, -180.0));
     }
 
     fn dot_project() -> (Project, crate::DrawingId) {

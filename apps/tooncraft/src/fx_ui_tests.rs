@@ -101,3 +101,29 @@ fn layer_masks_and_adjustment_layers_from_the_effects_panel() {
         assert!(crate::commands::get(id).is_some(), "{id}");
     }
 }
+
+#[test]
+fn each_tool_chooses_its_own_reference_layers() {
+    let mut h = harness();
+    h.get(By::new().role(Role::CheckBox).label("Reference layer")).click();
+    h.run();
+    assert!(h.state().engine.project.layers[0].reference);
+    assert_eq!(h.state().engine.undo_label(), Some("Reference layer"));
+    // the fill bucket's own choice
+    h.state_mut().tool = crate::app::Tool::Fill;
+    h.run();
+    h.get(By::new().role(Role::ComboBox).label("Look at")).click();
+    h.run();
+    click(&mut h, "Reference layers");
+    assert_eq!(h.state().fill_reference, tooncraft_engine::FillReference::ReferenceLayers);
+    // the wand keeps its own, untouched by the fill's
+    h.state_mut().tool = crate::app::Tool::Select;
+    h.state_mut().select_mode = crate::app::SelectMode::Wand;
+    h.run();
+    assert_eq!(h.state().sel.wand_reference, tooncraft_engine::FillReference::Layer);
+    h.get(By::new().role(Role::ComboBox).label("Look at")).click();
+    h.run();
+    click(&mut h, "Reference layers");
+    assert_eq!(h.state().sel.wand_reference, tooncraft_engine::FillReference::ReferenceLayers);
+    assert!(crate::commands::get("layer.reference").is_some());
+}

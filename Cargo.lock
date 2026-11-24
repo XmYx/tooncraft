@@ -838,6 +838,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "craft-exr"
+version = "0.1.0"
+source = "git+https://github.com/storytold/craft-libs?rev=0649a07aa11834fa5bd7052c8b97a861db532a22#0649a07aa11834fa5bd7052c8b97a861db532a22"
+dependencies = [
+ "exr",
+ "flate2",
+ "half",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "craft-font-catalog"
 version = "0.1.0"
 source = "git+https://github.com/storytold/craft-libs?rev=0649a07aa11834fa5bd7052c8b97a861db532a22#0649a07aa11834fa5bd7052c8b97a861db532a22"
@@ -4222,6 +4234,7 @@ version = "0.1.0"
 dependencies = [
  "craft-atomic",
  "craft-audio",
+ "craft-exr",
  "craft-font-catalog",
  "craft-gif",
  "craft-image-codecs",

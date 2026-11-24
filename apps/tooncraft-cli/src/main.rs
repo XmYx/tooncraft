@@ -8,7 +8,7 @@
 //! tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   apply JSON-lines commands, then save
 //! tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
 //! tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
-//! tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
+//! tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --exr-layers <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
 //! tooncraft-cli check <file.toon>                          interrupted saves, backup, load check
 //! tooncraft-cli bench [--json]                             stroke latency, fill, compositing, save
 //! tooncraft-cli brush (make <kind> <file> | info <file> | preview <file> <png> [--size WxH])
@@ -36,8 +36,9 @@ const USAGE: &str = "usage:
   tooncraft-cli info <file.toon>
   tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   (text commands use the fonts given, by file name)
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--mp4 <file> | --mov <file>) [--codec h264|h265|av1] [--range A..B]
   tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
-  tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --exr-layers <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
   tooncraft-cli check <file.toon>
   tooncraft-cli scrub <file.toon>          step through every frame; time and memory (TOONCRAFT_PAGE_BUDGET_MB)
   tooncraft-cli bench [--json]
@@ -67,6 +68,8 @@ impl Args {
                         | "gif"
                         | "ora"
                         | "mp4"
+                        | "mov"
+                        | "codec"
                         | "apng"
                         | "frame"
                         | "range"
@@ -79,6 +82,7 @@ impl Args {
                         | "webp-frame"
                         | "tga"
                         | "tiff"
+                        | "exr-layers"
                         | "psd-frames"
                         | "quality"
                         | "prores-layers"
@@ -314,8 +318,16 @@ fn run() -> Result<(), String> {
                 export::gif(&e.project, Path::new(file), o, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {file}");
-            } else if let Some(file) = rest.flag("mp4") {
-                export::mp4(&e.project, Path::new(file), o, progress).map_err(|e| e.to_string())?;
+            } else if let Some((file, container)) =
+                rest.flag("mp4").map(|f| (f, export::Container::Mp4)).or_else(|| rest.flag("mov").map(|f| (f, export::Container::Mov)))
+            {
+                let codec = match rest.flag("codec").unwrap_or("h264") {
+                    "h264" => export::VideoCodec::H264,
+                    "h265" | "hevc" => export::VideoCodec::Hevc,
+                    "av1" => export::VideoCodec::Av1,
+                    other => return Err(format!("--codec is h264, h265 or av1, not “{other}”")),
+                };
+                export::video(&e.project, Path::new(file), o, codec, container, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {file}");
             } else if let Some(file) = rest.flag("apng") {
@@ -364,6 +376,10 @@ fn run() -> Result<(), String> {
                 let files = export::tiff_sequence(&e.project, Path::new(dir), "frame", o, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {} TIFF files to {dir}", files.len());
+            } else if let Some(dir) = rest.flag("exr-layers") {
+                let files = export::exr_layered_sequence(&e.project, Path::new(dir), "frame", o, progress).map_err(|e| e.to_string())?;
+                eprintln!();
+                println!("wrote {} layered OpenEXR files to {dir}", files.len());
             } else if let Some(file) = rest.flag("psd-frames") {
                 let bytes = tooncraft_interop::psd::export_frames(&e.project, o.start, o.end, rest.has("psb")).map_err(|e| e.to_string())?;
                 std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
@@ -374,7 +390,7 @@ fn run() -> Result<(), String> {
                 println!("wrote {file}");
             } else {
                 return Err(format!(
-                    "export needs --png, --gif, --mp4, --apng, --prores, --prores-layers, --wav, --mouth-sheet, --psd, --layers, --levels or --ora\n\n{USAGE}"
+                    "export needs --png, --gif, --mp4, --mov, --apng, --prores, --prores-layers, --wav, --mouth-sheet, --psd, --layers, --levels or --ora\n\n{USAGE}"
                 ));
             }
             Ok(())

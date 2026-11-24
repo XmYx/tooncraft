@@ -17,6 +17,20 @@ pub enum FillReference {
     /// Every visible layer (paint under ink on its own layer).
     #[default]
     AllLayers,
+    /// The layers marked as references, and the layer itself.
+    ReferenceLayers,
+}
+
+impl FillReference {
+    /// How to render the picture this reference looks at, for `layer`.
+    pub fn render_options(self, layer: usize) -> tooncraft_doc::RenderOptions {
+        let base = tooncraft_doc::RenderOptions { paper: false, effects: false, ..Default::default() };
+        match self {
+            FillReference::Layer => tooncraft_doc::RenderOptions { only_layer: Some(layer), ..base },
+            FillReference::AllLayers => base,
+            FillReference::ReferenceLayers => tooncraft_doc::RenderOptions { references_with: Some(layer), ..base },
+        }
+    }
 }
 
 /// One change to a project. `layer` is a layer index (0 = bottom), `frame` is 0-based.
@@ -391,6 +405,12 @@ pub enum Command {
         skew: f32,
         #[serde(default)]
         ease: Ease,
+    },
+    /// Set (or replace) several keys of one peg as one undo step: a recorded take. Refused whole
+    /// when a key lies past the end of the shot or there are more than a peg can hold.
+    SetPegKeys {
+        peg: PegId,
+        keys: Vec<PegKey>,
     },
     RemovePegKey {
         peg: PegId,
@@ -905,6 +925,11 @@ pub enum Command {
     SetPaper {
         color: [u8; 3],
     },
+    /// The visible paper texture under the drawing (strength 0 switches it off). A setting like
+    /// the paper colour: saved with the shot, outside the undo history.
+    SetPaperTexture {
+        texture: tooncraft_doc::PaperTexture,
+    },
     /// Add an effect to the layer's stack at `index` (default: last, so it runs after the others).
     /// Append several effects (a preset or a saved stack) as one undo step.
     AddEffects {
@@ -976,6 +1001,12 @@ pub enum Command {
         layer: usize,
         #[serde(default)]
         matte: Option<tooncraft_doc::Matte>,
+    },
+    /// Mark the layer as a reference for the fill bucket and the magic wand (when they look at
+    /// reference layers), or not.
+    SetLayerReference {
+        layer: usize,
+        reference: bool,
     },
     /// Make the layer an adjustment layer (its effects act on everything below it) or a normal
     /// layer again.
@@ -1410,6 +1441,28 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             frame_ok(e, frame)?;
             pegs(e, "Peg key", |p| {
                 p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.set_key(PegKey { frame, x, y, angle, scale_x, scale_y, skew, ease });
+                Ok(())
+            })
+        }
+        Command::SetPegKeys { peg, keys } => {
+            if keys.len() > tooncraft_doc::peg::MAX_PEG_KEYS {
+                return Err(DocError::TooManyPegKeys.into());
+            }
+            if let Some(k) = keys.iter().find(|k| k.frame >= e.project.length()) {
+                return Err(DocError::NoFrame(k.frame).into());
+            }
+            if keys.is_empty() {
+                return Ok(());
+            }
+            pegs(e, "Record motion", |p| {
+                let pg = p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?;
+                let new = keys.iter().filter(|k| !pg.has_key(k.frame)).map(|k| k.frame).collect::<std::collections::BTreeSet<_>>().len();
+                if pg.keys.len() + new > tooncraft_doc::peg::MAX_PEG_KEYS {
+                    return Err(DocError::TooManyPegKeys);
+                }
+                for k in keys {
+                    pg.set_key(k);
+                }
                 Ok(())
             })
         }
@@ -1895,6 +1948,15 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.touch();
             Ok(())
         }
+        Command::SetPaperTexture { texture } => {
+            let texture = texture.sanitized();
+            if let Some(i) = texture.image.filter(|i| !e.project.tips.contains_key(i)) {
+                return Err(EngineError::NoGrainImage(i));
+            }
+            e.project.paper.texture = texture;
+            e.touch();
+            Ok(())
+        }
         Command::AddEffect { layer, effect, index } => crate::effects::add(e, layer, effect, index),
         Command::AddEffects { layer, effects } => crate::effects::add_all(e, layer, effects),
         Command::SetEffect { layer, index, effect } => crate::effects::edit(e, layer, index, "Effect", |fx| {
@@ -1925,6 +1987,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }),
         Command::SetLayerMatte { layer, matte } => edit_layers(e, "Matte", |e| {
             e.project.layer_mut(layer)?.matte = matte;
+            Ok(())
+        }),
+        Command::SetLayerReference { layer, reference } => edit_layers(e, "Reference layer", |e| {
+            e.project.layer_mut(layer)?.reference = reference;
             Ok(())
         }),
         Command::SetLayerAdjustment { layer, adjustment } => edit_layers(e, "Adjustment layer", |e| {
