@@ -827,7 +827,7 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 0.0, pal.workspace);
     let c = Ctx { painter: &painter, view: app.view, rect, size };
-    let corners = paint_layers(app, &ui.ctx().clone(), &c, only_current.then_some(app.layer));
+    let corners = paint_layers(app, &ui.ctx().clone(), &c, only_current.then_some(app.layer), true);
     // canvas edge
     painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
     draw_selection(&painter, app, &c, pal);
@@ -903,7 +903,8 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
 
 /// The paper and the layers seen through `c`, with the light table and onion skin; with `only`,
 /// that layer's drawing (and its onion skin) alone. Returns the paper's screen corners.
-fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<usize>) -> [Pos2; 4] {
+/// Paper and layers; `aids` adds the light table and the onion skin (off for a thumbnail).
+fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<usize>, aids: bool) -> [Pos2; 4] {
     let size = c.size;
     let corners = [c.screen(0.0, 0.0), c.screen(size.x, 0.0), c.screen(size.x, size.y), c.screen(0.0, size.y)];
     let shadow: Vec<Pos2> = corners.iter().map(|p| *p + vec2(3.0, 4.0)).collect();
@@ -914,7 +915,7 @@ fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<us
     // the layers' transforms, with a Transform drag's key in place while one is in progress
     let transforms = crate::peg_transform::layer_transforms(app);
     let tex = &mut app.textures;
-    if p.light_table.enabled && only.is_none() {
+    if aids && p.light_table.enabled && only.is_none() {
         for pin in &p.light_table.pins {
             let Some(li) = p.layer_index(pin.layer) else { continue };
             if let Some(d) = p.drawing_at(li, pin.frame)
@@ -924,7 +925,7 @@ fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<us
             }
         }
     }
-    if p.onion.enabled && !app.playback.playing {
+    if aids && p.onion.enabled && !app.playback.playing {
         let layers: Vec<usize> = if let Some(l) = only {
             vec![l]
         } else if p.onion.all_layers {
@@ -997,11 +998,7 @@ fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<us
 pub(crate) fn paint_picture(app: &mut ToonApp, ctx: &egui::Context, painter: &egui::Painter, view: View, rect: Rect) {
     let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
     let c = Ctx { painter, view, rect, size };
-    let onion = std::mem::replace(&mut app.engine.project.onion.enabled, false);
-    let light = std::mem::replace(&mut app.engine.project.light_table.enabled, false);
-    paint_layers(app, ctx, &c, None);
-    app.engine.project.onion.enabled = onion;
-    app.engine.project.light_table.enabled = light;
+    paint_layers(app, ctx, &c, None, false);
     let corners = [pos2(0.0, 0.0), pos2(size.x, 0.0), pos2(size.x, size.y), pos2(0.0, size.y)].map(|p| view.to_screen(rect, size, p));
     painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
 }

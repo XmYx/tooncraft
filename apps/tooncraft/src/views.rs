@@ -108,6 +108,12 @@ impl Default for SecondView {
 
 impl SecondView {
     /// Has the camera look's picture been rendered for the shot as it is now?
+    /// Is a side-look depth drag under way?
+    #[cfg(test)]
+    pub fn dragging(&self) -> bool {
+        self.drag.is_some()
+    }
+
     #[cfg(test)]
     pub fn filmed_now(&self, changes: u64, frame: u32) -> bool {
         self.filmed.key == Some((changes, frame)) && self.filmed.texture.is_some()
@@ -166,6 +172,10 @@ pub fn panel(app: &mut ToonApp, ui: &mut Ui) {
             ui.weak(format!("{:.0} %", app.view2.view.zoom * 100.0));
         }
     });
+    // a depth drag belongs to the side look: switching away drops it
+    if app.view2.look != Look::Side {
+        app.view2.drag = None;
+    }
     let rect = ui.available_rect_before_wrap();
     if rect.width() < 8.0 || rect.height() < 8.0 {
         return;
@@ -410,7 +420,14 @@ fn side(app: &mut ToonApp, ui: &mut Ui, rect: Rect) {
             && let Some(p) = resp.interact_pointer_pos()
         {
             dr.to = s.depth(p.y).clamp(tooncraft_doc::camera::MIN_DEPTH, tooncraft_doc::camera::MAX_DEPTH);
+        } else if !resp.dragged() && !ui.input(|i| i.pointer.any_down()) {
+            // the release went unseen (the panel was hidden or covered): drop the preview
+            app.view2.drag = None;
         }
+    }
+    // a layer deleted under the drag ends it
+    if app.view2.drag.is_some_and(|d| d.layer >= app.engine.project.layers.len()) {
+        app.view2.drag = None;
     }
     if resp.has_focus() && app.view2.drag.is_none() {
         ui.memory_mut(|m| m.set_focus_lock_filter(resp.id, egui::EventFilter { tab: false, horizontal_arrows: false, vertical_arrows: true, escape: false }));

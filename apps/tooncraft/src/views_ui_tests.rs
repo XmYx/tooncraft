@@ -203,3 +203,56 @@ fn the_launch_option_picks_the_look() {
     assert_eq!(app.view2.look, Look::Camera);
     assert!(app.workspace.is_open(Pane::SecondView));
 }
+
+/// Starts a side-look depth drag on the current layer and leaves the button held.
+fn start_side_drag(h: &mut Harness<'static, ToonApp>) {
+    let rect = h.state().view2.rect;
+    let from = crate::views::side_point(h.state(), rect, 0.0);
+    h.drag_at(from);
+    h.run();
+    for i in 1..=3 {
+        h.hover_at(from + vec2(0.0, -30.0 * i as f32));
+        h.run();
+    }
+    assert!(h.state().view2.dragging(), "the drag is under way");
+}
+
+#[test]
+fn switching_the_look_mid_drag_drops_the_depth_preview() {
+    let mut h = harness();
+    second_view(&mut h, Look::Side);
+    let layer = h.state().layer;
+    let undo = h.state().engine.undo_len();
+    start_side_drag(&mut h);
+    // switch the look from the keyboard with the button still held
+    h.get(By::new().role(egui::Role::RadioButton).label("Shot look")).focus();
+    h.run();
+    press(&mut h, Key::Space);
+    assert_eq!(h.state().view2.look, Look::Shot);
+    assert!(!h.state().view2.dragging(), "the drag ended with the look");
+    h.drop_at(h.state().view2.rect.center());
+    h.run();
+    // back in the side look the layer is drawn at the project's depth, and nothing was undone or added
+    second_view(&mut h, Look::Side);
+    assert!(!h.state().view2.dragging());
+    assert_eq!(h.state().engine.project.layers[layer].depth, 0.0);
+    assert_eq!(h.state().engine.undo_len(), undo);
+}
+
+#[test]
+fn a_release_the_side_look_never_saw_drops_the_depth_preview() {
+    let mut h = harness();
+    second_view(&mut h, Look::Side);
+    let undo = h.state().engine.undo_len();
+    start_side_drag(&mut h);
+    // another panel covers the second view, and the button is let go there
+    h.state_mut().workspace.raise(Pane::Colour);
+    h.run();
+    h.drop_at(h.state().view2.rect.center());
+    h.run();
+    h.state_mut().workspace.raise(Pane::SecondView);
+    h.run();
+    h.run();
+    assert!(!h.state().view2.dragging(), "no stale drag when the side look shows again");
+    assert_eq!(h.state().engine.undo_len(), undo);
+}
