@@ -84,3 +84,88 @@ fn all_selected_cells_moves_every_drawing_in_the_block_as_one_step() {
     h.run();
     assert!(alpha(&h, 0, 130, 130) > 0 && alpha(&h, 1, 330, 130) > 0, "only layer 1 moved");
 }
+
+fn canvas_at(h: &Harness<'static, ToonApp>, x: f32, y: f32) -> egui::Pos2 {
+    let rect = h.get(By::new().role(egui::Role::Canvas).label_contains("Canvas")).rect();
+    let app = h.state();
+    let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
+    app.view.to_screen(rect, size, egui::pos2(x, y))
+}
+
+/// Two layers with a square each, a block over both at frame 0, the option on.
+fn two_squares() -> Harness<'static, ToonApp> {
+    let mut h = harness();
+    assert!(h.state_mut().run(Command::AddLayer { name: "Second".into(), index: None }));
+    assert!(h.state_mut().run(square(0, 0)));
+    assert!(h.state_mut().run(square(1, 0)));
+    let app = h.state_mut();
+    app.layer = 1;
+    app.frame = 0;
+    app.sel_anchor = Some((0, 0));
+    app.tool = Tool::Select;
+    app.sel.all_cells = true;
+    crate::selection_tools::set_rings(app, vec![vec![(90.0, 90.0), (170.0, 90.0), (170.0, 170.0), (90.0, 170.0)]]);
+    h.run();
+    h
+}
+
+#[test]
+fn a_canvas_drag_previews_then_moves_every_drawing_once() {
+    let mut h = two_squares();
+    let undo = h.state().engine.undo_len();
+    let (a, b) = (canvas_at(&h, 130.0, 130.0), canvas_at(&h, 330.0, 130.0));
+    h.drag_at(a);
+    h.run();
+    for k in 1..=8 {
+        h.hover_at(a + (b - a) * (k as f32 / 8.0));
+        h.run();
+        // while dragging only the current drawing follows
+        if k == 8 {
+            assert_eq!(alpha(&h, 0, 330, 130), 0, "layer 0 waits for the release");
+        }
+    }
+    h.drop_at(b);
+    h.run();
+    assert_eq!(h.state().engine.undo_len(), undo + 1, "exactly one undo step after the drag");
+    assert_eq!(h.state().engine.undo_label(), Some("Transform drawings"));
+    for layer in [0, 1] {
+        assert!(alpha(&h, layer, 330, 130) > 0 && alpha(&h, layer, 130, 130) == 0, "layer {layer} moved");
+    }
+}
+
+#[test]
+fn locked_layers_stay_and_the_limits_are_reported() {
+    // a locked layer in the block keeps its drawing where it was
+    let mut h = two_squares();
+    assert!(h.state_mut().run(Command::SetLayer { layer: 0, visible: None, locked: Some(true), opacity: None }));
+    h.state_mut().transform_selection(200.0, 0.0, (1.0, 1.0), 0.0);
+    h.run();
+    assert!(alpha(&h, 0, 130, 130) > 0, "locked layer 0 stayed");
+    assert!(alpha(&h, 1, 330, 130) > 0, "layer 1 moved");
+    // an empty block says so and changes nothing
+    let mut h = two_squares();
+    let app = h.state_mut();
+    app.frame = 3;
+    app.sel_anchor = Some((0, 2));
+    let undo = app.engine.undo_len();
+    app.transform_selection(10.0, 0.0, (1.0, 1.0), 0.0);
+    assert_eq!(app.engine.undo_len(), undo);
+    assert_eq!(app.status, "No drawings in the selected cells to transform");
+    // more drawings than one batch holds is refused, with no undo step
+    let mut h = harness();
+    let n = tooncraft_engine::MAX_BATCH as u32 + 1;
+    assert!(h.state_mut().run(Command::SetLength { frames: n }));
+    for f in 0..n {
+        assert!(h.state_mut().run(Command::NewDrawing { layer: 0, frame: f }), "frame {f}");
+    }
+    let app = h.state_mut();
+    app.layer = 0;
+    app.frame = n - 1;
+    app.sel_anchor = Some((0, 0));
+    app.sel.all_cells = true;
+    crate::selection_tools::set_rings(app, vec![vec![(0.0, 0.0), (50.0, 0.0), (50.0, 50.0), (0.0, 50.0)]]);
+    let undo = app.engine.undo_len();
+    app.transform_selection(10.0, 0.0, (1.0, 1.0), 0.0);
+    assert_eq!(app.engine.undo_len(), undo, "refused");
+    assert!(app.status.starts_with("Select at most"), "{}", app.status);
+}
