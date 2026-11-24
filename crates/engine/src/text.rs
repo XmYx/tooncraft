@@ -26,6 +26,12 @@ pub const MAX_SIZE: f32 = 1000.0;
 pub const MAX_FACES: usize = 256;
 /// Most flattened edges of one glyph.
 const MAX_GLYPH_EDGES: usize = 200_000;
+/// Most coverage cells one text command may rasterise: every glyph's box clipped to the canvas,
+/// added up (overlapping boxes count twice). 32 Mi cells is about four 4K frames of glyph
+/// boxes, a fraction of a second of work.
+pub const MAX_TEXT_CELLS: u64 = 32 << 20;
+/// Most flattened outline edges of one text command.
+pub const MAX_TEXT_EDGES: usize = 2 << 20;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -231,6 +237,9 @@ struct Flatten {
     start: (f32, f32),
     cur: (f32, f32),
     edges: Vec<Edge>,
+    /// Most edges this pen keeps; past it `over` is set and the rest is dropped.
+    cap: usize,
+    over: bool,
 }
 
 impl Flatten {
@@ -239,8 +248,10 @@ impl Flatten {
     }
 
     fn edge(&mut self, to: (f32, f32)) {
-        if self.edges.len() < MAX_GLYPH_EDGES {
+        if self.edges.len() < self.cap {
             self.edges.push((self.cur, to));
+        } else {
+            self.over = true;
         }
         self.cur = to;
     }
@@ -293,6 +304,60 @@ impl GlyphPen for Flatten {
     }
 }
 
+/// The glyph outlines of laid-out text, flattened to edges, and the work they will take.
+pub struct Prepared {
+    pub glyphs: Vec<Vec<Edge>>,
+    /// Coverage cells the glyph boxes cover on the `clip` canvas, added up.
+    pub cells: u64,
+    pub edges: usize,
+}
+
+/// The cells a glyph's coverage box takes, clipped to the canvas (as `coverage::rasterize`).
+fn box_cells(edges: &[Edge], clip: (u32, u32)) -> u64 {
+    let (mut lx, mut ly, mut hx, mut hy) = (f32::INFINITY, f32::INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
+    for (a, b) in edges {
+        lx = lx.min(a.0).min(b.0);
+        ly = ly.min(a.1).min(b.1);
+        hx = hx.max(a.0).max(b.0);
+        hy = hy.max(a.1).max(b.1);
+    }
+    if !(lx.is_finite() && ly.is_finite() && hx.is_finite() && hy.is_finite()) {
+        return 0;
+    }
+    let w = (hx.ceil() as i64).min(clip.0 as i64) - (lx.floor() as i64).max(0);
+    let h = (hy.ceil() as i64).min(clip.1 as i64) - (ly.floor() as i64).max(0);
+    if w <= 0 || h <= 0 { 0 } else { w as u64 * h as u64 }
+}
+
+/// Flatten every glyph and count the work; text over [`MAX_TEXT_EDGES`] edges or
+/// [`MAX_TEXT_CELLS`] cells is refused before anything is painted.
+pub fn prepare(face: &Face, lay: &Layout, clip: (u32, u32)) -> Result<Prepared> {
+    let outline = FontOutline::from_bytes(face.data(), face.index, &[]).map_err(|err| EngineError::Text(err.to_string()))?;
+    let too_large = || EngineError::Text("the text is too large to paint in one step; make it smaller or shorter".into());
+    let mut out = Prepared { glyphs: Vec::with_capacity(lay.glyphs.len()), cells: 0, edges: 0 };
+    for g in &lay.glyphs {
+        let cap = MAX_GLYPH_EDGES.min(MAX_TEXT_EDGES - out.edges);
+        let mut pen = Flatten { scale: lay.scale, origin: (g.x, g.y), start: (g.x, g.y), cur: (g.x, g.y), edges: Vec::new(), cap, over: false };
+        // a glyph that fails to draw is skipped whole
+        if outline.draw_to(g.glyph, &mut pen).is_err() {
+            continue;
+        }
+        pen.close();
+        if pen.over {
+            return Err(too_large());
+        }
+        out.edges += pen.edges.len();
+        out.cells = out.cells.saturating_add(box_cells(&pen.edges, clip));
+        if out.cells > MAX_TEXT_CELLS {
+            return Err(too_large());
+        }
+        if !pen.edges.is_empty() {
+            out.glyphs.push(pen.edges);
+        }
+    }
+    Ok(out)
+}
+
 /// Paint text into the drawing at the layer and frame (made on a blank cell), one undo step.
 pub(crate) fn paint_text(e: &mut Engine, layer: usize, frame: u32, text: &str, at: (f32, f32), style: &TextStyle) -> Result<()> {
     e.check_unlocked(layer)?;
@@ -312,8 +377,9 @@ pub(crate) fn paint_text(e: &mut Engine, layer: usize, frame: u32, text: &str, a
         }
     })?;
     let lay = layout(&face, &text, at, &style)?;
-    let outline = FontOutline::from_bytes(face.data(), face.index, &[]).map_err(|err| EngineError::Text(err.to_string()))?;
     let clip = (e.project.width(), e.project.height());
+    // all the work is counted (and refused) before the drawing is touched
+    let prepared = prepare(&face, &lay, clip)?;
     let (drawing, parts) = e.ensure_drawing(layer, frame)?;
     let Some(s) = e.project.drawing_mut(drawing) else {
         Entry { label: String::new(), parts }.swap(&mut e.project);
@@ -321,14 +387,8 @@ pub(crate) fn paint_text(e: &mut Engine, layer: usize, frame: u32, text: &str, a
     };
     s.begin_capture();
     let mut failed = None;
-    for g in &lay.glyphs {
-        let mut pen = Flatten { scale: lay.scale, origin: (g.x, g.y), start: (g.x, g.y), cur: (g.x, g.y), edges: Vec::new() };
-        // a glyph that fails to draw is skipped whole
-        if outline.draw_to(g.glyph, &mut pen).is_err() {
-            continue;
-        }
-        pen.close();
-        match coverage::rasterize(&pen.edges, clip) {
+    for edges in &prepared.glyphs {
+        match coverage::rasterize(edges, clip) {
             Ok(Some(c)) => coverage::paint(s, &c, style.color),
             Ok(None) => {}
             Err(err) => {

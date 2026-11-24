@@ -156,3 +156,31 @@ proptest! {
         }
     }
 }
+
+#[test]
+fn the_work_of_one_text_command_is_capped_in_total() {
+    // a canvas as large as allowed, so clipping does not hide the work
+    let mut e = Engine::new(Project::new("Big", 16384, 16384, 12, 1).unwrap());
+    e.fonts = fonts();
+    let face = e.fonts.get("").cloned().unwrap();
+    let clip = (e.project.width(), e.project.height());
+    // an ordinary title: its work is counted and well inside the budget
+    let style = TextStyle { size: 200.0, ..TextStyle::default() };
+    let lay = layout(&face, "A title", (100.0, 100.0), &style).unwrap();
+    let p = prepare(&face, &lay, clip).unwrap();
+    assert!(p.cells > 7 * 100 * 100 && p.cells < MAX_TEXT_CELLS, "counted {}", p.cells);
+    assert_eq!(p.glyphs.len(), 6, "the space has no outline");
+    // a hostile command: 2000 W at the largest size would be about 2000 × (1000 px)² cells
+    let hostile = TextStyle { size: MAX_SIZE, ..TextStyle::default() };
+    let wall = "W".repeat(40) + &"\nWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW".repeat(49);
+    let lay = layout(&face, &wall, (0.0, 0.0), &hostile).unwrap();
+    assert!(lay.glyphs.len() >= 1900, "{} glyphs", lay.glyphs.len());
+    let err = prepare(&face, &lay, clip).err().map(|e| e.to_string()).unwrap_or_default();
+    assert!(err.contains("too large"), "{err}");
+    let t = std::time::Instant::now();
+    let r = e.apply(text(&wall, 0.0, 0.0, hostile));
+    assert!(r.is_err(), "refused");
+    assert!(t.elapsed().as_secs_f32() < 5.0, "refused without doing the work: {:?}", t.elapsed());
+    assert!(e.project.drawing_at(0, 0).is_none(), "the drawing is left as it was");
+    assert_eq!(e.undo_len(), 0);
+}
