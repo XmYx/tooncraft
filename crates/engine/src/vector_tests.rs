@@ -18,6 +18,7 @@ fn line(e: &mut Engine, pts: &[(f32, f32)], w: f32) -> Result<()> {
         color: [0, 0, 0, 255],
         points: pts.iter().map(|(x, y)| VPoint::new(*x, *y, w)).collect(),
         tolerance: 0.6,
+        style: Default::default(),
     })
 }
 
@@ -181,6 +182,7 @@ fn a_paged_load_keeps_vector_drawings_paged() {
             color: [0, 0, 0, 255],
             points: vec![VPoint::new(10.0, y, 30.0), VPoint::new(390.0, y + 5.0, 30.0)],
             tolerance: 0.6,
+            style: Default::default(),
         })
         .unwrap();
     }
@@ -210,4 +212,27 @@ fn duplicate_copies_the_lines_and_purge_drops_them_with_undo() {
     assert!(e.project.vectors.is_empty());
     e.undo().unwrap();
     assert_eq!(e.project.vectors.len(), 2);
+}
+
+#[test]
+fn a_lines_ends_and_corners_are_an_undoable_edit_and_repaint_it() {
+    use tooncraft_vector::{Cap, Join, LineStyle};
+    let mut e = engine();
+    line(&mut e, &[(40.0, 100.0), (160.0, 100.0)], 20.0).unwrap();
+    // 6 px past the end: inside the round cap
+    assert!(ink(&e, 166, 100), "round end");
+    let style = LineStyle { cap: Cap::Flat, join: Join::Cut };
+    e.apply(Command::EditVector { layer: 0, frame: 0, edit: VectorEdit::SetStyle { stroke: 0, style } }).unwrap();
+    assert_eq!(e.undo_label(), Some("Line ends and corners"));
+    assert!(!ink(&e, 166, 100), "flat end stops at the point");
+    assert!(ink(&e, 150, 100), "the line is still there");
+    e.undo().unwrap();
+    assert!(ink(&e, 166, 100), "undone: round again");
+    // new lines take the engine's line style
+    e.line_style = style;
+    let c: Command =
+        serde_json::from_str(r#"{"cmd":"edit_vector","layer":0,"frame":0,"edit":{"edit":"set_style","stroke":0,"style":{"cap":"square","join":"sharp"}}}"#)
+            .unwrap();
+    e.apply(c).unwrap();
+    assert!(ink(&e, 166, 100), "square end reaches past the point");
 }

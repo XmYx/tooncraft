@@ -325,6 +325,8 @@ pub struct ToonApp {
     pub show_camera: bool,
     /// A camera key being dragged on the canvas (see `camera_path`).
     pub camera_drag: Option<crate::camera_path::CameraDrag>,
+    /// The camera the Camera panel and the camera path edit (0: the main camera).
+    pub camera_edit: usize,
     pub peg_ui: crate::pegs::PegUi,
     pub transform_ui: crate::peg_transform::TransformUi,
     /// Record motion: armed, and the take in progress.
@@ -489,6 +491,7 @@ impl ToonApp {
             keys: crate::keys::Keys::new(!cfg!(test) && cli.screenshot.is_none()),
             show_camera: true,
             camera_drag: None,
+            camera_edit: 0,
             peg_ui: Default::default(),
             transform_ui: Default::default(),
             recorder: Default::default(),
@@ -540,6 +543,7 @@ impl ToonApp {
             Some("scene") => crate::scene_menus::open_settings(&mut app),
             Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
             Some("colour-picker") => app.colour.window = true,
+            Some("reference") => app.colour.viewer.open = true,
             Some("icons") => app.show_icons = true,
             Some("import-video") => app.video_dialog = Some(crate::video_dialog::Dialog::new(None)),
             Some("radial") => crate::tool_palettes::open_radial(&mut app, ctx),
@@ -608,6 +612,42 @@ impl ToonApp {
             app.tool = Tool::Transform;
             crate::motion_record::set_armed(&mut app, true);
         }
+        if cli.ik {
+            let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+            let mut parent = None;
+            for (name, x) in [(tl!("Shoulder"), 0.3), (tl!("Elbow"), 0.45), (tl!("Hand"), 0.6)] {
+                app.run(Command::AddPeg { name: name.to_owned(), parent });
+                if let Some(id) = app.engine.project.pegs.last().map(|p| p.id) {
+                    app.run(Command::SetPegPivot { peg: id, x: w * x, y: h * 0.4 });
+                    parent = Some(id);
+                }
+            }
+            if let Some(hand) = parent {
+                let layer = app.layer;
+                app.run(Command::SetLayerPeg { layer, peg: Some(hand) });
+                if let Some(at) = tooncraft_doc::peg::pivot_on_canvas(&app.engine.project.pegs, hand, 0) {
+                    let keys = tooncraft_doc::ik::solve(&app.engine.project.pegs, hand, 0, (at.0 - w * 0.05, at.1 + h * 0.2), 2);
+                    let commands = keys.into_iter().map(|(peg, k)| crate::peg_transform::key_command(peg, k)).collect();
+                    app.run(Command::Batch { label: "Move with IK".into(), commands });
+                }
+                app.peg_ui.selected = Some(hand);
+            }
+            app.tool = Tool::Transform;
+            app.transform_ui.ik = true;
+        }
+        if cli.cameras {
+            let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+            let half = app.engine.project.length() / 2;
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.5, y: h * 0.5, zoom: 1.0, angle: 0.0, camera: 0 });
+            app.run(Command::AddCamera { name: tl!("Close").to_owned(), from: None });
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.3, y: h * 0.6, zoom: 2.2, angle: 0.0, camera: 1 });
+            app.run(Command::SetCameraCut { frame: half, camera: 1 });
+            app.camera_edit = 1;
+            if cli.frame.is_none() {
+                app.frame = half;
+            }
+            app.workspace.raise(Pane::Camera);
+        }
         if cli.light_table {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
@@ -620,9 +660,9 @@ impl ToonApp {
         if cli.camera_path {
             let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
             let last = app.engine.project.length().saturating_sub(1);
-            app.run(Command::SetCameraKey { frame: 0, x: w * 0.35, y: h * 0.45, zoom: 1.6, angle: 0.0 });
-            app.run(Command::SetCameraKey { frame: last / 2, x: w * 0.5, y: h * 0.35, zoom: 1.4, angle: 0.0 });
-            app.run(Command::SetCameraKey { frame: last, x: w * 0.65, y: h * 0.55, zoom: 1.2, angle: -6.0 });
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.35, y: h * 0.45, zoom: 1.6, angle: 0.0, camera: 0 });
+            app.run(Command::SetCameraKey { frame: last / 2, x: w * 0.5, y: h * 0.35, zoom: 1.4, angle: 0.0, camera: 0 });
+            app.run(Command::SetCameraKey { frame: last, x: w * 0.65, y: h * 0.55, zoom: 1.2, angle: -6.0, camera: 0 });
             app.tool = Tool::Transform;
         }
         if cli.rulers {
@@ -1580,6 +1620,9 @@ impl ToonApp {
                         "edit.redo",
                         "edit.history",
                         crate::menus::SEP,
+                        "edit.record_macro",
+                        "edit.play_macro",
+                        crate::menus::SEP,
                         "edit.cut",
                         "edit.copy",
                         "edit.paste",
@@ -1860,6 +1903,7 @@ impl ToonApp {
         crate::video_dialog::window(self, ctx);
         crate::export_dialog::window(self, ctx);
         crate::colour_tools::picker_window(self, ctx);
+        crate::reference_viewer::window(self, ctx);
         crate::preferences::window(self, ctx);
         crate::scene_menus::window(self, ctx);
         crate::unsaved::window(self, ctx);
