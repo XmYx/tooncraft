@@ -217,6 +217,7 @@ pub static ALL: &[Cmd] = &[
     cmd("frame.next", tlm!("Next frame"), Some(Icon::NextFrame), G::Frame, Remap("."), |a, _, _| a.go_to(a.frame as i64 + 1)),
     cmd("frame.prev_drawing", tlm!("Previous drawing"), Some(Icon::PrevDrawing), G::Frame, Remap("Ctrl+Left"), |a, _, _| a.step_drawing(false)),
     cmd("frame.next_drawing", tlm!("Next drawing"), Some(Icon::NextDrawing), G::Frame, Remap("Ctrl+Right"), |a, _, _| a.step_drawing(true)),
+    cmd("view.radial_menu", tlm!("Radial menu"), Some(Icon::Radial), G::View, Remap("V"), |a, ctx, _| crate::tool_palettes::open_radial(a, ctx)),
     cmd("app.find_command", tlm!("Find a command"), Some(Icon::Search), G::Help, Remap("Ctrl+Shift+P"), |a, _, _| a.find.open = true),
     cmd("select.invert", tlm!("Invert selection"), None, G::Select, Remap("Ctrl+Shift+I"), |a, _, _| crate::selection_tools::invert(a)),
     cmd("frame.swap_next", tlm!("Show the next drawing of the layer here"), None, G::Frame, Remap("Ctrl+Alt+Down"), |a, _, _| a.swap_step(true)),
@@ -329,6 +330,7 @@ pub static ALL: &[Cmd] = &[
     }),
     cmd("file.save_version", tlm!("Save New Version"), None, G::File, Fixed("Ctrl+Alt+S"), |a, _, _| a.save_new_version()),
     cmd("file.import_images", tlm!("Import Image Sequence…"), None, G::File, NoKey, |a, _, _| a.import_images()),
+    cmd("file.import_video", tlm!("Import Video…"), None, G::File, NoKey, |a, _, _| crate::video_dialog::open(a)),
     cmd("file.import_sound", tlm!("Import Sound…"), Some(Icon::Sound), G::File, NoKey, |a, _, _| a.import_sound()),
     when(
         cmd("file.remove_sound", tlm!("Remove Sound"), None, G::File, NoKey, |a, _, _| {
@@ -683,8 +685,8 @@ mod tests {
         ] {
             assert!(get(id).is_some_and(|c| matches!(c.key, Key::Remap(_))), "{id}");
         }
-        // 51, then the zoom and rotate-view tools
-        assert_eq!(remappable().count(), 53);
+        // 51, then the zoom and rotate-view tools, then the radial menu
+        assert_eq!(remappable().count(), 54);
     }
 
     #[test]

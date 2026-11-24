@@ -28,6 +28,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Paste as New Drawings, Paste Frames Moving Later Frames | Our wording | Use |
 | Reverse Selected Frames, Repeat Selected Frames | Descriptive (instead of vendor terms for cycles) | Use |
 | Import Image Sequence | Descriptive | Use |
+| Import Video | Descriptive | Use |
 | Video (MP4, H.264), Animated PNG | Format names (allowed by rule 3) | Use |
 | Select, Lasso, Rectangle, Transform Selection, Flip Horizontally / Vertically | Generic | Use (common) |
 | Shapes, Line, Rectangle, Ellipse | Generic | Use (common) |
@@ -72,3 +73,4 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Rulers, Straight ruler, Curve ruler, Ellipse ruler, Concentric ruler, One-, Two-, Three-Point Perspective, Snap strokes to grid lines, Reach | Generic drafting terms and our wording | Use (common) |
 | Text, Place Text, Align left, Centre, Align right, Line spacing, Letter spacing | Generic typesetting terms | Use (common) |
 | Colour layer, Add Colour Layer, Colour of …, Stop Following the Line Layer | Generic ink-and-paint terms and our wording | Use (common) |
+| Tool Palette, Radial menu, Use in the radial menu | Generic UI terms (a palette of buttons; a ring menu) | Use (common) |
