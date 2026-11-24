@@ -99,6 +99,7 @@ tooncraft	Brush imported
 tooncraft	Brush opacity	
 tooncraft	Brush pen	
 tooncraft	Brush preset	
+tooncraft	Brush preset: {name}	
 tooncraft	Brush preview: a stroke drawn with the current settings	
 tooncraft	Brush settings reverted	
 tooncraft	Brush {name} loaded	
@@ -237,7 +238,7 @@ tooncraft	Drag around an area to fill it
 tooncraft	Drag around the centre to turn the view; double-click puts it upright	
 tooncraft	Drag from start to end; inside the selection when there is one	
 tooncraft	Drag further from the pivot to scale or turn	
-tooncraft	Drag inside to move, corners to scale, the top knob to rotate	
+tooncraft	Drag inside to move, a corner to scale, the top knob to rotate	
 tooncraft	Drag the four corners freely (perspective), then Apply	
 tooncraft	Drag to move this end of the loop range, or use the arrow keys when it has the focus	
 tooncraft	Drag to move, a corner to scale, the knob to turn, the cross to move the pivot	
@@ -759,6 +760,7 @@ tooncraft	Output
 tooncraft	Output black	
 tooncraft	Output white	
 tooncraft	Overlay	
+tooncraft	Own settings	
 tooncraft	Own settings for {layer}	
 tooncraft	PNG Sequence	
 tooncraft	PNG Sequence per Layer	
@@ -988,6 +990,7 @@ tooncraft	Select Layer Above
 tooncraft	Select Layer Below	
 tooncraft	Select everything that is not selected (Ctrl+Shift+I)	
 tooncraft	Select frames	
+tooncraft	Select something first	
 tooncraft	Select tool, select all	
 tooncraft	Selected frames	
 tooncraft	Selected {n} pixels	
@@ -1088,7 +1091,6 @@ tooncraft	Start
 tooncraft	Start (now)	
 tooncraft	Start Sound Here	
 tooncraft	Starts at frame	
-tooncraft	Steady line	
 tooncraft	Steady line (px)	
 tooncraft	Step by	
 tooncraft	Step {n}: {label}	
@@ -1125,13 +1127,13 @@ tooncraft	Text
 tooncraft	Text dropped	
 tooncraft	Text placed	
 tooncraft	Texture	
-tooncraft	The brush follows the pen only when it is further than this: very steady lines	
 tooncraft	The current layer, from this frame	
 tooncraft	The drawings' own colours	
 tooncraft	The flip set holds at most {n} frames	
 tooncraft	The last save of this shot was interrupted and there is no backup.	
 tooncraft	The last save was interrupted and the backup does not open: {error}	
 tooncraft	The layer has no other drawing	
+tooncraft	The other tools of this group	
 tooncraft	The picker in a window of its own	
 tooncraft	The selection is too detailed to keep; nothing changed	
 tooncraft	The shot has as many palettes as it can hold	
@@ -1169,6 +1171,7 @@ tooncraft	Tongue (L TH)
 tooncraft	Too many presets	
 tooncraft	Too many saved workspaces	
 tooncraft	Tool	
+tooncraft	Tool: {tool}	
 tooncraft	ToonCraft found a recovery copy from {when} that is newer than the shot. Open it?	
 tooncraft	ToonCraft shot	
 tooncraft	Top	
@@ -1276,6 +1279,7 @@ tooncraft	{layer}, frame {frame}: {cell}
 tooncraft	{name} (missing)	
 tooncraft	{name} ({n} frames)	
 tooncraft	{name} and {n} more	
+tooncraft	{name} bar	
 tooncraft	{name} curve: {count} keys	
 tooncraft	{name} is a favourite	
 tooncraft	{name} is no longer a favourite	

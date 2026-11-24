@@ -99,6 +99,7 @@ mod timeline_ruler;
 #[cfg(test)]
 mod timeline_ui_tests;
 mod timing_panel;
+mod tool_options;
 mod tool_rail;
 mod top_bar;
 #[cfg(test)]

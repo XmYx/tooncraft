@@ -1273,7 +1273,7 @@ impl ToonApp {
         self.textures.begin_frame();
         self.shortcuts(&ctx);
         egui::Panel::top("top-bar").exact_size(crate::top_bar::HEIGHT).show(ui, |ui| crate::top_bar::show(self, ui));
-        egui::Panel::top("tool-options").show(ui, |ui| crate::panels::tool_options(self, ui));
+        egui::Panel::top("tool-options").min_size(crate::tool_options::HEIGHT).show(ui, |ui| crate::tool_options::show(self, ui));
         egui::Panel::bottom("status").show(ui, |ui| self.status_bar(ui));
         egui::Panel::left("tools").exact_size(crate::tool_rail::WIDTH).resizable(false).show(ui, |ui| crate::tool_rail::show(self, ui));
         egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| crate::dock::show(self, ui));

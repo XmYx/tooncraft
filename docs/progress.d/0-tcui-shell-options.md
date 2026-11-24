@@ -1,0 +1,1 @@
+- 2026-11-24: The tool options bar starts with the tool and its group, then a preset dropdown that shows strokes, then scrub fields for size, opacity and smoothing, then the tool's own options; mouse pressure moved to the Brush panel.

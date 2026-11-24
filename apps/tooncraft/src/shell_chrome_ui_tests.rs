@@ -241,3 +241,73 @@ fn the_colour_chips_swap_back_to_the_previous_colour() {
     h.run();
     assert_eq!(&h.state().color[..3], &[10, 20, 30]);
 }
+
+#[test]
+fn the_options_bar_scrub_fields_take_keys_and_typed_percentages() {
+    let mut h = harness();
+    h.key_press(Key::P);
+    h.run();
+    let before = h.state().brushes[0].size;
+    h.get(By::new().role(egui::Role::SpinButton).label("Size")).focus();
+    h.run();
+    for _ in 0..3 {
+        h.key_press(Key::ArrowUp);
+        h.run();
+    }
+    assert!(h.state().brushes[0].size > before, "arrow keys grow the size");
+    // opacity is typed as a percentage
+    // the bar's opacity is the topmost of the "Opacity" boxes (the layers have their own)
+    fn top_opacity<'h>(h: &'h Harness<'static, ToonApp>) -> egui_kittest::Node<'h> {
+        h.query_all(By::new().role(egui::Role::SpinButton).label("Opacity")).min_by(|a, b| a.rect().top().total_cmp(&b.rect().top())).expect("an opacity box")
+    }
+    top_opacity(&h).focus();
+    h.run();
+    h.key_press_modifiers(egui::Modifiers::COMMAND, Key::A);
+    h.run();
+    top_opacity(&h).type_text("40");
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    assert!((h.state().brushes[0].opacity - 0.4).abs() < 1e-4, "40 % → {}", h.state().brushes[0].opacity);
+    // the bars are named for assistive technology too
+    h.get(By::new().role(egui::Role::Slider).label("Size bar"));
+    h.get(By::new().role(egui::Role::Slider).label("Smoothing bar"));
+}
+
+#[test]
+fn the_options_bar_starts_with_the_tool_and_its_group() {
+    let mut h = harness();
+    h.key_press(Key::P);
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Tool: Pencil")).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    h.get_by_label_contains("Watercolour").click();
+    h.run();
+    assert_eq!(h.state().tool, Tool::Watercolour);
+    assert_eq!(h.state().preferences.prefs.tool_rail.get("draw").map(String::as_str), Some("watercolour"));
+    // the preset dropdown opens on the presets and Revert
+    h.get(By::new().role(egui::Role::ComboBox).label("Preset")).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    h.get(By::new().role(egui::Role::Button).label("Revert"));
+}
+
+#[test]
+fn the_bucket_options_have_mode_gaps_tolerance_and_what_to_look_at() {
+    let mut h = harness();
+    h.key_press(Key::F);
+    h.run();
+    for name in ["Fill", "Empty Only", "Repaint", "Off", "Small", "Medium", "Large"] {
+        h.get(By::new().label(name).role(egui::Role::Button));
+    }
+    h.get(By::new().role(egui::Role::ComboBox).label("Look at"));
+    h.get(By::new().role(egui::Role::SpinButton).label("Tolerance")).focus();
+    h.run();
+    let before = h.state().fill.tolerance;
+    h.key_press(Key::ArrowUp);
+    h.run();
+    assert!(h.state().fill.tolerance > before);
+}

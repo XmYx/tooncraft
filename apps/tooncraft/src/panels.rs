@@ -5,137 +5,12 @@
 use egui::{Color32, Sense, Stroke, vec2};
 use tooncraft_brush::{BrushKind, Smoothing};
 use tooncraft_doc::{OnionMode, Pin};
-use tooncraft_engine::{Command, FillReference};
+use tooncraft_engine::Command;
 
 use crate::app::{Tool, ToonApp};
 
 fn hex(c: [u8; 4]) -> String {
     format!("{:02X}{:02X}{:02X}", c[0], c[1], c[2])
-}
-
-fn slider(ui: &mut egui::Ui, label: &str, v: &mut f32, range: std::ops::RangeInclusive<f32>) -> bool {
-    let l = ui.label(label);
-    ui.add(egui::Slider::new(v, range).max_decimals(2)).labelled_by(l.id).changed()
-}
-
-/// The tool options bar under the menu.
-pub fn tool_options(app: &mut ToonApp, ui: &mut egui::Ui) {
-    // wraps onto a second row when a tool has more options than fit
-    ui.horizontal_wrapped(|ui| {
-        ui.strong(app.tool.label());
-        ui.separator();
-        if let Some(kind) = app.tool.brush() {
-            let b = app.brush_mut(kind);
-            let l = ui.label(tl!("Size"));
-            ui.add(egui::Slider::new(&mut b.size, 0.5..=tooncraft_brush::MAX_SIZE).logarithmic(true).max_decimals(1).suffix(" px")).labelled_by(l.id);
-            slider(ui, tl!("Opacity"), &mut b.opacity, 0.0..=1.0);
-            slider(ui, tl!("Smoothing"), &mut b.smoothing.average, 0.0..=1.0);
-            let l = ui.label(tl!("Steady line"));
-            ui.add(egui::Slider::new(&mut b.smoothing.string, 0.0..=120.0).max_decimals(0).suffix(" px"))
-                .labelled_by(l.id)
-                .on_hover_text(tl!("The brush follows the pen only when it is further than this: very steady lines"));
-            ui.separator();
-            crate::brush_presets::picker(app, ui, kind);
-            ui.separator();
-            crate::draw_aids::brush_options(app, ui);
-        }
-        match app.tool {
-            Tool::Fill => {
-                use tooncraft_raster::fill::{FillMode, GAP_PRESETS};
-                for (m, name, tip) in [
-                    (FillMode::Any, tl!("Fill"), tl!("Fill the area under the click")),
-                    (FillMode::EmptyOnly, tl!("Empty Only"), tl!("Fill only empty areas; a click on paint does nothing")),
-                    (FillMode::Repaint, tl!("Repaint"), tl!("Give an area already painted on this layer a new colour")),
-                ] {
-                    ui.selectable_value(&mut app.fill.mode, m, name).on_hover_text(tip);
-                }
-                ui.separator();
-                ui.label(tl!("Gaps"));
-                for (g, name) in GAP_PRESETS.iter().zip([tl!("Off"), tl!("Small"), tl!("Medium"), tl!("Large")]) {
-                    let resp = ui.selectable_label(app.fill.gap == *g, name).on_hover_text(tlf!("Close gaps up to about {n} px", n = *g as u32 * 2));
-                    if resp.clicked() {
-                        app.fill.gap = *g;
-                    }
-                }
-                let l = ui.label(tl!("Tolerance"));
-                ui.add(egui::Slider::new(&mut app.fill.tolerance, 0..=255)).labelled_by(l.id);
-                let l = ui.label(tl!("Close gaps"));
-                ui.add(egui::Slider::new(&mut app.fill.gap, 0..=tooncraft_raster::fill::MAX_GAP).suffix(" px")).labelled_by(l.id);
-                let l = ui.label(tl!("Spread under lines"));
-                ui.add(egui::Slider::new(&mut app.fill.spread, 0..=tooncraft_raster::fill::MAX_SPREAD).suffix(" px")).labelled_by(l.id);
-                let l = ui.label(tl!("Look at"));
-                let text = |r: FillReference| match r {
-                    FillReference::Layer => tl!("This layer"),
-                    FillReference::AllLayers => tl!("All visible layers"),
-                };
-                egui::ComboBox::from_id_salt("fill-ref")
-                    .selected_text(text(app.fill_reference))
-                    .show_ui(ui, |ui| {
-                        for r in [FillReference::AllLayers, FillReference::Layer] {
-                            ui.selectable_value(&mut app.fill_reference, r, text(r));
-                        }
-                    })
-                    .response
-                    .labelled_by(l.id);
-                ui.checkbox(&mut app.fill_every_frame, tl!("Every drawing of the layer"));
-                ui.checkbox(&mut app.aids.lasso_fill, tl!("Lasso fill")).on_hover_text(tl!("Drag around an area to fill it"));
-            }
-            Tool::Gradient => crate::draw_aids::gradient_options(app, ui),
-            Tool::Text => crate::text_tool::options(app, ui),
-            Tool::Picker => {
-                ui.label(tl!("Click the canvas to pick a colour (Alt+click with any brush)"));
-            }
-            Tool::Shape => {
-                crate::draw_aids::shape_options(app, ui);
-                ui.separator();
-                let b = app.brush_mut(BrushKind::Ink);
-                let l = ui.label(tl!("Size"));
-                ui.add(egui::Slider::new(&mut b.size, 0.5..=200.0).logarithmic(true).suffix(" px")).labelled_by(l.id);
-                ui.label(tl!("Shift: 15° lines, squares, circles"));
-            }
-            Tool::Select => {
-                ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Lasso, tl!("Lasso"));
-                ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Rectangle, tl!("Rectangle"));
-                ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Ellipse, tl!("Ellipse"));
-                ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Wand, tl!("Magic Wand"))
-                    .on_hover_text(tl!("Click an area to select the pixels like it"));
-                ui.separator();
-                crate::selection_tools::options(app, ui);
-                ui.separator();
-                let has = app.selection.is_some();
-                if ui.add_enabled(has, egui::Button::new(tl!("Flip H"))).on_hover_text(tl!("Flip horizontally")).clicked() {
-                    app.transform_selection(0.0, 0.0, (-1.0, 1.0), 0.0);
-                }
-                if ui.add_enabled(has, egui::Button::new(tl!("Flip V"))).on_hover_text(tl!("Flip vertically")).clicked() {
-                    app.transform_selection(0.0, 0.0, (1.0, -1.0), 0.0);
-                }
-                if ui.add_enabled(has, egui::Button::new(tl!("Rotate 90°"))).clicked() {
-                    app.transform_selection(0.0, 0.0, (1.0, 1.0), std::f32::consts::FRAC_PI_2);
-                }
-                if ui.add_enabled(has, egui::Button::new(tl!("Deselect"))).clicked() {
-                    app.selection = None;
-                }
-                ui.label(tl!("Drag inside to move, corners to scale, the top knob to rotate"));
-            }
-            Tool::Hand => {
-                ui.label(tl!("Drag to pan; wheel zooms, Alt+wheel rotates"));
-            }
-            Tool::Zoom => {
-                ui.label(tl!("Click to zoom in, Alt+click to zoom out, drag left or right to zoom smoothly"));
-            }
-            Tool::RotateView => {
-                ui.label(tl!("Drag around the centre to turn the view; double-click puts it upright"));
-            }
-            Tool::Transform => crate::peg_transform::options(app, ui),
-            _ => {
-                ui.separator();
-                let l = ui.label(tl!("Mouse pressure"));
-                ui.add(egui::Slider::new(&mut app.mouse_pressure, 0.05..=1.0).max_decimals(2))
-                    .labelled_by(l.id)
-                    .on_hover_text(tl!("Pressure used when drawing with a mouse"));
-            }
-        }
-    });
 }
 
 /// The Colour panel.
@@ -288,6 +163,12 @@ pub fn brush(app: &mut ToonApp, ui: &mut egui::Ui) {
         if ui.button(tl!("Reset Brush")).clicked() {
             *app.brush_mut(kind) = tooncraft_brush::Brush::preset(kind);
         }
+        ui.horizontal(|ui| {
+            let l = ui.label(tl!("Mouse pressure"));
+            ui.add(egui::Slider::new(&mut app.mouse_pressure, 0.05..=1.0).max_decimals(2))
+                .labelled_by(l.id)
+                .on_hover_text(tl!("Pressure used when drawing with a mouse"));
+        });
         ui.separator();
         crate::brush_editor::sections(app, ui, kind);
         ui.separator();

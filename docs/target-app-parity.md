@@ -508,7 +508,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Tool bar with flyouts for related tools | TB | D | S | The tool rail: select (lasso, rectangle, ellipse, wand), transform (selection, layer peg), draw, smudge, erase, fill, shapes, text, picker and, at the bottom, view (hand, zoom, rotate view); a corner mark on groups; hold, right-click, Menu or Shift+F10 opens the flyout with icon, name and key; the last-used variant is remembered in the preferences; colour chips swap back to the previous colour |
 | Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | One 32 px bar: the menus, the frame typed to go there, in and out, frame rate and length, the workspace segments, command search and undo/redo; New, Open and Save are in the File menu and on their keys |
 | Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | The strip above the canvas, with onion settings on right-click |
-| Brush properties: preset list with previews | TB | D | S | Preset picker with sample strokes, Revert |
+| Brush properties: preset list with previews | TB | D | S | The tool options bar: the tool's glyph and name (its group's tools), a preset dropdown showing the current brush as a stroke and every preset as a stroke, Revert; size, opacity and smoothing as scrub fields (drag the name or bar, or type) |
 | Brush editor | TB | D | S | The Brush panel, every control keyboard-reachable |
 | Pencil properties: caps and joins | TB | M | S | Size, opacity, smoothing, steady line; no caps or joins |
 | Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
