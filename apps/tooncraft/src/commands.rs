@@ -353,6 +353,13 @@ pub static ALL: &[Cmd] = &[
         a.engine.redo_label().map(|l| tlf!("Redo {action}", action = l))
     }),
     cmd("edit.history", tlm!("Undo History"), Some(Icon::History), G::Edit, NoKey, |a, _, _| a.workspace.raise(Pane::History)),
+    named(
+        toggle(when(cmd("edit.record_macro", tlm!("Record Macro"), None, G::Edit, NoKey, |a, _, _| crate::macro_ui::toggle(a)), not_stroking), |a| {
+            a.engine.is_recording()
+        }),
+        |a| a.engine.is_recording().then(|| tlf!("Stop Recording and Save Macro… ({n} steps)", n = a.engine.recorded_steps())),
+    ),
+    when(cmd("edit.play_macro", tlm!("Play Macro…"), None, G::Edit, NoKey, |a, _, _| crate::macro_ui::open(a)), not_stroking),
     cmd("edit.cut", tlm!("Cut"), Some(Icon::Cut), G::Edit, Fixed("Ctrl+X"), |a, _, _| {
         if a.selection.is_some() {
             a.copy_pixels(true);
