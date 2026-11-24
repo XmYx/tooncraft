@@ -24,6 +24,7 @@ mod colour_tools;
 #[cfg(test)]
 mod colour_ui_tests;
 mod command_search;
+mod commands;
 mod context_menus;
 mod curves;
 #[cfg(test)]
@@ -54,6 +55,7 @@ mod lipsync_panel;
 mod menu_actions;
 #[cfg(test)]
 mod menu_actions_tests;
+mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
 mod panels;

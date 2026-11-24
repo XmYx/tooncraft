@@ -1,6 +1,6 @@
 //! Find Command (Ctrl+Shift+P): type part of a command's name or its key, pick it from the list
-//! (arrows and Enter, or a click), and it runs exactly as its shortcut would. It covers every
-//! remappable command (tools, frames, layers, view, markers, selection); the menus hold the rest.
+//! (arrows and Enter, or a click), and it runs exactly as its menu item or shortcut would. It lists
+//! every command of the registry ([`crate::commands`]).
 
 use crate::app::ToonApp;
 
@@ -10,7 +10,7 @@ pub struct State {
     pub text: String,
     /// The highlighted row.
     pub at: usize,
-    /// Commands picked here, run with the next frame's shortcuts.
+    /// Commands picked here, run at the start of the next frame's shortcuts.
     pub pending: Vec<String>,
 }
 
@@ -18,9 +18,9 @@ pub struct State {
 /// (id, name, key).
 pub fn matches(app: &ToonApp, text: &str) -> Vec<(&'static str, String, String)> {
     let q = text.trim().to_lowercase();
-    crate::keys::COMMANDS
+    crate::commands::ALL
         .iter()
-        .map(|(id, _, _)| (*id, crate::keys::label(id), app.keys.text(id)))
+        .map(|c| (c.id, format!("{}: {}", c.group.label(), c.label()), c.key_text(app)))
         .filter(|(_, name, key)| q.is_empty() || q.split_whitespace().all(|w| name.to_lowercase().contains(w) || key.to_lowercase().contains(w)))
         .collect()
 }
