@@ -256,6 +256,8 @@ pub struct ToonApp {
     pub scene_form: Option<crate::scene_menus::SceneForm>,
     /// The Export dialog, and its last choices per shot.
     pub export_dialog: Option<crate::export_dialog::Dialog>,
+    /// Paper and frames per page for the next printed sheet or frames.
+    pub print: (tooncraft_interop::sheet_pdf::Paper, u32),
     pub export_memory: crate::export_dialog::Memory,
     /// Find Command.
     pub find: crate::command_search::State,
@@ -441,6 +443,7 @@ impl ToonApp {
             recent_files: crate::start_screen::Recent::new(!cfg!(test) && cli.screenshot.is_none() && cli.bench_playback.is_none()),
             start: Default::default(),
             export_dialog: None,
+            print: (tooncraft_interop::sheet_pdf::Paper::A4, 4),
             export_memory: Default::default(),
             find: Default::default(),
             import_dialog: None,
@@ -519,6 +522,7 @@ impl ToonApp {
                 app.preferences.tab = crate::preferences::Tab::Pen;
             }
             Some("export") => crate::export_dialog::open(&mut app, "mp4"),
+            Some("print-frames") => crate::export_dialog::open(&mut app, "frames-pdf"),
             Some("shortcuts") => app.show_shortcuts = true,
             Some("find") => app.find.open = true,
             Some("new-shot") => app.new_shot = Some(app.new_shot_defaults()),
@@ -1103,6 +1107,29 @@ impl ToonApp {
     }
 
     /// Export as `kind` with `o` (range, size, paper, loop, digits): asks where, then writes.
+    /// The words printed on sheets and frames, translated.
+    fn print_labels() -> tooncraft_interop::sheet_pdf::Labels {
+        tooncraft_interop::sheet_pdf::Labels { frame: tl!("Frame").to_string(), notes: tl!("Notes").to_string(), frames: tl!("frames").to_string() }
+    }
+
+    /// The face sheets and frames are printed in: the app's own.
+    fn print_face(&self) -> Result<&tooncraft_engine::text::Face, String> {
+        self.engine.fonts.get("Ubuntu Light").ok_or_else(|| tl!("No font to print with").to_string())
+    }
+
+    /// The exposure sheet as a PDF to print.
+    pub fn sheet_pdf(&self, paper: tooncraft_interop::sheet_pdf::Paper) -> Result<Vec<u8>, String> {
+        let face = self.print_face()?;
+        tooncraft_interop::sheet_pdf::export(&self.engine.project, paper, face.data(), &Self::print_labels()).map_err(|e| e.to_string())
+    }
+
+    /// Frames `start..end` as a PDF to print, on the paper and as many to a page as last chosen.
+    pub fn frames_pdf(&self, start: u32, end: u32) -> Result<Vec<u8>, String> {
+        let face = self.print_face()?;
+        let (paper, per_page) = self.print;
+        tooncraft_interop::sheet_pdf::frames(&self.engine.project, paper, start, end, per_page, face.data(), &Self::print_labels()).map_err(|e| e.to_string())
+    }
+
     pub fn export_with(&mut self, kind: &str, o: tooncraft_engine::export::ExportOptions) {
         use tooncraft_engine::export;
         let name = self.engine.project.name.clone();
@@ -1155,6 +1182,16 @@ impl ToonApp {
                 craft_atomic::atomic_write(&f, tooncraft_interop::otio::to_json(&self.engine.project).as_bytes())
                     .map(|_| tlf!("Exported {file}", file = f.display()))
                     .map_err(|e| e.to_string())
+            }),
+            "sheet-pdf" => rfd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(format!("{name} sheet.pdf")).save_file().map(|f| {
+                self.sheet_pdf(self.print.0)
+                    .and_then(|bytes| craft_atomic::atomic_write(&f, &bytes).map_err(|e| e.to_string()))
+                    .map(|_| tlf!("Exported {file}", file = f.display()))
+            }),
+            "frames-pdf" => rfd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(format!("{name} frames.pdf")).save_file().map(|f| {
+                self.frames_pdf(o.start, o.end)
+                    .and_then(|bytes| craft_atomic::atomic_write(&f, &bytes).map_err(|e| e.to_string()))
+                    .map(|_| tlf!("Exported {file}", file = f.display()))
             }),
             "jpeg" => rfd::FileDialog::new().set_title(tl!("Folder for the JPEG frames")).pick_folder().map(|d| {
                 export::jpeg_sequence(&self.engine.project, &d, &name, o, 90, |_| {})
@@ -1458,6 +1495,12 @@ impl ToonApp {
                     {
                         let o = tooncraft_engine::export::ExportOptions::whole(&self.engine.project);
                         self.export_with("otio", o);
+                    }
+                    if ui.button(tl!("Exposure Sheet to Print (PDF)…")).clicked() {
+                        crate::export_dialog::open(self, "sheet-pdf");
+                    }
+                    if ui.button(tl!("Frames to Print (PDF)…")).clicked() {
+                        crate::export_dialog::open(self, "frames-pdf");
                     }
                     if ui.button(tl!("JPEG Sequence…")).clicked() {
                         crate::export_dialog::open(self, "jpeg");

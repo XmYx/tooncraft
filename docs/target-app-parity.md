@@ -438,7 +438,7 @@ Weight: 7
 | Scanned paper: peg-hole registration and clean-up | TV TB | M | L | |
 | Camera capture for stop motion and pencil tests | TV | M | M | |
 | Scene export for compositing apps (layers, camera, timing) | TV TB | M | M | |
-| Printed exposure sheets and frames (PDF) | TV TB | M | S | |
+| Printed exposure sheets and frames (PDF) | TV TB | D | S | Export ▸ Exposure Sheet to Print (PDF): frame, notes and a column per layer, drawing numbers where they start and hold lines, whole seconds to a page; Frames to Print (PDF): 1 to 12 frames to a page through the camera; A4 or US Letter; `tooncraft-cli export --sheet-pdf` and `--frames-pdf`; through craft-pdf |
 | Shot list and edit decisions out (EDL or OTIO) | TB | D | S | OpenTimelineIO: a track per layer, a clip per exposure, gaps and markers |
 | Asset library shared between shots | TB CS | P | M | Drawings with their timing, through My Drawings (`.toondrawings` files in the user's folder, or anywhere); no shared sounds, templates or rigs |
 | Reading the references' native project files | all | O | XL | Out of scope: the native project formats of TVPaint, Harmony, Clip Studio and Procreate are proprietary and undocumented; exchange goes through PSD, XDTS and image sequences |
