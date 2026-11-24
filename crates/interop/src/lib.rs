@@ -9,6 +9,7 @@
 //! | [`psd`] | export, import | one frame as a layered Photoshop document |
 //! | [`ora`] | import | an OpenRaster document's layers |
 //! | [`xdts`] | export, import | the exposure-sheet interchange format (`.xdts`) |
+//! | [`sheet_pdf`] | export | the exposure sheet as a PDF to print |
 //! | [`levels`] | export, import | the sheet plus one PNG per drawing, ready to relink |
 //! | [`layer_sequences`] | export | one transparent PNG sequence per layer for compositing |
 //! | [`gif`] | import | the frames and delays of an animated GIF |
@@ -30,6 +31,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+pub mod abr;
 pub mod boards;
 mod common;
 pub mod drawing_file;
@@ -41,6 +43,7 @@ pub mod otio;
 pub mod palette;
 pub mod prores;
 pub mod psd;
+pub mod sheet_pdf;
 pub mod video;
 pub mod xdts;
 
@@ -65,3 +68,9 @@ pub enum InteropError {
 }
 
 pub type Result<T> = std::result::Result<T, InteropError>;
+
+impl From<craft_pdf::write::WriteError> for InteropError {
+    fn from(e: craft_pdf::write::WriteError) -> Self {
+        InteropError::Encode(e.to_string())
+    }
+}

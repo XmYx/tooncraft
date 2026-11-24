@@ -1,0 +1,1 @@
+- 2026-11-24: Lip-sync from the typed line of dialogue: Lip Sync panel ▸ Mouths from the Typed Line lays the line's mouths over the voiced frames of the sound (or holds each without sound).

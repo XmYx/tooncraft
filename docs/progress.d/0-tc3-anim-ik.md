@@ -1,0 +1,1 @@
+- 2026-11-24: Inverse kinematics: with the Transform tool's Inverse Kinematics option, moving a peg turns the pegs it hangs from so it follows (drag or arrow keys, one undo step).

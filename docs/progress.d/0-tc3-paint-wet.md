@@ -1,0 +1,1 @@
+- 2026-11-24: Wet paint: water (a thin glaze) and drying along the stroke, and watercolour edges: pigment pooling along the inside of the edge and bleeding past it into the paper, worked out at the end of the stroke in its one undo step.

@@ -22,8 +22,10 @@ tooncraft-fx = { workspace = true }
 tooncraft-format = { workspace = true }
 tooncraft-engine = { workspace = true }
 tooncraft-interop = { workspace = true }
+tooncraft-script = { workspace = true }
 serde_json = { workspace = true }
+# Ubuntu Light: the text command test and the printed exposure sheet (Ubuntu font licence)
+epaint_default_fonts = "0.37"
 
 [dev-dependencies]
-# a fixed font for the text command test
-epaint_default_fonts = "0.37"
+craft-psd = { workspace = true }
