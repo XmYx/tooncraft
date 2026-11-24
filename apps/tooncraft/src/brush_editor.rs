@@ -61,11 +61,12 @@ pub fn source_label(s: Source) -> String {
         Source::Speed => tl!("Speed"),
         Source::Rotation => tl!("Direction"),
         Source::Random => tl!("Random"),
+        Source::Barrel => tl!("Pen rotation"),
     }
     .to_string()
 }
 
-fn grain_label(k: GrainKind) -> String {
+pub fn grain_label(k: GrainKind) -> String {
     match k {
         GrainKind::Paper => tl!("Paper"),
         GrainKind::Canvas => tl!("Canvas weave"),
@@ -216,6 +217,8 @@ fn grain(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
     b.grain_kind = choice;
     slider(ui, tl!("Grain strength"), &mut b.grain, 0.0..=1.0);
     slider(ui, tl!("Grain size"), &mut b.grain_scale, 0.5..=16.0);
+    slider(ui, tl!("Grain rotation"), &mut b.grain_angle, -180.0..=180.0);
+    slider(ui, tl!("Grain contrast"), &mut b.grain_contrast, 0.1..=tooncraft_brush::MAX_GRAIN_CONTRAST);
     if b.grain_kind == GrainKind::Image {
         let current = b.grain_image;
         let tips: Vec<(u64, String)> = app.engine.project.tips.iter().map(|(id, t)| (*id, t.name.clone())).collect();
@@ -283,11 +286,16 @@ fn nearest(curve: &Curve, r: Rect, p: Pos2, within: f32) -> Option<usize> {
 /// A response-curve editor: returns whether the curve changed. `point` is the selected control
 /// point.
 pub fn curve_editor(ui: &mut Ui, curve: &mut Curve, point: &mut usize, name: &str) -> bool {
+    curve_editor_with_id(ui, curve_id(), curve, point, name)
+}
+
+/// [`curve_editor`] with its own widget id (another editor may be on screen at the same time).
+pub fn curve_editor_with_id(ui: &mut Ui, id: Id, curve: &mut Curve, point: &mut usize, name: &str) -> bool {
     let before = *curve;
     *point = (*point).min(curve.len().saturating_sub(1));
     let side = ui.available_width().clamp(120.0, 220.0);
     let (_, rect) = ui.allocate_space(vec2(side, side));
-    let resp = ui.interact(rect, curve_id(), Sense::click_and_drag());
+    let resp = ui.interact(rect, id, Sense::click_and_drag());
     if resp.clicked() || resp.drag_started() || resp.double_clicked() {
         resp.request_focus();
     }
@@ -628,7 +636,7 @@ mod tests {
         assert_eq!((st.target, st.source), (Target::Opacity, Source::Speed));
         h.get(By::new().role(egui::Role::Slider).label_contains("Curve: Speed to Opacity, point 1 of 2"));
         // Tab from the last source button lands on the curve editor, and its keys then work
-        h.get_by_label("Edit the curve of Random").focus();
+        h.get_by_label("Edit the curve of Pen rotation").focus();
         h.run();
         h.key_press(Key::Tab);
         h.run();

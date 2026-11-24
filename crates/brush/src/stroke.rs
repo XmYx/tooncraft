@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tooncraft_raster::{Surface, TILE, TILE_PIXELS, Tile, TileSnapshot, over, premultiply, scale_alpha};
 
 use crate::dab::Shape;
-use crate::{Brush, BrushKind, Compose, Dab, GrainKind, Inputs, Sample, Source, Stabilizer, Target, hash01};
+use crate::{Brush, BrushKind, Compose, Dab, Grain, Inputs, Sample, Source, Stabilizer, Target, hash01};
 
 /// Turns input samples into evenly spaced dabs with the brush's dynamics applied.
 ///
@@ -102,12 +102,13 @@ impl StrokeEngine {
     /// The inputs of a dab: pressure, tilt, speed, heading and (filled in per target) chance.
     fn inputs(&self, s: &Sample, random: f32) -> Inputs {
         let tilt = (s.tilt_x * s.tilt_x + s.tilt_y * s.tilt_y).sqrt().min(1.0);
-        let mut i = [0.0; 5];
+        let mut i = [0.0; 6];
         i[Source::Pressure.index()] = s.pressure;
         i[Source::Tilt.index()] = tilt;
         i[Source::Speed.index()] = (self.speed / 2500.0).clamp(0.0, 1.0);
         i[Source::Rotation.index()] = self.heading;
         i[Source::Random.index()] = random;
+        i[Source::Barrel.index()] = s.rotation;
         i
     }
 
@@ -176,6 +177,11 @@ fn lerp_sample(a: &Sample, b: &Sample, t: f32) -> Sample {
         tilt_x: l(a.tilt_x, b.tilt_x),
         tilt_y: l(a.tilt_y, b.tilt_y),
         time: a.time + (b.time - a.time) * t as f64,
+        // the barrel turns the short way round: 0.95 to 0.05 passes through 0
+        rotation: {
+            let d = (b.rotation - a.rotation + 0.5).rem_euclid(1.0) - 0.5;
+            (a.rotation + d * t).rem_euclid(1.0)
+        },
     }
 }
 
@@ -222,17 +228,15 @@ impl Stroke {
     pub fn begin_with(surface: &mut Surface, brush: Brush, images: Images) -> Self {
         let brush = brush.sanitized();
         surface.begin_capture();
-        // a grain image that is missing falls back to paper
-        let grain_kind = if brush.grain_kind == GrainKind::Image && images.grain.is_none() { GrainKind::Paper } else { brush.grain_kind };
+
         let wet = brush.kind != BrushKind::Eraser && (brush.kind == BrushKind::Smudge || brush.wet.pickup > 0.0);
         Self {
             shape: Shape {
                 kind: brush.kind,
                 hardness: brush.hardness,
                 grain: brush.grain,
-                grain_scale: brush.grain_scale,
-                grain_kind,
-                grain_image: images.grain,
+                // a grain image that is missing falls back to paper
+                texture: Grain::new(brush.grain_kind, brush.grain_scale, brush.grain_angle, brush.grain_contrast, images.grain),
                 tip: images.tip,
             },
             color: premultiply(brush.color),
@@ -683,7 +687,7 @@ mod tests {
     #[test]
     fn tilt_flattens_dabs() {
         let mut e = StrokeEngine::new(Brush { dynamics: crate::Dynamics { tilt: 1.0, ..Default::default() }, ..Brush::preset(BrushKind::Chalk) });
-        let d = e.feed(Sample { x: 5.0, y: 5.0, pressure: 1.0, tilt_x: 0.0, tilt_y: 1.0, time: 0.0 });
+        let d = e.feed(Sample { x: 5.0, y: 5.0, pressure: 1.0, tilt_x: 0.0, tilt_y: 1.0, time: 0.0, rotation: 0.0 });
         assert!(d[0].roundness < 0.5);
         assert!((d[0].angle - std::f32::consts::FRAC_PI_2).abs() < 1e-4);
     }
@@ -715,7 +719,7 @@ mod tests {
             let mut s = Surface::new(256, 256).unwrap();
             let before = s.clone();
             let brush = Brush { size, ..Brush::preset(BrushKind::ALL[kind]) };
-            let samples: Vec<Sample> = pts.iter().map(|p| Sample { x: p.0, y: p.1, pressure: p.2, tilt_x: p.3, tilt_y: 0.0, time: p.4 }).collect();
+            let samples: Vec<Sample> = pts.iter().map(|p| Sample { x: p.0, y: p.1, pressure: p.2, tilt_x: p.3, tilt_y: 0.0, time: p.4, rotation: 0.0 }).collect();
             let undo = paint(&mut s, brush, &samples);
             s.swap_snapshot(undo);
             s.prune();
@@ -727,7 +731,7 @@ mod tests {
 #[cfg(test)]
 mod dynamics_tests {
     use super::*;
-    use crate::{Curve, Dynamics, Response, Smoothing, Wet};
+    use crate::{Curve, Dynamics, GrainKind, Response, Smoothing, Wet};
 
     fn plain(kind: BrushKind) -> Brush {
         Brush { smoothing: Smoothing { average: 0.0, catch_up: false, ..Default::default() }, ..Brush::preset(kind) }
@@ -768,10 +772,12 @@ mod dynamics_tests {
             for source in [Source::Pressure, Source::Tilt, Source::Speed, Source::Rotation, Source::Random] {
                 let brush = with_response(|r| r.set(target, source, 1.0));
                 // two strokes with different inputs: pressure, tilt, speed, heading
-                let a: Vec<Sample> =
-                    (0..30).map(|i| Sample { x: 10.0 + i as f32 * 2.0, y: 20.0, pressure: 1.0, tilt_x: 0.0, tilt_y: 0.0, time: i as f64 * 0.5 }).collect();
-                let b: Vec<Sample> =
-                    (0..30).map(|i| Sample { x: 200.0, y: 10.0 + i as f32 * 12.0, pressure: 0.1, tilt_x: 0.9, tilt_y: 0.0, time: i as f64 * 0.0005 }).collect();
+                let a: Vec<Sample> = (0..30)
+                    .map(|i| Sample { x: 10.0 + i as f32 * 2.0, y: 20.0, pressure: 1.0, tilt_x: 0.0, tilt_y: 0.0, time: i as f64 * 0.5, rotation: 0.0 })
+                    .collect();
+                let b: Vec<Sample> = (0..30)
+                    .map(|i| Sample { x: 200.0, y: 10.0 + i as f32 * 12.0, pressure: 0.1, tilt_x: 0.9, tilt_y: 0.0, time: i as f64 * 0.0005, rotation: 0.0 })
+                    .collect();
                 // the mean size and strength of the dabs after the first (the speed is unknown there)
                 let key = |ds: Vec<Dab>| {
                     let n = ds.len().saturating_sub(1).max(1) as f32;
@@ -806,6 +812,30 @@ mod dynamics_tests {
         let turn = with_response(|r| r.set(Target::Angle, Source::Random, 0.5));
         let angles: Vec<f32> = dabs(turn, &row(40, 1.0)).iter().map(|d| d.angle).collect();
         assert!(angles.iter().any(|a| a.abs() > 0.5) && angles.iter().all(|a| a.abs() <= std::f32::consts::PI + 1e-3));
+    }
+
+    #[test]
+    fn barrel_rotation_turns_the_dab() {
+        let brush = with_response(|r| r.set(Target::Angle, Source::Barrel, 1.0));
+        let turned = |rotation: f32| -> Vec<f32> {
+            let pts: Vec<Sample> = row(6, 1.0).into_iter().map(|s| Sample { rotation, ..s }).collect();
+            dabs(brush, &pts).iter().map(|d| d.angle).collect()
+        };
+        let (flat, quarter) = (turned(0.0), turned(0.25));
+        assert!(!flat.is_empty() && flat.iter().all(|a| a.abs() < 1e-4), "{flat:?}");
+        assert!(quarter.iter().all(|a| (a - std::f32::consts::FRAC_PI_2).abs() < 1e-3), "{quarter:?}");
+        // without a mapping from the barrel, the rotation changes nothing
+        let plain = with_response(|_| {});
+        let still: Vec<Sample> = row(6, 1.0).into_iter().map(|s| Sample { rotation: 0.4, ..s }).collect();
+        assert_eq!(dabs(plain, &still), dabs(plain, &row(6, 1.0)));
+    }
+
+    #[test]
+    fn barrel_rotation_is_interpolated_the_short_way_round() {
+        let a = Sample { rotation: 0.95, ..Sample::at(0.0, 0.0, 1.0, 0.0) };
+        let b = Sample { rotation: 0.05, ..Sample::at(10.0, 0.0, 1.0, 0.1) };
+        let mid = lerp_sample(&a, &b, 0.5).rotation;
+        assert!(!(0.05..0.95).contains(&mid), "went the long way: {mid}");
     }
 
     #[test]
@@ -844,6 +874,22 @@ mod dynamics_tests {
         let mut t = Surface::new(120, 60).unwrap();
         paint(&mut t, brush, &pts);
         assert!(!t.is_empty());
+    }
+
+    #[test]
+    fn grain_rotation_and_contrast_change_the_stroke() {
+        let stroke = |angle: f32, contrast: f32| {
+            let mut s = Surface::new(200, 80).unwrap();
+            let brush =
+                Brush { grain: 1.0, grain_kind: GrainKind::Canvas, grain_angle: angle, grain_contrast: contrast, size: 24.0, ..plain(BrushKind::Chalk) };
+            let pts: Vec<Sample> = (0..60).map(|i| Sample::at(20.0 + i as f32 * 2.5, 40.0, 0.5, i as f64 * 0.01)).collect();
+            paint(&mut s, brush, &pts);
+            s
+        };
+        let base = stroke(0.0, 1.0);
+        assert_ne!(stroke(30.0, 1.0), base, "rotation does nothing");
+        assert_ne!(stroke(0.0, 3.0), base, "contrast does nothing");
+        assert_eq!(stroke(30.0, 3.0), stroke(30.0, 3.0), "replays exactly");
     }
 
     #[test]

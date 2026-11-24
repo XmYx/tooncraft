@@ -51,6 +51,8 @@ or non-numbers fall back to the default).
 | `spacing` | 0.02 … 2 | Distance between dabs as a fraction of the dab's diameter |
 | `grain` | 0 … 1 | How strongly the grain shapes the dabs |
 | `grain_scale` | 0.5 … 64 | Grain feature size in canvas pixels (for an image: canvas pixels per image pixel) |
+| `grain_angle` | -180 … 180 | Grain rotation in degrees (turns the texture, not the dab; values wrap); left out when 0 |
+| `grain_contrast` | 0.1 … 4 | Grain contrast: above 1 sharpens peaks and valleys, below 1 flattens them; left out when 1 |
 | `grain_kind` | `paper`, `canvas`, `speckle`, `clouds`, `image` | Which texture; `image` uses `grain.png` (and falls back to `paper` when the file has none) |
 | `color` | `[r, g, b, a]` | Straight (not premultiplied) 8-bit RGBA |
 | `smoothing` | `average` 0 … 1, `string` 0 … 500, `catch_up` bool | Moving-average strength, pulled-string length in canvas pixels, and whether the line finishes where the pen lifts |
@@ -81,14 +83,15 @@ archive, and the id is assigned when the brush is put to use.
 * `tilt` (0 … 1): how much the pen's lean flattens and turns the dab.
 * `min_size` (0.01 … 1): the smallest size as a fraction of `size`, whatever the mappings say.
 * `response`: for each **target** (`size`, `opacity`, `flow`, `scatter`, `angle`) a set of
-  **sources** (`pressure`, `tilt`, `speed`, `rotation`, `random`), each with an `amount` (-1 … 1; 0 is off) and a
+  **sources** (`pressure`, `tilt`, `speed`, `rotation`, `random`, `barrel`), each with an `amount` (-1 … 1; 0 is off) and a
   `curve`. Only mappings that are on, or that have a curve other than the source's starting curve,
   are written. A missing `curve` is the source's starting curve: the identity for every source except
   `speed`, which starts as the reverse (`[[0, 1], [1, 0]]`, fast strokes give less).
 
 Inputs are normalised to 0 … 1 before the curve is applied: `pressure` is the pen pressure, `tilt` is
 how far the pen leans from upright, `speed` is the pointer speed (1 at 2500 px/s or more), `rotation` is
-the stroke's heading in turns (0 is rightwards, 0.25 downwards), and `random` is a fresh number for every
+the stroke's heading in turns (0 is rightwards, 0.25 downwards), `barrel` is the pen's barrel rotation in
+turns (0 … 1 clockwise, relative to the canvas; 0 for a mouse or a pen without a rotating barrel), and `random` is a fresh number for every
 dab and target, taken from a hash of the stroke's first position and the dab's number, so replaying the
 same stroke gives the same pixels.
 

@@ -28,7 +28,7 @@ pub use curve::{Curve, MAX_POINTS, MIN_GAP};
 pub use dab::Dab;
 #[cfg(test)]
 mod paint_tests;
-pub use grain::{GrainKind, builtin_grain, paper_grain};
+pub use grain::{Grain, GrainKind, builtin_grain, paper_grain};
 pub use response::{Dynamics, Inputs, Mapping, Response, Source, Target, hash01};
 pub use stabilizer::Stabilizer;
 pub use stroke::{Images, Stroke, StrokeEngine, paint, paint_with};
@@ -217,6 +217,17 @@ fn is_off_jitter(j: &ColorJitter) -> bool {
     j.is_off()
 }
 
+fn is_zero(v: &f32) -> bool {
+    *v == 0.0
+}
+
+fn is_unit(v: &f32) -> bool {
+    *v == 1.0
+}
+
+/// Most a grain's contrast can be raised.
+pub const MAX_GRAIN_CONTRAST: f32 = 4.0;
+
 fn is_one(n: &u8) -> bool {
     *n == 1
 }
@@ -288,6 +299,12 @@ pub struct Brush {
     pub grain_scale: f32,
     /// Which texture the grain uses.
     pub grain_kind: GrainKind,
+    /// Grain rotation in degrees, -180 … 180 (turns the texture, not the dab).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub grain_angle: f32,
+    /// Grain contrast, 0.1 (flat) … 4 (hard peaks and valleys); 1 leaves the texture as it is.
+    #[serde(skip_serializing_if = "is_unit")]
+    pub grain_contrast: f32,
     /// The grain image (its id in the project's tip table) when `grain_kind` is `Image`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub grain_image: Option<u64>,
@@ -331,6 +348,8 @@ impl Brush {
             grain: 0.0,
             grain_scale: 2.0,
             grain_kind: GrainKind::Paper,
+            grain_angle: 0.0,
+            grain_contrast: 1.0,
             grain_image: None,
             dynamics: Dynamics::default(),
             wet: Wet::default(),
@@ -407,6 +426,8 @@ impl Brush {
             grain: f(self.grain, 0.0, 1.0, p.grain),
             grain_scale: f(self.grain_scale, 0.5, 64.0, p.grain_scale),
             grain_kind: self.grain_kind,
+            grain_angle: if self.grain_angle.is_finite() { (self.grain_angle + 180.0).rem_euclid(360.0) - 180.0 } else { 0.0 },
+            grain_contrast: f(self.grain_contrast, 0.1, MAX_GRAIN_CONTRAST, 1.0),
             grain_image: self.grain_image,
             dynamics: Dynamics {
                 tilt: f(self.dynamics.tilt, 0.0, 1.0, p.dynamics.tilt),
@@ -441,11 +462,13 @@ pub struct Sample {
     pub tilt_y: f32,
     /// Seconds since the stroke began.
     pub time: f64,
+    /// Barrel rotation of the pen in turns, 0 … 1 clockwise (0 without such a pen).
+    pub rotation: f32,
 }
 
 impl Default for Sample {
     fn default() -> Self {
-        Self { x: 0.0, y: 0.0, pressure: 0.5, tilt_x: 0.0, tilt_y: 0.0, time: 0.0 }
+        Self { x: 0.0, y: 0.0, pressure: 0.5, tilt_x: 0.0, tilt_y: 0.0, time: 0.0, rotation: 0.0 }
     }
 }
 
@@ -467,13 +490,38 @@ impl Sample {
             tilt_x: c(self.tilt_x, -1.0, 1.0, 0.0),
             tilt_y: c(self.tilt_y, -1.0, 1.0, 0.0),
             time: if self.time.is_finite() { self.time.max(0.0) } else { 0.0 },
+            rotation: turns(self.rotation),
         })
     }
+}
+
+/// An angle in turns wrapped into 0 … 1 (NaN and infinities become 0).
+fn turns(v: f32) -> f32 {
+    if !v.is_finite() {
+        return 0.0;
+    }
+    let t = v.rem_euclid(1.0);
+    // `rem_euclid` can round up to exactly 1 for tiny negative values
+    if t >= 1.0 { 0.0 } else { t }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn barrel_rotation_wraps_into_one_turn() {
+        let r = |v: f32| Sample { rotation: v, ..Default::default() }.sanitized().map(|s| s.rotation);
+        assert_eq!(r(0.25), Some(0.25));
+        assert_eq!(r(1.75), Some(0.75));
+        assert_eq!(r(-0.25), Some(0.75));
+        assert_eq!(r(-1e-9), Some(0.0));
+        assert_eq!(r(f32::NAN), Some(0.0));
+        assert_eq!(r(f32::INFINITY), Some(0.0));
+        // old command files have no rotation: it reads as 0
+        let s: Sample = serde_json::from_str(r#"{"x":1,"y":2}"#).unwrap_or_default();
+        assert_eq!((s.x, s.rotation), (1.0, 0.0));
+    }
 
     #[test]
     fn sanitize_brush_and_samples() {
