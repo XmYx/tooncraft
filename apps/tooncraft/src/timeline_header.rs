@@ -164,7 +164,17 @@ pub fn menu(app: &mut ToonApp, ui: &mut Ui) {
         context(
             ui,
             app,
-            &["timeline.ping_pong", "timeline.play_selection", SEP, "timeline.set_in", "timeline.set_out", "timeline.clear_in_out", SEP, "timeline.sound"],
+            &[
+                "timeline.ping_pong",
+                "timeline.play_selection",
+                "timeline.record_motion",
+                SEP,
+                "timeline.set_in",
+                "timeline.set_out",
+                "timeline.clear_in_out",
+                SEP,
+                "timeline.sound",
+            ],
         );
     });
     ui.menu_button(tl!("Display"), |ui| {

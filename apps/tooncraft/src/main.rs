@@ -70,6 +70,9 @@ mod menu_commands;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+mod motion_record;
+#[cfg(test)]
+mod motion_record_ui_tests;
 mod onion_popover;
 mod panel_chrome;
 mod panel_views;
@@ -144,6 +147,9 @@ mod unsaved_ui_tests;
 mod vector_ui_tests;
 mod video_dialog;
 mod view;
+mod views;
+#[cfg(test)]
+mod views_ui_tests;
 mod workspaces;
 
 use args::{Cli, Launch};

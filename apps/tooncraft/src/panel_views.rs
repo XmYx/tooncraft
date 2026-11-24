@@ -76,6 +76,8 @@ pub fn view(pane: Pane) -> PanelView {
         Pane::Drawings => panel("drawings", &["drawing-library"], Icon::Drawings, tlm!("Drawing Library"), crate::drawing_library::panel),
         Pane::Curves => panel("curves", &["curve"], Icon::Curves, tlm!("Curves"), crate::curves::panel),
         Pane::Palette => panel("palette", &["tool-palette"], Icon::ToolPalette, tlm!("Tool Palette"), crate::tool_palettes::panel),
+        Pane::SecondView => panel("view2", &["second-view"], Icon::SecondView, tlm!("Second View"), crate::views::panel),
+        Pane::Navigator => panel("navigator", &[], Icon::Navigator, tlm!("Navigator"), crate::views::navigator),
         Pane::ToolProperties => panel("tool-properties", &["properties"], Icon::Settings, tlm!("Tool Properties"), crate::tool_options::panel),
     }
 }
@@ -132,6 +134,8 @@ mod tests {
             "drawings",
             "curves",
             "palette",
+            "view2",
+            "navigator",
             "tool-properties",
         ] {
             assert!(by_name(n).is_some(), "{n}");

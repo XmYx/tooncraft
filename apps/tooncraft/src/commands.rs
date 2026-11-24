@@ -368,7 +368,7 @@ pub static ALL: &[Cmd] = &[
     }),
     cmd("edit.paste", tlm!("Paste"), Some(Icon::Paste), G::Edit, Fixed("Ctrl+V"), |a, ctx, _| {
         // pixels go onto the canvas when it has the keyboard, cells into the sheet otherwise
-        if ctx.memory(|m| m.focused()) == Some(crate::canvas::canvas_id()) || a.selection.is_some() {
+        if ctx.memory(|m| m.focused()).is_some_and(crate::views::is_drawing_view) || a.selection.is_some() {
             a.paste_pixels();
         } else {
             a.paste_cells(false, false);
@@ -556,6 +556,13 @@ pub static ALL: &[Cmd] = &[
         a.playback.looping
     }),
     cmd("timeline.play_around", tlm!("Play Around"), Some(Icon::PlayAround), G::Timeline, NoKey, |a, _, _| crate::timeline_extras::play_around(a)),
+    toggle(
+        cmd("timeline.record_motion", tlm!("Record Motion"), None, G::Timeline, NoKey, |a, _, _| {
+            let on = !a.recorder.armed;
+            crate::motion_record::set_armed(a, on);
+        }),
+        |a| a.recorder.armed,
+    ),
     toggle(cmd("timeline.ping_pong", tlm!("Ping-pong"), None, G::Timeline, NoKey, |a, _, _| a.playback.ping_pong = !a.playback.ping_pong), |a| {
         a.playback.ping_pong
     }),
