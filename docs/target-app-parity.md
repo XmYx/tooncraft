@@ -465,12 +465,12 @@ Weight: 5
 |---|---|---|---|---|
 | Dense dark theme and a light theme | all | D | S | |
 | Standard panels: tools, tool options, brush, colour, layers, timeline | all | D | S | |
-| Dockable panels: move, tab, float | TV TB CS | P | M | Through craft-ui docking; moving panels is not tested here |
+| Dockable panels: move, tab, float | TV TB CS | D | M | Through craft-ui docking: drag a tab onto another stack to tab it or to a panel's side to split, float from the stack menu and move the window by its title, Move To and Reset Panel from the keyboard; the canvas stays docked and a panel dropped on it floats there (`dock_ui_tests`) |
 | Saved workspaces | TV TB CS | D | S | Draw, Time, Ink & Paint and Sheet keep their own edits per user (Reset Workspace puts one back); Save Workspace As… keeps named layouts |
 | Keyboard shortcuts for every tool | all | D | S | |
 | Customisable shortcuts | all | D | S | Through craft-keymap, saved per user |
 | Command search | TB CS | D | S | Find Command (Ctrl+Shift+P): by name or by key, keyboard or click, runs like the shortcut |
-| Custom tool palettes and radial menus | TV CS PD | M | S | |
+| Custom tool palettes and radial menus | TV CS PD | D | S | The Tool Palette panel (`--panel palette`): named palettes of any registry commands as buttons, put together from the keyboard (add by search, reorder, remove, rename, delete), kept in the preferences; the radial menu (V, `--open radial`) rings a chosen palette's first 12 commands round the pointer, picked by pointer or arrows and Enter (`tool_palettes_ui_tests`) |
 | Second view of the same shot and a navigator | TV TB CS | M | M | |
 | Undo history panel | TV CS | D | S | A panel listing every step; click one to go there (undo or redo as needed) |
 | Preferences dialog | all | D | S | Edit ▸ Preferences: general, drawing, onion skin, sheet and export tabs, each with Restore Defaults; a damaged settings file gives the defaults |
