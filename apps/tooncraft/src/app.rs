@@ -244,6 +244,8 @@ pub struct ToonApp {
     pub confirm_close: bool,
     /// New, Open or Open Recent waiting for an answer about unsaved changes.
     pub pending_replace: Option<crate::unsaved::Replace>,
+    /// Move the keyboard focus to the question's Save button on its next frame.
+    pub replace_focus: bool,
     close_confirmed: bool,
     pub recovery: Option<RecoveryOffer>,
     autosave_dir: Option<PathBuf>,
@@ -406,6 +408,7 @@ impl ToonApp {
             show_about: false,
             confirm_close: false,
             pending_replace: None,
+            replace_focus: false,
             close_confirmed: false,
             recovery: None,
             autosave_dir: if cli.screenshot.is_some() || cli.bench_playback.is_some() { None } else { autosave_dir() },

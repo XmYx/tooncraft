@@ -127,3 +127,27 @@ fn f6_brings_a_closed_timeline_back_and_focuses_the_sheet() {
     assert!(h.state().workspace.is_open(Pane::Timeline), "the timeline came back");
     assert_eq!(h.ctx.memory(|m| m.focused()), Some(crate::timeline::grid_id()), "and has the focus");
 }
+
+#[test]
+fn from_the_canvas_enter_answers_the_question_not_the_keyboard_pen() {
+    let dir = temp_dir("canvas");
+    let path = dir.join("drawn.toon");
+    let mut h = harness();
+    assert!(h.state_mut().save_to(&path));
+    // F6 puts the keyboard on the canvas, where Enter puts the keyboard pen down
+    h.key_press(Key::F6);
+    h.run();
+    assert_eq!(h.ctx.memory(|m| m.focused()), Some(crate::canvas::canvas_id()));
+    make_unsaved_change(&mut h);
+    let steps = h.state().engine.undo_len();
+    h.key_press_modifiers(Modifiers::COMMAND, Key::N);
+    h.run();
+    assert!(h.query_all(By::new().role(egui::Role::Button).label("Save")).any(|n| n.is_focused()), "Save took the focus from the canvas");
+    h.key_press(Key::Enter);
+    h.run();
+    assert!(h.state().pending_replace.is_none(), "answered");
+    assert!(!h.state().engine.is_dirty(), "saved");
+    assert!(h.state().new_shot.is_some(), "then New Shot opened");
+    assert_eq!(h.state().engine.undo_len(), steps, "no pen stroke was drawn");
+    let _ = std::fs::remove_dir_all(&dir);
+}

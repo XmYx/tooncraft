@@ -21,6 +21,7 @@ pub enum Replace {
 pub fn request(app: &mut ToonApp, what: Replace) {
     if app.engine.is_dirty() {
         app.pending_replace = Some(what);
+        app.replace_focus = true;
     } else {
         perform(app, what);
     }
@@ -62,8 +63,9 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
                 if ui.button(tl!("Cancel")).clicked() || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
                     answer = Some(Answer::Cancel);
                 }
-                // the safe choice has the keyboard focus
-                if ctx.memory(|m| m.focused().is_none()) {
+                // the safe choice takes the keyboard focus once, when the question opens, even
+                // from the canvas (whose keyboard pen would otherwise take Enter and the arrows)
+                if std::mem::take(&mut app.replace_focus) {
                     save.request_focus();
                 }
             });

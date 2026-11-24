@@ -258,11 +258,11 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
             }
         }
         Some(Pick::Open(p)) => {
-            app.open(&p);
+            crate::unsaved::request(app, crate::unsaved::Replace::Open(p));
             app.start.open = false;
         }
         Some(Pick::Browse) => {
-            app.open_dialog();
+            crate::unsaved::request(app, crate::unsaved::Replace::Browse);
             app.start.open = false;
         }
         Some(Pick::Demo) => match tooncraft_engine::demo::demo(1280, 720) {
