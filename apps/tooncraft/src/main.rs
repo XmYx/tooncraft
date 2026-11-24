@@ -55,6 +55,7 @@ mod history_ui_tests;
 mod icons;
 mod import_dialog;
 mod keys;
+mod layer_fx;
 mod layer_ops;
 mod layer_tree;
 mod layers_list;

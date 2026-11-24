@@ -75,9 +75,14 @@ fn build_copy(e: &mut Engine, layer: usize, src: &Layer, made: &mut Vec<DrawingI
             chart.insert(*mouth, n);
         }
     }
+    // the copy gets its own mask drawing
+    let mask = match src.mask {
+        Some(m) => copy_of(e, m.drawing, made)?.map(|d| tooncraft_doc::LayerMask { drawing: d, ..m }),
+        None => None,
+    };
     let l = e.project.layer_mut(at)?;
     let id = l.id;
-    *l = Layer { id, name, cells, mouth_chart: chart, ..src.clone() };
+    *l = Layer { id, name, cells, mouth_chart: chart, mask, ..src.clone() };
     Ok(())
 }
 
@@ -284,4 +289,19 @@ fn render_cells(e: &mut Engine, temp: &Project, (w, h, frames): (u32, u32, u32),
         previous = Some(shown);
     }
     Ok(cells)
+}
+
+/// Give layer `layer` an empty painted mask and start painting into it (one undo step).
+pub(crate) fn add_mask(e: &mut Engine, layer: usize, invert: bool) -> Result<()> {
+    e.check_unlocked(layer)?;
+    if e.project.layer(layer)?.mask.is_some() {
+        return Err(EngineError::HasMask);
+    }
+    let before = Part::Layers(e.project.layers.clone());
+    let id = e.project.add_drawing(None)?;
+    if let Ok(l) = e.project.layer_mut(layer) {
+        l.mask = Some(tooncraft_doc::LayerMask { drawing: id, enabled: true, invert, editing: true });
+    }
+    e.push(Entry { label: "Add layer mask".into(), parts: vec![Part::Drawing { id, surface: None }, before] });
+    Ok(())
 }

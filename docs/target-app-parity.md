@@ -267,8 +267,8 @@ Weight: 6
 | Nested folders with show, lock, fold and opacity | all | D | S | |
 | Clipping layers | TV CS PD | D | S | Several clipping layers on one base |
 | Colour labels with a layer filter | TV TB | D | S | |
-| Painted layer masks | TV TB CS PD | M | M | |
-| Adjustment layers acting on everything below | CS PD | M | M | Effects act on their own layer only |
+| Painted layer masks | TV TB CS PD | D | M | Add Layer Mask (layer menu or Effects panel): every tool paints into the mask while Paint on Layer Mask is on (paint hides, the eraser brings back, or inverted); the mask follows the layer's transform, can be switched off or removed, one undo step each |
+| Adjustment layers acting on everything below | CS PD | D | M | Adjustment Layer: its effect stack acts on everything composited below it, where its drawing has paint (everywhere without one), cut by its mask, with its blend mode and opacity |
 | Reference layers chosen per tool | TB CS | M | S | The fill reference is current or all visible |
 | Layer properties copied between layers | TV CS | D | S | Opacity and keys, blend, colour, folder, peg, depth, effects |
 
