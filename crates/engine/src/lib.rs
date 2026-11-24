@@ -85,6 +85,8 @@ pub enum EngineError {
     Merge(String),
     #[error("layer “{0}” has its transparency locked, so it cannot take a fill")]
     TransparencyLocked(String),
+    #[error("there is no swatch {1} in palette {0}")]
+    NoSwatch(usize, usize),
     #[error("there is no library item {0}")]
     NoLibraryItem(usize),
 }
@@ -495,6 +497,8 @@ mod history_tests;
 mod layerops_tests;
 #[cfg(test)]
 mod library_tests;
+#[cfg(test)]
+mod swatch_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

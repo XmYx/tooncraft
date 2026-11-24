@@ -240,7 +240,7 @@ Weight: 7
 | Paint the same regions across drawings automatically | TV TB | M | L | |
 | Colour swatches | all | D | S | Named palettes kept with the shot, plus the built-in Basic one; swatch names on hover; remove from a palette with a right-click |
 | Palette files: save, load, import common formats | all | D | S | GIMP .gpl open and save (read through craft-palette), Photoshop .aco open (RGB, HSB, grey) |
-| Linked colour styles (change a swatch, every fill using it updates) | TB CS | M | L | |
+| Linked colour styles (change a swatch, every fill using it updates) | TB CS | P | L | Edit Swatch: the swatch's paint on every unlocked layer takes the new colour (matched by colour at each pixel's opacity, so soft edges follow), one undo step; paint is not linked to the swatch, so unrelated paint in exactly that colour changes too |
 | HSV picker with keyboard fields | all | D | S | Hue, saturation and brightness typed from the keyboard, kittest-tested |
 | Colour wheel, sliders and harmony modes | TV CS PD | D | S | A hue wheel, and opposite, neighbour, three-way, split-opposite and four-way harmonies to pick from or add to a palette |
 | Recent colours | TV CS PD | D | S | The last 16 colours painted with, newest first, in the Colour panel |
@@ -514,8 +514,8 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Transform tool properties with typed values | TB | D | M | The Transform tool (Q) drags the current layer's peg on the canvas: move, a corner to scale, a knob to turn, the pivot cross; one peg key per drag, Escape cancels; arrows, [ ] and Page Up / Down nudge; its options type Move X/Y, Rotation, Scale X/Y, or add a peg for a layer without one |
 | Contour, text, rigging and morph tool properties | TB | M | L | Those tools are missing |
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
-| Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue and the brush's opacity |
-| Picker with alpha and a gradient | TB | P | S | The picker is docked in the Colour panel; no alpha in the colour itself |
+| Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue, the colour's own opacity and the brush's opacity |
+| Picker with alpha and a gradient | TB | P | S | A floating Colour Picker window (`--open colour-picker`) as well as the docked one; the colour has its own opacity; no gradient swatches |
 | Timeline layer rows with toggles | TB | D | S | Show and lock toggles in each row (named check boxes, keyboard reachable); a mark on every cell where the layer's pegs are keyed, named "peg key" for screen readers; the rest in the Layers panel and the row's right-click menu |
 | Timeline buttons | TB | D | S | |
 | Selected range highlight | TB | D | S | |
