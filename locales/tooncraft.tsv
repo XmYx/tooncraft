@@ -59,6 +59,7 @@ tooncraft	Add Three-Point Perspective
 tooncraft	Add Two-Point Perspective	
 tooncraft	Add a Peg for This Layer	
 tooncraft	Add a look	
+tooncraft	Add another kind of layer: a reference image or a sound	
 tooncraft	Add effect	
 tooncraft	Add light	
 tooncraft	Add or remove a marker on this frame	
@@ -250,6 +251,7 @@ tooncraft	Darken
 tooncraft	Default size	
 tooncraft	Delete	
 tooncraft	Delete Brush	
+tooncraft	Delete Current Layer	
 tooncraft	Delete Frame	
 tooncraft	Delete Frame in All Layers	
 tooncraft	Delete Item	
@@ -258,6 +260,7 @@ tooncraft	Delete Palette
 tooncraft	Delete Peg	
 tooncraft	Delete Swatch	
 tooncraft	Delete frame	
+tooncraft	Delete the current layer	
 tooncraft	Delete {name}	
 tooncraft	Depth	
 tooncraft	Deselect	
@@ -272,7 +275,6 @@ tooncraft	Distort
 tooncraft	Divide	
 tooncraft	Done	
 tooncraft	Don’t Save	
-tooncraft	Down	
 tooncraft	Drag around an area to fill it	
 tooncraft	Drag around the centre to turn the view; double-click puts it upright	
 tooncraft	Drag from start to end; inside the selection when there is one	
@@ -307,6 +309,7 @@ tooncraft	Dry chalk
 tooncraft	Dry wash	
 tooncraft	Duplicate	
 tooncraft	Duplicate Brush	
+tooncraft	Duplicate Current Layer	
 tooncraft	Duplicate Drawing	
 tooncraft	Duplicate Layer	
 tooncraft	Duplicate Swatch	
@@ -605,6 +608,7 @@ tooncraft	Layer above / below
 tooncraft	Layer below	
 tooncraft	Layer colour	
 tooncraft	Layer locked	
+tooncraft	Layer options	
 tooncraft	Layer properties copied	
 tooncraft	Layer {name}	
 tooncraft	Layer {n}	
@@ -670,6 +674,7 @@ tooncraft	Matte
 tooncraft	Matte: keep inside	
 tooncraft	Matte: keep outside	
 tooncraft	Medium	
+tooncraft	Merge Current Layer Down	
 tooncraft	Merge Down	
 tooncraft	Merge Layer Down	
 tooncraft	Merge Visible	
@@ -879,6 +884,7 @@ tooncraft	Paste frames, moving later frames right
 tooncraft	Pasted	
 tooncraft	Pause	
 tooncraft	Peg	
+tooncraft	Peg Current Layer	
 tooncraft	Peg {n}	
 tooncraft	Peg “{name}”	
 tooncraft	Pegs	
@@ -1011,6 +1017,7 @@ tooncraft	Rename
 tooncraft	Rename Brush…	
 tooncraft	Rename Item	
 tooncraft	Rename Item…	
+tooncraft	Rename Layer	
 tooncraft	Rename Layer…	
 tooncraft	Rename Swatch…	
 tooncraft	Repaint	
@@ -1324,7 +1331,6 @@ tooncraft	Unlock Layer
 tooncraft	Unlock Transparency	
 tooncraft	Unpin This Frame	
 tooncraft	Unsaved changes	
-tooncraft	Up	
 tooncraft	Update Marker	
 tooncraft	Update paint in this colour	
 tooncraft	Use Brush	

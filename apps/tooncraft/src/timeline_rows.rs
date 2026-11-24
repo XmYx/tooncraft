@@ -1,26 +1,11 @@
-//! Extras drawn in the timeline's layer rows: the lock toggle and, for a layer on a peg, a mark
-//! at every frame where the peg (or a peg it hangs from) has a key, so the motion's timing reads
-//! against the drawings; the cell's name says "peg key" for screen readers.
+//! Extras drawn in the timeline's layer rows: the eye, lock and onion toggles (shared icons), the
+//! mark dots on key cells and, for a layer on a peg, a mark at every frame where the peg (or a peg
+//! it hangs from) has a key; the cell's name says "peg key" for screen readers.
 
-use egui::{Color32, Painter, Pos2, Rect, Stroke, pos2, vec2};
-use tooncraft_doc::{OnionSkin, PegId};
+use egui::{Color32, Painter, Pos2, Rect, Stroke, vec2};
+use tooncraft_doc::{Mark, OnionSkin, PegId};
 
 use crate::app::ToonApp;
-
-/// A small padlock: filled and shut when locked, open (shackle raised) when not.
-pub fn paint_lock(p: &Painter, r: Rect, locked: bool, c: Color32) {
-    let st = Stroke::new(1.3, c);
-    let body = Rect::from_min_max(pos2(r.left() + 3.0, r.center().y), pos2(r.right() - 3.0, r.bottom() - 2.0));
-    if locked {
-        p.rect_filled(body, 1.5, c);
-    } else {
-        p.rect_stroke(body, 1.5, st, egui::StrokeKind::Middle);
-    }
-    let lift = if locked { 0.0 } else { 3.0 };
-    let (l, rr, top) = (body.left() + 2.0, body.right() - 2.0, r.top() + 2.0 - lift);
-    let shackle = vec![pos2(l, body.top() - lift), pos2(l, top + 2.0), pos2((l + rr) * 0.5, top), pos2(rr, top + 2.0), pos2(rr, body.top() - lift)];
-    p.add(egui::Shape::line(shackle, st));
-}
 
 /// The frames of `[from, to)` where the layer's peg chain has a key, capped at `to - from`.
 pub fn key_frames(app: &ToonApp, peg: PegId, from: u32, to: u32) -> Vec<u32> {
@@ -69,17 +54,6 @@ pub fn onion_include_toggled(own: Option<OnionSkin>, shot: OnionSkin) -> Option<
     }
 }
 
-/// Two overlapping rings, the onion glyph: both drawn when included, one dashed-faint when not.
-pub fn paint_onion(p: &Painter, r: Rect, on: bool, c: Color32) {
-    let st = Stroke::new(1.3, c);
-    let rad = r.height() * 0.28;
-    p.circle_stroke(r.center() - vec2(rad * 0.6, 0.0), rad, st);
-    p.circle_stroke(r.center() + vec2(rad * 0.6, 0.0), rad, if on { st } else { Stroke::new(1.0, c.gamma_multiply(0.5)) });
-    if !on {
-        p.line_segment([r.left_bottom() + vec2(2.0, -2.0), r.right_top() + vec2(-2.0, 2.0)], st);
-    }
-}
-
 #[cfg(test)]
 mod onion_include_tests {
     use super::*;
@@ -102,5 +76,41 @@ mod onion_include_tests {
         let out = onion_include_toggled(Some(own), shot);
         assert_eq!(out, Some(OnionSkin { enabled: false, ..own }));
         assert_eq!(onion_include_toggled(out, shot), Some(own));
+    }
+}
+
+/// A row toggle drawn with the shared icon: filled in `on_colour` when on, outlined in `off`.
+pub fn paint_toggle(p: &Painter, r: Rect, icon: crate::icons::Icon, on: bool, on_colour: Color32, off: Color32) {
+    crate::icons::paint(p, r, icon, if on { on_colour } else { off }, on);
+}
+
+/// The colour of a mark's dot.
+pub fn mark_colour(m: Mark, pal: &crate::theme::Palette) -> Color32 {
+    match m {
+        Mark::Key => pal.mark_key,
+        Mark::Breakdown => pal.mark_bd,
+        Mark::Inbetween => pal.mark_ib,
+    }
+}
+
+/// A cell's mark: a dot in the mark's colour at the cell's top right, ringed in the background
+/// colour so it reads on a key cell's fill.
+pub fn paint_mark(p: &Painter, cell: Rect, m: Mark, pal: &crate::theme::Palette) {
+    let rad = (cell.height() * 0.16).clamp(2.0, 4.0);
+    let at = cell.right_top() + vec2(-rad - 1.5, rad + 1.5);
+    p.circle(at, rad, mark_colour(m, pal), Stroke::new(1.0, pal.bg));
+}
+
+#[cfg(test)]
+mod mark_tests {
+    use super::*;
+
+    #[test]
+    fn each_mark_has_its_own_colour_in_both_themes() {
+        for light in [false, true] {
+            let pal = crate::theme::palette(light);
+            let c: Vec<Color32> = Mark::ALL.iter().map(|m| mark_colour(*m, pal)).collect();
+            assert!(c[0] != c[1] && c[1] != c[2] && c[0] != c[2], "{c:?}");
+        }
     }
 }

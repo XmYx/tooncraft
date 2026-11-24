@@ -48,27 +48,6 @@ pub fn merge(app: &mut ToonApp, cmd: Command, lands_on: Option<usize>) {
     }
 }
 
-/// Duplicate, merge and flatten buttons for the Layers panel.
-pub fn buttons(app: &mut ToonApp, ui: &mut Ui) {
-    let layer = app.layer;
-    ui.horizontal_wrapped(|ui| {
-        if ui.button(tl!("Duplicate Layer")).on_hover_text(tl!("Copy the layer with its drawings, just above it")).clicked()
-            && app.run(Command::DuplicateLayer { layer })
-        {
-            app.layer += 1;
-        }
-        if ui.add_enabled(layer > 0, egui::Button::new(tl!("Merge Down"))).on_hover_text(tl!("Merge the layer into the one below it")).clicked() {
-            merge(app, Command::MergeDown { layer }, Some(layer.saturating_sub(1)));
-        }
-        if ui.button(tl!("Merge Visible")).on_hover_text(tl!("Merge every visible layer into one")).clicked() {
-            merge(app, Command::MergeVisible, Some(0));
-        }
-        if ui.button(tl!("Flatten")).on_hover_text(tl!("Merge every visible layer into one and remove the hidden layers")).clicked() {
-            merge(app, Command::Flatten, Some(0));
-        }
-    });
-}
-
 /// The transparency lock and "copy the look of another layer" for the current layer.
 pub fn properties(app: &mut ToonApp, ui: &mut Ui) {
     let li = app.layer;
