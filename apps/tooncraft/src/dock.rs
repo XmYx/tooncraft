@@ -184,6 +184,21 @@ impl Workspace {
         true
     }
 
+    /// Put a panel back in its place in the default layout (a closed one opens there) and bring
+    /// it to the front. False when the panel cannot move (the canvas) or its place is gone.
+    pub fn reset_panel(&mut self, pane: Pane) -> bool {
+        let Ok(home) = Workspace::default().layout.location(&pane) else { return self.open(pane) };
+        if self.layout.location(&pane).is_ok_and(|at| at == home) {
+            self.raise(pane);
+            return true;
+        }
+        if self.is_open(pane) && !self.close(pane) {
+            return false;
+        }
+        self.closed.insert(pane, home);
+        self.open(pane)
+    }
+
     /// Bring a panel's tab to the front next frame (opening it first when it was closed).
     pub fn raise(&mut self, pane: Pane) {
         if !self.is_open(pane) {

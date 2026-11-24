@@ -940,7 +940,17 @@ pub enum Command {
         #[serde(default)]
         matte: Option<tooncraft_doc::Matte>,
     },
+    /// Several commands as one undo step called `label` (at most [`MAX_BATCH`], none of them a
+    /// batch). When one fails, the ones before it are undone and the error is returned, so the
+    /// project is as it was.
+    Batch {
+        label: String,
+        commands: Vec<Command>,
+    },
 }
+
+/// Most commands in one [`Command::Batch`].
+pub const MAX_BATCH: usize = 256;
 
 fn centre() -> (f32, f32) {
     (0.5, 0.5)
@@ -1834,7 +1844,39 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.matte = matte;
             Ok(())
         }),
+        Command::Batch { label, commands } => batch(e, &label, commands),
     }
+}
+
+/// Apply `commands` as one undo step; on an error, undo the ones applied and return it.
+fn batch(e: &mut Engine, label: &str, commands: Vec<Command>) -> Result<()> {
+    if commands.len() > MAX_BATCH {
+        return Err(EngineError::Import(format!("a batch holds at most {MAX_BATCH} commands")));
+    }
+    if commands.iter().any(|c| matches!(c, Command::Batch { .. })) {
+        return Err(EngineError::Import("a batch cannot hold another batch".into()));
+    }
+    let before = e.undo.len();
+    // kept aside: a batch that changes nothing, or fails, leaves the redo steps as they were
+    let redo = std::mem::take(&mut e.redo);
+    for c in commands {
+        if let Err(err) = apply(e, c) {
+            let n = e.undo.len().saturating_sub(before);
+            if n > 0 {
+                crate::drawing::merge_last(e, n, label);
+                e.undo()?;
+            }
+            e.redo = redo;
+            return Err(err);
+        }
+    }
+    let n = e.undo.len().saturating_sub(before);
+    if n > 0 {
+        crate::drawing::merge_last(e, n, label);
+    } else {
+        e.redo = redo;
+    }
+    Ok(())
 }
 
 /// Cells of a layer as a compact string (`#` key, `-` hold, `.` blank), for tests and the CLI.

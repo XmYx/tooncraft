@@ -51,6 +51,9 @@ mod keys;
 mod layer_ops;
 mod layer_tree;
 mod lipsync_panel;
+mod menu_actions;
+#[cfg(test)]
+mod menu_actions_tests;
 #[cfg(test)]
 mod menus_ui_tests;
 mod panels;
