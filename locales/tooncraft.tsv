@@ -48,6 +48,7 @@ tooncraft	Add File to Shot Library
 tooncraft	Add Frames to Library	
 tooncraft	Add Inbetweens	
 tooncraft	Add Layer Above	
+tooncraft	Add Layer Mask	
 tooncraft	Add Marker	
 tooncraft	Add Marker Here	
 tooncraft	Add One-Point Perspective	
@@ -70,6 +71,9 @@ tooncraft	Add the effects saved in a .toonfx file to this layer
 tooncraft	Add to or Remove from Flip Set	
 tooncraft	Add {name} to favourites	
 tooncraft	Added {n} effects	
+tooncraft	Adjustment	
+tooncraft	Adjustment Layer	
+tooncraft	Adjustment layer	
 tooncraft	After	
 tooncraft	After, step {n}	
 tooncraft	Airbrush	
@@ -567,6 +571,7 @@ tooncraft	Insert frame
 tooncraft	Intensity	
 tooncraft	Into	
 tooncraft	Invert	
+tooncraft	Invert Layer Mask	
 tooncraft	Invert selection	
 tooncraft	JPEG Sequence	
 tooncraft	JPEG Sequence…	
@@ -611,6 +616,7 @@ tooncraft	Lasso select
 tooncraft	Last Frame	
 tooncraft	Last frame	
 tooncraft	Layer	
+tooncraft	Layer Mask	
 tooncraft	Layer above	
 tooncraft	Layer above / below	
 tooncraft	Layer below	
@@ -875,8 +881,12 @@ tooncraft	PNG Sequence per Layer…
 tooncraft	PNG Sequence…	
 tooncraft	Paint	
 tooncraft	Paint bucket	
+tooncraft	Paint into the mask to hide parts of this layer	
+tooncraft	Paint on Layer Mask	
 tooncraft	Paint on top of the drawing, behind it (only filling gaps), or only where there is already paint	
 tooncraft	Paint the text into the drawing (Ctrl+Enter)	
+tooncraft	Painting the layer mask	
+tooncraft	Painting the layer mask: paint hides, the eraser brings the layer back	
 tooncraft	Palette	
 tooncraft	Palette {name} added ({n} colours)	
 tooncraft	Palette {n}	
@@ -1012,6 +1022,7 @@ tooncraft	Remove
 tooncraft	Remove All Rulers	
 tooncraft	Remove Area	
 tooncraft	Remove Key	
+tooncraft	Remove Layer Mask	
 tooncraft	Remove Marker	
 tooncraft	Remove Marker Here	
 tooncraft	Remove Sound	
@@ -1269,6 +1280,8 @@ tooncraft	The flip set holds at most {n} frames
 tooncraft	The last save of this shot was interrupted and there is no backup.	
 tooncraft	The last save was interrupted and the backup does not open: {error}	
 tooncraft	The layer already hangs from a peg	
+tooncraft	The layer already has a mask	
+tooncraft	The layer has no mask	
 tooncraft	The layer has no other drawing	
 tooncraft	The layer is locked	
 tooncraft	The other tools of this group	
@@ -1286,6 +1299,7 @@ tooncraft	This layer
 tooncraft	This layer already has a colour layer; another one follows it too	
 tooncraft	This layer gets its own steps, opacity and colours; the others keep the shot's	
 tooncraft	This layer hangs from no peg: add one from the tool options	
+tooncraft	This layer's effects change everything below it, where its drawing has paint (everywhere when it has none)	
 tooncraft	This tool has no brush settings	
 tooncraft	Three-way	
 tooncraft	Threshold	
@@ -1349,6 +1363,7 @@ tooncraft	Update Marker
 tooncraft	Update paint in this colour	
 tooncraft	Use Brush	
 tooncraft	Use Colour	
+tooncraft	Use Layer Mask	
 tooncraft	Use brush {name}	
 tooncraft	Use for This Shot	
 tooncraft	Use for {mouth}	

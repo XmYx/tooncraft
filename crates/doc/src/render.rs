@@ -162,7 +162,9 @@ fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: R
         }
         if visible {
             let target = if owners.get(li).copied().flatten().is_some() { clipped.get_or_insert_with(|| RgbaImage::transparent(w, h)) } else { &mut *img };
-            if end == li + 1 {
+            if layer.adjustment {
+                adjust(p, li, frame, target, origin, o, opacity, &map);
+            } else if end == li + 1 {
                 draw_layer(p, li, frame, target, origin, o, layer.blend, opacity, &map);
             } else {
                 // a clipping group: each clipping layer shows only where the base has paint, and
@@ -205,11 +207,12 @@ fn draw_layer(
     let drawing = layer.drawing_at(frame).and_then(|d| p.drawing(d));
     let Some(t) = map(li) else { return };
     let fx = o.effects && tooncraft_fx::is_active(&layer.effects);
+    let mask = layer.mask.filter(|m| m.enabled).and_then(|m| p.drawing(m.drawing).map(|s| (m, s)));
     // a lens flare lights the picture even where its layer has no drawing
     if drawing.is_none() && !(fx && tooncraft_fx::generates(&layer.effects)) {
         return;
     }
-    if fx {
+    if fx || mask.is_some() {
         // the whole canvas here (see the top of `render_region`); the effects run on the drawn
         // part plus the stack's reach, which gives the same pixels for far less work
         let (w, h) = (dst.width, dst.height);
@@ -217,16 +220,25 @@ fn draw_layer(
         if let Some(s) = drawing {
             draw(s, &mut top, origin, t.as_ref(), 1.0, None);
         }
-        let (cx, cy, cx1, cy1) = match (tooncraft_fx::stack_reach(&layer.effects, frame), top.opaque_bounds()) {
+        let reach = if fx { tooncraft_fx::stack_reach(&layer.effects, frame) } else { Some(0) };
+        let (cx, cy, cx1, cy1) = match (reach, top.opaque_bounds()) {
             (Some(r), Some((x0, y0, x1, y1))) => (x0.saturating_sub(r), y0.saturating_sub(r), x1.saturating_add(r).min(w), y1.saturating_add(r).min(h)),
             (Some(_), None) => return,
             (None, _) => (0, 0, w, h),
         };
         let mut part = if (cx, cy, cx1, cy1) == (0, 0, w, h) { top } else { top.crop(cx, cy, cx1 - cx, cy1 - cy) };
-        let below = tooncraft_fx::needs_below(&layer.effects).then(|| dst.crop(cx, cy, cx1 - cx, cy1 - cy));
-        let sources = source_images(p, li, frame, origin, (w, h), (cx, cy, cx1 - cx, cy1 - cy), map);
-        let inputs = tooncraft_fx::Inputs { below: below.as_ref(), layers: &sources };
-        tooncraft_fx::apply_stack_with(&mut part, (origin.0 + cx, origin.1 + cy), &layer.effects, frame, inputs);
+        if fx {
+            let below = tooncraft_fx::needs_below(&layer.effects).then(|| dst.crop(cx, cy, cx1 - cx, cy1 - cy));
+            let sources = source_images(p, li, frame, origin, (w, h), (cx, cy, cx1 - cx, cy1 - cy), map);
+            let inputs = tooncraft_fx::Inputs { below: below.as_ref(), layers: &sources };
+            tooncraft_fx::apply_stack_with(&mut part, (origin.0 + cx, origin.1 + cy), &layer.effects, frame, inputs);
+        }
+        if let Some((m, ms)) = mask {
+            let mut shape = RgbaImage::transparent(w, h);
+            draw(ms, &mut shape, origin, t.as_ref(), 1.0, None);
+            let shape = if (cx, cy, cx1, cy1) == (0, 0, w, h) { shape } else { shape.crop(cx, cy, cx1 - cx, cy1 - cy) };
+            keep_by(&mut part, &shape, |px| m.keep(px));
+        }
         dst.composite_at(&part, cx, cy, mode, opacity);
     } else if let Some(s) = drawing
         && mode == BlendMode::Normal
@@ -236,6 +248,58 @@ fn draw_layer(
         let mut top = RgbaImage::transparent(dst.width, dst.height);
         draw(s, &mut top, origin, t.as_ref(), opacity, None);
         dst.blend_image(&top, mode);
+    }
+}
+
+/// Scale `img`'s pixels by `keep(shape pixel)` (0…255); `shape` is the same size.
+fn keep_by(img: &mut RgbaImage, shape: &RgbaImage, keep: impl Fn([u8; 4]) -> u8) {
+    for (d, s) in img.data.as_chunks_mut::<4>().0.iter_mut().zip(shape.data.as_chunks::<4>().0.iter()) {
+        let k = keep(*s);
+        if k < 255 && d[3] > 0 {
+            *d = tooncraft_raster::scale_alpha(*d, k);
+        }
+    }
+}
+
+/// An adjustment layer: run its effects over `target` (everything composited below it) and lay
+/// the result over `target` where its drawing has paint (everywhere without one), cut by its
+/// mask, in its blend mode and opacity.
+fn adjust(
+    p: &Project,
+    li: usize,
+    frame: u32,
+    target: &mut RgbaImage,
+    origin: (u32, u32),
+    o: RenderOptions,
+    opacity: f32,
+    map: &impl Fn(usize) -> Option<Option<Affine>>,
+) {
+    let Some(layer) = p.layers.get(li) else { return };
+    if !o.effects || !tooncraft_fx::is_active(&layer.effects) {
+        return;
+    }
+    let Some(t) = map(li) else { return };
+    let (w, h) = (target.width, target.height);
+    let mut adjusted = target.clone();
+    let sources = source_images(p, li, frame, origin, (w, h), (0, 0, w, h), map);
+    let below = target.clone();
+    tooncraft_fx::apply_stack_with(&mut adjusted, origin, &layer.effects, frame, tooncraft_fx::Inputs { below: Some(&below), layers: &sources });
+    if let Some(s) = layer.drawing_at(frame).and_then(|d| p.drawing(d)) {
+        let mut shape = RgbaImage::transparent(w, h);
+        draw(s, &mut shape, origin, t.as_ref(), 1.0, None);
+        keep_by(&mut adjusted, &shape, |px| px[3]);
+    }
+    if let Some((m, ms)) = layer.mask.filter(|m| m.enabled).and_then(|m| p.drawing(m.drawing).map(|s| (m, s))) {
+        let mut shape = RgbaImage::transparent(w, h);
+        draw(ms, &mut shape, origin, t.as_ref(), 1.0, None);
+        keep_by(&mut adjusted, &shape, |px| m.keep(px));
+    }
+    // the result covers what it adjusted where it applies: lay it over, then mix by opacity
+    let mut out = below.clone();
+    out.composite(&adjusted, layer.blend, 1.0);
+    let k = opacity.clamp(0.0, 1.0);
+    for (d, (a, b)) in target.data.iter_mut().zip(below.data.iter().zip(out.data.iter())) {
+        *d = (*a as f32 + (*b as f32 - *a as f32) * k).round().clamp(0.0, 255.0) as u8;
     }
 }
 
@@ -297,7 +361,7 @@ fn uses_effects(p: &Project, frame: u32, o: RenderOptions) -> bool {
             Some(only) => only == li || owner == Some(li),
             None => p.effective(l).0,
         };
-        shown && tooncraft_fx::is_active(&l.effects) && (l.drawing_at(frame).is_some() || tooncraft_fx::generates(&l.effects))
+        shown && tooncraft_fx::is_active(&l.effects) && (l.drawing_at(frame).is_some() || l.adjustment || tooncraft_fx::generates(&l.effects))
     })
 }
 
