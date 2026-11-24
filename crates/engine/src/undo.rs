@@ -49,6 +49,8 @@ pub(crate) enum Part {
     Poses(Vec<tooncraft_doc::pose::Pose>),
     /// The shot's drawing library (its items, not their drawings).
     Library(Vec<tooncraft_doc::library::Item>),
+    /// The compositing graph.
+    Comp(Box<tooncraft_doc::comp::CompGraph>),
 }
 
 /// One undo step.
@@ -107,6 +109,7 @@ impl Entry {
                 Part::Folders(f) => Part::Folders(std::mem::replace(&mut p.folders, f)),
                 Part::Palettes(v) => Part::Palettes(std::mem::replace(&mut p.palettes, v)),
                 Part::Poses(v) => Part::Poses(std::mem::replace(&mut p.poses, v)),
+                Part::Comp(g) => Part::Comp(Box::new(std::mem::replace(&mut p.comp, *g))),
                 Part::Library(l) => Part::Library(std::mem::replace(&mut p.library, l)),
                 Part::Pegs(g) => Part::Pegs(std::mem::replace(&mut p.pegs, g)),
                 Part::Whole(w) => Part::Whole(Box::new(std::mem::replace(p, *w))),

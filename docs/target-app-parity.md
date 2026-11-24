@@ -384,7 +384,7 @@ Weight: 7
 | Time effects: trails, frame blending, time remap | TV TB PD | D | M | Trails (up to 16 earlier pictures, fading), Frame blending (mix of the next frame) and Time remap (speed and start, keyable for ramps, reverse and holds) |
 | Transitions between cuts | TV TB PD | D | S | Transition effect: a layer comes in or leaves over a number of frames by dissolve, wipe, iris or push; a cut between two layers is one going out as the other comes in |
 | Effect presets and saved stacks | TV TB | D | S | Five built-in looks added as one undo step; any layer's stack saved to and opened from a .toonfx file |
-| Node compositing graph | TB | M | XL | |
+| Node compositing graph | TB | P | XL | The shot's compositing graph (layer, effect, blend, mask and output nodes) builds the frame when switched on: saved with the shot, loops refused, every edit one undo step (`edit_comp` command); no node view yet (it waits for the shared node editor, storytold/craft-libs#3337) |
 
 ## Audio and lip-sync
 

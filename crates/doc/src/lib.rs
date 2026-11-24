@@ -11,6 +11,7 @@
 
 pub mod camera;
 pub mod colour_art;
+pub mod comp;
 mod exposure;
 pub mod guides;
 pub mod library;
@@ -505,6 +506,8 @@ pub struct Project {
     pub library: Vec<library::Item>,
     /// Stroke rulers and grid snapping (a drawing aid stored with the shot).
     pub rulers: rulers::Rulers,
+    /// The compositing graph (when switched on, it builds the frame instead of the layer stack).
+    pub comp: comp::CompGraph,
     /// Named poses of pegs, to put back on any frame.
     pub poses: Vec<pose::Pose>,
     next_drawing: u64,
@@ -536,6 +539,7 @@ impl PartialEq for Project {
             && self.palettes == o.palettes
             && self.library == o.library
             && self.rulers == o.rulers
+            && self.comp == o.comp
             && self.poses == o.poses
     }
 }
@@ -578,6 +582,7 @@ impl Project {
             vectors: BTreeMap::new(),
             library: Vec::new(),
             rulers: rulers::Rulers::default(),
+            comp: comp::CompGraph::default(),
             poses: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
@@ -615,6 +620,7 @@ impl Project {
             vectors: BTreeMap::new(),
             library: Vec::new(),
             rulers: rulers::Rulers::default(),
+            comp: comp::CompGraph::default(),
             poses: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),

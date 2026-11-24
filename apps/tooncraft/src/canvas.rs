@@ -1049,15 +1049,17 @@ fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<us
             }
         }
     }
-    let blended = p.layers.iter().any(|l| {
-        (l.blend != tooncraft_doc::BlendMode::Normal
-            || l.clip
-            || tooncraft_fx::is_active(&l.effects)
-            || l.matte.is_some()
-            || l.mask.is_some_and(|m| m.enabled)
-            || l.adjustment)
-            && p.effective(l).0
-    });
+    // the compositing graph builds the frame on the CPU too
+    let blended = p.comp.active()
+        || p.layers.iter().any(|l| {
+            (l.blend != tooncraft_doc::BlendMode::Normal
+                || l.clip
+                || tooncraft_fx::is_active(&l.effects)
+                || l.matte.is_some()
+                || l.mask.is_some_and(|m| m.enabled)
+                || l.adjustment)
+                && p.effective(l).0
+        });
     if blended && only.is_none() {
         // A blend mode needs what is below it, and effects reach past their tiles: composite the
         // layers on the CPU and show that as tiles. Frames are cached per project version, and
