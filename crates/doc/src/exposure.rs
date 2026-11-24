@@ -392,6 +392,8 @@ mod tests {
             clip: false,
             lock_alpha: false,
             onion: None,
+            colour_of: None,
+            colour_pairs: Vec::new(),
             cells,
         }
     }

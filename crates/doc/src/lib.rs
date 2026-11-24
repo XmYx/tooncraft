@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 pub mod camera;
+pub mod colour_art;
 mod exposure;
 pub mod guides;
 pub mod library;
@@ -165,6 +166,12 @@ pub struct Layer {
     /// This layer's own onion-skin settings (`None`: the shot's).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub onion: Option<OnionSkin>,
+    /// A colour layer: the line layer whose exposures this layer follows (see [`colour_art`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub colour_of: Option<LayerId>,
+    /// A colour layer's drawings: (line drawing, colour drawing) pairs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub colour_pairs: Vec<(DrawingId, DrawingId)>,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
 }
@@ -638,6 +645,8 @@ impl Project {
                 clip: false,
                 lock_alpha: false,
                 onion: None,
+                colour_of: None,
+                colour_pairs: Vec::new(),
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );
