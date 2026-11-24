@@ -99,3 +99,66 @@ fn the_contour_tool_reshapes_a_vector_line() {
     assert!(line(&h).is_none(), "deleted");
     assert_eq!(h.state().engine.undo_len(), undo + 1);
 }
+
+/// A vector layer with one line on frame 0 and another drawing with a line on frame 1.
+fn two_drawings() -> Harness<'static, ToonApp> {
+    let mut h = harness();
+    let layer = h.state().layer;
+    assert!(h.state_mut().run(Command::SetLayerVector { layer, vector: true }));
+    for (frame, y) in [(0u32, 300.0f32), (1, 500.0)] {
+        assert!(h.state_mut().run(Command::NewDrawing { layer, frame }));
+        let points = vec![VPoint::new(200.0, y, 8.0), VPoint::new(400.0, y - 40.0, 8.0), VPoint::new(600.0, y, 8.0)];
+        let c: Command =
+            serde_json::from_value(serde_json::json!({"cmd":"vector_stroke","layer":layer,"frame":frame,"color":[0,0,0,255],"points":points,"tolerance":0.0}))
+                .unwrap();
+        assert!(h.state_mut().run(c));
+    }
+    h.state_mut().frame = 0;
+    h.state_mut().tool = Tool::Contour;
+    h.run();
+    h
+}
+
+fn press(h: &mut Harness<'static, ToonApp>, label: &str) {
+    let b = By::new().role(egui::Role::Button).label(label);
+    h.get(b.clone()).scroll_to_me();
+    h.run();
+    h.get(b).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+}
+
+#[test]
+fn a_line_is_chosen_and_deleted_from_the_keyboard_only() {
+    let mut h = two_drawings();
+    press(&mut h, "Next Line");
+    assert_eq!(h.state().aids.contour.stroke, Some(0));
+    let undo = h.state().engine.undo_len();
+    press(&mut h, "Delete Line");
+    assert!(line(&h).is_none(), "deleted by keyboard");
+    assert_eq!(h.state().engine.undo_len(), undo + 1);
+}
+
+#[test]
+fn a_choice_does_not_follow_to_another_drawing_and_tabbing_the_width_changes_nothing() {
+    let mut h = two_drawings();
+    press(&mut h, "Next Line");
+    assert_eq!(h.state().aids.contour.stroke, Some(0));
+    // tab in and out of the width field: no undo step
+    let undo = h.state().engine.undo_len();
+    let field = By::new().role(egui::Role::SpinButton).label("Line width");
+    h.get(field.clone()).focus();
+    h.run();
+    h.key_press(Key::Tab);
+    h.run();
+    h.run();
+    assert_eq!(h.state().engine.undo_len(), undo, "an unchanged width is not an edit");
+    // another frame with its own line: the choice is dropped, the options show the hint
+    h.state_mut().frame = 1;
+    h.run();
+    h.run();
+    assert_eq!(h.state().aids.contour.stroke, None);
+    assert!(h.query(By::new().role(egui::Role::Button).label("Delete Line")).is_none(), "nothing to delete on this drawing");
+    h.get(By::new().label_contains("click a line to choose it"));
+}
