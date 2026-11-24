@@ -145,7 +145,7 @@ pub fn frames<S: ByteSource>(src: S, pick: Pick, mut each: impl FnMut(RgbaImage,
         if p.pts < from_ticks {
             return Ok(true);
         }
-        let take = *seen % pick.every as u64 == 0;
+        let take = seen.is_multiple_of(pick.every as u64);
         *seen += 1;
         if !take {
             return Ok(true);
