@@ -51,6 +51,7 @@ fn picture(dir: &std::path::Path) -> std::path::PathBuf {
             end: c,
             area,
             area_rings: Vec::new(),
+            stops: Vec::new(),
             feather: 0.0,
         })
         .unwrap();
