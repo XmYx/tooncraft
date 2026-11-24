@@ -1,0 +1,1 @@
+- 2026-11-24: The loop range on the timeline ruler has a handle at each end to drag (or move with the arrow keys), and each timeline row has an onion toggle that leaves the layer out of the onion skin.
