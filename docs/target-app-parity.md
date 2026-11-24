@@ -338,7 +338,7 @@ Weight: 9
 | Deformers: bone, curve and envelope on drawings | TB | M | XL | |
 | Inverse kinematics on peg chains | TB | M | L | |
 | Master controllers driving poses | TB | M | L | |
-| Pose and template library | TB CS | M | M | |
+| Pose and template library | TB CS | P | M | Poses: a peg and the pegs below it saved under a name with the shot and put back on any frame from the Pegs panel (`save_pose`, `apply_pose`, `rename_pose`, `remove_pose`), one undo step each; no rig templates shared between shots yet |
 | Rotoscoping on a video layer | TV CS PD | P | M | Image sequences import; no video file import |
 | Motion tracking of a point in footage | TV TB | M | L | |
 
@@ -354,7 +354,7 @@ Weight: 4
 | Camera frame on the canvas, crop to it | all | D | S | |
 | Camera path editing on the canvas | TB PD | D | S | The camera centre's path over the shot with a square per key; with the Transform tool a key's square drags to move it and the current frame's cross drags to key the camera there (one undo step, Escape cancels; the camera frame follows); typed values in the Camera panel (`--camera-path`) |
 | Depth of field by layer depth | TB | M | M | |
-| Several cameras and camera cuts in a shot | TB | M | M | |
+| Several cameras and camera cuts in a shot | TB | D | M | Camera panel: add, rename and remove cameras (each with its own keys and shakes), pick the one to edit, Cut Here films the shot through it from the current frame; exports and Crop to Camera follow the cuts; cuts show on the timeline ruler; `add_camera`, `set_camera_cut`, a `camera` field on the camera commands |
 | Free 3D camera over a layered scene | TB | M | L | Depth trucks only |
 
 ## Effects and compositing
