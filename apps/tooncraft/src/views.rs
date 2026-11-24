@@ -108,6 +108,7 @@ impl Default for SecondView {
 
 impl SecondView {
     /// Has the camera look's picture been rendered for the shot as it is now?
+    #[cfg(test)]
     pub fn filmed_now(&self, changes: u64, frame: u32) -> bool {
         self.filmed.key == Some((changes, frame)) && self.filmed.texture.is_some()
     }
@@ -550,11 +551,13 @@ pub fn navigator(app: &mut ToonApp, ui: &mut Ui) {
 }
 
 /// Where the navigator in `rect` draws canvas point `c` (for tests).
+#[cfg(test)]
 pub fn navigator_point(rect: Rect, size: egui::Vec2, c: Pos2) -> Pos2 {
     View::fit(rect, size).to_screen(rect, size, c)
 }
 
 /// The side look's screen point for `depth` at the middle of the picture, in `rect` (for tests).
+#[cfg(test)]
 pub fn side_point(app: &ToonApp, rect: Rect, depth: f32) -> Pos2 {
     let s = Side::new(app, rect);
     pos2(s.x(s.w / 2.0), s.y(depth))

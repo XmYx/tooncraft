@@ -920,7 +920,7 @@ fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<us
             if let Some(d) = p.drawing_at(li, pin.frame)
                 && let Some(s) = p.drawing(d)
             {
-                draw_surface(tex, ctx, &c, d, s, p.light_table.opacity, Some(p.light_table.tint), &p.pin_transform(li, pin), false);
+                draw_surface(tex, ctx, c, d, s, p.light_table.opacity, Some(p.light_table.tint), &p.pin_transform(li, pin), false);
             }
         }
     }
@@ -953,7 +953,7 @@ fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<us
                 } else {
                     Some(lo.after_tint)
                 };
-                draw_surface(tex, ctx, &c, d, s, lo.offset_opacity(off), tint, &t, lo.outline);
+                draw_surface(tex, ctx, c, d, s, lo.offset_opacity(off), tint, &t, lo.outline);
             }
         }
     }
@@ -970,7 +970,7 @@ fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<us
         app.blend_cache.prefetch(p, generation, app.frame);
         if let Some(s) = app.blend_cache.get(p, generation, app.frame) {
             // one texture set per cached frame, so a looping shot re-uploads nothing
-            draw_surface(tex, ctx, &c, tooncraft_doc::DrawingId(u64::MAX - app.frame as u64), s, 1.0, None, &tooncraft_doc::Affine::IDENTITY, false);
+            draw_surface(tex, ctx, c, tooncraft_doc::DrawingId(u64::MAX - app.frame as u64), s, 1.0, None, &tooncraft_doc::Affine::IDENTITY, false);
         }
     } else {
         for (li, layer) in p.layers.iter().enumerate() {
@@ -985,7 +985,7 @@ fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<us
                 && let Some(s) = p.drawing(d)
             {
                 let t = transforms.get(li).copied().unwrap_or_else(|| p.layer_transform(li, app.frame));
-                draw_surface(tex, ctx, &c, d, s, opacity, None, &t, false);
+                draw_surface(tex, ctx, c, d, s, opacity, None, &t, false);
             }
         }
     }
