@@ -892,13 +892,13 @@ mod tests {
         #![proptest_config(proptest::prelude::ProptestConfig::with_cases(48))]
         #[test]
         fn hostile_feather_never_panics(pts in proptest::collection::vec((-500f32..700.0, -500f32..700.0), 0..12), r in -1e6f32..1e6) {
-            if let Some(m) = polygon_mask(200, 150, &pts) {
-                if let Some(f) = feather(&m, r, 200, 150) {
-                    proptest::prop_assert!(f.x + f.width <= 200 && f.y + f.height <= 150);
-                    proptest::prop_assert_eq!(f.data.len(), (f.width * f.height) as usize);
-                    let mut s = dot_surface();
-                    let _ = transform(&mut s, &f, Affine::translate(3.0, -2.0));
-                }
+            if let Some(m) = polygon_mask(200, 150, &pts)
+                && let Some(f) = feather(&m, r, 200, 150)
+            {
+                proptest::prop_assert!(f.x + f.width <= 200 && f.y + f.height <= 150);
+                proptest::prop_assert_eq!(f.data.len(), (f.width * f.height) as usize);
+                let mut s = dot_surface();
+                let _ = transform(&mut s, &f, Affine::translate(3.0, -2.0));
             }
         }
 

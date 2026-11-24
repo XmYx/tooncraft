@@ -974,7 +974,7 @@ fn yes() -> bool {
 
 /// A feather too small to soften anything (left out of saved command files).
 fn is_hard(f: &f32) -> bool {
-    !(*f >= 0.5)
+    f.is_nan() || *f < 0.5
 }
 
 fn unit() -> f32 {
