@@ -538,6 +538,7 @@ impl ToonApp {
             Some("scene") => crate::scene_menus::open_settings(&mut app),
             Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
             Some("colour-picker") => app.colour.window = true,
+            Some("reference") => app.colour.viewer.open = true,
             Some("icons") => app.show_icons = true,
             Some("import-video") => app.video_dialog = Some(crate::video_dialog::Dialog::new(None)),
             Some("radial") => crate::tool_palettes::open_radial(&mut app, ctx),
@@ -1894,6 +1895,7 @@ impl ToonApp {
         crate::video_dialog::window(self, ctx);
         crate::export_dialog::window(self, ctx);
         crate::colour_tools::picker_window(self, ctx);
+        crate::reference_viewer::window(self, ctx);
         crate::preferences::window(self, ctx);
         crate::scene_menus::window(self, ctx);
         crate::unsaved::window(self, ctx);

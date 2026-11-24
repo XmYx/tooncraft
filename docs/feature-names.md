@@ -60,6 +60,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Undo History, Step, Recent colours, Blur, Fine blur | Generic words | Use (common) |
 | Clone stamp, Copy from, Aligned, Hardness | Generic painting words (clone stamp is the common term) | Use (common) |
 | Gradient swatch, Edit Stops, Add Stop, Two Colours, Add Gradient to Palette | Generic colour words and our wording | Use (common) |
+| Reference Viewer, Open Image, Fit | Generic words | Use (common) |
 | Two-finger tap (undo), three-finger tap (redo), palm rejection | Generic touch terms | Use (common) |
 | Markers, Add Marker, Next Marker, Timecode, Ping-pong, Play Selection, Zoom In / Out, Drawing names, Set Name, Show {name} here | Generic timeline words (marker, timecode and ping-pong are standard terms) | Use (common) |
 | Sound, Import Sound, Start Sound Here | Generic | Use |

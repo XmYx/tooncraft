@@ -102,6 +102,9 @@ mod pipeline;
 #[cfg(test)]
 mod poses_ui_tests;
 mod preferences;
+mod reference_viewer;
+#[cfg(test)]
+mod reference_viewer_ui_tests;
 mod rulers_ui;
 #[cfg(test)]
 mod rulers_ui_tests;
