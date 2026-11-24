@@ -33,6 +33,10 @@ its file); `audio_tracks` holds each track's `name`, `muted`, `solo` and `volume
 before clips have one `soundtrack` (`name`, `offset`, `entry: "audio/soundtrack"`), which loads as a
 single clip.
 
+`project.library` is the shot's drawing library: `[{"name", "cells"}]`, cells as on a layer (the first is
+never a hold). Its drawings are ordinary entries of `drawings`. Loading keeps at most 256 items of 1024
+cells, cuts names to 80 characters, turns keys to missing drawings into blanks and drops empty items.
+
 A layer's `mouth_chart` maps mouths (`rest`, `closed`, `open`, `wide`, `round`, `pucker`, `teeth`,
 `tongue`, `consonant`) to drawing ids.
 
