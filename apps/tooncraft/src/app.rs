@@ -32,6 +32,8 @@ pub enum Tool {
     Shape,
     Gradient,
     Hand,
+    /// Move, scale and turn the current layer's peg on the canvas.
+    Transform,
 }
 
 /// How the select tool draws a new selection.
@@ -65,7 +67,7 @@ pub enum XformKind {
 }
 
 impl Tool {
-    pub const ALL: [Tool; 13] = [
+    pub const ALL: [Tool; 14] = [
         Tool::Pencil,
         Tool::Ink,
         Tool::Airbrush,
@@ -79,6 +81,7 @@ impl Tool {
         Tool::Shape,
         Tool::Gradient,
         Tool::Hand,
+        Tool::Transform,
     ];
 
     pub fn brush(self) -> Option<BrushKind> {
@@ -109,6 +112,7 @@ impl Tool {
             Tool::Shape => tl!("Shapes"),
             Tool::Gradient => tl!("Gradient"),
             Tool::Hand => tl!("Hand"),
+            Tool::Transform => tl!("Transform layer"),
         }
         .to_string()
     }
@@ -129,6 +133,7 @@ impl Tool {
             Tool::Shape => "shape",
             Tool::Gradient => "gradient",
             Tool::Hand => "hand",
+            Tool::Transform => "transform",
         }
     }
 }
@@ -281,6 +286,7 @@ pub struct ToonApp {
     /// Show the camera frame on the canvas.
     pub show_camera: bool,
     pub peg_ui: crate::pegs::PegUi,
+    pub transform_ui: crate::peg_transform::TransformUi,
     pub curve_ui: crate::curves::CurveUi,
     pub layer_ui: crate::layer_tree::LayerUi,
     pub timing_ui: crate::timing_panel::TimingUi,
@@ -424,6 +430,7 @@ impl ToonApp {
             keys: crate::keys::Keys::new(!cfg!(test) && cli.screenshot.is_none()),
             show_camera: true,
             peg_ui: Default::default(),
+            transform_ui: Default::default(),
             curve_ui: Default::default(),
             layer_ui: Default::default(),
             timing_ui: Default::default(),
@@ -1735,6 +1742,8 @@ impl ToonApp {
             self.keys.dispatch_filtered(ctx, |id| {
                 !(placing && id == "frame.play")
                     && !(canvas_focused && (id == "frame.play" || (id == "frame.clear" && self.keyboard_pen.is_some_and(|p| p.down))))
+                    // the Transform tool turns the peg with [ and ] on the focused canvas
+                    && !(canvas_focused && self.tool == Tool::Transform && (id == "brush.smaller" || id == "brush.bigger"))
             })
         };
         // commands picked in Find Command run like their shortcuts
