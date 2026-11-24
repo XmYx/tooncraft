@@ -1002,6 +1002,7 @@ impl ToonApp {
 
     pub fn replace_engine(&mut self, engine: Engine, path: Option<PathBuf>) {
         self.engine = engine;
+        self.recorder.forget();
         self.path = path;
         self.frame = 0;
         self.layer = self.engine.project.layers.len().saturating_sub(1);

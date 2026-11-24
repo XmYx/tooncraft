@@ -183,3 +183,38 @@ fn the_registry_toggle_arms_and_disarms_recording() {
     (cmd.run)(h.state_mut(), &ctx, cmd.id);
     assert!(!h.state().recorder.armed);
 }
+
+#[test]
+fn undo_or_another_tool_mid_take_drops_it_without_a_trace() {
+    for (mods, key, what) in [(egui::Modifiers::COMMAND, Key::Z, "undo"), (egui::Modifiers::NONE, Key::P, "the Pencil tool")] {
+        let mut h = harness();
+        // something to undo
+        h.state_mut().run(Command::SetPegKey {
+            peg: PegId(1),
+            frame: 20,
+            x: 5.0,
+            y: 0.0,
+            angle: 0.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            skew: 0.0,
+            ease: tooncraft_doc::Ease::Linear,
+        });
+        arm(&mut h);
+        h.ctx.memory_mut(|m| m.request_focus(crate::canvas::canvas_id()));
+        h.run();
+        h.key_press(Key::Enter);
+        h.run();
+        std::thread::sleep(FRAMES);
+        h.run();
+        h.key_press(Key::ArrowRight);
+        h.run();
+        assert!(h.state().recorder.recording(), "{what}: recording");
+        h.key_press_modifiers(mods, key);
+        h.run();
+        h.run();
+        assert!(!h.state().recorder.recording(), "{what} drops the take");
+        let after = keys(&h);
+        assert!(after.iter().all(|k| k.frame == 20), "{what}: nothing of the take was keyed: {after:?}");
+    }
+}

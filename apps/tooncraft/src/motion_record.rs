@@ -41,6 +41,8 @@ struct Take {
     last: Option<u32>,
     /// The take started playback, so it stops playback when it ends.
     started_playback: bool,
+    /// The project's change count when the take began.
+    changes: u64,
 }
 
 #[derive(Default)]
@@ -53,6 +55,11 @@ pub struct Recorder {
 impl Recorder {
     pub fn recording(&self) -> bool {
         self.take.is_some()
+    }
+
+    /// Drop a take without a trace (another file was opened).
+    pub fn forget(&mut self) {
+        self.take = None;
     }
 
     #[cfg(test)]
@@ -128,8 +135,18 @@ fn begin(app: &mut ToonApp, peg: PegId, source: Source, from: (f32, f32)) {
         let (start, end) = crate::timeline_extras::play_span(app);
         crate::timeline_extras::play_range(app, app.frame, start, end);
     }
-    app.recorder.take =
-        Some(Take { peg, source, start: app.frame, from, offset: (0.0, 0.0), moved: false, keys: BTreeMap::new(), last: None, started_playback });
+    app.recorder.take = Some(Take {
+        peg,
+        source,
+        start: app.frame,
+        from,
+        offset: (0.0, 0.0),
+        moved: false,
+        keys: BTreeMap::new(),
+        last: None,
+        started_playback,
+        changes: app.engine.changes(),
+    });
     sample(app);
     app.set_status(tl!("Recording motion: Escape drops the take"));
 }
@@ -164,11 +181,12 @@ fn discard(app: &mut ToonApp) {
 }
 
 /// Once per UI frame, after the playback clock: key the frame shown, and end the take when
-/// playback stopped, the pointer let go or the peg went away.
+/// playback stopped or the pointer let go. A take the tool or the project moved on from (another
+/// tool, an undo, another edit, the peg gone) is dropped, so it leaves nothing outside undo.
 pub fn tick(app: &mut ToonApp, ctx: &egui::Context) {
     let Some(t) = app.recorder.take.as_ref() else { return };
-    if app.engine.project.peg(t.peg).is_none() {
-        app.recorder.take = None;
+    if app.engine.project.peg(t.peg).is_none() || app.tool != crate::app::Tool::Transform || app.engine.changes() != t.changes {
+        discard(app);
         return;
     }
     let released = t.source == Source::Pointer && !ctx.input(|i| i.pointer.any_down());
