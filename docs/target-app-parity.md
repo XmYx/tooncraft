@@ -157,12 +157,12 @@ Weight: 9
 | Thick paint with depth and lighting (impasto) | TV CS PD | M | L | |
 | Dual tips (a second tip or texture masking the first) | CS PD | M | M | |
 | Scatter and spray brushes (many dabs per step) | TV CS PD | D | M | Dabs per step (1 to 32) with position jitter |
-| Pattern and ribbon brushes (an image repeated along the stroke) | TV CS | M | M | |
-| Animated brushes (a tip that changes per dab or per frame) | TV CS | M | M | |
+| Pattern and ribbon brushes (an image repeated along the stroke) | TV CS | D | M | Tip layout in the brush editor: Pattern lays the image tip end to end, turned along the stroke; Ribbon stretches it along the stroke as one seamless band (`tip_mode`) |
+| Animated brushes (a tip that changes per dab or per frame) | TV CS | D | M | An image tip of several cells side by side (`tip_cells`), shown in turn, at random or by timeline frame (`tip_order`) |
 | Brush blend modes (paint as multiply, behind, and so on) | TV CS PD | D | S | Behind, only on paint, multiply, screen, overlay, darken, lighten and add |
-| Brushes at large sizes stay real time | all | P | M | Measured up to a 120 px airbrush (0.15 ms a sample); not measured at 500–1000 px ([performance.md](performance.md)) |
+| Brushes at large sizes stay real time | all | P | M | Dry brushes up to 1000 px stay inside a 60 Hz frame per dab (airbrush 1000 px: 5.7 ms, chalk 1000 px: 8.6 ms, big dabs stamped on several threads); wet brushes are still single-threaded (watercolour 600 px: 22 ms a dab) ([performance.md](performance.md)) |
 | Brush rendering on the GPU | TV CS PD | M | L | **Ours:** a craft-gpu dab path (RFC-0022) with the CPU path kept as the test oracle |
-| Import of Photoshop ABR brushes | CS PD | M | M | Tips and basic settings |
+| Import of Photoshop ABR brushes | CS PD | D | M | Tips and basic settings (spacing, diameter, angle; hardness and roundness of computed tips) from v1, v2 and v6+ files through the shared craft-psd reader, into the brush library or as `.toonbrush` files ([interop](interop.md)) |
 | Import of a vendor's own brush packages | CS PD | O | M | Out of scope: the native brush formats of Clip Studio and Procreate are proprietary and undocumented |
 
 ## Paper and textures
@@ -176,7 +176,7 @@ Weight: 3
 | Visible paper texture under the drawing | TV CS PD | D | S | Any grain (also a grain image) shades the paper colour with its own strength, size, rotation and contrast: one repeating tile on the canvas, the same pixels in exports with the paper; `SetPaperTexture`, saved with the shot |
 | Paper and grain library, grain images from files | TV CS PD | D | M | Four built-in grains and tileable grain images saved in the shot |
 | Grain scale, rotation and contrast | TV CS | D | S | Per brush in the brush editor (`grain_scale`, `grain_angle`, `grain_contrast` in `.toonbrush` files), and for the paper texture |
-| Texture overlay on a layer or a fill | CS PD | M | S | |
+| Texture overlay on a layer or a fill | CS PD | D | S | The Texture overlay effect (Effects panel): a built-in grain (paper, canvas weave, speckle, clouds) fixed to the canvas thins the layer's paint in its valleys, so drawings and fills on the layer show it; size, rotation, contrast and amount, keyframable like the other effects |
 | Canvas size presets | all | D | S | Eleven video, cinema, square and portrait presets with their frame rates in New Shot and Canvas Size, the aspect ratio shown, and the user's own saved presets |
 | Canvas resize and crop with anchors | all | D | S | Drawings move whole pixels, never resampled; one undo step |
 | Large canvases (up to 16384 px a side) | TV | D | S | Sparse tiles: empty space costs nothing |
@@ -201,7 +201,7 @@ Weight: 7
 | Snap the end of a stroke to a clean line or ellipse when held | CS PD | D | S | Hold to straighten: hold the pen still for half a second and a rough line or loop becomes a clean line or ellipse |
 | Text tool | TV TB CS | D | M | Text tool (T): click or Enter at the keyboard pen places a box, type, Ctrl+Enter paints it as one undo step; font, size, alignment, line and letter spacing; shaped through craft-font-catalog, so kerning and joined scripts follow the font; `text` command for scripts (`tooncraft-cli run --font`). Text is pixels once placed |
 | Clone stamp | TV CS | D | S | Clone stamp tool (J, with Smudge on the rail): Alt+click sets the source, painting copies from it with a soft round tip (size, hardness, opacity), from this layer or another, aligned or from the source each stroke; reads the source from before the stroke; one undo step (`clone_stamp` command) |
-| Reference image viewer with eyedropper | TV CS PD | M | S | |
+| Reference image viewer with eyedropper | TV CS PD | D | S | Reference Viewer window (Colour panel toggle, `--open reference`): opens a picture beside the canvas (not into the shot), fit, zoom and pan; a click, or the keyboard cross with arrows and Enter, makes the colour under it the current colour |
 | Vector stroke layers (strokes kept as editable curves) | TB CS | P | XL | The Layers panel's Vector lines switch: pen strokes on that layer are kept as centre lines with a width per point (`tooncraft-vector`), painted into the drawing's tiles so fill, onion skin and export read them; saved in the shot. Not yet: shapes, symmetry copies, duplicate drawing keeping the lines, a vector view of the line |
 | Vector line editing: reshape, width, erase to the intersection | TB CS | P | L | Commands move a point, set a width, smooth, delete, recolour and cut a line back to its crossings (one undo step each); the eraser on a vector layer cuts the line it touches back to its crossings. No point-dragging tool on the canvas yet |
 | 3D reference models and posable figures | TB CS | M | XL | |
@@ -223,7 +223,7 @@ Weight: 5
 | Cut, copy and paste pixels between drawings | all | D | S | |
 | Free distort, perspective and skew | all | D | S | Distort: drag four corner handles (perspective), then Apply; skew by degrees; each one undo step |
 | Mesh warp | TV CS PD | D | M | Selection options: Mesh Warp puts a grid (1 to 8 cells a side) over the selection; drag its points and Apply bends the pixels, each cell bilinearly, as one undo step (`mesh_warp_selection` command, up to 16 cells a side) |
-| Liquify (push, twirl, pinch) | TV CS PD | M | M | |
+| Liquify (push, twirl, pinch) | TV CS PD | D | M | Liquify tool (Shift+K, with Smudge on the rail): push, twirl left or right, pinch or bloat under a soft round brush (size, strength), resampled from the drawing as it was before the stroke; one undo step (`liquify` command) |
 | Transform across several drawings or layers at once | TV TB CS | M | M | |
 | Resampling choice (nearest, bilinear, bicubic) | TV CS | D | S | For moving, scaling, turning, skewing and distorting a selection |
 
@@ -403,7 +403,7 @@ Weight: 4
 | Split and duplicate clips | TB CS PD | D | S | Split a clip at the current frame, or copy it to start there; one undo step each |
 | Record a voice track from the microphone | TB CS PD | M | M | craft-audio has no capture yet |
 | Mouth-chart lip-sync detection | TB | P | M | Offline, model-free rules; checked on synthetic sounds, not on a speech corpus |
-| Lip-sync from the typed line of dialogue | TB | M | M | |
+| Lip-sync from the typed line of dialogue | TB | D | M | Lip Sync panel ▸ Line of dialogue and Mouths from the Typed Line (`lip_sync_text`): spelling rules give the mouths, spread in order over the voiced frames of the sound, resting in silence, or held a set number of frames without sound; one undo step, edited in the sheet like any timing |
 | Lip-sync result as editable exposure keys | TB | D | S | |
 | Mouth timing sheets in and out | TB | D | S | Our text sheet and the common switch-data `.dat` |
 
@@ -450,9 +450,9 @@ Weight: 4
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
 | Headless command line: create, script, export, check | TV TB | D | M | `tooncraft-cli`; every action is an engine command |
-| Replay recorded actions (macros) | TV CS | P | M | JSON-lines command files replay; no recording in the app |
-| Batch processing of many shots | TV TB | P | S | Through shell scripts around the CLI |
-| Embedded scripting language with an object API | TV TB | M | L | |
+| Replay recorded actions (macros) | TV CS | D | M | Edit ▸ Record Macro keeps every command and stroke (undo takes a step out, redo puts it back) up to 256 steps, saved as a JSON-lines command file; Edit ▸ Play Macro… plays one back as a single undo step that changes nothing when a step fails; the same files run with `tooncraft-cli run` |
+| Batch processing of many shots | TV TB | D | S | `tooncraft-cli batch-script <script> <shots…> [--out-dir]` runs a script on every shot, reports each, carries on past a failing shot and fails the batch at the end; tested |
+| Embedded scripting language with an object API | TV TB | P | L | Rhai in `tooncraft-script`: commands through `run(#{cmd: …})`, the shot and layers as maps, sandboxed with limits, one undo step per run and a full rollback on failure (`tooncraft-cli run-script`, [scripting.md](scripting.md)); not yet in the app, and reading covers the shot, layers, exposures and notes only |
 | Control from other programs over a socket | TB | M | M | **Ours:** planned on craft-control with an MCP server for agents |
 | Custom tool buttons that run scripts | TV TB | M | S | |
 | Plugin interface for effects and tools | TV TB CS | M | L | |
@@ -490,7 +490,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
-| Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | P | M | Same family of layout; tool settings sit in a bar above the canvas, not in a properties panel |
+| Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | D | M | Tools left, canvas centre, timeline below, colour and the Tool Properties panel at the side (`--panel tool-properties`: the current tool's settings, also kept in the bar above the canvas); the Sheet workspace puts the exposure sheet down the right (`tool_properties_ui_tests`) |
 | Start screen with recent shots and a new-shot form | TB | D | S | With no shot to open: a new-shot form with size presets, the recent shots (missing ones marked), Open… and the demo shot; waits for a recovery offer to be answered; turn it off in Preferences (`--open start` shows it) |
 | Named workspaces picked from a bar | TB | D | S | Segments in the top bar (Draw, Time, Ink & Paint, Sheet; right-click one to reset it or save it as a named workspace); the same and the saved ones in Window ▸ Workspace (`--layout`) |
 | Compositing workspace with a node view | TB | M | XL | No node view |
@@ -510,7 +510,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | Icon toggles above the canvas (onion, light table, field guide, safe areas, mirror, symmetry, rulers) with zoom and rotation; right-click or Shift+F10 on a toggle opens its settings, for onion a slider per step from 5 before to 5 after |
 | Brush properties: preset list with previews | TB | D | S | The tool options bar: the tool's glyph and name (its group's tools), a preset dropdown showing the current brush as a stroke and every preset as a stroke, Revert; size, opacity and smoothing as scrub fields (drag the name or bar, or type) |
 | Brush editor | TB | D | S | The Brush panel, every control keyboard-reachable |
-| Pencil properties: caps and joins | TB | M | S | Size, opacity, smoothing, steady line; no caps or joins |
+| Pencil properties: caps and joins | TB | D | S | Size, opacity, smoothing, steady line; on a vector layer the brush options set the next lines' ends (round, flat, square) and corners (round, sharp with a length limit, cut), filled as exact outlines; `edit_vector` `set_style` changes a drawn line (one undo step) |
 | Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
 | Select properties: modes, typed position, size and angle | TB | D | S | Lasso, rectangle, ellipse, wand; add, remove, overlap; X, Y, width, height (proportions kept) and angle typed and applied as one step; flips, skew, distort |
 | Transform tool properties with typed values | TB | D | M | The Transform tool (Q) drags the current layer's peg on the canvas: move, a corner to scale, a knob to turn, the pivot cross; one peg key per drag, Escape cancels; arrows, [ ] and Page Up / Down nudge; its options type Move X/Y, Rotation, Scale X/Y, or add a peg for a layer without one |

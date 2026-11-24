@@ -44,6 +44,8 @@ pub struct State {
     pub mesh: Option<(u32, u32, Vec<(f32, f32)>)>,
     /// Cells along each side of a new mesh warp grid.
     pub mesh_cells: u32,
+    /// Quick mask: the selection being painted (see `quick_mask`).
+    pub quick: Option<crate::quick_mask::QuickMask>,
 }
 
 impl State {

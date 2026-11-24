@@ -10,9 +10,9 @@ Options:
   --screenshot <PNG>         render the window once to PNG and quit
   --panel <NAME>             bring a panel to the front (timeline, layers, brush, colour, onion, camera,
                              pegs, library, effects, sound, lipsync, timing, history, drawings,
-                             curves, palette, view2, navigator)
+                             curves, palette, view2, navigator, tool-properties)
   --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size,
-                             start, scene, colour-picker, icons, radial, import-video, pen, print-frames
+                             start, scene, colour-picker, reference, icons, radial, import-video, pen, print-frames
   --second-view <LOOK>       show the second view in a look: shot, drawing, camera, side
   --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet
   --vertical                 show the exposure sheet down the page
@@ -73,7 +73,7 @@ pub struct Cli {
 }
 
 /// The windows `--open` knows.
-pub const OPEN_NAMES: [&str; 14] = [
+pub const OPEN_NAMES: [&str; 15] = [
     "preferences",
     "export",
     "shortcuts",
@@ -83,6 +83,7 @@ pub const OPEN_NAMES: [&str; 14] = [
     "start",
     "scene",
     "colour-picker",
+    "reference",
     "icons",
     "radial",
     "import-video",

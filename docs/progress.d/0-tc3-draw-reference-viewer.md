@@ -1,0 +1,1 @@
+- 2026-11-24: A Reference Viewer window shows a picture beside the canvas, with fit, zoom and pan and an eyedropper: a click, or arrows and Enter on the keyboard, picks the colour under it.

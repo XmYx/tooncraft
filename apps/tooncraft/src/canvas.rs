@@ -316,6 +316,11 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
             crate::draw_aids::gradient_input(app, at, resp);
         }
+        Tool::Liquify => {
+            let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            let hover = resp.hover_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            crate::liquify_tool::input(app, at, hover, resp);
+        }
         Tool::Clone => {
             let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
             let hover = resp.hover_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
@@ -341,6 +346,11 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             if !crate::motion_record::input(app, ui, resp, &to_c) && !crate::camera_path::input(app, ui, resp, &to_c, &to_s) {
                 crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
             }
+        }
+        // quick mask: brushes paint the selection, not the drawing
+        _ if crate::quick_mask::is_on(app) && app.tool.brush().is_some() => {
+            let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            crate::quick_mask::input(app, at, resp);
         }
         _ if mods.alt => {
             if resp.clicked()
@@ -917,8 +927,12 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     let corners = paint_layers(app, &ui.ctx().clone(), &c, only_current.then_some(app.layer), true);
     // canvas edge
     painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
+    crate::quick_mask::overlay(&painter, app, &|x, y| c.screen(x, y));
     draw_selection(&painter, app, &c, pal);
     crate::draw_aids::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    if app.tool == Tool::Liquify {
+        crate::liquify_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    }
     if app.tool == Tool::Clone {
         crate::clone_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
     }
@@ -1014,9 +1028,9 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     }
 }
 
-/// The paper and the layers seen through `c`, with the light table and onion skin; with `only`,
-/// that layer's drawing (and its onion skin) alone. Returns the paper's screen corners.
-/// Paper and layers; `aids` adds the light table and the onion skin (off for a thumbnail).
+/// The paper and the layers seen through `c`; with `only`, that layer's drawing (and its onion
+/// skin) alone; `aids` adds the light table and the onion skin (off for a thumbnail). Returns the
+/// paper's screen corners.
 fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<usize>, aids: bool) -> [Pos2; 4] {
     let size = c.size;
     let corners = [c.screen(0.0, 0.0), c.screen(size.x, 0.0), c.screen(size.x, size.y), c.screen(0.0, size.y)];

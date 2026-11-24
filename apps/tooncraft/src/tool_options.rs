@@ -13,7 +13,22 @@ pub const HEIGHT: f32 = 28.0;
 const BAR: egui::Vec2 = vec2(72.0, 4.0);
 
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
-    ui.horizontal_wrapped(|ui| {
+    ui.horizontal_wrapped(|ui| body(app, ui));
+}
+
+/// The Tool Properties panel: the same settings as the bar, one per line, for a
+/// side-panel layout. Its widgets have their own ids, so the bar and the panel can both show.
+pub fn panel(app: &mut ToonApp, ui: &mut egui::Ui) {
+    ui.push_id("tool-properties", |ui| {
+        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            // one setting per line: a side panel is narrow and tall
+            ui.vertical(|ui| body(app, ui));
+        });
+    });
+}
+
+fn body(app: &mut ToonApp, ui: &mut egui::Ui) {
+    {
         ui.spacing_mut().item_spacing.x = 6.0;
         tool_menu(app, ui);
         ui.separator();
@@ -31,6 +46,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             Tool::Fill => fill_options(app, ui),
             Tool::Gradient => crate::draw_aids::gradient_options(app, ui),
             Tool::Clone => crate::clone_tool::options(app, ui),
+            Tool::Liquify => crate::liquify_tool::options(app, ui),
             Tool::Text => crate::text_tool::options(app, ui),
             Tool::Picker => {
                 ui.label(tl!("Click the canvas to pick a colour (Alt+click with any brush)"));
@@ -55,7 +71,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             Tool::Transform => crate::peg_transform::options(app, ui),
             _ => {}
         }
-    });
+    }
 }
 
 /// The tool's glyph and name; a click lists the other tools of its group.
@@ -110,6 +126,11 @@ pub enum Scale {
 /// and a box to type in. The box is the keyboard path (arrow keys and typing); it carries the
 /// name for assistive technology. Returns whether the value changed.
 pub fn scrub(ui: &mut egui::Ui, name: &str, v: &mut f32, range: std::ops::RangeInclusive<f32>, scale: Scale, suffix: &str) -> bool {
+    // one unit, so a wrapping row (the Tool Properties panel) never parts the name from its bar
+    ui.horizontal(|ui| scrub_row(ui, name, v, range, scale, suffix)).inner
+}
+
+fn scrub_row(ui: &mut egui::Ui, name: &str, v: &mut f32, range: std::ops::RangeInclusive<f32>, scale: Scale, suffix: &str) -> bool {
     let (lo, hi) = (*range.start(), *range.end());
     if !v.is_finite() {
         *v = lo;

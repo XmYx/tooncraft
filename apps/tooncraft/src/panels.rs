@@ -64,6 +64,7 @@ pub fn colour(app: &mut ToonApp, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.checkbox(&mut app.colour.wheel, tl!("Hue wheel"));
             ui.toggle_value(&mut app.colour.window, tl!("Picker Window")).on_hover_text(tl!("The picker in a window of its own"));
+            ui.toggle_value(&mut app.colour.viewer.open, tl!("Reference Viewer")).on_hover_text(tl!("A picture to draw from, with an eyedropper"));
         });
         let mut rgb = [app.color[0], app.color[1], app.color[2]];
         if app.colour.wheel && crate::colour_tools::wheel(ui, &mut rgb) {

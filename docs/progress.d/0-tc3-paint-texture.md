@@ -1,0 +1,1 @@
+- 2026-11-24: Texture overlay effect: a built-in grain fixed to the canvas thins a layer's paint in its valleys, so drawings and fills on that layer show paper, canvas weave, speckle or clouds.

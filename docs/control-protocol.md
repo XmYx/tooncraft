@@ -26,6 +26,7 @@ hand a script can do.
 | `set_volume_key`, `remove_volume_key` | `index`, `frame` (+ `gain` 0…4) |
 | `set_mouth` | `layer`, `mouth` (`rest`, `closed`, `open`, `wide`, `round`, `pucker`, `teeth`, `tongue`, `consonant`), `drawing` (absent: forget it) |
 | `lip_sync` | `layer`, `from`, `settings` (`silence` 0…1, `min_hold` frames) |
+| `lip_sync_text` | `layer`, `from`, `text`, `settings`: the typed line's mouths over the voiced frames of the sound, or `min_hold` frames each without sound |
 | `import_mouth_sheet` | `layer`, `path`, `from` |
 | `set_audio_track` | `track`, optional `name`, `muted`, `solo`, `volume` |
 | `transform_selection` | `layer`, `frame`, `polygon`, `dx`, `dy`, `scale_x`, `scale_y`, `angle` (radians); optional `feather` (soft edge, pixels, up to 64; also on `distort_selection`, `clear_selection` and `gradient`) |
@@ -48,7 +49,7 @@ hand a script can do.
 | `set_peg_key`, `remove_peg_key` | `peg`, `frame`, `x`, `y`, `angle` (degrees), `scale_x`, `scale_y`, `skew` (degrees), `ease` (`{"kind":"linear"}`, `in`, `out`, `in_out`, `hold`, or `{"kind":"curve","x1","y1","x2","y2"}`) |
 | `save_pose`, `apply_pose`, `rename_pose`, `remove_pose` | `save_pose`: `peg`, `frame`, `name` (the peg and every peg below it, as they are on that frame); `apply_pose`: `index`, `frame` (keys the pose's pegs the shot still has; refused when it has none); `rename_pose`: `index`, `name`; `remove_pose`: `index`. At most 512 poses |
 | `set_peg_keys` | `peg`, `keys` (a list of keys with the fields of `set_peg_key`, `frame` first): set them all as one undo step (a recorded take); refused whole when a key is past the end of the shot or the peg would hold more than 10 000 keys |
-| `set_layer_vector`, `vector_stroke`, `edit_vector` | `layer`, `vector`; `layer`, `frame`, `color`, `points` (`{x, y, width}`), `tolerance` (px, default 0.6); `layer`, `frame`, `edit` (`{"edit":"move_point","stroke","point","x","y"}`, `set_width` with `stroke`, optional `point`, `width`; `smooth` with `stroke`, `strength`, `passes`; `erase_to_crossings` with `stroke`, `x`, `y`; `delete_stroke`; `set_color`). Each is one undo step |
+| `set_layer_vector`, `vector_stroke`, `edit_vector` | `layer`, `vector`; `layer`, `frame`, `color`, `points` (`{x, y, width}`), `tolerance` (px, default 0.6), optional `style` (`cap`: `round` / `flat` / `square`, `join`: `round` / `sharp` / `cut`; round and round when absent); `layer`, `frame`, `edit` (`{"edit":"move_point","stroke","point","x","y"}`, `set_width` with `stroke`, optional `point`, `width`; `smooth` with `stroke`, `strength`, `passes`; `erase_to_crossings` with `stroke`, `x`, `y`; `delete_stroke`; `set_color`; `set_style` with `stroke`, `style`). Each is one undo step |
 | `move_peg_keys`, `set_peg_eases`, `remove_peg_keys` | `peg`, `frames` (the keys); `by_frames`, optional `channel` (`x`, `y`, `angle`, `scale_x`, `scale_y`, `skew`) and `by_value`; `ease`. Each is one undo step; a move that would leave the shot or land on a key that is not moving is refused whole |
 | `add_peg_for_layer` | `layer`, `name`: a new peg with the layer hung from it, one undo step |
 | `set_layer_peg`, `set_layer_depth` | `layer`, `peg` (absent: off the peg); `depth` (0 the drawing plane, above 0 further away) |
@@ -74,6 +75,7 @@ hand a script can do.
 | `set_drawing_name`, `expose_named` | `layer`, `frame`, `name` (names the drawing shown there; names are unique ignoring case); `layer`, `frame`, `name` (show that drawing at the frame, only that frame changes) |
 | `edit_swatch` | `palette`, `swatch` (0-based, a shot palette), `rgb`, optional `name`, `update_paint` (default true: paint in the old colour on every unlocked layer takes the new one) |
 | `clone_stamp` | `layer`, `frame`, `offset` (source minus destination, pixels), `points` (the path, at most 20 000), optional `source_layer` (another layer's drawing at the same frame), `tip` (`size` 1…1000 px, `hardness` and `opacity` 0…1) |
+| `liquify` | `layer`, `frame`, `points` (the path, at most 20 000), `mode` (`push` default, `twirl_left`, `twirl_right`, `pinch`, `bloat`), `brush` (`radius` 2…500 px, `strength` 0…1) |
 | `gradient` | `layer`, `frame`, `kind` (`linear` / `radial`), `from`, `to`, `start`, `end` (RGBA), optional `area` and `area_rings` (polygons); optional `stops` (`at` 0…1 and `rgba`, at most 16; with two or more they replace `start` and `end`) |
 | `set_palettes` | `palettes`: each a `name` and `swatches` (`name`, `rgb`, optional `alpha` (255 when absent) and `gradient` stops as for `gradient`) |
 | `set_length`, `set_fps`, `set_paper`, `set_paper_texture` (`texture`: `kind`, `image`, `scale`, `angle`, `contrast`, `strength`), `set_onion`, `toggle_pin`, `set_light_table`, `purge_unused` | as named |
