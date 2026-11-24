@@ -31,6 +31,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             Tool::Fill => fill_options(app, ui),
             Tool::Gradient => crate::draw_aids::gradient_options(app, ui),
             Tool::Clone => crate::clone_tool::options(app, ui),
+            Tool::Liquify => crate::liquify_tool::options(app, ui),
             Tool::Text => crate::text_tool::options(app, ui),
             Tool::Picker => {
                 ui.label(tl!("Click the canvas to pick a colour (Alt+click with any brush)"));

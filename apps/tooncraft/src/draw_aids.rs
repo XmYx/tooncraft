@@ -48,6 +48,8 @@ pub struct DrawAids {
     pub gradient_drag: Option<((f32, f32), (f32, f32))>,
     /// The clone stamp tool's settings and stroke.
     pub clone: crate::clone_tool::CloneTool,
+    /// The liquify tool's settings and stroke.
+    pub liquify: crate::liquify_tool::LiquifyTool,
     /// The gradient's own stops (from a gradient swatch or the stop editor); empty: the
     /// current colour to white or to transparent.
     pub gradient_stops: Vec<Stop>,
@@ -77,6 +79,7 @@ impl Default for DrawAids {
             gradient_to_transparent: true,
             gradient_drag: None,
             clone: Default::default(),
+            liquify: Default::default(),
             gradient_stops: Vec::new(),
             snap_grid: false,
             hold_straighten: true,

@@ -118,6 +118,16 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "is_hard")]
         feather: f32,
     },
+    /// Liquify along `points`: push, twirl, pinch or bloat the pixels under a soft brush.
+    Liquify {
+        layer: usize,
+        frame: u32,
+        #[serde(default)]
+        mode: crate::liquify::LiquifyMode,
+        #[serde(default)]
+        brush: crate::liquify::LiquifyBrush,
+        points: Vec<(f32, f32)>,
+    },
     /// The clone stamp along `points`: each pixel takes the one at `offset` (source minus
     /// destination) on `source_layer` (this layer when absent) at the same frame.
     CloneStamp {
@@ -1219,6 +1229,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
                 stops
             };
             crate::drawing::gradient(e, layer, frame, kind, from, to, &stops, area.as_deref(), &area_rings, feather)
+        }
+        Command::Liquify { layer, frame, mode, brush, points } => {
+            frame_ok(e, frame)?;
+            crate::liquify::liquify(e, layer, frame, mode, brush, &points)
         }
         Command::CloneStamp { layer, frame, source_layer, offset, tip, points } => {
             frame_ok(e, frame)?;

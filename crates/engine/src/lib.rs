@@ -32,6 +32,9 @@ mod interchange;
 mod layerops;
 pub mod library;
 pub mod lipsync;
+pub mod liquify;
+#[cfg(test)]
+mod liquify_tests;
 pub mod paging;
 pub mod playback;
 pub mod preset;
