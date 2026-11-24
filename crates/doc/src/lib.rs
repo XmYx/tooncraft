@@ -98,6 +98,8 @@ pub enum DocError {
     TooManyPegs,
     #[error("there is no peg {0}")]
     NoPeg(u64),
+    #[error("a peg can have at most {} keys", peg::MAX_PEG_KEYS)]
+    TooManyPegKeys,
     #[error("there is no light-table pin {0}")]
     NoSuchPin(usize),
     #[error("a drawing could not be read back from the page file")]
@@ -349,11 +351,98 @@ pub struct Paper {
     pub color: [u8; 3],
     /// Show the paper in exports (off: transparent background).
     pub export: bool,
+    /// A texture shading the paper colour (off at strength 0).
+    #[serde(skip_serializing_if = "PaperTexture::is_off")]
+    pub texture: PaperTexture,
 }
 
 impl Default for Paper {
     fn default() -> Self {
-        Self { color: [246, 243, 236], export: true }
+        Self { color: [246, 243, 236], export: true, texture: PaperTexture::default() }
+    }
+}
+
+/// Side of the square tile the paper texture repeats with, in canvas pixels.
+pub const PAPER_TILE: u32 = 512;
+
+/// How far a valley of the paper texture darkens the paper colour at full strength.
+const PAPER_DEPTH: f32 = 0.45;
+
+/// The visible texture of the paper: one of the grains, shading the paper colour (valleys
+/// darker), the same under the drawing on the canvas and in exports with the paper.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PaperTexture {
+    pub kind: tooncraft_brush::GrainKind,
+    /// The grain image (its id in the shot's tip table) when `kind` is `Image`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<u64>,
+    /// Feature size in canvas pixels, 0.5 … 64.
+    pub scale: f32,
+    /// Rotation in degrees.
+    pub angle: f32,
+    /// 0.1 … 4; 1 is the texture as it is.
+    pub contrast: f32,
+    /// 0 (off, plain paper) … 1.
+    pub strength: f32,
+}
+
+impl Default for PaperTexture {
+    fn default() -> Self {
+        Self { kind: tooncraft_brush::GrainKind::Paper, image: None, scale: 3.0, angle: 0.0, contrast: 1.0, strength: 0.0 }
+    }
+}
+
+impl PaperTexture {
+    pub fn is_off(&self) -> bool {
+        self.strength <= 0.0
+    }
+
+    /// Clamp every field to its range (files and command input are hostile).
+    pub fn sanitized(self) -> Self {
+        let f = |v: f32, lo: f32, hi: f32, d: f32| if v.is_finite() { v.clamp(lo, hi) } else { d };
+        PaperTexture {
+            kind: self.kind,
+            image: self.image,
+            scale: f(self.scale, 0.5, 64.0, 3.0),
+            angle: if self.angle.is_finite() { (self.angle + 180.0).rem_euclid(360.0) - 180.0 } else { 0.0 },
+            contrast: f(self.contrast, 0.1, tooncraft_brush::MAX_GRAIN_CONTRAST, 1.0),
+            strength: f(self.strength, 0.0, 1.0, 0.0),
+        }
+    }
+}
+
+/// The paper colour with its texture, ready to look up: the colour of every canvas pixel.
+pub struct PaperLook {
+    color: [u8; 3],
+    strength: f32,
+    grain: Option<tooncraft_brush::Grain>,
+}
+
+impl PaperLook {
+    /// Straight RGB of the paper at canvas pixel `(x, y)`.
+    pub fn at(&self, x: u32, y: u32) -> [u8; 3] {
+        let Some(g) = &self.grain else { return self.color };
+        let h = g.seamless(x, y, PAPER_TILE);
+        let k = 1.0 - self.strength * PAPER_DEPTH * (1.0 - h);
+        self.color.map(|c| (c as f32 * k).round().clamp(0.0, 255.0) as u8)
+    }
+
+    /// Whether the paper is one flat colour.
+    pub fn is_plain(&self) -> bool {
+        self.grain.is_none()
+    }
+
+    /// The repeating tile (`PAPER_TILE` square, straight RGBA, row-major) for the canvas display.
+    pub fn tile(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity((PAPER_TILE * PAPER_TILE * 4) as usize);
+        for y in 0..PAPER_TILE {
+            for x in 0..PAPER_TILE {
+                let c = self.at(x, y);
+                out.extend_from_slice(&[c[0], c[1], c[2], 255]);
+            }
+        }
+        out
     }
 }
 
@@ -430,6 +519,17 @@ impl PartialEq for Project {
 }
 
 impl Project {
+    /// The paper's look: its colour and, when on, its texture (a grain image missing from the
+    /// tip table falls back to the paper grain).
+    pub fn paper_look(&self) -> PaperLook {
+        let t = self.paper.texture.sanitized();
+        if t.is_off() {
+            return PaperLook { color: self.paper.color, strength: 0.0, grain: None };
+        }
+        let image = t.image.and_then(|i| self.tips.get(&i).cloned());
+        PaperLook { color: self.paper.color, strength: t.strength, grain: Some(tooncraft_brush::Grain::new(t.kind, t.scale, t.angle, t.contrast, image)) }
+    }
+
     /// A new shot with one empty layer.
     pub fn new(name: &str, width: u32, height: u32, fps: u32, length: u32) -> Result<Self> {
         if width == 0 || height == 0 || width > MAX_SIDE || height > MAX_SIDE {
@@ -533,7 +633,7 @@ impl Project {
                 return Err(RasterError::BadSize(d.width(), d.height()).into());
             }
         }
-        p.paper = paper;
+        p.paper = Paper { texture: paper.texture.sanitized(), ..paper };
         p.drawings = drawings.into_iter().map(|(k, v)| (k, paging::Slot::Resident(v))).collect();
         p.onion = onion.sanitized();
         p.light_table = light_table.sanitized();
