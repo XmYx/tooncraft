@@ -18,16 +18,24 @@ tooncraft	Actual size
 tooncraft	Add	
 tooncraft	Add All to Palette	
 tooncraft	Add Area	
+tooncraft	Add Concentric Ruler	
 tooncraft	Add Current Brush	
 tooncraft	Add Current Colour	
+tooncraft	Add Curve Ruler	
+tooncraft	Add Ellipse Ruler	
 tooncraft	Add Inbetweens	
 tooncraft	Add Layer Above	
 tooncraft	Add Marker	
 tooncraft	Add Marker Here	
+tooncraft	Add One-Point Perspective	
 tooncraft	Add Other	
 tooncraft	Add Peg	
 tooncraft	Add Shake Here	
 tooncraft	Add Sound…	
+tooncraft	Add Straight Ruler	
+tooncraft	Add Three-Point Perspective	
+tooncraft	Add Two-Point Perspective	
+tooncraft	Add a Peg for This Layer	
 tooncraft	Add a look	
 tooncraft	Add effect	
 tooncraft	Add light	
@@ -153,6 +161,7 @@ tooncraft	Colours already premultiplied
 tooncraft	Colours you paint with show up here	
 tooncraft	Comic	
 tooncraft	Command	
+tooncraft	Concentric ruler	
 tooncraft	Copied	
 tooncraft	Copied {frames} frames from {layers} layers	
 tooncraft	Copies	
@@ -174,6 +183,7 @@ tooncraft	Crop to the camera frame at the current frame (no rotation)
 tooncraft	Current colour #{hex}	
 tooncraft	Current colour: open the Colour panel	
 tooncraft	Curve	
+tooncraft	Curve ruler	
 tooncraft	Curve: {source} to {target}	
 tooncraft	Curves	
 tooncraft	Custom curve	
@@ -208,8 +218,10 @@ tooncraft	Don’t Save
 tooncraft	Down	
 tooncraft	Drag around an area to fill it	
 tooncraft	Drag from start to end; inside the selection when there is one	
+tooncraft	Drag further from the pivot to scale or turn	
 tooncraft	Drag inside to move, corners to scale, the top knob to rotate	
 tooncraft	Drag the four corners freely (perspective), then Apply	
+tooncraft	Drag to move, a corner to scale, the knob to turn, the cross to move the pivot	
 tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates	
 tooncraft	Draw the peg's other values faintly, each scaled to fit, to compare their timing	
 tooncraft	Drawing	
@@ -252,6 +264,7 @@ tooncraft	Effect stack
 tooncraft	Effects	
 tooncraft	Effects on {layer}, frame {frame}	
 tooncraft	Ellipse	
+tooncraft	Ellipse ruler	
 tooncraft	Empty	
 tooncraft	Empty Only	
 tooncraft	Erase Selection	
@@ -527,6 +540,7 @@ tooncraft	Loop a few frames either side of this one, to check an inbetween
 tooncraft	Loop playback	
 tooncraft	Luminosity	
 tooncraft	Magic Wand	
+tooncraft	Make a new peg and hang the current layer from it	
 tooncraft	Mark Drawing	
 tooncraft	Marker	
 tooncraft	Marker added at frame {n}	
@@ -569,6 +583,7 @@ tooncraft	Move the layer up
 tooncraft	Move {name} down	
 tooncraft	Move {name} up	
 tooncraft	Move, scale and turn the selection to these numbers	
+tooncraft	Moving the {kind}	
 tooncraft	Multiply	
 tooncraft	Mute clip {n}	
 tooncraft	Mute {track}	
@@ -711,11 +726,15 @@ tooncraft	Paste frames, moving later frames right
 tooncraft	Pasted	
 tooncraft	Peg	
 tooncraft	Peg {n}	
+tooncraft	Peg “{name}”	
 tooncraft	Pegs	
 tooncraft	Pen down: arrow keys draw, Enter lifts	
 tooncraft	Pen lifted	
 tooncraft	Pencil	
 tooncraft	Pencils	
+tooncraft	Perspective, one point	
+tooncraft	Perspective, three points	
+tooncraft	Perspective, two points	
 tooncraft	Pick Colour Here	
 tooncraft	Pick colour	
 tooncraft	Picked #{hex}	
@@ -744,6 +763,7 @@ tooncraft	Playback
 tooncraft	Playback loops back after this frame	
 tooncraft	Playback speed; the sound plays only at 100 %	
 tooncraft	Playback starts here	
+tooncraft	Point {n} X	
 tooncraft	Point {n} in	
 tooncraft	Point {n} out	
 tooncraft	Polygon	
@@ -786,6 +806,7 @@ tooncraft	Re-time Between Keys
 tooncraft	Re-time Layer	
 tooncraft	Re-time the selected frames (or the whole layer)	
 tooncraft	Re-timed on {n}s; no drawing was deleted	
+tooncraft	Reach	
 tooncraft	Recent	
 tooncraft	Recent colour #{hex}	
 tooncraft	Recent colours	
@@ -810,6 +831,7 @@ tooncraft	Reference Image…
 tooncraft	Reference image added under the drawing, locked	
 tooncraft	Reload Library	
 tooncraft	Remove	
+tooncraft	Remove All Rulers	
 tooncraft	Remove Area	
 tooncraft	Remove Key	
 tooncraft	Remove Marker	
@@ -821,6 +843,7 @@ tooncraft	Remove clip {n} volume key
 tooncraft	Remove from Palette	
 tooncraft	Remove opacity key	
 tooncraft	Remove point	
+tooncraft	Remove this ruler	
 tooncraft	Remove this shake	
 tooncraft	Remove {name}	
 tooncraft	Remove {name} from favourites	
@@ -855,6 +878,9 @@ tooncraft	Rotation
 tooncraft	Round	
 tooncraft	Round (O)	
 tooncraft	Roundness	
+tooncraft	Ruler move cancelled	
+tooncraft	Rulers	
+tooncraft	Rulers on: strokes started near a grid line follow it; right-click Rulers to add a ruler	
 tooncraft	S-curve	
 tooncraft	Safe Areas	
 tooncraft	Saturation	
@@ -959,6 +985,7 @@ tooncraft	Smoothing
 tooncraft	Smoothing for new brushes	
 tooncraft	Smudge	
 tooncraft	Smudges	
+tooncraft	Snap strokes to grid lines	
 tooncraft	Snap to grid	
 tooncraft	Soft airbrush	
 tooncraft	Soft blur	
@@ -1000,10 +1027,13 @@ tooncraft	Steps before
 tooncraft	Stop	
 tooncraft	Stop Clipping	
 tooncraft	Straight line from the last stroke	
+tooncraft	Straight ruler	
 tooncraft	Straightened	
 tooncraft	Strength	
 tooncraft	Stroke cancelled	
+tooncraft	Strokes follow rulers	
 tooncraft	Strokes only recolour paint that is already on the layer	
+tooncraft	Strokes started near a ruler follow it; right-click to add rulers and choose grid snapping	
 tooncraft	Subtract	
 tooncraft	Swap Drawing	
 tooncraft	Swatch #{hex}	
@@ -1030,6 +1060,7 @@ tooncraft	Thicken lines
 tooncraft	This frame	
 tooncraft	This layer	
 tooncraft	This layer gets its own steps, opacity and colours; the others keep the shot's	
+tooncraft	This layer hangs from no peg: add one from the tool options	
 tooncraft	Three-way	
 tooncraft	Threshold	
 tooncraft	Thumbnails	
@@ -1061,6 +1092,8 @@ tooncraft	Touching only
 tooncraft	Track	
 tooncraft	Track {n}	
 tooncraft	Transform Selection	
+tooncraft	Transform cancelled	
+tooncraft	Transform layer	
 tooncraft	Trim start	
 tooncraft	Turbulence	
 tooncraft	Type a frame number to go there	
@@ -1165,4 +1198,5 @@ tooncraft	{tool} selected
 tooncraft	{tool}; right-click or hold for the other tools of the group	
 tooncraft	{w}×{h} · {fps} fps	
 tooncraft	“{layer}” hangs from	
+tooncraft	“{layer}” hangs from no peg	
 tooncraft	“{name}” has changes that are not saved. Save the shot first?	

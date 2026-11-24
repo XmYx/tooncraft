@@ -193,9 +193,9 @@ Weight: 7
 | Eyedropper | all | D | S | |
 | Gradient tool (linear, radial) | all | D | S | Gradient tool (G): drag start to end, to transparent or to white, kept inside the selection |
 | Symmetry and mirror drawing (axes, radial) | TV CS PD | D | M | Left and right, top and bottom, four ways, radial and mirrored radial (2 to 32 copies) with the axes drawn on the canvas; a mirrored stroke is one undo step and the setting is saved in the shot |
-| Stroke rulers: straight, curve, ellipse, concentric | TV TB CS | M | M | |
-| Perspective rulers with vanishing points | TV CS PD | M | M | |
-| Grid display and snapping strokes to it | TV TB CS | P | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it; freehand strokes do not |
+| Stroke rulers: straight, curve, ellipse, concentric | TV TB CS | D | M | Rulers above the canvas: a stroke started near a straight, curve or ellipse ruler follows it, a concentric ruler takes every stroke on the ellipse through its start; handles drag on the canvas or are typed in the Rulers menu; saved with the shot |
+| Perspective rulers with vanishing points | TV CS PD | D | M | One, two or three vanishing points; after a few pixels of travel the stroke runs on the line through the closest point in that direction |
+| Grid display and snapping strokes to it | TV TB CS | D | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it, and with Rulers ▸ Snap strokes to grid lines a freehand stroke started near a grid line runs along it |
 | Snap the end of a stroke to a clean line or ellipse when held | CS PD | D | S | Hold to straighten: hold the pen still for half a second and a rough line or loop becomes a clean line or ellipse |
 | Text tool | TV TB CS | M | M | |
 | Clone stamp | TV CS | M | S | |
@@ -327,7 +327,7 @@ Weight: 9
 | Re-time a range, with presets and re-timing between keys | TV TB | D | S | **Ours:** non-destructive, one undo step |
 | Reverse a range | TV TB | D | S | |
 | Cycles (repeat a range of cells) | TV TB | D | S | |
-| Pegs: nested parented transforms with pivots | TB | D | L | Move, rotate, scale and skew keys; loops refused |
+| Pegs: nested parented transforms with pivots | TB | D | L | Move, rotate, scale and skew keys; loops refused; dragged on the canvas with the Transform tool, through any parent pegs |
 | Keyed layer transforms with easing | TB CS PD | D | M | Linear, ease, hold or a custom curve per key |
 | Motion path on the canvas | TB PD | D | S | |
 | Inbetween guides from the spacing chart | — | X | S | **Ours:** new inbetweens placed along the chart, with blended guides on a locked layer |
@@ -511,7 +511,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Pencil properties: caps and joins | TB | M | S | Size, opacity, smoothing, steady line; no caps or joins |
 | Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
 | Select properties: modes, typed position, size and angle | TB | D | S | Lasso, rectangle, ellipse, wand; add, remove, overlap; X, Y, width, height (proportions kept) and angle typed and applied as one step; flips, skew, distort |
-| Transform tool properties with typed values | TB | P | M | The Pegs panel types key values; no canvas transform tool |
+| Transform tool properties with typed values | TB | D | M | The Transform tool (Q) drags the current layer's peg on the canvas: move, a corner to scale, a knob to turn, the pivot cross; one peg key per drag, Escape cancels; arrows, [ ] and Page Up / Down nudge; its options type Move X/Y, Rotation, Scale X/Y, or add a peg for a layer without one |
 | Contour, text, rigging and morph tool properties | TB | M | L | Those tools are missing |
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
 | Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue and the brush's opacity |

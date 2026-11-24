@@ -62,3 +62,4 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Audio track, Clip, Trim start, Fade in / out, Mute, Solo, Export Sound Mix | Generic audio-editing terms | Use (common) |
 | Lip Sync, Mouth chart, Detect Mouths from Sound, Mouth sheet | Generic animation terms and our wording | Use (common) |
 | Rest, Closed, Open, Wide, Round, Pucker, Teeth on lip, Tongue, Other consonants | Our names for the mouth shapes; phoneme letters are generic | Use |
+| Rulers, Straight ruler, Curve ruler, Ellipse ruler, Concentric ruler, One-, Two-, Three-Point Perspective, Snap strokes to grid lines, Reach | Generic drafting terms and our wording | Use (common) |
