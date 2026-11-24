@@ -1,0 +1,1 @@
+- 2026-11-24: The Transform tool's Add a Peg for This Layer is one undo step (`add_peg_for_layer`).

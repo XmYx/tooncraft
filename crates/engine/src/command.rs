@@ -319,6 +319,11 @@ pub enum Command {
         #[serde(default)]
         parent: Option<PegId>,
     },
+    /// Add a peg and hang `layer` from it, as one undo step.
+    AddPegForLayer {
+        layer: usize,
+        name: String,
+    },
     /// Remove a peg: its layers come off it and its child pegs hang from its parent.
     DeletePeg {
         peg: PegId,
@@ -1265,6 +1270,14 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }
         Command::AddPeg { name, parent } => pegs(e, "Add peg", |p| p.add_peg(&name, parent).map(|_| ())),
+        Command::AddPegForLayer { layer, name } => {
+            e.project.layer(layer)?;
+            let parts = vec![Part::Layers(e.project.layers.clone()), Part::Pegs(e.project.pegs.clone())];
+            let id = e.project.add_peg(&name, None)?;
+            e.project.layer_mut(layer)?.peg = Some(id);
+            e.push(Entry { label: "Add peg for layer".into(), parts });
+            Ok(())
+        }
         Command::DeletePeg { peg } => {
             let parts = vec![Part::Layers(e.project.layers.clone()), Part::Pegs(e.project.pegs.clone())];
             e.project.delete_peg(peg)?;
