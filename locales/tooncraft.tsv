@@ -7,6 +7,7 @@ tooncraft	 px
 tooncraft	 s	
 tooncraft	0: four, or more for a long shot	
 tooncraft	A copy of the clip starting at the current frame	
+tooncraft	A layer below for colour that follows this layer's drawings and timing	
 tooncraft	A new layer	
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
 tooncraft	A new shot (Ctrl+N)	
@@ -18,6 +19,7 @@ tooncraft	Actual size
 tooncraft	Add	
 tooncraft	Add All to Palette	
 tooncraft	Add Area	
+tooncraft	Add Colour Layer	
 tooncraft	Add Concentric Ruler	
 tooncraft	Add Current Brush	
 tooncraft	Add Current Colour	
@@ -157,6 +159,8 @@ tooncraft	Colour dodge
 tooncraft	Colour fringe	
 tooncraft	Colour jitter	
 tooncraft	Colour key	
+tooncraft	Colour layer added: paint under the lines, it follows their timing	
+tooncraft	Colour of {layer}	
 tooncraft	Colour opacity	
 tooncraft	Colour picker	
 tooncraft	Colour pickup	
@@ -489,6 +493,7 @@ tooncraft	Keep the right side in place
 tooncraft	Keep the top in place	
 tooncraft	Keep the top left in place	
 tooncraft	Keep the top right in place	
+tooncraft	Keep this layer's drawings, but stop following the line layer's timing	
 tooncraft	Key	
 tooncraft	Key Here	
 tooncraft	Key at frame {n}	
@@ -1061,6 +1066,7 @@ tooncraft	Steps after
 tooncraft	Steps before	
 tooncraft	Stop	
 tooncraft	Stop Clipping	
+tooncraft	Stop Following the Line Layer	
 tooncraft	Straight line from the last stroke	
 tooncraft	Straight ruler	
 tooncraft	Straightened	
@@ -1097,6 +1103,7 @@ tooncraft	The size changes around the centre; Canvas Size… keeps another part 
 tooncraft	Thicken lines	
 tooncraft	This frame	
 tooncraft	This layer	
+tooncraft	This layer already has a colour layer; another one follows it too	
 tooncraft	This layer gets its own steps, opacity and colours; the others keep the shot's	
 tooncraft	This layer hangs from no peg: add one from the tool options	
 tooncraft	Three-way	

@@ -17,6 +17,9 @@ mod canvas;
 mod canvas_header;
 mod canvas_tools;
 mod color;
+mod colour_layers_ui;
+#[cfg(test)]
+mod colour_layers_ui_tests;
 mod colour_tools;
 #[cfg(test)]
 mod colour_ui_tests;

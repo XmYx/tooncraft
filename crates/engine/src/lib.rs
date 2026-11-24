@@ -94,6 +94,8 @@ pub enum EngineError {
     TransparencyLocked(String),
     #[error("there is no swatch {1} in palette {0}")]
     NoSwatch(usize, usize),
+    #[error("frame {0} has no line drawing to colour on the line layer")]
+    NoLineArt(u32),
     #[error("there is no library item {0}")]
     NoLibraryItem(usize),
 }
@@ -213,6 +215,7 @@ impl Engine {
         }
         let e = self.undo.pop().ok_or(EngineError::NothingToUndo)?;
         let inv = e.swap(&mut self.project);
+        self.project.sync_colour_layers();
         self.redo.push(inv);
         self.changes += 1;
         Ok(())
@@ -224,6 +227,7 @@ impl Engine {
         }
         let e = self.redo.pop().ok_or(EngineError::NothingToRedo)?;
         let inv = e.swap(&mut self.project);
+        self.project.sync_colour_layers();
         self.undo.push(inv);
         self.changes += 1;
         Ok(())
@@ -283,6 +287,17 @@ impl Engine {
             return Ok((d, Vec::new()));
         }
         let before = Part::Layers(self.project.layers.clone());
+        // a colour layer: the new drawing is the colour of the line drawing shown here
+        if let Some(li) = self.project.line_layer_of(layer) {
+            let line = self.project.drawing_at(li, frame).ok_or(EngineError::NoLineArt(frame + 1))?;
+            if self.project.layer(layer)?.colour_pairs.len() >= tooncraft_doc::colour_art::MAX_PAIRS {
+                return Err(DocError::TooManyDrawings.into());
+            }
+            let id = self.project.add_drawing(None)?;
+            self.project.layer_mut(layer)?.colour_pairs.push((line, id));
+            self.project.sync_colour_layers();
+            return Ok((id, vec![Part::Drawing { id, surface: None }, before]));
+        }
         let id = self.project.add_drawing(None)?;
         self.project.layer_mut(layer)?.set_key(frame, id);
         Ok((id, vec![Part::Drawing { id, surface: None }, before]))
@@ -508,10 +523,15 @@ impl Engine {
         if self.live.is_some() {
             return Err(EngineError::Busy);
         }
-        command::apply(self, cmd)
+        let r = command::apply(self, cmd);
+        // colour layers follow their line layers whatever the command changed
+        self.project.sync_colour_layers();
+        r
     }
 }
 
+#[cfg(test)]
+mod colour_art_tests;
 #[cfg(test)]
 mod history_tests;
 #[cfg(test)]

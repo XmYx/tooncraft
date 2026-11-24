@@ -393,6 +393,8 @@ mod tests {
             lock_alpha: false,
             vector: false,
             onion: None,
+            colour_of: None,
+            colour_pairs: Vec::new(),
             cells,
         }
     }

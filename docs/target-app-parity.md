@@ -236,7 +236,7 @@ Weight: 7
 | Fill reference: current layer or all visible layers | TV TB CS | D | S | |
 | Fill under lines (into the antialiasing) | TV TB CS | D | S | |
 | Fill every drawing of a layer at once | TV TB | D | S | One undo step. Also: fill, empty areas only, or repaint, and gap presets with the reach shown around the pointer |
-| Linked line and paint layers | TB TV CS | P | M | Paint on a layer below the ink with the all-visible reference; no linked pair |
+| Linked line and paint layers | TB TV CS | D | M | Add Colour Layer (a layer's menu): a layer below that follows the line layer's exposures, so new drawings, holds, re-timing and deleted frames act on both; painting there makes the colour drawing paired with the line drawing, and the bucket sees the lines through the all-visible reference; saved with the shot. No line-only onion and no automatic copy of line regions |
 | Paint the same regions across drawings automatically | TV TB | M | L | |
 | Colour swatches | all | D | S | Named palettes kept with the shot, plus the built-in Basic one; swatch names on hover; remove from a palette with a right-click |
 | Palette files: save, load, import common formats | all | D | S | GIMP .gpl open and save (read through craft-palette), Photoshop .aco open (RGB, HSB, grey) |

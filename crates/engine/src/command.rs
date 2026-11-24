@@ -182,6 +182,17 @@ pub enum Command {
     SetRulers {
         rulers: tooncraft_doc::rulers::Rulers,
     },
+    /// Add a colour layer just below `layer` that follows its exposures (line and colour art in
+    /// one drawing). One undo step.
+    AddColourLayer {
+        layer: usize,
+    },
+    /// Make `layer` follow the line layer `line`'s exposures, or stop following (`None`).
+    SetColourOf {
+        layer: usize,
+        #[serde(default)]
+        line: Option<usize>,
+    },
     /// Start a new, empty drawing at the frame.
     NewDrawing {
         layer: usize,
@@ -1472,6 +1483,36 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.push(Entry { label: "Clear drawing".into(), parts: vec![Part::Tiles { drawing: d, tiles }] });
             Ok(())
         }
+        Command::AddColourLayer { layer } => edit_layers(e, "Add colour layer", |e| {
+            let l = e.project.layer(layer)?;
+            if l.colour_of.is_some() {
+                return Err(EngineError::Import("a colour layer cannot have a colour layer of its own".into()));
+            }
+            let (id, name) = (l.id, format!("{} colour", l.name));
+            let at = e.project.add_layer(&name, layer)?;
+            e.project.layer_mut(at)?.colour_of = Some(id);
+            Ok(())
+        }),
+        Command::SetColourOf { layer, line } => edit_layers(e, "Link colour layer", |e| {
+            let id = match line {
+                Some(li) if li == layer => return Err(EngineError::Import("a layer cannot colour itself".into())),
+                Some(li) => {
+                    let l = e.project.layer(li)?;
+                    if l.colour_of.is_some() {
+                        return Err(EngineError::Import("the line layer is itself a colour layer".into()));
+                    }
+                    Some(l.id)
+                }
+                None => None,
+            };
+            let c = e.project.layer_mut(layer)?;
+            c.colour_of = id;
+            if id.is_some() {
+                // drawings already on the layer are not the colour of any line drawing
+                c.colour_pairs.clear();
+            }
+            Ok(())
+        }),
         Command::AddLayer { name, index } => edit_layers(e, "Add layer", |e| {
             let at = index.unwrap_or(e.project.layers.len());
             e.project.add_layer(&name, at)?;
