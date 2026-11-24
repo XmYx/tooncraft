@@ -150,8 +150,8 @@ Weight: 9
 | Brush presets as files and a preset folder | all | D | S | `.toonbrush` files |
 | Brush library: categories, favourites, recent brushes, search | TV CS PD | D | M | **Ours:** every list and the search work from the keyboard (Ctrl+B) |
 | Brush editor panel with a live stroke preview | TV CS PD | D | M | **Ours:** every control, the curve editor included, works from the keyboard; [format](toonbrush-format.md) |
-| Wet paint: colour pickup, mixing and dilution | TV CS PD | P | L | Watercolour brush and colour pickup on any brush; no dilution or drying |
-| Watercolour edges: darkening and bleeding | TV CS PD | M | M | |
+| Wet paint: colour pickup, mixing and dilution | TV CS PD | D | L | Colour pickup and mixing on any brush, water (`dilution`: a thin glaze) and drying (`dry`: the brush runs out along the stroke), in the brush editor's Wet section |
+| Watercolour edges: darkening and bleeding | TV CS PD | D | M | Edge pooling and bleeding into the paper, worked out at the end of the stroke from its footprint, in the same undo step; on by default in the watercolour brush |
 | Smudge brush | all | D | M | Drags the layer's colour along the stroke; one undo step |
 | Blur and soften brush | TV CS PD | D | S | The Blur and Fine blur brushes (the smudge brush at full pickup): each pixel moves towards its neighbourhood's mean |
 | Thick paint with depth and lighting (impasto) | TV CS PD | M | L | |

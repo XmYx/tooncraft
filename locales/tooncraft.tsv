@@ -124,6 +124,7 @@ tooncraft	Bigger brush
 tooncraft	Bilinear (smooth)	
 tooncraft	Black and white	
 tooncraft	Blank frame: drawing here starts a new drawing.	
+tooncraft	Bleeding	
 tooncraft	Blend	
 tooncraft	Blue	
 tooncraft	BoardCraft Board or Animatic…	
@@ -330,6 +331,7 @@ tooncraft	Drop shadow
 tooncraft	Drop the text (Escape)	
 tooncraft	Dry chalk	
 tooncraft	Dry wash	
+tooncraft	Drying	
 tooncraft	Duplicate	
 tooncraft	Duplicate Brush	
 tooncraft	Duplicate Current Layer	
@@ -350,6 +352,7 @@ tooncraft	Ease in
 tooncraft	Ease in and out	
 tooncraft	Ease out	
 tooncraft	Ease to next key	
+tooncraft	Edge pooling	
 tooncraft	Edit	
 tooncraft	Edit Decisions (OpenTimelineIO)…	
 tooncraft	Edit Swatch…	
@@ -549,6 +552,7 @@ tooncraft	Hold the pen still at the end of a stroke to turn it into a clean line
 tooncraft	Hold to straighten	
 tooncraft	How many frames this drawing is shown (1 to 9 in the sheet)	
 tooncraft	How much the colour already on the layer mixes into the paint; 0 keeps the paint pure	
+tooncraft	How quickly the brush runs out of paint along the stroke	
 tooncraft	How quickly the smear lets go of the colour it carries: low values drag long smears, 1 only softens (a blur)	
 tooncraft	Hue	
 tooncraft	Hue Wheel	
@@ -916,6 +920,7 @@ tooncraft	PNG Sequence per Layer…
 tooncraft	PNG Sequence…	
 tooncraft	Paint	
 tooncraft	Paint bucket	
+tooncraft	Paint creeps a little way past the edge of the stroke into the paper	
 tooncraft	Paint into the mask to hide parts of this layer	
 tooncraft	Paint on Layer Mask	
 tooncraft	Paint on top of the drawing, behind it (only filling gaps), or only where there is already paint	
@@ -964,6 +969,7 @@ tooncraft	Pick colour
 tooncraft	Picked #{hex}	
 tooncraft	Picker	
 tooncraft	Picker Window	
+tooncraft	Pigment gathers along the inside of the stroke's edge as it dries	
 tooncraft	Pin This Frame	
 tooncraft	Pin frame to the light table	
 tooncraft	Pin light	
@@ -1353,6 +1359,7 @@ tooncraft	The tool has no brush
 tooncraft	There is no layer above	
 tooncraft	There is no layer below	
 tooncraft	Thicken lines	
+tooncraft	Thins the paint: watery paint goes on as a pale glaze	
 tooncraft	This frame	
 tooncraft	This layer	
 tooncraft	This layer already has a colour layer; another one follows it too	
@@ -1447,6 +1454,7 @@ tooncraft	Vignette
 tooncraft	Violet	
 tooncraft	Vivid light	
 tooncraft	Volume	
+tooncraft	Water	
 tooncraft	Watercolour	
 tooncraft	Watercolours	
 tooncraft	Wave	
