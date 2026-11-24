@@ -73,3 +73,82 @@ fn bad_input_is_refused_or_ignored() {
     let c: Command = serde_json::from_str(r#"{"cmd":"auto_paint","layer":0,"from":0,"frames":[1]}"#).unwrap();
     assert!(matches!(c, Command::AutoPaint { .. }));
 }
+
+fn auto(e: &mut Engine, frames: Vec<u32>) -> crate::Result<()> {
+    e.apply(Command::AutoPaint { layer: 0, from: 0, frames, options: Default::default(), reference: Default::default() })
+}
+
+#[test]
+fn the_limits_are_refused_before_any_work() {
+    use crate::auto_paint::{MAX_AUTO_DRAWINGS, MAX_AUTO_PIXELS, MAX_AUTO_WORK};
+    // a canvas over the pixel cap
+    let side = ((MAX_AUTO_PIXELS as f64).sqrt() as u32) + 100;
+    let mut e = Engine::new(Project::new("Big", side, side, 12, 2).unwrap());
+    e.apply(Command::NewDrawing { layer: 0, frame: 0 }).unwrap();
+    e.apply(Command::NewDrawing { layer: 0, frame: 1 }).unwrap();
+    let undo = e.undo_len();
+    assert!(matches!(auto(&mut e, vec![1]), Err(crate::EngineError::Limit(_))));
+    assert_eq!(e.undo_len(), undo);
+    // more drawings than one call takes
+    let n = MAX_AUTO_DRAWINGS as u32 + 2;
+    let mut e = Engine::new(Project::new("Many", 16, 16, 12, n).unwrap());
+    for f in 0..n {
+        e.apply(Command::NewDrawing { layer: 0, frame: f }).unwrap();
+    }
+    let undo = e.undo_len();
+    assert!(matches!(auto(&mut e, (1..n).collect()), Err(crate::EngineError::Limit(_))));
+    assert_eq!(e.undo_len(), undo);
+    // under both caps but over the total work budget: drawings × canvas pixels
+    let side = 2000u32;
+    let per = side as u64 * side as u64;
+    let n = (MAX_AUTO_WORK / per) as u32 + 2;
+    assert!((n as usize) <= MAX_AUTO_DRAWINGS && per <= MAX_AUTO_PIXELS);
+    let mut e = Engine::new(Project::new("Work", side, side, 12, n + 1).unwrap());
+    for f in 0..=n {
+        e.apply(Command::NewDrawing { layer: 0, frame: f }).unwrap();
+    }
+    let undo = e.undo_len();
+    let t = std::time::Instant::now();
+    assert!(matches!(auto(&mut e, (1..=n).collect()), Err(crate::EngineError::Limit(_))));
+    assert!(t.elapsed() < std::time::Duration::from_secs(2), "refused before any work: {:?}", t.elapsed());
+    assert_eq!(e.undo_len(), undo);
+}
+
+#[test]
+fn a_drawing_with_very_many_rooms_is_bounded() {
+    use crate::auto_paint::MAX_AUTO_REGIONS;
+    // the reference is solid red; the target is a grid of more rooms than one drawing fills
+    let (side, step) = (420u32, 7.0f32);
+    let mut e = Engine::new(Project::new("Grid", side, side, 12, 2).unwrap());
+    let solid = |frame, area: Vec<(f32, f32)>, c| Command::Gradient {
+        layer: 0,
+        frame,
+        kind: Default::default(),
+        from: (0.0, 0.0),
+        to: (1.0, 0.0),
+        start: c,
+        end: c,
+        area: Some(area),
+        area_rings: Vec::new(),
+        feather: 0.0,
+        stops: Vec::new(),
+    };
+    e.apply(Command::NewDrawing { layer: 0, frame: 0 }).unwrap();
+    e.apply(solid(0, rect(0.0, 0.0, side as f32, side as f32), RED)).unwrap();
+    e.apply(Command::NewDrawing { layer: 0, frame: 1 }).unwrap();
+    let lines = (side as f32 / step) as u32;
+    for k in 0..=lines {
+        let at = k as f32 * step;
+        e.apply(solid(1, rect(at, 0.0, at + 1.0, side as f32), INK)).unwrap();
+        e.apply(solid(1, rect(0.0, at, side as f32, at + 1.0), INK)).unwrap();
+    }
+    let rooms = (lines as usize) * (lines as usize);
+    assert!(rooms > MAX_AUTO_REGIONS, "{rooms} rooms");
+    auto(&mut e, vec![1]).unwrap();
+    // count the rooms that were filled: one sample pixel in each
+    let filled = (0..lines)
+        .flat_map(|j| (0..lines).map(move |i| (i, j)))
+        .filter(|(i, j)| px(&e, 1, (*i as f32 * step + 3.5) as i64, (*j as f32 * step + 3.5) as i64) == RED)
+        .count();
+    assert!(filled > 0 && filled <= MAX_AUTO_REGIONS, "{filled} rooms filled");
+}

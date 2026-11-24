@@ -20,6 +20,8 @@ pub const MAX_AUTO_REGIONS: usize = 2048;
 pub const MIN_REGION: usize = 6;
 /// Share of a region the reference colour must cover.
 pub const MIN_SHARE: f32 = 0.3;
+/// Most pixel visits one auto paint may make (drawings × canvas pixels), checked before any work.
+pub const MAX_AUTO_WORK: u64 = 256_000_000;
 
 /// A pixel that bounds a region: drawn paint (enough opacity).
 fn solid(p: [u8; 4]) -> bool {
@@ -98,6 +100,9 @@ pub fn auto_paint(e: &mut Engine, layer: usize, from: u32, frames: &[u32], optio
     if targets.len() > MAX_AUTO_DRAWINGS {
         return Err(EngineError::Limit("drawings to paint at once"));
     }
+    if (targets.len() as u64).saturating_mul(w as u64 * h as u64) > MAX_AUTO_WORK {
+        return Err(EngineError::Limit("pixels to look at for painting drawings alike"));
+    }
     let reference_surface = e.project.drawing(r).cloned().ok_or(EngineError::NoDrawing(from))?;
     let mut parts = Vec::new();
     let mut filled = 0;
@@ -119,9 +124,17 @@ pub fn auto_paint(e: &mut Engine, layer: usize, from: u32, frames: &[u32], optio
             }
         }
         for (seed, c) in plan {
-            if let Some(p) = e.fill_parts_for(layer, f, seed, c, options, reference)? {
-                parts.extend(p);
-                filled += 1;
+            match e.fill_parts_for(layer, f, seed, c, options, reference) {
+                Ok(Some(p)) => {
+                    parts.extend(p);
+                    filled += 1;
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    // undo the fills made so far: nothing is left changed outside undo
+                    let _ = Entry { label: String::new(), parts }.swap(&mut e.project);
+                    return Err(err);
+                }
             }
         }
     }
