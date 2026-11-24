@@ -49,7 +49,10 @@ pub struct Caps {
 }
 
 pub fn caps(kind: &str) -> Caps {
-    let ours = matches!(kind, "mp4" | "mp4-hevc" | "mp4-av1" | "mov" | "gif" | "apng" | "webp" | "webp-lossy" | "png" | "tga" | "tiff" | "jpeg" | "exr" | "exr-layers");
+    let ours = matches!(
+        kind,
+        "mp4" | "mp4-hevc" | "mp4-av1" | "mov" | "gif" | "apng" | "webp" | "webp-lossy" | "png" | "tga" | "tiff" | "jpeg" | "exr" | "exr-layers"
+    );
     Caps {
         range: ours || matches!(kind, "prores4444" | "prores422" | "layers" | "psd-frames" | "psb-frames"),
         scale: ours,
