@@ -457,6 +457,7 @@ tooncraft	Folder for the TGA frames
 tooncraft	Folder for the TIFF frames	
 tooncraft	Folder for the exposure sheet and drawings	
 tooncraft	Folder for the layer sequences	
+tooncraft	Folder for the layered OpenEXR frames	
 tooncraft	Folder {name}	
 tooncraft	Folder {n}	
 tooncraft	Font	
@@ -661,6 +662,8 @@ tooncraft	Layer options
 tooncraft	Layer properties copied	
 tooncraft	Layer {name}	
 tooncraft	Layer {n}	
+tooncraft	Layered OpenEXR Sequence	
+tooncraft	Layered OpenEXR Sequence…	
 tooncraft	Layered PSB, All Frames	
 tooncraft	Layered PSB, All Frames…	
 tooncraft	Layered PSD, All Frames	

@@ -1161,6 +1161,11 @@ impl ToonApp {
                     .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
                     .map_err(|e| e.to_string())
             }),
+            "exr-layers" => rfd::FileDialog::new().set_title(tl!("Folder for the layered OpenEXR frames")).pick_folder().map(|d| {
+                export::exr_layered_sequence(&self.engine.project, &d, &name, o, |_| {})
+                    .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
+                    .map_err(|e| e.to_string())
+            }),
             "tiff" => rfd::FileDialog::new().set_title(tl!("Folder for the TIFF frames")).pick_folder().map(|d| {
                 export::tiff_sequence(&self.engine.project, &d, &name, o, |_| {})
                     .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
@@ -1454,6 +1459,9 @@ impl ToonApp {
                     }
                     if ui.button(tl!("OpenEXR Sequence…")).clicked() {
                         crate::export_dialog::open(self, "exr");
+                    }
+                    if ui.button(tl!("Layered OpenEXR Sequence…")).clicked() {
+                        crate::export_dialog::open(self, "exr-layers");
                     }
                     if ui.button(tl!("TIFF Sequence…")).clicked() {
                         crate::export_dialog::open(self, "tiff");

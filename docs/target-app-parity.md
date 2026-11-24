@@ -424,7 +424,7 @@ Weight: 7
 | Layered PSD of a frame | TV CS | D | S | Through craft-psd |
 | Multi-frame layered PSD and PSB | TV CS | D | S | One file with a group per frame (PSD, or PSB for large canvases) |
 | TGA, TIFF and JPEG sequences | TV TB CS | D | S | TGA, TIFF and JPEG sequences through the Export dialog |
-| OpenEXR sequences, with layers | TV TB | P | M | Flat RGBA OpenEXR sequences through craft-image-codecs; no layers in one file |
+| OpenEXR sequences, with layers | TV TB | D | M | Flat RGBA sequences, and Layered OpenEXR Sequence: one file per frame with the composite as the main picture and each visible layer as its own RGBA layer (half float, linear, premultiplied) through craft-exr; tested by reading it back |
 | More video codecs: H.265, VP9 or AV1, MOV H.264 | TV CS PD | D | M | Export ▸ Video in Other Codecs and `tooncraft-cli export` with `--mp4` or `--mov` and `--codec` (h264, h265 or av1): H.265 (MP4, MOV), AV1 (MP4) and H.264 in a QuickTime movie, through craft-video's encoders and craft-media's muxer, sound included |
 | OpenRaster frame export | TV | D | S | |
 | Transparent-background export | all | D | S | PNG, TGA, TIFF, OpenEXR, animated PNG and WebP, ProRes 4444 and OpenRaster without the paper; tested on PNG |

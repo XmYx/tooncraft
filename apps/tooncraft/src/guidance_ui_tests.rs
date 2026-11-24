@@ -296,6 +296,20 @@ fn the_export_dialog_offers_each_formats_options() {
 }
 
 #[test]
+fn the_layered_exr_export_takes_a_range_a_size_and_digits() {
+    let mut h = harness();
+    crate::export_dialog::open(h.state_mut(), "exr-layers");
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Format"));
+    assert_eq!(h.state().export_dialog.as_ref().unwrap().kind, "exr-layers");
+    assert!(crate::export_dialog::formats().iter().any(|(k, n)| *k == "exr-layers" && n == "Layered OpenEXR Sequence"));
+    h.get(By::new().role(egui::Role::ComboBox).label("Size"));
+    h.get_by_label("Digits in frame numbers");
+    click(&mut h, "Cancel");
+    assert!(h.state().export_dialog.is_none());
+}
+
+#[test]
 fn layouts_and_colour_chips() {
     let mut h = harness();
     click(&mut h, "Window");

@@ -61,7 +61,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Markers, Add Marker, Next Marker, Timecode, Ping-pong, Play Selection, Zoom In / Out, Drawing names, Set Name, Show {name} here | Generic timeline words (marker, timecode and ping-pong are standard terms) | Use (common) |
 | Sound, Import Sound, Start Sound Here | Generic | Use |
 | XDTS Exposure Sheet with Drawings | File format name (rule 3) | Use |
-| ProRes 4444 / 422 HQ (MOV), Layered PSD, OpenRaster | Format names (rule 3: formats we support) | Use |
+| ProRes 4444 / 422 HQ (MOV), Layered PSD, Layered OpenEXR, OpenRaster | Format names (rule 3: formats we support) | Use |
 | Effects, Add effect, Soft blur, Motion blur, Zoom blur, Glow, Drop shadow, Outline, Thicken lines | Generic image-editing terms | Use (common) |
 | Levels, Tone curve, Hue and saturation, Tint, Grain, Light wrap | Generic image-editing and compositing terms | Use (common) |
 | Hard edges (alpha threshold), Soft mask, Keep the outside | Our wording | Use |

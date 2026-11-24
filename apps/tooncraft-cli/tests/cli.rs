@@ -179,6 +179,9 @@ fn export_webp_tga_tiff_and_layered_frames() {
     assert!(dir.join("tga/frame_0002.tga").is_file());
     let (ok, out) = cli(&["export", s, "--tiff", &d("tif"), "--range", "2..3"]);
     assert!(ok && out.contains("2 TIFF files"), "{out}");
+    let (ok, out) = cli(&["export", s, "--exr-layers", &d("exr"), "--range", "2..3"]);
+    assert!(ok && out.contains("2 layered OpenEXR files"), "{out}");
+    assert_eq!(&std::fs::read(dir.join("exr/frame_0003.exr")).unwrap()[..4], &[0x76, 0x2F, 0x31, 0x01]);
     let (ok, out) = cli(&["export", s, "--psd-frames", &d("all.psd"), "--range", "1..3"]);
     assert!(ok && out.contains("3 frames"), "{out}");
     let psd = std::fs::read(dir.join("all.psd")).unwrap();

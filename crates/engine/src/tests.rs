@@ -1192,3 +1192,54 @@ fn shift_pin_moves_a_pin_as_a_setting_and_refuses_a_missing_one() {
     assert_eq!(e.project.light_table.pins[0].shift.x, tooncraft_doc::MAX_PIN_SHIFT);
     assert_eq!(e.project.light_table.pins[0].shift.turn, 0);
 }
+
+#[test]
+fn layered_exr_holds_the_composite_and_each_visible_layer() {
+    use crate::export::{ExportOptions, exr_layered_sequence};
+    struct Gone(std::path::PathBuf);
+    impl Drop for Gone {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let dir = std::env::temp_dir().join(format!("tooncraft-exr-layers-{}", std::process::id()));
+    let _gone = Gone(dir.clone());
+    let mut e = Engine::new(tooncraft_doc::Project::new("Layers", 32, 24, 12, 1).unwrap());
+    e.apply(Command::Fill { layer: 0, frame: 0, x: 2, y: 2, color: [200, 30, 30, 255], options: Default::default(), reference: Default::default() }).unwrap();
+    // two more layers with the same awkward name, the top one hidden
+    for _ in 0..2 {
+        let n = e.project.layers.len();
+        e.project.add_layer("ink.lines", n).unwrap();
+    }
+    e.project.layers[2].visible = false;
+    let base = e.project.layers[0].name.replace('.', "_");
+    let o = ExportOptions { start: 0, end: 1, paper: false, ..Default::default() };
+    let files = exr_layered_sequence(&e.project, &dir, "c", o, |_| {}).unwrap();
+    assert_eq!(files.len(), 1);
+    let bytes = std::fs::read(&files[0]).unwrap();
+    let part = craft_exr::decode::decode_part(&bytes, 0, &|_| true, &craft_exr::decode::Limits::default()).unwrap();
+    let mut names: Vec<&str> = part.channels.iter().map(|c| c.name.as_str()).collect();
+    names.sort_unstable();
+    let mut want = vec!["A".to_string(), "B".into(), "G".into(), "R".into()];
+    for l in [base.as_str(), "ink_lines"] {
+        want.extend(["A", "B", "G", "R"].map(|c| format!("{l}.{c}")));
+    }
+    want.sort_unstable();
+    assert_eq!(names, want, "the main picture and the two visible layers, the hidden one left out");
+    let value = |name: &str, i: usize| match &part.channels.iter().find(|c| c.name == name).unwrap().samples {
+        craft_exr::decode::Samples::F16(v) => v[i].to_f32(),
+        _ => panic!("half floats"),
+    };
+    // red 200 in sRGB is about 0.58 in linear light, opaque
+    assert!((value("R", 5) - 0.578).abs() < 0.01, "linear red, got {}", value("R", 5));
+    assert!((value(&format!("{base}.A"), 5) - 1.0).abs() < 1e-3);
+    assert_eq!(value("ink_lines.A", 5), 0.0, "the empty layer is transparent");
+    // an impossible size is refused before anything is written
+    let many = ExportOptions { start: 0, end: 1, paper: false, ..Default::default() };
+    let mut big = tooncraft_doc::Project::new("Big", 4096, 4096, 12, 1).unwrap();
+    for i in 0..4 {
+        big.add_layer("x", i).unwrap();
+    }
+    assert!(exr_layered_sequence(&big, &dir.join("big"), "b", many, |_| {}).is_err());
+    assert!(!dir.join("big").exists());
+}
