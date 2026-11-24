@@ -94,6 +94,7 @@ tooncraft	Align left
 tooncraft	Align right	
 tooncraft	Aligned	
 tooncraft	All	
+tooncraft	All selected cells	
 tooncraft	All visible layers	
 tooncraft	Alt+click sets a new source	
 tooncraft	Alt+click where to copy from first	
@@ -869,6 +870,7 @@ tooncraft	Move {command} later
 tooncraft	Move {name} down	
 tooncraft	Move {name} up	
 tooncraft	Move, scale and turn the selection to these numbers	
+tooncraft	Move, scale, turn, flip and skew every drawing in the timeline's selected cells together	
 tooncraft	Moving the peg turns the pegs it hangs from, so a hand pulls its arm along	
 tooncraft	Moving the {kind}	
 tooncraft	Multiply	
@@ -920,6 +922,7 @@ tooncraft	No drawing here to swap
 tooncraft	No drawing on this frame	
 tooncraft	No drawing on this frame to hold	
 tooncraft	No drawings have names yet	
+tooncraft	No drawings in the selected cells to transform	
 tooncraft	No drawings yet: select frames on the timeline and add them.	
 tooncraft	No earlier drawing on this layer	
 tooncraft	No earlier marker	
@@ -1349,6 +1352,7 @@ tooncraft	Select Layer Above
 tooncraft	Select Layer Below	
 tooncraft	Select Pixels of This Colour	
 tooncraft	Select a range of frames in the exposure sheet first	
+tooncraft	Select at most {n} drawings to transform at once	
 tooncraft	Select everything that is not selected (Ctrl+Shift+I)	
 tooncraft	Select frames	
 tooncraft	Select something first	
@@ -1621,8 +1625,10 @@ tooncraft	Trails
 tooncraft	Transform	
 tooncraft	Transform Selection	
 tooncraft	Transform cancelled	
+tooncraft	Transform drawings	
 tooncraft	Transform layer	
 tooncraft	Transform selection	
+tooncraft	Transformed {n} drawings	
 tooncraft	Transition	
 tooncraft	Trim start	
 tooncraft	Turbulence	

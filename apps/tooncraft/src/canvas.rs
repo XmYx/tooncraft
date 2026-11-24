@@ -618,6 +618,8 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
                 resample,
                 feather: app.sel.feather,
             };
+            // while dragging, only the current drawing follows (a preview); with All selected
+            // cells the whole block is transformed once, on release
             x.applied = app.run(cmd);
             x.now = (dx, dy, sc, ang);
             let t = tooncraft_engine::select::affine(&x.base, dx, dy, sc, sc, ang);
@@ -627,6 +629,34 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
             app.xform = Some(x);
         }
         if resp.drag_stopped() {
+            if let Some(x) = app.xform.take()
+                && x.applied
+                && app.sel.all_cells
+                && app.has_range()
+                && app.engine.undo().is_ok()
+            {
+                let (dx, dy, sc, ang) = x.now;
+                let (layer, frame, resample, feather) = (app.layer, app.frame, app.sel.resample, app.sel.feather);
+                let cmd = Command::TransformSelection {
+                    layer,
+                    frame,
+                    polygon: x.base.clone(),
+                    rings: x.base_rings.clone(),
+                    dx,
+                    dy,
+                    scale_x: sc,
+                    scale_y: sc,
+                    angle: ang,
+                    skew_x: 0.0,
+                    skew_y: 0.0,
+                    resample,
+                    feather,
+                };
+                if !crate::selection_tools::run_transform(app, cmd, None) {
+                    // put the outline back where the drawings are
+                    crate::selection_tools::keep_rings(app, std::iter::once(x.base.clone()).chain(x.base_rings.iter().cloned()).collect());
+                }
+            }
             app.xform = None;
         }
         return;

@@ -92,6 +92,8 @@ mod mesh_warp_ui_tests;
 mod motion_record;
 #[cfg(test)]
 mod motion_record_ui_tests;
+#[cfg(test)]
+mod multi_transform_ui_tests;
 mod onion_popover;
 mod panel_chrome;
 mod panel_views;

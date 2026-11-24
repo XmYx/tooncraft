@@ -224,7 +224,7 @@ Weight: 5
 | Free distort, perspective and skew | all | D | S | Distort: drag four corner handles (perspective), then Apply; skew by degrees; each one undo step |
 | Mesh warp | TV CS PD | D | M | Selection options: Mesh Warp puts a grid (1 to 8 cells a side) over the selection; drag its points and Apply bends the pixels, each cell bilinearly, as one undo step (`mesh_warp_selection` command, up to 16 cells a side) |
 | Liquify (push, twirl, pinch) | TV CS PD | D | M | Liquify tool (Shift+K, with Smudge on the rail): push, twirl left or right, pinch or bloat under a soft round brush (size, strength), resampled from the drawing as it was before the stroke; one undo step (`liquify` command) |
-| Transform across several drawings or layers at once | TV TB CS | M | M | |
+| Transform across several drawings or layers at once | TV TB CS | D | M | Selection options: All selected cells moves, scales, turns, flips and skews every drawing in the timeline's selected cells (each held drawing once, locked layers left out) as one undo step, from the canvas handles, the typed box, the flip and rotate buttons or the whole-drawing transforms; a `batch` of `transform_selection` commands |
 | Resampling choice (nearest, bilinear, bicubic) | TV CS | D | S | For moving, scaling, turning, skewing and distorting a selection |
 
 ## Colour and paint
