@@ -5,7 +5,7 @@
 //! tooncraft-cli demo <file.toon> [--size 1280x720] [--large [--frames N]]
 //! tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
 //! tooncraft-cli info <file.toon>
-//! tooncraft-cli run <file.toon> <commands.jsonl | ->      apply JSON-lines commands, then save
+//! tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   apply JSON-lines commands, then save
 //! tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
 //! tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
 //! tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
@@ -33,7 +33,7 @@ const USAGE: &str = "usage:
   tooncraft-cli demo <file.toon> [--size WxH] [--large [--frames N]]
   tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
   tooncraft-cli info <file.toon>
-  tooncraft-cli run <file.toon> <commands.jsonl | ->
+  tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   (text commands use the fonts given, by file name)
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
   tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
   tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
@@ -85,6 +85,7 @@ impl Args {
                         | "mouth-sheet"
                         | "layer"
                         | "threads"
+                        | "font"
                 );
                 let v = if takes { it.next() } else { None };
                 flags.push((name.to_string(), v));
@@ -260,6 +261,19 @@ fn run() -> Result<(), String> {
         "run" => {
             let path = rest.file(0)?;
             let mut e = load(&path)?;
+            // fonts for text commands, named by their file name without the extension
+            for (_, f) in rest.flags.iter().filter(|(n, _)| n == "font") {
+                let f = f.as_deref().ok_or("--font needs a font file")?;
+                let len = std::fs::metadata(f).map_err(|e| format!("{f}: {e}"))?.len();
+                if len > 64 << 20 {
+                    return Err(format!("{f}: a font file over 64 MB is not read"));
+                }
+                let bytes = std::fs::read(f).map_err(|e| format!("{f}: {e}"))?;
+                let name = Path::new(f).file_stem().and_then(|s| s.to_str()).unwrap_or("font").to_string();
+                if !e.fonts.add(&name, std::sync::Arc::new(bytes), 0) {
+                    return Err(format!("{f}: not a font file ToonCraft can read"));
+                }
+            }
             let src = rest.positional.get(1).ok_or("run needs a command file (or - for stdin)")?;
             let reader: Box<dyn BufRead> = if src == "-" {
                 Box::new(std::io::BufReader::new(std::io::stdin()))

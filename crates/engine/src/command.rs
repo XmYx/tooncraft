@@ -182,6 +182,28 @@ pub enum Command {
     SetRulers {
         rulers: tooncraft_doc::rulers::Rulers,
     },
+    /// Paint text into the drawing (one undo step): `x`, `y` is the anchor at the top of the
+    /// first line (its left edge, centre or right edge by the alignment).
+    Text {
+        layer: usize,
+        frame: u32,
+        text: String,
+        x: f32,
+        y: f32,
+        #[serde(default)]
+        style: crate::text::TextStyle,
+    },
+    /// Add a colour layer just below `layer` that follows its exposures (line and colour art in
+    /// one drawing). One undo step.
+    AddColourLayer {
+        layer: usize,
+    },
+    /// Make `layer` follow the line layer `line`'s exposures, or stop following (`None`).
+    SetColourOf {
+        layer: usize,
+        #[serde(default)]
+        line: Option<usize>,
+    },
     /// Start a new, empty drawing at the frame.
     NewDrawing {
         layer: usize,
@@ -319,6 +341,11 @@ pub enum Command {
         #[serde(default)]
         parent: Option<PegId>,
     },
+    /// Add a peg and hang `layer` from it, as one undo step.
+    AddPegForLayer {
+        layer: usize,
+        name: String,
+    },
     /// Remove a peg: its layers come off it and its child pegs hang from its parent.
     DeletePeg {
         peg: PegId,
@@ -392,6 +419,29 @@ pub enum Command {
         layer: usize,
         #[serde(default)]
         peg: Option<PegId>,
+    },
+    /// Keep the strokes drawn on a layer as editable vector lines (or not, for new drawings).
+    SetLayerVector {
+        layer: usize,
+        vector: bool,
+    },
+    /// Add a vector stroke through `points` (x, y, width) to the drawing at a vector layer's
+    /// frame (a new drawing on a blank cell); points closer than `tolerance` px to the line are
+    /// dropped.
+    VectorStroke {
+        layer: usize,
+        frame: u32,
+        color: [u8; 4],
+        points: Vec<tooncraft_vector::VPoint>,
+        #[serde(default = "vector_tolerance")]
+        tolerance: f32,
+    },
+    /// Change one stroke of a vector drawing: move a point, its width, smooth, erase to the
+    /// crossings, delete, recolour.
+    EditVector {
+        layer: usize,
+        frame: u32,
+        edit: crate::vector::VectorEdit,
     },
     /// The layer's distance from the drawing plane for the multiplane camera (negative: nearer).
     SetLayerDepth {
@@ -971,6 +1021,10 @@ fn pegs(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Proje
     }
 }
 
+fn vector_tolerance() -> f32 {
+    0.6
+}
+
 fn recolour_tolerance() -> u8 {
     24
 }
@@ -1047,6 +1101,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.touch();
             Ok(())
         }
+        Command::Text { layer, frame, text, x, y, style } => {
+            frame_ok(e, frame)?;
+            crate::text::paint_text(e, layer, frame, &text, (x, y), &style)
+        }
         Command::NewDrawing { layer, frame } => {
             e.check_unlocked(layer)?;
             frame_ok(e, frame)?;
@@ -1074,7 +1132,13 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             } else {
                 l.set_key(frame, id);
             }
-            e.push(Entry { label: "Duplicate drawing".into(), parts: vec![Part::Drawing { id, surface: None }, before] });
+            let mut parts = vec![Part::Drawing { id, surface: None }, before];
+            // a vector drawing's copy keeps its lines
+            if let Some(v) = e.project.vectors.get(&src).cloned() {
+                e.project.vectors.insert(id, v);
+                parts.push(Part::Vector { id, strokes: None });
+            }
+            e.push(Entry { label: "Duplicate drawing".into(), parts });
             Ok(())
         }
         Command::InsertFrame { layer, frame } => edit_layers(e, "Insert frame", |e| {
@@ -1232,6 +1296,14 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }
         Command::AddPeg { name, parent } => pegs(e, "Add peg", |p| p.add_peg(&name, parent).map(|_| ())),
+        Command::AddPegForLayer { layer, name } => {
+            e.project.layer(layer)?;
+            let parts = vec![Part::Layers(e.project.layers.clone()), Part::Pegs(e.project.pegs.clone())];
+            let id = e.project.add_peg(&name, None)?;
+            e.project.layer_mut(layer)?.peg = Some(id);
+            e.push(Entry { label: "Add peg for layer".into(), parts });
+            Ok(())
+        }
         Command::DeletePeg { peg } => {
             let parts = vec![Part::Layers(e.project.layers.clone()), Part::Pegs(e.project.pegs.clone())];
             e.project.delete_peg(peg)?;
@@ -1287,6 +1359,12 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.peg = peg;
             Ok(())
         }),
+        Command::SetLayerVector { layer, vector } => edit_layers(e, "Vector layer", |e| {
+            e.project.layer_mut(layer)?.vector = vector;
+            Ok(())
+        }),
+        Command::VectorStroke { layer, frame, color, points, tolerance } => crate::vector::add_stroke(e, layer, frame, color, &points, tolerance),
+        Command::EditVector { layer, frame, edit } => crate::vector::edit(e, layer, frame, edit),
         Command::SetLayerDepth { layer, depth } => edit_layers(e, "Layer depth", |e| {
             let d = if depth.is_finite() { depth.clamp(tooncraft_doc::camera::MIN_DEPTH, tooncraft_doc::camera::MAX_DEPTH) } else { 0.0 };
             e.project.layer_mut(layer)?.depth = d;
@@ -1420,6 +1498,36 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.push(Entry { label: "Clear drawing".into(), parts: vec![Part::Tiles { drawing: d, tiles }] });
             Ok(())
         }
+        Command::AddColourLayer { layer } => edit_layers(e, "Add colour layer", |e| {
+            let l = e.project.layer(layer)?;
+            if l.colour_of.is_some() {
+                return Err(EngineError::Import("a colour layer cannot have a colour layer of its own".into()));
+            }
+            let (id, name) = (l.id, format!("{} colour", l.name));
+            let at = e.project.add_layer(&name, layer)?;
+            e.project.layer_mut(at)?.colour_of = Some(id);
+            Ok(())
+        }),
+        Command::SetColourOf { layer, line } => edit_layers(e, "Link colour layer", |e| {
+            let id = match line {
+                Some(li) if li == layer => return Err(EngineError::Import("a layer cannot colour itself".into())),
+                Some(li) => {
+                    let l = e.project.layer(li)?;
+                    if l.colour_of.is_some() {
+                        return Err(EngineError::Import("the line layer is itself a colour layer".into()));
+                    }
+                    Some(l.id)
+                }
+                None => None,
+            };
+            let c = e.project.layer_mut(layer)?;
+            c.colour_of = id;
+            if id.is_some() {
+                // drawings already on the layer are not the colour of any line drawing
+                c.colour_pairs.clear();
+            }
+            Ok(())
+        }),
         Command::AddLayer { name, index } => edit_layers(e, "Add layer", |e| {
             let at = index.unwrap_or(e.project.layers.len());
             e.project.add_layer(&name, at)?;
@@ -1659,6 +1767,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             for id in e.project.unused_drawings() {
                 let s = e.project.swap_drawing(id, None);
                 parts.push(Part::Drawing { id, surface: s });
+                // its vector lines go with it
+                if let Some(v) = e.project.vectors.remove(&id) {
+                    parts.push(Part::Vector { id, strokes: Some(v) });
+                }
             }
             e.push(Entry { label: "Purge unused drawings".into(), parts });
             Ok(())

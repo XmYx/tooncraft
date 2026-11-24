@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 pub mod camera;
+pub mod colour_art;
 mod exposure;
 pub mod guides;
 pub mod library;
@@ -162,9 +163,18 @@ pub struct Layer {
     /// Transparency is locked: strokes only recolour paint that is already there.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub lock_alpha: bool,
+    /// Strokes drawn on this layer are kept as editable vector lines (`tooncraft-vector`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub vector: bool,
     /// This layer's own onion-skin settings (`None`: the shot's).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub onion: Option<OnionSkin>,
+    /// A colour layer: the line layer whose exposures this layer follows (see [`colour_art`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub colour_of: Option<LayerId>,
+    /// A colour layer's drawings: (line drawing, colour drawing) pairs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub colour_pairs: Vec<(DrawingId, DrawingId)>,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
 }
@@ -345,6 +355,8 @@ pub struct Project {
     pub symmetry: symmetry::Symmetry,
     /// Named colour palettes of the shot.
     pub palettes: Vec<palette::Palette>,
+    /// Vector strokes of the drawings drawn on vector layers; their tiles are painted from these.
+    pub vectors: BTreeMap<DrawingId, tooncraft_vector::VDrawing>,
     /// The shot's drawing library (see [`library`]); its drawings live in the drawing table.
     pub library: Vec<library::Item>,
     /// Stroke rulers and grid snapping (a drawing aid stored with the shot).
@@ -403,6 +415,7 @@ impl Project {
             onion: OnionSkin::default(),
             symmetry: symmetry::Symmetry::default(),
             palettes: Vec::new(),
+            vectors: BTreeMap::new(),
             library: Vec::new(),
             rulers: rulers::Rulers::default(),
             light_table: LightTable::default(),
@@ -436,6 +449,7 @@ impl Project {
             onion: OnionSkin::default(),
             symmetry: symmetry::Symmetry::default(),
             palettes: Vec::new(),
+            vectors: BTreeMap::new(),
             library: Vec::new(),
             rulers: rulers::Rulers::default(),
             light_table: LightTable::default(),
@@ -637,7 +651,10 @@ impl Project {
                 mouth_chart: BTreeMap::new(),
                 clip: false,
                 lock_alpha: false,
+                vector: false,
                 onion: None,
+                colour_of: None,
+                colour_pairs: Vec::new(),
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );

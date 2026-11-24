@@ -110,5 +110,14 @@ pub fn tool(p: &Painter, rect: Rect, tool: Tool, color: Color32) {
             }
             p.add(Shape::convex_polygon(vec![at(-0.75, 0.1), at(0.75, 0.1), at(0.5, 1.0), at(-0.5, 1.0)], color, Stroke::NONE));
         }
+        Tool::Text => {
+            // a capital T: the bar, the stem and two small serifs
+            let thick = Stroke::new(2.0, color);
+            p.line_segment([at(-0.8, -0.85), at(0.8, -0.85)], thick);
+            p.line_segment([at(0.0, -0.85), at(0.0, 0.85)], thick);
+            p.line_segment([at(-0.3, 0.85), at(0.3, 0.85)], st);
+            p.line_segment([at(-0.8, -0.85), at(-0.8, -0.6)], st);
+            p.line_segment([at(0.8, -0.85), at(0.8, -0.6)], st);
+        }
     }
 }

@@ -197,11 +197,11 @@ Weight: 7
 | Perspective rulers with vanishing points | TV CS PD | D | M | One, two or three vanishing points; after a few pixels of travel the stroke runs on the line through the closest point in that direction |
 | Grid display and snapping strokes to it | TV TB CS | D | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it, and with Rulers ▸ Snap strokes to grid lines a freehand stroke started near a grid line runs along it |
 | Snap the end of a stroke to a clean line or ellipse when held | CS PD | D | S | Hold to straighten: hold the pen still for half a second and a rough line or loop becomes a clean line or ellipse |
-| Text tool | TV TB CS | M | M | |
+| Text tool | TV TB CS | D | M | Text tool (T): click or Enter at the keyboard pen places a box, type, Ctrl+Enter paints it as one undo step; font, size, alignment, line and letter spacing; shaped through craft-font-catalog, so kerning and joined scripts follow the font; `text` command for scripts (`tooncraft-cli run --font`). Text is pixels once placed |
 | Clone stamp | TV CS | M | S | |
 | Reference image viewer with eyedropper | TV CS PD | M | S | |
-| Vector stroke layers (strokes kept as editable curves) | TB CS | M | XL | Harmony and Clip Studio draw on vector layers by default |
-| Vector line editing: reshape, width, erase to the intersection | TB CS | M | L | Needs the vector stroke layers |
+| Vector stroke layers (strokes kept as editable curves) | TB CS | P | XL | The Layers panel's Vector lines switch: pen strokes on that layer are kept as centre lines with a width per point (`tooncraft-vector`), painted into the drawing's tiles so fill, onion skin and export read them; saved in the shot. Not yet: shapes, symmetry copies, duplicate drawing keeping the lines, a vector view of the line |
+| Vector line editing: reshape, width, erase to the intersection | TB CS | P | L | Commands move a point, set a width, smooth, delete, recolour and cut a line back to its crossings (one undo step each); the eraser on a vector layer cuts the line it touches back to its crossings. No point-dragging tool on the canvas yet |
 | 3D reference models and posable figures | TB CS | M | XL | |
 
 ## Selection and transform
@@ -236,7 +236,7 @@ Weight: 7
 | Fill reference: current layer or all visible layers | TV TB CS | D | S | |
 | Fill under lines (into the antialiasing) | TV TB CS | D | S | |
 | Fill every drawing of a layer at once | TV TB | D | S | One undo step. Also: fill, empty areas only, or repaint, and gap presets with the reach shown around the pointer |
-| Linked line and paint layers | TB TV CS | P | M | Paint on a layer below the ink with the all-visible reference; no linked pair |
+| Linked line and paint layers | TB TV CS | D | M | Add Colour Layer (a layer's menu): a layer below that follows the line layer's exposures, so new drawings, holds, re-timing and deleted frames act on both; painting there makes the colour drawing paired with the line drawing, and the bucket sees the lines through the all-visible reference; saved with the shot. No line-only onion and no automatic copy of line regions |
 | Paint the same regions across drawings automatically | TV TB | M | L | |
 | Colour swatches | all | D | S | Named palettes kept with the shot, plus the built-in Basic one; swatch names on hover; remove from a palette with a right-click |
 | Palette files: save, load, import common formats | all | D | S | GIMP .gpl open and save (read through craft-palette), Photoshop .aco open (RGB, HSB, grey) |
@@ -512,7 +512,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
 | Select properties: modes, typed position, size and angle | TB | D | S | Lasso, rectangle, ellipse, wand; add, remove, overlap; X, Y, width, height (proportions kept) and angle typed and applied as one step; flips, skew, distort |
 | Transform tool properties with typed values | TB | D | M | The Transform tool (Q) drags the current layer's peg on the canvas: move, a corner to scale, a knob to turn, the pivot cross; one peg key per drag, Escape cancels; arrows, [ ] and Page Up / Down nudge; its options type Move X/Y, Rotation, Scale X/Y, or add a peg for a layer without one |
-| Contour, text, rigging and morph tool properties | TB | M | L | Those tools are missing |
+| Contour, text, rigging and morph tool properties | TB | P | L | Text tool properties: font, size, alignment, line and letter spacing; the contour, rigging and morph tools are missing |
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
 | Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue, the colour's own opacity and the brush's opacity |
 | Picker with alpha and a gradient | TB | P | S | A floating Colour Picker window (`--open colour-picker`) as well as the docked one; the colour has its own opacity; no gradient swatches |

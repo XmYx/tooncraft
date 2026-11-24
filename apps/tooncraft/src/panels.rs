@@ -11,7 +11,7 @@ use crate::app::{Tool, ToonApp};
 
 /// The tool bar's groups: variants of one kind of tool share a button, which shows the variant
 /// used last and a corner mark; right-click (or press and hold) opens the group to pick another.
-pub const TOOL_GROUPS: [&[Tool]; 8] = [
+pub const TOOL_GROUPS: [&[Tool]; 9] = [
     &[Tool::Pencil, Tool::Ink, Tool::Airbrush, Tool::Chalk, Tool::Watercolour],
     &[Tool::Eraser],
     &[Tool::Smudge],
@@ -19,6 +19,7 @@ pub const TOOL_GROUPS: [&[Tool]; 8] = [
     &[Tool::Picker],
     &[Tool::Select, Tool::Transform],
     &[Tool::Shape],
+    &[Tool::Text],
     &[Tool::Hand],
 ];
 
@@ -185,6 +186,7 @@ pub fn tool_options(app: &mut ToonApp, ui: &mut egui::Ui) {
                 ui.checkbox(&mut app.aids.lasso_fill, tl!("Lasso fill")).on_hover_text(tl!("Drag around an area to fill it"));
             }
             Tool::Gradient => crate::draw_aids::gradient_options(app, ui),
+            Tool::Text => crate::text_tool::options(app, ui),
             Tool::Picker => {
                 ui.label(tl!("Click the canvas to pick a colour (Alt+click with any brush)"));
             }
