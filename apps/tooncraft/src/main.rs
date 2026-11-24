@@ -36,6 +36,9 @@ mod commands;
 mod context_menus;
 #[cfg(test)]
 mod context_menus_ui_tests;
+mod contour_tool;
+#[cfg(test)]
+mod contour_ui_tests;
 mod curves;
 #[cfg(test)]
 mod curves_ui_tests;

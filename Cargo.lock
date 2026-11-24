@@ -4424,6 +4424,7 @@ dependencies = [
  "tooncraft-interop",
  "tooncraft-lipsync",
  "tooncraft-raster",
+ "tooncraft-vector",
 ]
 
 [[package]]

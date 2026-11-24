@@ -206,6 +206,7 @@ pub static ALL: &[Cmd] = &[
     tool!("tool.select", "Select", Select, "S"),
     tool!("tool.shape", "Shapes", Shape, "U"),
     tool!("tool.gradient", "Gradient", Gradient, "G"),
+    when(cmd("tool.contour", tlm!("Contour"), Some(Icon::Contour), G::Tool, Remap("Shift+P"), pick_tool), not_stroking),
     when(cmd("tool.clone", tlm!("Clone stamp"), Some(Icon::CloneStamp), G::Tool, Remap("J"), pick_tool), not_stroking),
     tool!("tool.hand", "Hand", Hand, "H"),
     tool!("tool.transform", "Transform layer", Transform, "Q"),
@@ -700,8 +701,8 @@ mod tests {
         ] {
             assert!(get(id).is_some_and(|c| matches!(c.key, Key::Remap(_))), "{id}");
         }
-        // 51, then the zoom and rotate-view tools, then the radial menu, then the clone stamp
-        assert_eq!(remappable().count(), 55);
+        // 51, then the zoom and rotate-view tools, then the radial menu, then the clone stamp, then the contour tool
+        assert_eq!(remappable().count(), 56);
     }
 
     #[test]
