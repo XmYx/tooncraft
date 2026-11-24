@@ -239,3 +239,37 @@ fn text_commands_use_the_fonts_given() {
     assert!(!ok && out.contains("not a font"), "{out}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Removes a test's folder when the test ends, also when it fails.
+struct Gone(std::path::PathBuf);
+
+impl Drop for Gone {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+#[test]
+fn import_video_round_trip() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-video-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let _gone = Gone(dir.clone());
+    let src = dir.join("src.toon");
+    let src_s = src.to_str().unwrap();
+    assert!(cli(&["demo", src_s, "--size", "160x120"]).0);
+    let movie = dir.join("demo.mp4");
+    let (ok, out) = cli(&["export", src_s, "--mp4", movie.to_str().unwrap(), "--range", "1..4"]);
+    assert!(ok, "{out}");
+    let shot = dir.join("roto.toon");
+    let shot_s = shot.to_str().unwrap();
+    assert!(cli(&["new", shot_s, "--size", "160x120", "--fps", "12", "--frames", "2"]).0);
+    let (ok, out) = cli(&["import-video", shot_s, movie.to_str().unwrap(), "--every", "2"]);
+    assert!(ok, "{out}");
+    let (ok, out) = cli(&["info", shot_s]);
+    assert!(ok && out.contains("\"demo\"") && out.contains("#-#-"), "{out}");
+    let (ok, out) = cli(&["import-video", shot_s, dir.join("missing.mp4").to_str().unwrap()]);
+    assert!(!ok, "{out}");
+    let (ok, out) = cli(&["import-video", shot_s, movie.to_str().unwrap(), "--from", "-1"]);
+    assert!(!ok && out.contains("--from"), "{out}");
+}

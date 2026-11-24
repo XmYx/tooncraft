@@ -1,0 +1,1 @@
+- 2026-11-24: Docking is tested end to end: dragging a tab onto another stack tabs it, dragging it to the canvas's side splits a new stack, a panel floats from its stack menu and its window moves by the title bar, Move To works from the keyboard, and the canvas stays put.

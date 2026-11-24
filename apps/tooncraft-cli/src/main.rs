@@ -32,6 +32,7 @@ const USAGE: &str = "usage:
   tooncraft-cli new <file.toon> [--size WxH] [--fps N] [--frames N] [--name NAME]
   tooncraft-cli demo <file.toon> [--size WxH] [--large [--frames N]]
   tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
+  tooncraft-cli import-video <file.toon> <movie.mp4|.mov> [--frame N] [--from SECONDS] [--every N] [--max N] [--on-top] [--keep-length]
   tooncraft-cli info <file.toon>
   tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   (text commands use the fonts given, by file name)
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
@@ -86,6 +87,9 @@ impl Args {
                         | "layer"
                         | "threads"
                         | "font"
+                        | "from"
+                        | "every"
+                        | "max"
                 );
                 let v = if takes { it.next() } else { None };
                 flags.push((name.to_string(), v));
@@ -386,6 +390,25 @@ fn run() -> Result<(), String> {
             let hold = num(rest.flag("hold"), 1)?;
             let name = rest.flag("name").unwrap_or("Imported").to_string();
             e.apply(Command::ImportImages { paths: images, frame, hold, name, options: Default::default() }).map_err(|e| e.to_string())?;
+            save(&path, &e)
+        }
+        "import-video" => {
+            let path = rest.file(0)?;
+            let mut e = load(&path)?;
+            let src = rest.positional.get(1).cloned().ok_or_else(|| format!("import-video needs a movie file\n\n{USAGE}"))?;
+            let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
+            let from_seconds = match rest.flag("from") {
+                Some(s) => s.parse::<f64>().ok().filter(|v| v.is_finite() && *v >= 0.0).ok_or_else(|| format!("--from takes seconds, not “{s}”"))?,
+                None => 0.0,
+            };
+            let options = tooncraft_engine::VideoImport {
+                from_seconds,
+                every: num(rest.flag("every"), 1)?.max(1),
+                max_frames: num(rest.flag("max"), 0)?,
+                reference: !rest.has("on-top"),
+                grow: !rest.has("keep-length"),
+            };
+            e.apply(Command::ImportVideo { path: src, frame, options }).map_err(|e| e.to_string())?;
             save(&path, &e)
         }
         "import-layers" | "import-gif" | "import-sheet" | "set-sound" => {
