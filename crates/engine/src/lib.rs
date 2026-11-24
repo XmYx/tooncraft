@@ -106,6 +106,8 @@ pub enum EngineError {
     NoLibraryItem(usize),
     #[error("text: {0}")]
     Text(String),
+    #[error("there is no grain image {0} in this shot")]
+    NoGrainImage(u64),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;

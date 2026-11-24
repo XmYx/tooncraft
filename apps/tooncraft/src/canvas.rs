@@ -98,13 +98,17 @@ fn to_picture(app: &ToonApp, rect: Rect, p: Pos2) -> Pos2 {
     app.view.to_canvas(rect, size, p)
 }
 
-fn sample(app: &ToonApp, rect: Rect, p: Pos2, pressure: f32) -> Sample {
+/// `force` is the touch force the window system reported with the event, if any.
+fn sample(app: &ToonApp, rect: Rect, p: Pos2, force: Option<f32>) -> Sample {
     let c = to_canvas(app, rect, p);
     let t = app.stroke_start.map(|s| s.elapsed().as_secs_f64()).unwrap_or(0.0);
-    // A tablet reading (X11 / macOS) beats touch force and the mouse setting.
-    let (pressure, tilt_x, tilt_y, barrel) = match app.tablet.pen() {
-        Some(pen) => (pen.pressure, pen.tilt_x, pen.tilt_y, pen.rotation),
-        None => (pressure, 0.0, 0.0, 0.0),
+    // A tablet reading (X11 / macOS) beats touch force, which beats the mouse setting. Real pen
+    // and touch pressure goes through the global pressure curve; the mouse setting is used as is.
+    let curve = &app.preferences.prefs.pressure_curve;
+    let (pressure, tilt_x, tilt_y, barrel) = match (app.tablet.pen(), force) {
+        (Some(pen), _) => (crate::preferences::pen_pressure(curve, pen.pressure), pen.tilt_x, pen.tilt_y, pen.rotation),
+        (None, Some(f)) => (crate::preferences::pen_pressure(curve, f), 0.0, 0.0, 0.0),
+        (None, None) => (app.mouse_pressure, 0.0, 0.0, 0.0),
     };
     let (tilt_x, tilt_y, rotation) = to_canvas_pen(app.view.rotation, app.view.flip, tilt_x, tilt_y, barrel);
     Sample { x: c.x, y: c.y, pressure, tilt_x, tilt_y, time: t, rotation }
@@ -294,7 +298,11 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                 (c.x, c.y)
             };
             let to_s = |x: f32, y: f32| view.to_screen(rect, size, pos2(x, y));
-            crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
+            // an armed motion recording takes the pointer first; then a camera key's handle
+            // wins over the peg
+            if !crate::motion_record::input(app, ui, resp, &to_c) && !crate::camera_path::input(app, ui, resp, &to_c, &to_s) {
+                crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
+            }
         }
         _ if mods.alt => {
             if resp.clicked()
@@ -333,7 +341,7 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                     Event::Touch { pos, force: f, phase, .. } => {
                         force = f.filter(|v| v.is_finite()).map(|v| v.clamp(0.0, 1.0));
                         if phase == TouchPhase::Start && !app.engine.is_stroking() && rect.contains(pos) {
-                            let s = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));
+                            let s = sample(app, rect, pos, force);
                             begin(app, s);
                             fed = true;
                         }
@@ -342,7 +350,7 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                         if !app.engine.is_stroking() && rect.contains(pos) && modifiers.shift && app.last_stroke_end.is_some() =>
                     {
                         // Shift+click: a straight line from where the last stroke ended.
-                        let to = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));
+                        let to = sample(app, rect, pos, force);
                         let (x0, y0) = app.last_stroke_end.unwrap_or((to.x, to.y));
                         let n = (((to.x - x0).hypot(to.y - y0)) / 2.0).ceil().clamp(1.0, 4000.0) as usize;
                         begin(app, Sample { x: x0, y: y0, ..to });
@@ -354,19 +362,19 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                         fed = true;
                     }
                     Event::PointerButton { pos, button: PointerButton::Primary, pressed: true, .. } if !app.engine.is_stroking() && rect.contains(pos) => {
-                        let s = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));
+                        let s = sample(app, rect, pos, force);
                         begin(app, s);
                         fed = true;
                     }
                     Event::PointerMoved(pos) if app.engine.is_stroking() && app.keyboard_pen.is_none_or(|k| !k.down) => {
-                        let s = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));
+                        let s = sample(app, rect, pos, force);
                         let _ = app.engine.stroke_to(s);
                         fed = true;
                     }
                     Event::PointerButton { pos, button: PointerButton::Primary, pressed: false, .. }
                         if app.engine.is_stroking() && app.keyboard_pen.is_none_or(|k| !k.down) =>
                     {
-                        let s = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));
+                        let s = sample(app, rect, pos, force);
                         let _ = app.engine.stroke_to(s);
                         end(app);
                     }
@@ -543,6 +551,7 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
                 skew_x: 0.0,
                 skew_y: 0.0,
                 resample,
+                feather: app.sel.feather,
             };
             x.applied = app.run(cmd);
             x.now = (dx, dy, sc, ang);
@@ -666,7 +675,9 @@ fn keyboard_pen(app: &mut ToonApp, ui: &egui::Ui, resp: &egui::Response) {
         return;
     }
     if app.tool == Tool::Transform {
-        crate::peg_transform::keyboard(app, ui);
+        if !crate::motion_record::keyboard(app, ui) {
+            crate::peg_transform::keyboard(app, ui);
+        }
         return;
     }
     if app.tool == Tool::Select && app.selection.is_some() {
@@ -752,18 +763,27 @@ fn keyboard_pen(app: &mut ToonApp, ui: &egui::Ui, resp: &egui::Response) {
 }
 
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
+    show_as(app, ui, canvas_id(), true, false);
+}
+
+/// A drawing view: the main canvas (`main`), or the second view, which draws through the same
+/// code with its own id and its own view swapped into `app.view` by the caller. With
+/// `only_current` it shows the current layer's drawing alone.
+pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, only_current: bool) {
     let rect = ui.available_rect_before_wrap();
-    app.workspace.canvas_rect = rect;
+    if main {
+        app.workspace.canvas_rect = rect;
+    }
     let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
-    if !app.view_fitted && rect.width() > 50.0 {
+    if main && !app.view_fitted && rect.width() > 50.0 {
         app.view = View::fit(rect, size);
         app.view_fitted = true;
     }
-    let resp = ui.interact(rect, canvas_id(), Sense::click_and_drag());
+    let resp = ui.interact(rect, id, Sense::click_and_drag());
     if resp.clicked() || resp.drag_started() {
         resp.request_focus();
     }
-    if app.canvas_focus_request {
+    if main && app.canvas_focus_request {
         resp.request_focus();
         app.canvas_focus_request = false;
     }
@@ -771,7 +791,11 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         ui.memory_mut(|m| m.set_focus_lock_filter(resp.id, egui::EventFilter { tab: false, horizontal_arrows: true, vertical_arrows: true, escape: false }));
     }
     let layer_name = app.engine.project.layers.get(app.layer).map(|l| l.name.clone()).unwrap_or_default();
-    let label = tlf!("Canvas: {layer}, frame {frame}", layer = layer_name, frame = app.frame + 1);
+    let label = if main {
+        tlf!("Canvas: {layer}, frame {frame}", layer = layer_name, frame = app.frame + 1)
+    } else {
+        tlf!("Second view: {layer}, frame {frame}", layer = layer_name, frame = app.frame + 1)
+    };
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Canvas, true, label.clone()));
     let has = app.engine.project.drawing_at(app.layer, app.frame).is_some();
     let desc = if has {
@@ -787,7 +811,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     });
     crate::draw_aids::track_stroke(app, ui.ctx());
     // right-click menu; "Pick Colour Here" picks where it was opened
-    let menu_at = canvas_id().with("menu-at");
+    let menu_at = id.with("menu-at");
     if resp.secondary_clicked()
         && let Some(p) = resp.interact_pointer_pos()
     {
@@ -798,7 +822,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         let at = at.map(|p| to_picture(app, rect, p)).map(|c| (c.x, c.y));
         // from the keyboard: Shift+F10 or the Menu key on the focused canvas. It is the selection's
         // menu when there is one; otherwise colour is picked at the keyboard pen, or the canvas centre
-        let launch = crate::context_menus::launch_now(ui.ctx(), "canvas") || crate::context_menus::launch_now(ui.ctx(), "selection");
+        let launch = main && (crate::context_menus::launch_now(ui.ctx(), "canvas") || crate::context_menus::launch_now(ui.ctx(), "selection"));
         let now = launch || resp.has_focus() && crate::timeline::menu_key(ui);
         let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
         let kat = match (app.selection.is_some(), app.keyboard_pen) {
@@ -814,87 +838,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 0.0, pal.workspace);
     let c = Ctx { painter: &painter, view: app.view, rect, size };
-    let corners = [c.screen(0.0, 0.0), c.screen(size.x, 0.0), c.screen(size.x, size.y), c.screen(0.0, size.y)];
-    let shadow: Vec<Pos2> = corners.iter().map(|p| *p + vec2(3.0, 4.0)).collect();
-    painter.add(Shape::convex_polygon(shadow, Color32::from_black_alpha(90), Stroke::NONE));
-    let pc = app.engine.project.paper.color;
-    painter.add(Shape::convex_polygon(corners.to_vec(), Color32::from_rgb(pc[0], pc[1], pc[2]), Stroke::NONE));
-    let ctx = ui.ctx().clone();
-    let p = &app.engine.project;
-    // the layers' transforms, with a Transform drag's key in place while one is in progress
-    let transforms = crate::peg_transform::layer_transforms(app);
-    let tex = &mut app.textures;
-    if p.light_table.enabled {
-        for pin in &p.light_table.pins {
-            let Some(li) = p.layer_index(pin.layer) else { continue };
-            if let Some(d) = p.drawing_at(li, pin.frame)
-                && let Some(s) = p.drawing(d)
-            {
-                draw_surface(tex, &ctx, &c, d, s, p.light_table.opacity, Some(p.light_table.tint), &p.pin_transform(li, pin), false);
-            }
-        }
-    }
-    if p.onion.enabled && !app.playback.playing {
-        let layers: Vec<usize> = if p.onion.all_layers { (0..p.layers.len()).collect() } else { vec![app.layer] };
-        for li in layers {
-            if !p.layers.get(li).is_some_and(|l| l.visible) {
-                continue;
-            }
-            // the layer's own onion settings, when it has them
-            let lo = p.onion_for(li);
-            if !lo.enabled {
-                continue;
-            }
-            let t = p.layer_transform(li, app.frame);
-            let mut n = p.onion_drawings(li, app.frame);
-            n.sort_by_key(|(_, off)| std::cmp::Reverse(off.unsigned_abs()));
-            for (d, off) in n {
-                let Some(s) = p.drawing(d) else { continue };
-                let tint = if !lo.tinted {
-                    None
-                } else if off < 0 {
-                    Some(lo.before_tint)
-                } else {
-                    Some(lo.after_tint)
-                };
-                draw_surface(tex, &ctx, &c, d, s, lo.offset_opacity(off), tint, &t, lo.outline);
-            }
-        }
-    }
-    let blended = p.layers.iter().any(|l| {
-        (l.blend != tooncraft_doc::BlendMode::Normal
-            || l.clip
-            || tooncraft_fx::is_active(&l.effects)
-            || l.matte.is_some()
-            || l.mask.is_some_and(|m| m.enabled)
-            || l.adjustment)
-            && p.effective(l).0
-    });
-    if blended {
-        // A blend mode needs what is below it, and effects reach past their tiles: composite the
-        // layers on the CPU and show that as tiles. Frames are cached per project version, and
-        // during playback a worker renders the frames ahead (see `frame_cache.rs`).
-        let generation = app.engine.changes();
-        // keep the frames after the playhead coming, so pressing play finds them ready
-        app.blend_cache.prefetch(p, generation, app.frame);
-        if let Some(s) = app.blend_cache.get(p, generation, app.frame) {
-            // one texture set per cached frame, so a looping shot re-uploads nothing
-            draw_surface(tex, &ctx, &c, tooncraft_doc::DrawingId(u64::MAX - app.frame as u64), s, 1.0, None, &tooncraft_doc::Affine::IDENTITY, false);
-        }
-    } else {
-        for (li, layer) in p.layers.iter().enumerate() {
-            let (visible, opacity) = p.effective_at(layer, app.frame);
-            if !visible {
-                continue;
-            }
-            if let Some(d) = layer.drawing_at(app.frame)
-                && let Some(s) = p.drawing(d)
-            {
-                let t = transforms.get(li).copied().unwrap_or_else(|| p.layer_transform(li, app.frame));
-                draw_surface(tex, &ctx, &c, d, s, opacity, None, &t, false);
-            }
-        }
-    }
+    let corners = paint_layers(app, &ui.ctx().clone(), &c, only_current.then_some(app.layer), true);
     // canvas edge
     painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
     draw_selection(&painter, app, &c, pal);
@@ -921,8 +865,11 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     if app.tool == Tool::Transform {
         crate::peg_transform::overlay(app, &painter, &|x, y| c.screen(x, y), pal.accent, pal.panel);
     }
+    crate::motion_record::overlay(app, &painter, rect, pal.text, pal.panel);
     // camera frame
-    let cam = &app.engine.project.camera;
+    // while a camera key is dragged, the frame follows it
+    let preview = crate::camera_path::previewed(app);
+    let cam = preview.as_ref().unwrap_or(&app.engine.project.camera);
     if app.show_camera && (!cam.keys.is_empty() || !cam.shakes.is_empty()) {
         let (w, h) = (app.engine.project.width(), app.engine.project.height());
         let map = cam.output_to_canvas(app.frame, w, h);
@@ -939,9 +886,12 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             painter.text(*p0 + vec2(4.0, 3.0), egui::Align2::LEFT_TOP, tl!("Camera"), egui::FontId::proportional(12.0), col);
         }
     }
+    crate::camera_path::draw(app, &painter, &|x, y| c.screen(x, y), pal.accent);
     // the text box being typed floats over the canvas
     let (view, size) = (c.view, c.size);
-    crate::text_tool::edit_box(app, ui.ctx(), rect, &|x, y| view.to_screen(rect, size, pos2(x, y)));
+    if main {
+        crate::text_tool::edit_box(app, ui.ctx(), rect, &|x, y| view.to_screen(rect, size, pos2(x, y)));
+    }
     // cursors
     if let Some(k) = app.keyboard_pen {
         let at = c.screen(k.x, k.y);
@@ -964,6 +914,124 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     if app.engine.project.layers.get(app.layer).is_some_and(|l| app.engine.project.is_locked(l)) {
         painter.text(rect.left_top() + vec2(10.0, 8.0), egui::Align2::LEFT_TOP, tl!("Layer locked"), egui::FontId::proportional(13.0), pal.accent);
     }
+}
+
+/// The paper and the layers seen through `c`, with the light table and onion skin; with `only`,
+/// that layer's drawing (and its onion skin) alone. Returns the paper's screen corners.
+/// Paper and layers; `aids` adds the light table and the onion skin (off for a thumbnail).
+fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<usize>, aids: bool) -> [Pos2; 4] {
+    let size = c.size;
+    let corners = [c.screen(0.0, 0.0), c.screen(size.x, 0.0), c.screen(size.x, size.y), c.screen(0.0, size.y)];
+    let shadow: Vec<Pos2> = corners.iter().map(|p| *p + vec2(3.0, 4.0)).collect();
+    c.painter.add(Shape::convex_polygon(shadow, Color32::from_black_alpha(90), Stroke::NONE));
+    let pc = app.engine.project.paper.color;
+    c.painter.add(Shape::convex_polygon(corners.to_vec(), Color32::from_rgb(pc[0], pc[1], pc[2]), Stroke::NONE));
+    // the paper's texture, one repeating tile stretched over the paper with wrapping UVs
+    if let Some(tex) = app.textures.paper(ctx, &app.engine.project) {
+        let n = tooncraft_doc::PAPER_TILE as f32;
+        let uv = [pos2(0.0, 0.0), pos2(size.x / n, 0.0), pos2(size.x / n, size.y / n), pos2(0.0, size.y / n)];
+        let mut mesh = egui::Mesh::with_texture(tex);
+        for (p, uv) in corners.iter().zip(uv) {
+            mesh.vertices.push(egui::epaint::Vertex { pos: *p, uv, color: Color32::WHITE });
+        }
+        mesh.indices.extend_from_slice(&[0, 1, 2, 0, 2, 3]);
+        c.painter.add(Shape::mesh(mesh));
+    }
+    let p = &app.engine.project;
+    // the layers' transforms, with a Transform drag's key in place while one is in progress
+    let transforms = crate::peg_transform::layer_transforms(app);
+    let tex = &mut app.textures;
+    if aids && p.light_table.enabled && only.is_none() {
+        for pin in &p.light_table.pins {
+            let Some(li) = p.layer_index(pin.layer) else { continue };
+            if let Some(d) = p.drawing_at(li, pin.frame)
+                && let Some(s) = p.drawing(d)
+            {
+                draw_surface(tex, ctx, c, d, s, p.light_table.opacity, Some(p.light_table.tint), &p.pin_transform(li, pin), false);
+            }
+        }
+    }
+    if aids && p.onion.enabled && !app.playback.playing {
+        let layers: Vec<usize> = if let Some(l) = only {
+            vec![l]
+        } else if p.onion.all_layers {
+            (0..p.layers.len()).collect()
+        } else {
+            vec![app.layer]
+        };
+        for li in layers {
+            if !p.layers.get(li).is_some_and(|l| l.visible) {
+                continue;
+            }
+            // the layer's own onion settings, when it has them
+            let lo = p.onion_for(li);
+            if !lo.enabled {
+                continue;
+            }
+            let t = p.layer_transform(li, app.frame);
+            let mut n = p.onion_drawings(li, app.frame);
+            n.sort_by_key(|(_, off)| std::cmp::Reverse(off.unsigned_abs()));
+            for (d, off) in n {
+                let Some(s) = p.drawing(d) else { continue };
+                let tint = if !lo.tinted {
+                    None
+                } else if off < 0 {
+                    Some(lo.before_tint)
+                } else {
+                    Some(lo.after_tint)
+                };
+                draw_surface(tex, ctx, c, d, s, lo.offset_opacity(off), tint, &t, lo.outline);
+            }
+        }
+    }
+    let blended = p.layers.iter().any(|l| {
+        (l.blend != tooncraft_doc::BlendMode::Normal
+            || l.clip
+            || tooncraft_fx::is_active(&l.effects)
+            || l.matte.is_some()
+            || l.mask.is_some_and(|m| m.enabled)
+            || l.adjustment)
+            && p.effective(l).0
+    });
+    if blended && only.is_none() {
+        // A blend mode needs what is below it, and effects reach past their tiles: composite the
+        // layers on the CPU and show that as tiles. Frames are cached per project version, and
+        // during playback a worker renders the frames ahead (see `frame_cache.rs`).
+        let generation = app.engine.changes();
+        // keep the frames after the playhead coming, so pressing play finds them ready
+        app.blend_cache.prefetch(p, generation, app.frame);
+        if let Some(s) = app.blend_cache.get(p, generation, app.frame) {
+            // one texture set per cached frame, so a looping shot re-uploads nothing
+            draw_surface(tex, ctx, c, tooncraft_doc::DrawingId(u64::MAX - app.frame as u64), s, 1.0, None, &tooncraft_doc::Affine::IDENTITY, false);
+        }
+    } else {
+        for (li, layer) in p.layers.iter().enumerate() {
+            if only.is_some_and(|o| o != li) {
+                continue;
+            }
+            let (visible, opacity) = p.effective_at(layer, app.frame);
+            if !visible {
+                continue;
+            }
+            if let Some(d) = layer.drawing_at(app.frame)
+                && let Some(s) = p.drawing(d)
+            {
+                let t = transforms.get(li).copied().unwrap_or_else(|| p.layer_transform(li, app.frame));
+                draw_surface(tex, ctx, c, d, s, opacity, None, &t, false);
+            }
+        }
+    }
+    corners
+}
+
+/// The whole picture (paper and layers, no onion skin or overlays) through `view` in `rect`: the
+/// navigator's thumbnail.
+pub(crate) fn paint_picture(app: &mut ToonApp, ctx: &egui::Context, painter: &egui::Painter, view: View, rect: Rect) {
+    let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
+    let c = Ctx { painter, view, rect, size };
+    paint_layers(app, ctx, &c, None, false);
+    let corners = [pos2(0.0, 0.0), pos2(size.x, 0.0), pos2(size.x, size.y), pos2(0.0, size.y)].map(|p| view.to_screen(rect, size, p));
+    painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
 }
 
 /// Index into `ToonApp::brushes` for each `BrushKind` discriminant (same order as `BrushKind::ALL`).

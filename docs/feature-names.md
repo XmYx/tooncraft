@@ -14,6 +14,8 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Onion skin | Used descriptively by many unrelated animation apps | Use (common) |
 | Light table | Physical animation desk; used descriptively by several apps | Use (common) |
 | Hold one frame longer / shorter | Our wording | Use |
+| Second View; Shot, Drawing, Camera and Side looks | Plain words for what each look shows; avoids the reference apps' names for their extra viewers | Use |
+| Navigator | Used descriptively by many drawing and image apps for a small overview of the picture | Use (common) |
 | Re-time layer, "each drawing on Ns" | Industry phrase "on twos / threes" | Use |
 | Steady line | Our name for the pulled-string stabilizer; avoids vendor names for it | Use |
 | Smoothing | Descriptive | Use |
@@ -71,4 +73,5 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Rulers, Straight ruler, Curve ruler, Ellipse ruler, Concentric ruler, One-, Two-, Three-Point Perspective, Snap strokes to grid lines, Reach | Generic drafting terms and our wording | Use (common) |
 | Text, Place Text, Align left, Centre, Align right, Line spacing, Letter spacing | Generic typesetting terms | Use (common) |
 | Colour layer, Add Colour Layer, Colour of …, Stop Following the Line Layer | Generic ink-and-paint terms and our wording | Use (common) |
+| Feather (selection) | Generic image-editing term for a soft selection edge, used descriptively by many apps | Use (common) |
 | Tool Palette, Radial menu, Use in the radial menu | Generic UI terms (a palette of buttons; a ring menu) | Use (common) |
