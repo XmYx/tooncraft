@@ -111,6 +111,9 @@ pub enum Command {
         /// More rings of the selection (holes, other parts), with `area`.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         area_rings: Vec<Vec<(f32, f32)>>,
+        /// A gradient swatch's stops; two or more replace `start` and `end`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        stops: Vec<tooncraft_doc::palette::Stop>,
         /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
         #[serde(default, skip_serializing_if = "is_hard")]
         feather: f32,
@@ -1176,9 +1179,15 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::PathShape { layer, frame, brush, points, closed, curve, outline, fill } => {
             crate::drawing::path_shape(e, layer, frame, brush, &points, closed, curve, outline, fill)
         }
-        Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, feather } => {
+        Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, stops, feather } => {
             frame_ok(e, frame)?;
-            crate::drawing::gradient(e, layer, frame, kind, from, to, start, end, area.as_deref(), &area_rings, feather)
+            let stops = tooncraft_doc::palette::sanitize_stops(stops);
+            let stops = if stops.is_empty() {
+                vec![tooncraft_doc::palette::Stop { at: 0.0, rgba: start }, tooncraft_doc::palette::Stop { at: 1.0, rgba: end }]
+            } else {
+                stops
+            };
+            crate::drawing::gradient(e, layer, frame, kind, from, to, &stops, area.as_deref(), &area_rings, feather)
         }
         Command::SetLayerOnion { layer, onion } => {
             e.project.layer_mut(layer)?.onion = onion.map(OnionSkin::sanitized);

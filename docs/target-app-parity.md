@@ -517,7 +517,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Contour, text, rigging and morph tool properties | TB | P | L | Text tool properties: font, size, alignment, line and letter spacing; the contour, rigging and morph tools are missing |
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
 | Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue, the colour's own opacity and the brush's opacity |
-| Picker with alpha and a gradient | TB | P | S | A floating Colour Picker window (`--open colour-picker`) as well as the docked one; the colour has its own opacity; no gradient swatches |
+| Picker with alpha and a gradient | TB | D | S | A floating Colour Picker window (`--open colour-picker`) as well as the docked one; the colour has its own opacity; palette swatches keep an opacity and can be gradients (stops with colour and opacity), drawn over a checkerboard; choosing a gradient swatch takes the gradient tool, whose stop editor builds one and adds it to the palette (`gradient` and `set_palettes` commands) |
 | Timeline layer rows with toggles | TB | D | S | Show, lock and onion toggles in each row on the shared icons (named check boxes, keyboard reachable) and a bar in the label colour; a mark on every cell where the layer's pegs are keyed, named "peg key" for screen readers; the Layers panel rows have a thumbnail of the drawing on this frame and a split add button; the rest in the row's right-click menu |
 | Timeline buttons | TB | D | S | One header row: icon transport, loop, Play Around, speed and inline fields; the rest in its ⋯ menu |
 | Selected range highlight | TB | D | S | |
