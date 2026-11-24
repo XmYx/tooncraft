@@ -474,7 +474,7 @@ Weight: 5
 | Second view of the same shot and a navigator | TV TB CS | D | M | The Second View panel draws the same shot with its own pan and zoom (a stroke there is an ordinary undo step), and the Navigator panel shows the whole picture with the main view's frame: click or arrow keys move the main view (`views_ui_tests`, `--panel view2`, `--panel navigator`) |
 | Undo history panel | TV CS | D | S | A panel listing every step; click one to go there (undo or redo as needed) |
 | Preferences dialog | all | D | S | Edit ▸ Preferences: general, drawing, onion skin, sheet and export tabs, each with Restore Defaults; a damaged settings file gives the defaults |
-| Translated interface | all | P | M | craft-i18n catalogs are validated; English is the only shipped language |
+| Translated interface | all | P | M | Preferences ▸ General ▸ Language picks the interface language (system, English or any built-in catalog), applied at once and kept per user (`language_ui_tests`); craft-i18n catalogs are validated. English is the only shipped language until a ToonCraft catalog lands in craft-i18n |
 | Every action reachable from the keyboard | — | D | M | **Ours:** every registry command is found by its own name in Find Command (Ctrl+Shift+P) and runs from there with arrows and Enter, and every panel opens from there by "Show <panel>"; panels and the sheet take F6, controls take Tab. Kittest-tested over the whole registry and every panel (`keyboard_reach_ui_tests`), accessibility check on |
 | Screen reader names for the canvas and the timeline | — | X | S | **Ours:** AccessKit nodes for the canvas and every visible cell |
 

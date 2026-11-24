@@ -60,6 +60,8 @@ mod import_dialog;
 #[cfg(test)]
 mod keyboard_reach_ui_tests;
 mod keys;
+#[cfg(test)]
+mod language_ui_tests;
 mod layer_fx;
 mod layer_ops;
 mod layer_tree;

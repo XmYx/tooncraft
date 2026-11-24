@@ -27,6 +27,8 @@ pub struct Prefs {
     pub undo_megabytes: u32,
     /// Show the start window when ToonCraft opens with no shot.
     pub start_screen: bool,
+    /// The interface language's code (`de`, `pt-br`); empty follows the system.
+    pub language: String,
     // drawing
     pub smoothing: f32,
     pub gap: u8,
@@ -62,6 +64,7 @@ impl Default for Prefs {
         Self {
             autosave_seconds: 45,
             start_screen: true,
+            language: String::new(),
             undo_megabytes: (tooncraft_engine::DEFAULT_UNDO_BUDGET >> 20) as u32,
             smoothing: 0.3,
             gap: 3,
@@ -106,8 +109,14 @@ impl Prefs {
             tool_rail: crate::tool_rail::sanitized_memory(self.tool_rail.clone()),
             pressure_curve: tooncraft_brush::Curve::from_points(self.pressure_curve.points()),
             palettes: self.palettes.clone().sanitized(),
+            language: sanitized_language(&self.language),
             ..self
         }
+    }
+
+    /// The language to show: `None` follows the system.
+    pub fn language(&self) -> Option<&str> {
+        (!self.language.is_empty()).then_some(self.language.as_str())
     }
 
     /// Read the saved preferences (defaults when there are none or they cannot be read).
@@ -135,6 +144,7 @@ impl Prefs {
                 self.autosave_seconds = d.autosave_seconds;
                 self.undo_megabytes = d.undo_megabytes;
                 self.start_screen = d.start_screen;
+                self.language = d.language;
             }
             Tab::Drawing => {
                 self.smoothing = d.smoothing;
@@ -219,6 +229,7 @@ impl State {
 /// Settings that take effect at once (autosave interval, undo budget, timeline view).
 pub fn apply_live(app: &mut ToonApp) {
     let p = &app.preferences.prefs;
+    crate::i18n::set_language(p.language());
     app.engine.undo_budget = (p.undo_megabytes as u64) << 20;
     app.tl.vertical = p.vertical_sheet;
     app.thumbnails = p.thumbnails;
@@ -242,6 +253,33 @@ pub fn apply_tool_defaults(app: &mut ToonApp) {
         b.smoothing.average = p.smoothing;
     }
     app.fill.gap = p.gap;
+}
+
+/// A language code from a settings file: at most 24 characters of ASCII letters, digits and `-`,
+/// lower case; anything else follows the system. An unknown code also falls back when applied.
+fn sanitized_language(code: &str) -> String {
+    let c = code.trim().to_ascii_lowercase();
+    if c.len() <= 24 && c.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '-') { c } else { String::new() }
+}
+
+/// The interface language: "System language" first, then English and every language whose catalog
+/// is built in, each by its own name.
+fn language_picker(ui: &mut egui::Ui, code: &mut String) {
+    let i18n = &crate::i18n::I18N;
+    let system = tl!("System language").to_string();
+    let mut options: Vec<(String, String)> = vec![(String::new(), system.clone())];
+    options.extend(i18n.languages().into_iter().map(|l| (i18n.code(l).to_string(), i18n.name(l).to_string())));
+    let shown = options.iter().find(|(c, _)| c == code).map_or_else(|| code.clone(), |(_, n)| n.clone());
+    let l = ui.label(tl!("Language"));
+    egui::ComboBox::from_id_salt("prefs-language")
+        .selected_text(shown)
+        .show_ui(ui, |ui| {
+            for (c, name) in &options {
+                ui.selectable_value(code, c.clone(), name);
+            }
+        })
+        .response
+        .labelled_by(l.id);
 }
 
 fn tab_name(t: Tab) -> String {
@@ -286,6 +324,8 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
                     num(ui, tl!("Autosave every"), &mut p.autosave_seconds, AUTOSAVE_RANGE.0, AUTOSAVE_RANGE.1, tl!(" s"));
                     num(ui, tl!("Undo memory"), &mut p.undo_megabytes, UNDO_RANGE.0, UNDO_RANGE.1, tl!(" MB"));
                     ui.checkbox(&mut p.start_screen, tl!("Show the start window when opening with no shot"));
+                    ui.end_row();
+                    language_picker(ui, &mut p.language);
                     ui.end_row();
                 }
                 Tab::Drawing => {
