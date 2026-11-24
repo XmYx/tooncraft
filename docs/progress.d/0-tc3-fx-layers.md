@@ -1,0 +1,1 @@
+- 2026-11-24: Painted layer masks (paint hides, the eraser brings back; every tool paints into the mask while it is being edited) and adjustment layers whose effects act on everything below them. Two Layers rows reach done.

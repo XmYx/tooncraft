@@ -87,6 +87,7 @@ fn gradients() {
         end: [255, 255, 255, 255],
         area: None,
         area_rings: Vec::new(),
+        feather: 0.0,
     })
     .unwrap();
     let (l, m, r) = (e.pick_color(0, 1, 50)[0], e.pick_color(0, 100, 50)[0], e.pick_color(0, 198, 50)[0]);
@@ -101,6 +102,7 @@ fn gradients() {
         end: [0, 0, 255, 255],
         area: Some(vec![(80.0, 30.0), (120.0, 30.0), (120.0, 70.0), (80.0, 70.0)]),
         area_rings: Vec::new(),
+        feather: 0.0,
     })
     .unwrap();
     assert!(e.pick_color(1, 100, 50)[0] > 245, "the centre is the start colour");
@@ -131,7 +133,7 @@ fn selection_rings_skew_distort_and_wand() {
     let sq = vec![(40.0, 20.0), (80.0, 20.0), (80.0, 60.0), (40.0, 60.0)];
     let hole = vec![(50.0, 30.0), (70.0, 30.0), (70.0, 50.0), (50.0, 50.0)];
     // erasing a ring with a hole keeps the hole's paint
-    e.apply(Command::ClearSelection { layer: 0, frame: 0, polygon: sq.clone(), rings: vec![hole.clone()] }).unwrap();
+    e.apply(Command::ClearSelection { layer: 0, frame: 0, polygon: sq.clone(), rings: vec![hole.clone()], feather: 0.0 }).unwrap();
     assert_eq!(e.pick_color(0, 45, 25), PAPER);
     assert_ne!(e.pick_color(0, 60, 40), PAPER, "the hole is not erased");
     e.undo().unwrap();
@@ -149,6 +151,7 @@ fn selection_rings_skew_distort_and_wand() {
         skew_x: 0.3,
         skew_y: 0.0,
         resample: tooncraft_raster::select::Resample::Nearest,
+        feather: 0.0,
     })
     .unwrap();
     assert_eq!(e.undo_label(), Some("Transform"));
@@ -161,6 +164,7 @@ fn selection_rings_skew_distort_and_wand() {
         rings: Vec::new(),
         corners: [(50.0, 30.0), (70.0, 30.0), (70.0, 50.0), (50.0, 50.0)],
         resample: Default::default(),
+        feather: 0.0,
     })
     .unwrap();
     assert_eq!(e.undo_label(), Some("Distort"));
@@ -173,7 +177,8 @@ fn selection_rings_skew_distort_and_wand() {
             polygon: sq.clone(),
             rings: Vec::new(),
             corners: [(1.0, 1.0); 4],
-            resample: Default::default()
+            resample: Default::default(),
+            feather: 0.0,
         })
         .is_err()
     );
@@ -271,4 +276,80 @@ fn samples_held_by_a_perspective_ruler_keep_their_own_pressure() {
     let (free, snapped) = (paint(false), paint(true));
     assert!(free.0 + 5 < free.1, "the light start is thinner without rulers: {free:?}");
     assert_eq!(snapped, free, "and just as thin when a ruler held those samples");
+}
+
+#[test]
+fn feathered_selection_commands_blend_their_edge_and_read_old_files() {
+    let mut e = engine();
+    e.apply(Command::Fill { layer: 0, frame: 0, x: 5, y: 5, color: [20, 20, 20, 255], options: Default::default(), reference: Default::default() }).unwrap();
+    let alpha = |e: &Engine, x: i64, y: i64| e.project.drawing_at(0, 0).and_then(|d| e.project.drawing(d)).map_or(0, |s| s.pixel(x, y)[3]);
+    let sq = vec![(40.0, 20.0), (80.0, 20.0), (80.0, 60.0), (40.0, 60.0)];
+    // a command file line with a feather; one without reads as hard-edged
+    let soft: Command =
+        serde_json::from_str(r#"{"cmd":"clear_selection","layer":0,"frame":0,"polygon":[[40,20],[80,20],[80,60],[40,60]],"feather":5}"#).unwrap();
+    assert!(matches!(soft, Command::ClearSelection { feather, .. } if feather == 5.0));
+    let hard: Command = serde_json::from_str(r#"{"cmd":"clear_selection","layer":0,"frame":0,"polygon":[[40,20],[80,20],[80,60],[40,60]]}"#).unwrap();
+    assert!(matches!(hard, Command::ClearSelection { feather, .. } if feather == 0.0));
+    assert!(!serde_json::to_string(&hard).unwrap().contains("feather"), "a hard edge is left out of saved files");
+    e.apply(soft).unwrap();
+    assert_eq!(alpha(&e, 60, 40), 0);
+    let edge = alpha(&e, 40, 40);
+    assert!(edge > 60 && edge < 200, "the edge fades, got {edge}");
+    assert_eq!(alpha(&e, 25, 40), 255);
+    e.undo().unwrap();
+    // a feathered move leaves a soft trail where the paint was
+    e.apply(Command::TransformSelection {
+        layer: 0,
+        frame: 0,
+        polygon: sq.clone(),
+        rings: Vec::new(),
+        dx: 0.0,
+        dy: 80.0,
+        scale_x: 1.0,
+        scale_y: 1.0,
+        angle: 0.0,
+        skew_x: 0.0,
+        skew_y: 0.0,
+        resample: Default::default(),
+        feather: 5.0,
+    })
+    .unwrap();
+    let a = alpha(&e, 41, 40);
+    assert!(a > 0 && a < 255, "part of the edge stays behind, got {a}");
+    e.undo().unwrap();
+    // a feathered fill paints less at its edge; hostile feathers are clamped, never a crash
+    e.apply(Command::ClearDrawing { layer: 0, frame: 0 }).unwrap();
+    let (c, area) = ([200, 0, 0, 255], Some(sq.clone()));
+    for feather in [f32::NAN, -3.0, 1e12, 4.0] {
+        e.apply(Command::Gradient {
+            layer: 0,
+            frame: 0,
+            kind: GradientKind::Linear,
+            from: (0.0, 0.0),
+            to: (1.0, 0.0),
+            start: c,
+            end: c,
+            area: area.clone(),
+            area_rings: Vec::new(),
+            feather,
+        })
+        .unwrap();
+        e.undo().unwrap();
+    }
+    e.apply(Command::Gradient {
+        layer: 0,
+        frame: 0,
+        kind: GradientKind::Linear,
+        from: (0.0, 0.0),
+        to: (1.0, 0.0),
+        start: c,
+        end: c,
+        area,
+        area_rings: Vec::new(),
+        feather: 4.0,
+    })
+    .unwrap();
+    assert_eq!(alpha(&e, 60, 40), 255);
+    let f = alpha(&e, 40, 40);
+    assert!(f > 60 && f < 200, "the fill fades at the edge, got {f}");
 }

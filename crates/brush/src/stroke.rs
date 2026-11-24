@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tooncraft_raster::{Surface, TILE, TILE_PIXELS, Tile, TileSnapshot, over, premultiply, scale_alpha};
 
 use crate::dab::Shape;
-use crate::{Brush, BrushKind, Compose, Dab, GrainKind, Inputs, Sample, Source, Stabilizer, Target, hash01};
+use crate::{Brush, BrushKind, Compose, Dab, Grain, Inputs, Sample, Source, Stabilizer, Target, hash01};
 
 /// Turns input samples into evenly spaced dabs with the brush's dynamics applied.
 ///
@@ -228,17 +228,15 @@ impl Stroke {
     pub fn begin_with(surface: &mut Surface, brush: Brush, images: Images) -> Self {
         let brush = brush.sanitized();
         surface.begin_capture();
-        // a grain image that is missing falls back to paper
-        let grain_kind = if brush.grain_kind == GrainKind::Image && images.grain.is_none() { GrainKind::Paper } else { brush.grain_kind };
+
         let wet = brush.kind != BrushKind::Eraser && (brush.kind == BrushKind::Smudge || brush.wet.pickup > 0.0);
         Self {
             shape: Shape {
                 kind: brush.kind,
                 hardness: brush.hardness,
                 grain: brush.grain,
-                grain_scale: brush.grain_scale,
-                grain_kind,
-                grain_image: images.grain,
+                // a grain image that is missing falls back to paper
+                texture: Grain::new(brush.grain_kind, brush.grain_scale, brush.grain_angle, brush.grain_contrast, images.grain),
                 tip: images.tip,
             },
             color: premultiply(brush.color),
@@ -733,7 +731,7 @@ mod tests {
 #[cfg(test)]
 mod dynamics_tests {
     use super::*;
-    use crate::{Curve, Dynamics, Response, Smoothing, Wet};
+    use crate::{Curve, Dynamics, GrainKind, Response, Smoothing, Wet};
 
     fn plain(kind: BrushKind) -> Brush {
         Brush { smoothing: Smoothing { average: 0.0, catch_up: false, ..Default::default() }, ..Brush::preset(kind) }
@@ -876,6 +874,22 @@ mod dynamics_tests {
         let mut t = Surface::new(120, 60).unwrap();
         paint(&mut t, brush, &pts);
         assert!(!t.is_empty());
+    }
+
+    #[test]
+    fn grain_rotation_and_contrast_change_the_stroke() {
+        let stroke = |angle: f32, contrast: f32| {
+            let mut s = Surface::new(200, 80).unwrap();
+            let brush =
+                Brush { grain: 1.0, grain_kind: GrainKind::Canvas, grain_angle: angle, grain_contrast: contrast, size: 24.0, ..plain(BrushKind::Chalk) };
+            let pts: Vec<Sample> = (0..60).map(|i| Sample::at(20.0 + i as f32 * 2.5, 40.0, 0.5, i as f64 * 0.01)).collect();
+            paint(&mut s, brush, &pts);
+            s
+        };
+        let base = stroke(0.0, 1.0);
+        assert_ne!(stroke(30.0, 1.0), base, "rotation does nothing");
+        assert_ne!(stroke(0.0, 3.0), base, "contrast does nothing");
+        assert_eq!(stroke(30.0, 3.0), stroke(30.0, 3.0), "replays exactly");
     }
 
     #[test]

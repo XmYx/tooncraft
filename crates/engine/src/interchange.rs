@@ -158,3 +158,151 @@ pub(crate) fn sheet(e: &mut Engine, path: &str) -> Result<()> {
     e.push(Entry { label: "Import exposure sheet".into(), parts });
     Ok(())
 }
+
+/// The choices of a video import ([`crate::Command::ImportVideo`]).
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct VideoImport {
+    /// Seconds into the video of the first picture.
+    pub from_seconds: f64,
+    /// Every `every`-th picture (1 = every picture; 2 = on twos, and so on).
+    pub every: u32,
+    /// At most this many pictures (0 = as many as fit).
+    pub max_frames: u32,
+    /// Put the layer at the bottom, locked and at half opacity, to draw over (rotoscoping).
+    pub reference: bool,
+    /// Lengthen the shot so the whole video fits (otherwise it stops at the shot's end).
+    pub grow: bool,
+}
+
+impl Default for VideoImport {
+    fn default() -> Self {
+        VideoImport { from_seconds: 0.0, every: 1, max_frames: 0, reference: true, grow: true }
+    }
+}
+
+/// Most bytes of video pictures one import keeps on the canvas.
+pub const MAX_VIDEO_BYTES: u64 = tooncraft_interop::MAX_IMPORT_BYTES;
+
+/// How many video pictures one import keeps on a `w`×`h` canvas.
+pub(crate) fn video_fit(w: u32, h: u32) -> usize {
+    let per = w as u64 * h as u64 * 4;
+    (MAX_VIDEO_BYTES / per.max(1)).min(crate::import::MAX_IMPORT as u64) as usize
+}
+
+/// A video file as a new layer from `frame` (see [`crate::Command::ImportVideo`]). Decodes every
+/// chosen picture first, so a bad file changes nothing.
+pub(crate) fn video(e: &mut Engine, path: &str, frame: u32, o: &VideoImport) -> Result<()> {
+    if frame >= e.project.length() {
+        return Err(DocError::NoFrame(frame).into());
+    }
+    let file = std::fs::File::open(path).map_err(|x| err(format!("{path}: {x}")))?;
+    let (w, h) = (e.project.width(), e.project.height());
+    // the work and memory cap, checked before each picture is kept
+    let fit = video_fit(w, h);
+    let limit = if o.max_frames == 0 { fit } else { (o.max_frames as usize).min(fit) };
+    let room = if o.grow { tooncraft_doc::MAX_FRAMES } else { e.project.length() };
+    let fps = e.project.fps().max(1) as f64;
+    let pick = tooncraft_interop::video::Pick { from: o.from_seconds, every: o.every, max: limit.saturating_add(1) };
+    let start = pick.sanitized().from;
+    let mut kept: Vec<(u32, Surface)> = Vec::new();
+    let mut over = false;
+    let mut failed: Option<EngineError> = None;
+    let info = tooncraft_interop::video::frames(&file, pick, |img, t| {
+        let at = frame as f64 + ((t - start).max(0.0) * fps).round();
+        if at >= room as f64 {
+            return Ok(false);
+        }
+        let at = at as u32;
+        // two pictures on one shot frame: the first one stays
+        if kept.last().is_some_and(|(f, _)| *f >= at) {
+            return Ok(true);
+        }
+        if kept.len() >= limit {
+            over = true;
+            return Ok(false);
+        }
+        match surface(e, &img) {
+            Ok(s) => kept.push((at, s)),
+            Err(x) => {
+                failed = Some(x);
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    })
+    .map_err(|x| err(format!("{path}: {x}")))?;
+    if let Some(x) = failed {
+        return Err(x);
+    }
+    if over && (o.max_frames == 0 || o.max_frames as usize > limit) {
+        return Err(err(format!("{path}: more than {limit} pictures do not fit in one import at this canvas size; import a part (a start, a step or a cap)")));
+    }
+    let Some(last) = kept.last().map(|(f, _)| *f) else {
+        return Err(err(format!("{path}: no pictures from {start:.2} s on (the video is {:.2} s long)", info.seconds)));
+    };
+    // room for the layer and every drawing, checked before anything changes
+    if e.project.layers.len() >= tooncraft_doc::MAX_LAYERS {
+        return Err(DocError::TooManyLayers.into());
+    }
+    if e.project.drawing_count().saturating_add(kept.len()) > tooncraft_doc::MAX_DRAWINGS {
+        return Err(DocError::TooManyDrawings.into());
+    }
+    // and should a step still fail, the shot goes back to how it was: no change without an undo step
+    let snapshot = e.project.clone();
+    if let Err(x) = place_video(e, kept, last, &info, o, room, fps, &name_of(path)) {
+        e.project = snapshot;
+        return Err(x);
+    }
+    let parts = vec![Part::Whole(Box::new(snapshot))];
+    e.push(Entry { label: "Import video".into(), parts });
+    Ok(())
+}
+
+fn name_of(path: &str) -> String {
+    let name: String = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "Video".into());
+    name.chars().take(tooncraft_doc::MAX_NAME).collect()
+}
+
+/// The changes of a video import, once the pictures are decoded and the room is checked.
+#[allow(clippy::too_many_arguments)]
+fn place_video(
+    e: &mut Engine,
+    kept: Vec<(u32, Surface)>,
+    last: u32,
+    info: &tooncraft_interop::video::VideoInfo,
+    o: &VideoImport,
+    room: u32,
+    fps: f64,
+    name: &str,
+) -> Result<()> {
+    // the last picture is held for its own length
+    let tail = if info.fps > 0.0 { (fps * o.every.max(1) as f64 / info.fps).round().max(1.0) as u32 } else { 1 };
+    let end = last.saturating_add(tail).min(room);
+    if o.grow && e.project.length() < end {
+        e.project.set_length(end)?;
+    }
+    let index = if o.reference { 0 } else { e.project.layers.len() };
+    let li = e.project.add_layer(name, index)?;
+    let len = e.project.length();
+    let starts: Vec<u32> = kept.iter().map(|(f, _)| *f).collect();
+    for (i, (at, s)) in kept.into_iter().enumerate() {
+        let id = e.project.add_drawing(Some(s))?;
+        let next = starts.get(i + 1).copied().unwrap_or(end).min(len);
+        let layer = e.project.layer_mut(li)?;
+        if let Some(c) = layer.cells.get_mut(at as usize) {
+            *c = Cell::Key(id);
+        }
+        for k in at + 1..next {
+            if let Some(c) = layer.cells.get_mut(k as usize) {
+                *c = Cell::Hold;
+            }
+        }
+    }
+    let layer = e.project.layer_mut(li)?;
+    if o.reference {
+        layer.locked = true;
+        layer.opacity = 0.5;
+    }
+    Ok(())
+}

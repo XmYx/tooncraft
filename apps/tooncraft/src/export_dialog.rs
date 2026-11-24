@@ -13,6 +13,9 @@ use crate::app::ToonApp;
 pub fn formats() -> Vec<(&'static str, String)> {
     vec![
         ("mp4", tl!("Video (MP4, H.264)").to_string()),
+        ("mp4-hevc", tl!("Video (MP4, H.265)").to_string()),
+        ("mp4-av1", tl!("Video (MP4, AV1)").to_string()),
+        ("mov", tl!("Video (QuickTime MOV, H.264)").to_string()),
         ("gif", tl!("Animated GIF").to_string()),
         ("apng", tl!("Animated PNG").to_string()),
         ("webp", tl!("Animated WebP").to_string()),
@@ -46,7 +49,7 @@ pub struct Caps {
 }
 
 pub fn caps(kind: &str) -> Caps {
-    let ours = matches!(kind, "mp4" | "gif" | "apng" | "webp" | "webp-lossy" | "png" | "tga" | "tiff" | "jpeg" | "exr" | "exr-layers");
+    let ours = matches!(kind, "mp4" | "mp4-hevc" | "mp4-av1" | "mov" | "gif" | "apng" | "webp" | "webp-lossy" | "png" | "tga" | "tiff" | "jpeg" | "exr" | "exr-layers");
     Caps {
         range: ours || matches!(kind, "prores4444" | "prores422" | "layers" | "psd-frames" | "psb-frames"),
         scale: ours,

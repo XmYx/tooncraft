@@ -275,6 +275,8 @@ pub fn layer(app: &mut ToonApp, ui: &mut Ui, li: usize) {
     let blends: Vec<&str> = crate::menu_commands::BLENDS.iter().map(|(id, _)| *id).collect();
     sub(ui, app, tl!("Blend"), &blends);
     sub(ui, app, tl!("Arrange"), &["layer.move_up", "layer.move_down", SEP, "layer.clip"]);
+    sub(ui, app, tl!("Layer Mask"), &["layer.mask_add", "layer.mask_edit", "layer.mask_enabled", "layer.mask_invert", SEP, "layer.mask_remove"]);
+    context(ui, app, &["layer.adjustment"]);
     crate::colour_layers_ui::menu_items(app, ui, li);
 }
 

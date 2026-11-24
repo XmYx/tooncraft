@@ -32,9 +32,11 @@ const USAGE: &str = "usage:
   tooncraft-cli new <file.toon> [--size WxH] [--fps N] [--frames N] [--name NAME]
   tooncraft-cli demo <file.toon> [--size WxH] [--large [--frames N]]
   tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
+  tooncraft-cli import-video <file.toon> <movie.mp4|.mov> [--frame N] [--from SECONDS] [--every N] [--max N] [--on-top] [--keep-length]
   tooncraft-cli info <file.toon>
   tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   (text commands use the fonts given, by file name)
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--mp4 <file> | --mov <file>) [--codec h264|h265|av1] [--range A..B]
   tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
   tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --exr-layers <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
   tooncraft-cli check <file.toon>
@@ -66,6 +68,8 @@ impl Args {
                         | "gif"
                         | "ora"
                         | "mp4"
+                        | "mov"
+                        | "codec"
                         | "apng"
                         | "frame"
                         | "range"
@@ -87,6 +91,9 @@ impl Args {
                         | "layer"
                         | "threads"
                         | "font"
+                        | "from"
+                        | "every"
+                        | "max"
                 );
                 let v = if takes { it.next() } else { None };
                 flags.push((name.to_string(), v));
@@ -311,8 +318,16 @@ fn run() -> Result<(), String> {
                 export::gif(&e.project, Path::new(file), o, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {file}");
-            } else if let Some(file) = rest.flag("mp4") {
-                export::mp4(&e.project, Path::new(file), o, progress).map_err(|e| e.to_string())?;
+            } else if let Some((file, container)) =
+                rest.flag("mp4").map(|f| (f, export::Container::Mp4)).or_else(|| rest.flag("mov").map(|f| (f, export::Container::Mov)))
+            {
+                let codec = match rest.flag("codec").unwrap_or("h264") {
+                    "h264" => export::VideoCodec::H264,
+                    "h265" | "hevc" => export::VideoCodec::Hevc,
+                    "av1" => export::VideoCodec::Av1,
+                    other => return Err(format!("--codec is h264, h265 or av1, not “{other}”")),
+                };
+                export::video(&e.project, Path::new(file), o, codec, container, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {file}");
             } else if let Some(file) = rest.flag("apng") {
@@ -375,7 +390,7 @@ fn run() -> Result<(), String> {
                 println!("wrote {file}");
             } else {
                 return Err(format!(
-                    "export needs --png, --gif, --mp4, --apng, --prores, --prores-layers, --wav, --mouth-sheet, --psd, --layers, --levels or --ora\n\n{USAGE}"
+                    "export needs --png, --gif, --mp4, --mov, --apng, --prores, --prores-layers, --wav, --mouth-sheet, --psd, --layers, --levels or --ora\n\n{USAGE}"
                 ));
             }
             Ok(())
@@ -391,6 +406,25 @@ fn run() -> Result<(), String> {
             let hold = num(rest.flag("hold"), 1)?;
             let name = rest.flag("name").unwrap_or("Imported").to_string();
             e.apply(Command::ImportImages { paths: images, frame, hold, name, options: Default::default() }).map_err(|e| e.to_string())?;
+            save(&path, &e)
+        }
+        "import-video" => {
+            let path = rest.file(0)?;
+            let mut e = load(&path)?;
+            let src = rest.positional.get(1).cloned().ok_or_else(|| format!("import-video needs a movie file\n\n{USAGE}"))?;
+            let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
+            let from_seconds = match rest.flag("from") {
+                Some(s) => s.parse::<f64>().ok().filter(|v| v.is_finite() && *v >= 0.0).ok_or_else(|| format!("--from takes seconds, not “{s}”"))?,
+                None => 0.0,
+            };
+            let options = tooncraft_engine::VideoImport {
+                from_seconds,
+                every: num(rest.flag("every"), 1)?.max(1),
+                max_frames: num(rest.flag("max"), 0)?,
+                reference: !rest.has("on-top"),
+                grow: !rest.has("keep-length"),
+            };
+            e.apply(Command::ImportVideo { path: src, frame, options }).map_err(|e| e.to_string())?;
             save(&path, &e)
         }
         "import-layers" | "import-gif" | "import-sheet" | "set-sound" => {

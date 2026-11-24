@@ -14,6 +14,8 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Onion skin | Used descriptively by many unrelated animation apps | Use (common) |
 | Light table | Physical animation desk; used descriptively by several apps | Use (common) |
 | Hold one frame longer / shorter | Our wording | Use |
+| Second View; Shot, Drawing, Camera and Side looks | Plain words for what each look shows; avoids the reference apps' names for their extra viewers | Use |
+| Navigator | Used descriptively by many drawing and image apps for a small overview of the picture | Use (common) |
 | Re-time layer, "each drawing on Ns" | Industry phrase "on twos / threes" | Use |
 | Steady line | Our name for the pulled-string stabilizer; avoids vendor names for it | Use |
 | Smoothing | Descriptive | Use |
@@ -28,10 +30,12 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Paste as New Drawings, Paste Frames Moving Later Frames | Our wording | Use |
 | Reverse Selected Frames, Repeat Selected Frames | Descriptive (instead of vendor terms for cycles) | Use |
 | Import Image Sequence | Descriptive | Use |
+| Import Video | Descriptive | Use |
 | Video (MP4, H.264), Animated PNG | Format names (allowed by rule 3) | Use |
 | Select, Lasso, Rectangle, Transform Selection, Flip Horizontally / Vertically | Generic | Use (common) |
 | Shapes, Line, Rectangle, Ellipse | Generic | Use (common) |
 | Camera, Set Key, Export through the camera | Generic film terms | Use (common) |
+| Video in Other Codecs (H.265, AV1, QuickTime MOV) | Generic, standard codec names | Use |
 | Blend modes: Normal, Multiply, Screen, Overlay, Darken, Lighten, Add, Colour dodge, Colour burn, Hard light, Soft light, Difference, Exclusion, Linear burn, Linear light, Vivid light, Pin light, Hard mix, Subtract, Divide, Hue, Saturation, Colour, Luminosity | Standard compositing names (W3C compositing specification) | Use (common) |
 | Duplicate, Merge Down, Merge Visible, Flatten, Copy look from, Lock transparency, Paint: On top / Behind / Only on paint | Generic layer words and our wording | Use (common) |
 | Folder, Layer colour, Thumbnails | Generic | Use (common) |
@@ -61,6 +65,8 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Effects, Add effect, Soft blur, Motion blur, Zoom blur, Glow, Drop shadow, Outline, Thicken lines | Generic image-editing terms | Use (common) |
 | Levels, Tone curve, Hue and saturation, Tint, Grain, Light wrap | Generic image-editing and compositing terms | Use (common) |
 | Hard edges (alpha threshold), Soft mask, Keep the outside | Our wording | Use |
+| Mask shape, Drawn shape, Use the Selection as the Shape, Lens flare, Rays, Ghosts, Displace by layer, Map layer, By brightness | Generic compositing and photography terms and our wording | Use (common) |
+| Layer Mask, Add / Remove Layer Mask, Paint on Layer Mask, Use Layer Mask, Invert Layer Mask, Adjustment Layer | Generic image-editing terms | Use (common) |
 | Matte, Keep inside / Keep outside, Colour key, Result blend, Strength, Key opacity here | Generic compositing terms and our wording | Use (common) |
 | Audio track, Clip, Trim start, Fade in / out, Mute, Solo, Export Sound Mix | Generic audio-editing terms | Use (common) |
 | Lip Sync, Mouth chart, Detect Mouths from Sound, Mouth sheet | Generic animation terms and our wording | Use (common) |
@@ -68,3 +74,5 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Rulers, Straight ruler, Curve ruler, Ellipse ruler, Concentric ruler, One-, Two-, Three-Point Perspective, Snap strokes to grid lines, Reach | Generic drafting terms and our wording | Use (common) |
 | Text, Place Text, Align left, Centre, Align right, Line spacing, Letter spacing | Generic typesetting terms | Use (common) |
 | Colour layer, Add Colour Layer, Colour of …, Stop Following the Line Layer | Generic ink-and-paint terms and our wording | Use (common) |
+| Feather (selection) | Generic image-editing term for a soft selection edge, used descriptively by many apps | Use (common) |
+| Tool Palette, Radial menu, Use in the radial menu | Generic UI terms (a palette of buttons; a ring menu) | Use (common) |

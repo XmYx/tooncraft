@@ -449,6 +449,7 @@ fn a_layer_can_have_its_own_onion_settings() {
 fn launch_options_open_windows_layouts_and_tools() {
     for (cli, check) in [
         (Cli { open: Some("preferences".into()), ..Cli::default() }, &(|a: &ToonApp| a.preferences.open) as &dyn Fn(&ToonApp) -> bool),
+        (Cli { open: Some("pen".into()), ..Cli::default() }, &(|a: &ToonApp| a.preferences.open && a.preferences.tab == crate::preferences::Tab::Pen)),
         (Cli { open: Some("export".into()), ..Cli::default() }, &|a: &ToonApp| a.export_dialog.is_some()),
         (Cli { open: Some("find".into()), ..Cli::default() }, &|a: &ToonApp| a.find.open),
         (Cli { open: Some("new-shot".into()), ..Cli::default() }, &|a: &ToonApp| a.new_shot.is_some()),
@@ -531,4 +532,42 @@ fn new_shot_offers_size_and_rate_presets() {
     let n = h.state().new_shot.clone().expect("still open");
     assert_eq!((n.width, n.height, n.fps), (4096, 2160, 24));
     h.get(By::new().role(egui::Role::Button).label("Save as Preset"));
+}
+
+#[test]
+fn the_video_window_imports_a_movie_to_trace_over() {
+    struct Gone(std::path::PathBuf);
+    impl Drop for Gone {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let dir = std::env::temp_dir().join(format!("tooncraft-video-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let _gone = Gone(dir.clone());
+    // a 4-frame movie of the demo shot
+    let demo = tooncraft_engine::demo::demo(160, 120).unwrap();
+    let movie = dir.join("ball.mp4");
+    let mut o = tooncraft_engine::export::ExportOptions::whole(&demo.project);
+    o.end = 4;
+    tooncraft_engine::export::mp4(&demo.project, &movie, o, |_| {}).unwrap();
+    let mut h = harness();
+    h.state_mut().video_dialog = Some(crate::video_dialog::Dialog::new(None));
+    h.run();
+    // nothing chosen yet: Import is not offered
+    assert!(egui_kittest::kittest::NodeT::accesskit_node(&h.get(By::new().role(egui::Role::Button).label("Import"))).is_disabled());
+    h.state_mut().video_dialog = Some(crate::video_dialog::Dialog::new(Some(movie.to_string_lossy().into_owned())));
+    h.run();
+    h.get(By::new().label_contains("160×120"));
+    h.get(By::new().role(egui::Role::CheckBox).label("Lengthen the shot to fit the video"));
+    h.get(By::new().role(egui::Role::SpinButton).label("Take every"));
+    h.get(By::new().role(egui::Role::Button).label("Import")).click();
+    h.run();
+    assert!(h.state().video_dialog.is_none());
+    let p = &h.state().engine.project;
+    assert_eq!(p.layers[0].name, "ball");
+    assert!(p.layers[0].locked);
+    assert_eq!(h.state().engine.undo_label(), Some("Import video"));
+    assert_eq!(h.state().layer, 0);
 }
