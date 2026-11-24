@@ -685,8 +685,8 @@ mod tests {
         ] {
             assert!(get(id).is_some_and(|c| matches!(c.key, Key::Remap(_))), "{id}");
         }
-        // 51, then the zoom and rotate-view tools, then the radial menu
-        assert_eq!(remappable().count(), 54);
+        // 51, then the zoom and rotate-view tools, then the radial menu, then the clone stamp
+        assert_eq!(remappable().count(), 55);
     }
 
     #[test]
