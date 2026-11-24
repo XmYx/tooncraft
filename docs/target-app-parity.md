@@ -474,7 +474,7 @@ Weight: 5
 | Second view of the same shot and a navigator | TV TB CS | M | M | |
 | Undo history panel | TV CS | D | S | A panel listing every step; click one to go there (undo or redo as needed) |
 | Preferences dialog | all | D | S | Edit ▸ Preferences: general, drawing, onion skin, sheet and export tabs, each with Restore Defaults; a damaged settings file gives the defaults |
-| Translated interface | all | P | M | craft-i18n catalogs are validated; English is the only shipped language |
+| Translated interface | all | P | M | Preferences ▸ General ▸ Language picks the interface language (system, English or any built-in catalog), applied at once and kept per user (`language_ui_tests`); craft-i18n catalogs are validated. English is the only shipped language until a ToonCraft catalog lands in craft-i18n |
 | Every action reachable from the keyboard | — | P | M | **Ours:** the accessibility rule; kittest-tested for the main flows |
 | Screen reader names for the canvas and the timeline | — | X | S | **Ours:** AccessKit nodes for the canvas and every visible cell |
 

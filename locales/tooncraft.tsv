@@ -626,6 +626,7 @@ tooncraft	Keys only
 tooncraft	Label Colour	
 tooncraft	Label colour	
 tooncraft	Label colour of {name}	
+tooncraft	Language	
 tooncraft	Large	
 tooncraft	Lasso	
 tooncraft	Lasso fill	
@@ -1299,6 +1300,7 @@ tooncraft	Swatch changed
 tooncraft	Swatch name	
 tooncraft	Swatch {name}, #{hex}	
 tooncraft	Symmetry	
+tooncraft	System language	
 tooncraft	TGA Sequence	
 tooncraft	TGA Sequence…	
 tooncraft	TIFF Sequence	
