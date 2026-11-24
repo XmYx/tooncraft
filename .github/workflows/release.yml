@@ -13,6 +13,10 @@ on:
         description: "Version override for a test run, e.g. 0.2.0-rc.1 (empty: Cargo.toml)"
         type: string
         default: ""
+      dry-run:
+        description: "Build and check only: no macOS, no signing, no draft release"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -34,12 +38,18 @@ jobs:
     uses: storytold/craft-common-actions/.github/workflows/refresh-contributors.yml@main
   release:
     needs: credits
-    # Staging guard (see credits): remove after the transfer to storytold.
-    if: github.repository_owner == 'storytold'
+    # Staging guard (see credits): remove after the transfer to storytold. Until then a manual run
+    # also works outside storytold. It builds every platform unsigned (the signing secrets live in
+    # storytold), and a run with dry-run off leaves a draft release to check and publish by hand.
+    # `always()` lets it run when the storytold-only credits job is skipped; the builds then bundle
+    # the committed contributors file.
+    if: >-
+      always() && !cancelled() && needs.credits.result != 'failure' &&
+      (github.repository_owner == 'storytold' || github.event_name == 'workflow_dispatch')
     # Intentionally tracked at @main (not SHA-pinned) so org-wide CI improvements, security fixes, and build optimizations propagate without PR churn across all craftapp repos.
     uses: storytold/craft-common-actions/.github/workflows/release.yml@main
     with:
-      dry-run: ${{ github.event_name == 'schedule' }}
+      dry-run: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.dry-run) }}
       app-name: tooncraft
       app-title: ToonCraft
       # Keep identical to ci.yml and freebsd.yml. The shared release workflow sets
