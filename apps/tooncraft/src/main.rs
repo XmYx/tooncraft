@@ -103,6 +103,9 @@ mod pipeline;
 #[cfg(test)]
 mod poses_ui_tests;
 mod preferences;
+mod quick_mask;
+#[cfg(test)]
+mod quick_mask_ui_tests;
 mod reference_viewer;
 #[cfg(test)]
 mod reference_viewer_ui_tests;

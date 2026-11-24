@@ -40,6 +40,8 @@ pub struct State {
     /// Soft edge of the selection, pixels (0: hard): moving, erasing, copying and filling blend
     /// over this distance.
     pub feather: f32,
+    /// Quick mask: the selection being painted (see `quick_mask`).
+    pub quick: Option<crate::quick_mask::QuickMask>,
 }
 
 impl State {
