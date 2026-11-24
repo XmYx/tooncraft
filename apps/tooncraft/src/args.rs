@@ -19,6 +19,7 @@ Options:
   --bench-playback <SECONDS> play the shot for SECONDS, print frame timing and quit
   --select <A..B>            start with frames A to B (1-based) of the top layer selected
   --loop <A..B>              start with the loop range on frames A to B (1-based)
+  --poses                    a peg rig with two saved poses, the Pegs panel raised (the pose library)
   --light-table              pin frame 1 of the top layer to the light table and show it
   --shift-trace              as --light-table, with the pin shifted and turned (shift and trace)
   --rulers                   start with a straight ruler and two-point perspective rulers on
@@ -41,6 +42,7 @@ pub struct Cli {
     pub bench_playback: Option<f64>,
     pub light: bool,
     pub light_table: bool,
+    pub poses: bool,
     pub shift_trace: bool,
     pub select: Option<(u32, u32)>,
     pub thumbnails: bool,
@@ -97,6 +99,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             "--demo" => cli.demo = true,
             "--light" => cli.light = true,
             "--light-table" => cli.light_table = true,
+            "--poses" => cli.poses = true,
             "--shift-trace" => (cli.light_table, cli.shift_trace) = (true, true),
             "--rulers" => cli.rulers = true,
             "--thumbnails" => cli.thumbnails = true,

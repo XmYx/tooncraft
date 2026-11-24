@@ -177,6 +177,8 @@ struct ProjectJson {
     library: Vec<tooncraft_doc::library::Item>,
     #[serde(default, skip_serializing_if = "no_rulers")]
     rulers: tooncraft_doc::rulers::Rulers,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    poses: Vec<tooncraft_doc::pose::Pose>,
 }
 
 fn no_rulers(r: &tooncraft_doc::rulers::Rulers) -> bool {
@@ -248,6 +250,7 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             vectors: p.vectors.iter().map(|(d, v)| VectorEntry { drawing: *d, strokes: v.clone() }).collect(),
             library: p.library.clone(),
             rulers: p.rulers.clone(),
+            poses: p.poses.clone(),
             camera: p.camera.clone(),
             folders: p.folders.clone(),
             pegs: p.pegs.clone(),
@@ -396,6 +399,7 @@ fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::P
     p.symmetry = pj.symmetry.sanitized();
     p.palettes = tooncraft_doc::palette::sanitize_all(pj.palettes);
     p.rulers = pj.rulers.sanitized();
+    p.poses = pj.poses.into_iter().take(tooncraft_doc::pose::MAX_POSES).map(tooncraft_doc::pose::Pose::sanitized).collect();
     let none = std::collections::BTreeSet::new();
     for d in &m.drawings {
         let want = 8 + d.tiles as u64 * (4 + TILE_BYTES as u64);

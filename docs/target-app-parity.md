@@ -338,7 +338,7 @@ Weight: 9
 | Deformers: bone, curve and envelope on drawings | TB | M | XL | |
 | Inverse kinematics on peg chains | TB | M | L | |
 | Master controllers driving poses | TB | M | L | |
-| Pose and template library | TB CS | M | M | |
+| Pose and template library | TB CS | P | M | Poses: a peg and the pegs below it saved under a name with the shot and put back on any frame from the Pegs panel (`save_pose`, `apply_pose`, `rename_pose`, `remove_pose`), one undo step each; no rig templates shared between shots yet |
 | Rotoscoping on a video layer | TV CS PD | P | M | Image sequences import; no video file import |
 | Motion tracking of a point in footage | TV TB | M | L | |
 

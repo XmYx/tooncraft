@@ -393,6 +393,25 @@ pub enum Command {
         peg: PegId,
         frame: u32,
     },
+    /// Keep the pose of `peg` and every peg below it at `frame` under `name` (the pose library).
+    SavePose {
+        peg: PegId,
+        frame: u32,
+        name: String,
+    },
+    /// Key the pegs of pose `index` at `frame` as they were saved (pegs the shot no longer has
+    /// are skipped; refused when it has none of them).
+    ApplyPose {
+        index: usize,
+        frame: u32,
+    },
+    RenamePose {
+        index: usize,
+        name: String,
+    },
+    RemovePose {
+        index: usize,
+    },
     /// Move several keys of one peg together (the curve editor's drag): by `by_frames` in time
     /// and, with a `channel`, by `by_value` in that value. Refused whole when a key would leave
     /// the shot or land on a key that is not moving.
@@ -1403,6 +1422,38 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
                 p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.set_key(PegKey { frame, x, y, angle, scale_x, scale_y, skew, ease });
                 Ok(())
             })
+        }
+        Command::SavePose { peg, frame, name } => {
+            frame_ok(e, frame)?;
+            if e.project.poses.len() >= tooncraft_doc::pose::MAX_POSES {
+                return Err(DocError::TooManyPoses.into());
+            }
+            let pose = tooncraft_doc::pose::Pose::capture(&e.project.pegs, peg, frame, &name).ok_or(DocError::NoPeg(peg.0))?;
+            let before = Part::Poses(e.project.poses.clone());
+            e.project.poses.push(pose);
+            e.push(Entry { label: "Save pose".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::ApplyPose { index, frame } => {
+            frame_ok(e, frame)?;
+            let pose = e.project.poses.get(index).cloned().ok_or(DocError::NoSuchPose(index))?;
+            pegs(e, "Apply pose", |p| if pose.apply(&mut p.pegs, frame) == 0 { Err(DocError::PoseFitsNoPeg) } else { Ok(()) })
+        }
+        Command::RenamePose { index, name } => {
+            let before = Part::Poses(e.project.poses.clone());
+            let pose = e.project.poses.get_mut(index).ok_or(DocError::NoSuchPose(index))?;
+            pose.name = name.trim().chars().take(tooncraft_doc::pose::MAX_POSE_NAME).collect();
+            e.push(Entry { label: "Rename pose".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::RemovePose { index } => {
+            if index >= e.project.poses.len() {
+                return Err(DocError::NoSuchPose(index).into());
+            }
+            let before = Part::Poses(e.project.poses.clone());
+            e.project.poses.remove(index);
+            e.push(Entry { label: "Remove pose".into(), parts: vec![before] });
+            Ok(())
         }
         Command::RemovePegKey { peg, frame } => pegs(e, "Remove peg key", |p| {
             p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.remove_key(frame);

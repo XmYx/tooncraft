@@ -69,3 +69,48 @@ fn curve_commands_read_from_json_lines() {
     let cmd: Command = serde_json::from_str(line).unwrap();
     assert_eq!(cmd, Command::SetPegEases { peg: PegId(1), frames: vec![0, 10], ease: Ease::Hold });
 }
+
+#[test]
+fn poses_are_saved_applied_renamed_and_removed_as_undo_steps() {
+    let (mut e, arm) = engine_with_keys();
+    e.apply(Command::AddPeg { name: "Hand".into(), parent: Some(arm) }).unwrap();
+    let hand = PegId(2);
+    e.apply(Command::SetPegKey { peg: hand, frame: 10, x: 0.0, y: 0.0, angle: 45.0, scale_x: 1.0, scale_y: 1.0, skew: 0.0, ease: Ease::Linear }).unwrap();
+    e.apply(Command::SavePose { peg: arm, frame: 10, name: "Reach".into() }).unwrap();
+    assert_eq!(e.undo_label(), Some("Save pose"));
+    assert_eq!(e.project.poses[0].keys.iter().map(|(id, _)| *id).collect::<Vec<_>>(), [arm, hand], "the arm and the hand below it");
+    let depth = e.undo_len();
+    e.apply(Command::ApplyPose { index: 0, frame: 30 }).unwrap();
+    assert_eq!(e.undo_len(), depth + 1, "applying is one undo step");
+    assert_eq!(e.undo_label(), Some("Apply pose"));
+    let at30 = |e: &Engine, id| e.project.peg(id).map(|p| p.at(30));
+    assert_eq!(at30(&e, arm).map(|k| (k.frame, k.x)), Some((30, 50.0)));
+    assert_eq!(at30(&e, hand).map(|k| k.angle), Some(45.0));
+    e.apply(Command::RenamePose { index: 0, name: "  Reach up ".into() }).unwrap();
+    assert_eq!(e.project.poses[0].name, "Reach up");
+    e.undo().unwrap();
+    e.undo().unwrap();
+    assert_eq!(at30(&e, hand).map(|k| k.angle), Some(45.0), "a hold: the hand keeps its last key");
+    assert!(!e.project.peg(arm).is_some_and(|p| p.has_key(30)), "undo takes the pose's keys back");
+    let before = e.project.clone();
+    let depth = e.undo_len();
+    for bad in [
+        Command::SavePose { peg: PegId(9), frame: 0, name: "x".into() },
+        Command::SavePose { peg: arm, frame: 40, name: "x".into() },
+        Command::ApplyPose { index: 3, frame: 0 },
+        Command::ApplyPose { index: 0, frame: 40 },
+        Command::RenamePose { index: 3, name: "x".into() },
+        Command::RemovePose { index: 3 },
+    ] {
+        assert!(e.apply(bad).is_err());
+    }
+    assert_eq!(e.project, before, "refusals change nothing");
+    assert_eq!(e.undo_len(), depth);
+    // a pose whose pegs are all gone is refused
+    e.apply(Command::RemovePose { index: 0 }).unwrap();
+    assert!(e.project.poses.is_empty());
+    e.project.poses.push(tooncraft_doc::pose::Pose { name: "Lost".into(), keys: vec![(PegId(77), tooncraft_doc::PegKey::rest(0))] });
+    let before = e.project.clone();
+    assert!(e.apply(Command::ApplyPose { index: 0, frame: 1 }).is_err());
+    assert_eq!(e.project, before);
+}

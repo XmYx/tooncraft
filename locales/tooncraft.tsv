@@ -103,6 +103,7 @@ tooncraft	Any colour
 tooncraft	Apply	
 tooncraft	Apply Box	
 tooncraft	Apply Distort	
+tooncraft	Apply Pose	
 tooncraft	Apply Skew	
 tooncraft	Around	
 tooncraft	Arrange	
@@ -127,6 +128,7 @@ tooncraft	Blank frame: drawing here starts a new drawing.
 tooncraft	Blend	
 tooncraft	Blue	
 tooncraft	BoardCraft Board or Animatic…	
+tooncraft	Body	
 tooncraft	Breakdown	
 tooncraft	Brightness	
 tooncraft	Brightness jitter	
@@ -271,6 +273,7 @@ tooncraft	Delete Item
 tooncraft	Delete Layer	
 tooncraft	Delete Palette	
 tooncraft	Delete Peg	
+tooncraft	Delete Pose	
 tooncraft	Delete Swatch	
 tooncraft	Delete frame	
 tooncraft	Delete the current layer	
@@ -480,6 +483,7 @@ tooncraft	Ghosts
 tooncraft	Ghosts towards X	
 tooncraft	Ghosts towards Y	
 tooncraft	Give an area already painted on this layer a new colour	
+tooncraft	Give the picked pose the name typed above	
 tooncraft	Give the preset a name	
 tooncraft	Give the workspace a name	
 tooncraft	Glow	
@@ -521,6 +525,7 @@ tooncraft	Hardness
 tooncraft	Harmony	
 tooncraft	Harmony colour #{hex}	
 tooncraft	Has a drawing. Arrow keys move the keyboard pen, Enter puts it down or lifts it.	
+tooncraft	Head	
 tooncraft	Height	
 tooncraft	Held for {n} frames	
 tooncraft	Help	
@@ -604,6 +609,7 @@ tooncraft	Keep the chosen item for other shots
 tooncraft	Keep the left side in place	
 tooncraft	Keep the outside	
 tooncraft	Keep the right side in place	
+tooncraft	Keep the selected peg and every peg below it as they are on this frame	
 tooncraft	Keep the top in place	
 tooncraft	Keep the top left in place	
 tooncraft	Keep the top right in place	
@@ -616,6 +622,7 @@ tooncraft	Key clip {n} volume here
 tooncraft	Key colour	
 tooncraft	Key drawings only	
 tooncraft	Key opacity here	
+tooncraft	Key the pose's pegs on the current frame	
 tooncraft	Key {name} here	
 tooncraft	Keyboard Shortcuts	
 tooncraft	Keyboard pen: move, put down / lift	
@@ -654,6 +661,7 @@ tooncraft	Layered images
 tooncraft	Layers	
 tooncraft	Layers from PSD or OpenRaster…	
 tooncraft	Layers merged	
+tooncraft	Lean	
 tooncraft	Left and right	
 tooncraft	Length	
 tooncraft	Length (0: to the end)	
@@ -813,6 +821,7 @@ tooncraft	No pegs yet. Add one in the Pegs panel to see its keys here.
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
 tooncraft	No pixels of that colour on the layer	
 tooncraft	No pixels of this colour in the drawing	
+tooncraft	No poses yet: pose the pegs, then Save Pose	
 tooncraft	No recent shots	
 tooncraft	No room for more palettes	
 tooncraft	No settings folder on this system, so My Drawings is not available.	
@@ -981,6 +990,11 @@ tooncraft	Point {n} out
 tooncraft	Polygon	
 tooncraft	Polyline	
 tooncraft	Portrait, 30 fps	
+tooncraft	Pose name	
+tooncraft	Pose {n}	
+tooncraft	Pose “{name}” on frame {frame}	
+tooncraft	Pose “{name}” saved	
+tooncraft	Poses	
 tooncraft	Position jitter	
 tooncraft	Posterise	
 tooncraft	Preferences	
@@ -1076,6 +1090,7 @@ tooncraft	Rename Item
 tooncraft	Rename Item…	
 tooncraft	Rename Layer	
 tooncraft	Rename Layer…	
+tooncraft	Rename Pose	
 tooncraft	Rename Swatch…	
 tooncraft	Repaint	
 tooncraft	Repeat Selected Frames	
@@ -1129,6 +1144,7 @@ tooncraft	Save Drawing File…
 tooncraft	Save Item to My Drawings	
 tooncraft	Save New Version	
 tooncraft	Save Palette…	
+tooncraft	Save Pose	
 tooncraft	Save Preset…	
 tooncraft	Save Stack…	
 tooncraft	Save Workspace As…	
@@ -1263,6 +1279,7 @@ tooncraft	Split opposite
 tooncraft	Spray	
 tooncraft	Spread under lines	
 tooncraft	Square, 24 fps	
+tooncraft	Stand	
 tooncraft	Standard definition, 25 fps	
 tooncraft	Standard definition, 30 fps	
 tooncraft	Start	
@@ -1503,6 +1520,7 @@ tooncraft	{name} bar
 tooncraft	{name} curve: {count} keys	
 tooncraft	{name} is a favourite	
 tooncraft	{name} is no longer a favourite	
+tooncraft	{name} · {n} pegs	
 tooncraft	{name}, {category}	
 tooncraft	{name}, {category}, favourite	
 tooncraft	{n} brushes	

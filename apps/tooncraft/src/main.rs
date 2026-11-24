@@ -78,6 +78,8 @@ mod peg_transform;
 mod peg_transform_ui_tests;
 mod pegs;
 mod pipeline;
+#[cfg(test)]
+mod poses_ui_tests;
 mod preferences;
 mod rulers_ui;
 #[cfg(test)]

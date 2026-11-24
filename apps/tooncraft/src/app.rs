@@ -540,6 +540,31 @@ impl ToonApp {
         {
             app.workspace.raise(Pane::from_name(name));
         }
+        if cli.poses {
+            let layer = app.layer;
+            app.run(Command::AddPegForLayer { layer, name: tl!("Body").to_owned() });
+            if let Some(body) = app.engine.project.pegs.last().map(|p| p.id) {
+                app.run(Command::AddPeg { name: tl!("Head").to_owned(), parent: Some(body) });
+                let key = |peg, x: f32, angle: f32| Command::SetPegKey {
+                    peg,
+                    frame: 0,
+                    x,
+                    y: 0.0,
+                    angle,
+                    scale_x: 1.0,
+                    scale_y: 1.0,
+                    skew: 0.0,
+                    ease: tooncraft_doc::Ease::Linear,
+                };
+                app.run(key(body, 0.0, 0.0));
+                app.run(Command::SavePose { peg: body, frame: 0, name: tl!("Stand").to_owned() });
+                app.run(key(body, 60.0, -12.0));
+                app.run(Command::SavePose { peg: body, frame: 0, name: tl!("Lean").to_owned() });
+                app.peg_ui.selected = Some(body);
+                app.peg_ui.pose = Some(1);
+            }
+            app.workspace.raise(Pane::Pegs);
+        }
         if cli.light_table {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });

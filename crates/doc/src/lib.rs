@@ -19,6 +19,7 @@ mod onion;
 pub mod paging;
 pub mod palette;
 pub mod peg;
+pub mod pose;
 pub mod render;
 pub mod rulers;
 pub mod sound;
@@ -100,6 +101,12 @@ pub enum DocError {
     NoPeg(u64),
     #[error("there is no light-table pin {0}")]
     NoSuchPin(usize),
+    #[error("there is no pose {0}")]
+    NoSuchPose(usize),
+    #[error("a shot can keep at most {} poses", pose::MAX_POSES)]
+    TooManyPoses,
+    #[error("none of the pose's pegs is in the shot")]
+    PoseFitsNoPeg,
     #[error("a drawing could not be read back from the page file")]
     PageRead,
     #[error("a drawing could not be written to the page file (is the disk full?)")]
@@ -395,6 +402,8 @@ pub struct Project {
     pub library: Vec<library::Item>,
     /// Stroke rulers and grid snapping (a drawing aid stored with the shot).
     pub rulers: rulers::Rulers,
+    /// Named poses of pegs, to put back on any frame.
+    pub poses: Vec<pose::Pose>,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -422,6 +431,7 @@ impl PartialEq for Project {
             && self.palettes == o.palettes
             && self.library == o.library
             && self.rulers == o.rulers
+            && self.poses == o.poses
     }
 }
 
@@ -452,6 +462,7 @@ impl Project {
             vectors: BTreeMap::new(),
             library: Vec::new(),
             rulers: rulers::Rulers::default(),
+            poses: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
@@ -486,6 +497,7 @@ impl Project {
             vectors: BTreeMap::new(),
             library: Vec::new(),
             rulers: rulers::Rulers::default(),
+            poses: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
