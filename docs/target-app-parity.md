@@ -516,7 +516,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
 | Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue, the colour's own opacity and the brush's opacity |
 | Picker with alpha and a gradient | TB | P | S | A floating Colour Picker window (`--open colour-picker`) as well as the docked one; the colour has its own opacity; no gradient swatches |
-| Timeline layer rows with toggles | TB | P | S | Visibility in the row; lock and the rest in the Layers panel and the row's right-click menu |
+| Timeline layer rows with toggles | TB | D | S | Show and lock toggles in each row (named check boxes, keyboard reachable); a mark on every cell where the layer's pegs are keyed, named "peg key" for screen readers; the rest in the Layers panel and the row's right-click menu |
 | Timeline buttons | TB | D | S | |
 | Selected range highlight | TB | D | S | |
 | Right-click menu on timeline cells | TB | D | S | Swap drawing, marks, hold for, fill empty frames, frame and clipboard commands |

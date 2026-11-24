@@ -82,6 +82,9 @@ mod textures;
 mod theme;
 mod timeline;
 mod timeline_extras;
+mod timeline_rows;
+#[cfg(test)]
+mod timeline_rows_ui_tests;
 #[cfg(test)]
 mod timeline_ui_tests;
 mod timing_panel;
