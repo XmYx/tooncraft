@@ -19,7 +19,7 @@ Apps, next to AniCraft (vector animation), BoardCraft (storyboards) and FilmCraf
   <img alt="Written in Rust" src="https://img.shields.io/badge/written%20in-Rust-b7410e">
 </p>
 
-![Drawing with onion skin](docs/images/tooncraft-onion-skin.png)
+![The Draw workspace: tool rail, tool options, canvas with onion skin, the Timeline and the Colour and Layers panels](docs/images/tooncraft-draw.png)
 
 [What works today](#what-works-today) · [Getting started](#getting-started) ·
 [Agents and CLI](#agents-and-cli) · [Roadmap](#roadmap) · [License](#license-and-credits)
@@ -56,7 +56,11 @@ Apps, next to AniCraft (vector animation), BoardCraft (storyboards) and FilmCraf
 - **Accessibility:** every control named for screen readers, the canvas and exposure-sheet cells
   included; everything works from the keyboard, including drawing (the keyboard pen).
 
-![The timeline with the light table](docs/images/tooncraft-timeline.png)
+![The Time workspace: a tall timeline with the loop range on the ruler, and the Timing panel](docs/images/tooncraft-time.png)
+
+| Sheet workspace | Right-click on a timeline cell |
+|---|---|
+| ![The Sheet workspace: the exposure sheet down the right side, layers as columns](docs/images/tooncraft-sheet.png) | ![The cell menu: Swap Drawing, Hold For and Mark As, frame edits, cut, copy and paste, Go To](docs/images/tooncraft-cell-menu.png) |
 
 ## Getting started
 
