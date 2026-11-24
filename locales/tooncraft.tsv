@@ -154,6 +154,8 @@ tooncraft	By frames
 tooncraft	Calibrate: draw a few strokes in the box below as you normally do.	
 tooncraft	Calibration pad	
 tooncraft	Camera	
+tooncraft	Camera key at frame {frame} moved	
+tooncraft	Camera move cancelled	
 tooncraft	Cancel	
 tooncraft	Cancel Distort	
 tooncraft	Cannot read this video: {reason}	

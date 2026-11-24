@@ -13,6 +13,9 @@ mod args;
 mod brush_editor;
 mod brush_library;
 mod brush_presets;
+mod camera_path;
+#[cfg(test)]
+mod camera_path_ui_tests;
 mod canvas;
 mod canvas_header;
 mod canvas_tools;
