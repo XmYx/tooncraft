@@ -241,17 +241,40 @@ pub(crate) fn video(e: &mut Engine, path: &str, frame: u32, o: &VideoImport) -> 
     let Some(last) = kept.last().map(|(f, _)| *f) else {
         return Err(err(format!("{path}: no pictures from {start:.2} s on (the video is {:.2} s long)", info.seconds)));
     };
-    let parts = vec![Part::Whole(Box::new(e.project.clone()))];
+    // room for the layer and every drawing, checked before anything changes
+    if e.project.layers.len() >= tooncraft_doc::MAX_LAYERS {
+        return Err(DocError::TooManyLayers.into());
+    }
+    if e.project.drawing_count().saturating_add(kept.len()) > tooncraft_doc::MAX_DRAWINGS {
+        return Err(DocError::TooManyDrawings.into());
+    }
+    // and should a step still fail, the shot goes back to how it was: no change without an undo step
+    let snapshot = e.project.clone();
+    if let Err(x) = place_video(e, kept, last, &info, o, room, fps, &name_of(path)) {
+        e.project = snapshot;
+        return Err(x);
+    }
+    let parts = vec![Part::Whole(Box::new(snapshot))];
+    e.push(Entry { label: "Import video".into(), parts });
+    Ok(())
+}
+
+fn name_of(path: &str) -> String {
+    let name: String = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "Video".into());
+    name.chars().take(tooncraft_doc::MAX_NAME).collect()
+}
+
+/// The changes of a video import, once the pictures are decoded and the room is checked.
+#[allow(clippy::too_many_arguments)]
+fn place_video(e: &mut Engine, kept: Vec<(u32, Surface)>, last: u32, info: &tooncraft_interop::video::VideoInfo, o: &VideoImport, room: u32, fps: f64, name: &str) -> Result<()> {
     // the last picture is held for its own length
     let tail = if info.fps > 0.0 { (fps * o.every.max(1) as f64 / info.fps).round().max(1.0) as u32 } else { 1 };
     let end = last.saturating_add(tail).min(room);
     if o.grow && e.project.length() < end {
         e.project.set_length(end)?;
     }
-    let name: String = std::path::Path::new(path).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "Video".into());
-    let name: String = name.chars().take(tooncraft_doc::MAX_NAME).collect();
     let index = if o.reference { 0 } else { e.project.layers.len() };
-    let li = e.project.add_layer(&name, index)?;
+    let li = e.project.add_layer(name, index)?;
     let len = e.project.length();
     let starts: Vec<u32> = kept.iter().map(|(f, _)| *f).collect();
     for (i, (at, s)) in kept.into_iter().enumerate() {
@@ -272,6 +295,5 @@ pub(crate) fn video(e: &mut Engine, path: &str, frame: u32, o: &VideoImport) -> 
         layer.locked = true;
         layer.opacity = 0.5;
     }
-    e.push(Entry { label: "Import video".into(), parts });
     Ok(())
 }

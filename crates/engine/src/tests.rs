@@ -1098,3 +1098,22 @@ fn video_import_is_capped_by_memory_and_count() {
     e.apply(Command::ImportVideo { path: movie, frame: 0, options: crate::VideoImport { max_frames: 1, ..Default::default() } }).unwrap();
     assert_eq!(sheet(&e.project.layers[0].cells), "#.......");
 }
+
+#[test]
+fn a_full_shot_refuses_a_video_without_changing() {
+    let (dir, _gone) = scratch_dir("video-full");
+    let movie = moving_square_movie(&dir);
+    // 2 frames: the import would grow the shot to 6 before adding its layer
+    let mut e = Engine::new(Project::new("Full", 320, 240, 12, 2).unwrap());
+    while e.project.layers.len() < tooncraft_doc::MAX_LAYERS {
+        let n = e.project.layers.len();
+        e.project.add_layer("x", n).unwrap();
+    }
+    let before = e.project.clone();
+    let undo = e.undo_label().map(str::to_owned);
+    let r = e.apply(Command::ImportVideo { path: movie, frame: 0, options: Default::default() });
+    assert!(r.is_err(), "no room for another layer");
+    assert_eq!(e.project.length(), 2, "the shot did not grow");
+    assert_eq!(e.project, before, "nothing changed");
+    assert_eq!(e.undo_label().map(str::to_owned), undo, "and no undo step was added");
+}
