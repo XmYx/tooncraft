@@ -46,6 +46,8 @@ pub struct Prefs {
     pub export_paper: bool,
     // the tool rail: the variant each group showed last (group id → variant id)
     pub tool_rail: std::collections::BTreeMap<String, String>,
+    /// The custom tool palettes and the radial menu's palette.
+    pub palettes: crate::tool_palettes::Palettes,
 }
 
 pub const AUTOSAVE_RANGE: (u32, u32) = (10, 900);
@@ -72,6 +74,7 @@ impl Default for Prefs {
             export_scale: 1,
             export_paper: true,
             tool_rail: Default::default(),
+            palettes: Default::default(),
         }
     }
 }
@@ -96,6 +99,7 @@ impl Prefs {
             light_table_opacity: unit(self.light_table_opacity, d.light_table_opacity),
             export_scale: if [1, 2, 4].contains(&self.export_scale) { self.export_scale } else { 1 },
             tool_rail: crate::tool_rail::sanitized_memory(self.tool_rail.clone()),
+            palettes: self.palettes.clone().sanitized(),
             ..self
         }
     }

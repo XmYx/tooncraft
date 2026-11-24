@@ -1,0 +1,1 @@
+- 2026-11-24: Pen barrel rotation is a brush input (Pen rotation, `barrel` in `.toonbrush` files): the tablet's barrel reading on X11 and macOS reaches each sample in canvas space, turns the short way round between samples, and drives size, opacity, flow, scatter or angle through its curve.
