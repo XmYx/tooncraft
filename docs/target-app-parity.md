@@ -223,7 +223,7 @@ Weight: 5
 | Cut, copy and paste pixels between drawings | all | D | S | |
 | Free distort, perspective and skew | all | D | S | Distort: drag four corner handles (perspective), then Apply; skew by degrees; each one undo step |
 | Mesh warp | TV CS PD | M | M | |
-| Liquify (push, twirl, pinch) | TV CS PD | M | M | |
+| Liquify (push, twirl, pinch) | TV CS PD | D | M | Liquify tool (Shift+K, with Smudge on the rail): push, twirl left or right, pinch or bloat under a soft round brush (size, strength), resampled from the drawing as it was before the stroke; one undo step (`liquify` command) |
 | Transform across several drawings or layers at once | TV TB CS | M | M | |
 | Resampling choice (nearest, bilinear, bicubic) | TV CS | D | S | For moving, scaling, turning, skewing and distorting a selection |
 

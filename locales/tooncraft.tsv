@@ -142,6 +142,7 @@ tooncraft	Black and white
 tooncraft	Blank frame: drawing here starts a new drawing.	
 tooncraft	Bleeding	
 tooncraft	Blend	
+tooncraft	Bloat	
 tooncraft	Blue	
 tooncraft	BoardCraft Board or Animatic…	
 tooncraft	Body	
@@ -338,6 +339,7 @@ tooncraft	Drag around the centre to turn the view; double-click puts it upright
 tooncraft	Drag from start to end; inside the selection when there is one	
 tooncraft	Drag further from the pivot to scale or turn	
 tooncraft	Drag inside to move, a corner to scale, the top knob to rotate	
+tooncraft	Drag over the drawing; hold still and drag again to twirl, pinch or bloat more	
 tooncraft	Drag the four corners freely (perspective), then Apply	
 tooncraft	Drag the handles to move, scale or turn the selection	
 tooncraft	Drag the layer while the shot plays and every frame it passes is keyed (one undo step; Escape drops the take)	
@@ -785,6 +787,8 @@ tooncraft	Linear burn
 tooncraft	Linear light	
 tooncraft	Lip Sync	
 tooncraft	Lip sync	
+tooncraft	Liquify	
+tooncraft	Liquify mode	
 tooncraft	Load Preset…	
 tooncraft	Lock	
 tooncraft	Lock Layer	
@@ -1093,6 +1097,7 @@ tooncraft	Pigment gathers along the inside of the stroke's edge as it dries
 tooncraft	Pin This Frame	
 tooncraft	Pin frame to the light table	
 tooncraft	Pin light	
+tooncraft	Pinch	
 tooncraft	Ping-pong	
 tooncraft	Pivot X	
 tooncraft	Pivot Y	
@@ -1617,6 +1622,8 @@ tooncraft	Transition
 tooncraft	Trim start	
 tooncraft	Turbulence	
 tooncraft	Turn	
+tooncraft	Twirl left	
+tooncraft	Twirl right	
 tooncraft	Two Colours	
 tooncraft	Type a frame number to go there	
 tooncraft	Type the line as it is spoken	

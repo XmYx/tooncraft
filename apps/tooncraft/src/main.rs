@@ -76,6 +76,9 @@ mod layer_ops;
 mod layer_tree;
 mod layers_list;
 mod lipsync_panel;
+mod liquify_tool;
+#[cfg(test)]
+mod liquify_ui_tests;
 mod macro_ui;
 mod menu_actions;
 #[cfg(test)]
