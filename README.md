@@ -19,13 +19,26 @@ Apps, next to AniCraft (vector animation), BoardCraft (storyboards) and FilmCraf
   <img alt="Written in Rust" src="https://img.shields.io/badge/written%20in-Rust-b7410e">
 </p>
 
-![Drawing with onion skin](docs/images/tooncraft-onion-skin.png)
+![The Draw workspace: the tool rail, the tool options bar with a stroke preview, the canvas with onion skin, the Timeline with its icon transport, and the Colour and Layers panels](docs/images/tooncraft-draw.png)
 
 [What works today](#what-works-today) · [Getting started](#getting-started) ·
 [Agents and CLI](#agents-and-cli) · [Roadmap](#roadmap) · [License](#license-and-credits)
 
 ## What works today
 
+- **Workspace:** one top bar with the menus, the Draw · Time · Ink & Paint · Sheet workspaces (each
+  keeps your panel changes; Reset and Save As in Window ▸ Workspace), command search (Ctrl+Shift+P)
+  and undo / redo. A tool rail with groups and flyouts that remember the last variant; a tool
+  options bar with stroke-preview presets and drag-or-type fields; panels in tab stacks with a glyph,
+  a name and a `⋯` menu. One command registry feeds the menu bar, the right-click menus, command
+  search and the shortcut editor, so every command has one name, icon and key.
+- **Right-click everywhere:** the canvas, a selection, timeline cells, the ruler, layer rows, tools,
+  panel tabs, swatches, brush presets and library items have menus (two levels at most; unavailable
+  items stay and say why); they also open with the Menu key or Shift+F10.
+- **Timeline header and canvas header:** icon transport, loop, play around and speed with inline
+  frame, in, out, fps and hold fields; icon toggles above the canvas (onion skin, light table, field
+  guide, safe areas, mirror, symmetry, rulers) that open their settings on right-click, including
+  per-step onion opacity from −5 to +5; drag the loop range on the ruler.
 - **Canvas:** tiled, sparse, GPU-composited; pan, zoom about the pointer, rotate, mirror; up to
   16384 px a side.
 - **Brushes:** pencil with paper grain, ink pen, airbrush, chalk, eraser, image tips and
@@ -56,7 +69,13 @@ Apps, next to AniCraft (vector animation), BoardCraft (storyboards) and FilmCraf
 - **Accessibility:** every control named for screen readers, the canvas and exposure-sheet cells
   included; everything works from the keyboard, including drawing (the keyboard pen).
 
-![The timeline with the light table](docs/images/tooncraft-timeline.png)
+![The Time workspace: a tall timeline with the loop range on the ruler, and the Timing panel](docs/images/tooncraft-time.png)
+
+| Sheet workspace | Right-click on a timeline cell |
+|---|---|
+| ![The Sheet workspace: the exposure sheet down the right side, layers as columns](docs/images/tooncraft-sheet.png) | ![The cell menu: Swap Drawing, Hold For and Mark As, frame edits, cut, copy and paste, Go To](docs/images/tooncraft-cell-menu.png) |
+| **Onion skin settings** (right-click the onion toggle) | **A tool group's flyout** (hold or right-click a tool) |
+| ![The onion popover: opacity per step from −5 to +5, before and after colours, by drawings or frames, tinted, original or outlines](docs/images/tooncraft-onion.png) | ![The draw tools' flyout: pencil, ink pen, airbrush, chalk and watercolour with their keys, Reset Tool Settings and Shortcut…](docs/images/tooncraft-tool-flyout.png) |
 
 ## Getting started
 
@@ -64,9 +83,11 @@ Apps, next to AniCraft (vector animation), BoardCraft (storyboards) and FilmCraf
 cargo run --release -p tooncraft -- --demo
 ```
 
-Keys: P pencil, N ink, A airbrush, C chalk, E eraser, F fill, I picker, S select, U shapes, H hand ·
-Enter play · , . frames · Shift+N new drawing · Shift+D duplicate · + − hold · O onion skin · [ ] brush
-size · Ctrl+[ ] rotate · F6 canvas ↔ sheet. Help ▸ Keyboard Shortcuts lists them all and remaps them.
+Keys: P pencil, N ink, A airbrush, C chalk, E eraser, F fill, I picker, S select, U shapes, H hand,
+Z zoom, R rotate view · Enter play · , . frames · Shift+N new drawing · Shift+D duplicate · + − hold ·
+O onion skin · [ ] brush size · Ctrl+[ ] rotate · F6 canvas ↔ sheet · Ctrl+Shift+P find a command · Menu or Shift+F10
+opens the right-click menu of the focused control. Help ▸ Keyboard Shortcuts lists them all and
+remaps them; Help ▸ Icon Reference shows every icon.
 
 `cargo xtask ci` runs every check (fmt, clippy, tests, layering, assets, progress, parity, strings,
 licences).
