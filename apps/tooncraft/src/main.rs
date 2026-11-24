@@ -77,6 +77,8 @@ mod peg_transform;
 #[cfg(test)]
 mod peg_transform_ui_tests;
 mod pegs;
+#[cfg(test)]
+mod pen_ui_tests;
 mod pipeline;
 mod preferences;
 mod rulers_ui;
