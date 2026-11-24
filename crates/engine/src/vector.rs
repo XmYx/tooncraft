@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use tooncraft_brush::{Brush, BrushKind, Dab, Sample, Stroke};
 use tooncraft_doc::{DocError, DrawingId, Project};
 use tooncraft_raster::Surface;
-use tooncraft_vector::{VDrawing, VPoint, VStroke};
+use tooncraft_raster::coverage::{self, Edge};
+use tooncraft_vector::{LineStyle, VDrawing, VPoint, VStroke};
 
 use crate::undo::{Entry, Part};
 use crate::{Engine, EngineError, Result};
@@ -19,15 +20,16 @@ pub(crate) struct Live {
     layer: usize,
     frame: u32,
     brush: Brush,
+    style: LineStyle,
     points: Vec<VPoint>,
 }
 
 impl Live {
     /// `Some` when the stroke lands on a vector layer's blank cell or vector drawing.
-    pub(crate) fn begin(p: &Project, layer: usize, frame: u32, drawing: DrawingId, brush: Brush) -> Option<Live> {
+    pub(crate) fn begin(p: &Project, layer: usize, frame: u32, drawing: DrawingId, brush: Brush, style: LineStyle) -> Option<Live> {
         let on_vector_layer = p.layers.get(layer).is_some_and(|l| l.vector);
         let blank_or_vector = p.vectors.contains_key(&drawing) || p.drawing(drawing).is_some_and(|s| s.is_empty());
-        (on_vector_layer && blank_or_vector).then(|| Live { layer, frame, brush, points: Vec::new() })
+        (on_vector_layer && blank_or_vector).then(|| Live { layer, frame, brush, style, points: Vec::new() })
     }
 
     pub(crate) fn push(&mut self, s: Sample) {
@@ -46,7 +48,7 @@ impl Live {
             let Some(stroke) = e.project.vectors.get(&id).and_then(|v| v.stroke_at(first.x, first.y, reach)) else { return Ok(()) };
             return edit(e, self.layer, self.frame, VectorEdit::EraseToCrossings { stroke, x: first.x, y: first.y });
         }
-        add_stroke(e, self.layer, self.frame, self.brush.color, &self.points, 0.6)
+        add_stroke(e, self.layer, self.frame, self.brush.color, &self.points, 0.6, self.style)
     }
 }
 
@@ -74,6 +76,8 @@ pub enum VectorEdit {
     DeleteStroke { stroke: usize },
     /// Recolour a stroke (straight RGBA).
     SetColor { stroke: usize, color: [u8; 4] },
+    /// A stroke's ends and corners.
+    SetStyle { stroke: usize, style: LineStyle },
 }
 
 /// Paint `v` into a new transparent surface of `w` × `h`: round, hard dabs along each curve,
@@ -82,6 +86,11 @@ pub fn render(v: &VDrawing, w: u32, h: u32) -> Result<Surface> {
     let mut surface = Surface::new(w, h).map_err(DocError::from)?;
     let mut dabs_left = MAX_DABS;
     for s in &v.strokes {
+        // other ends and corners than round: the outline, filled with exact coverage; a line
+        // too big for one coverage box falls back to round dabs
+        if !s.style.is_round() && outline(&mut surface, s) {
+            continue;
+        }
         let brush = Brush { size: 1.0, opacity: 1.0, flow: 1.0, hardness: 1.0, color: s.color, ..Brush::preset(BrushKind::Ink) };
         let mut stroke = Stroke::begin(&mut surface, brush);
         let mut dabs = Vec::new();
@@ -107,6 +116,29 @@ pub fn render(v: &VDrawing, w: u32, h: u32) -> Result<Surface> {
     Ok(surface)
 }
 
+/// Fill `s`'s outline into `surface`; false when it could not (too large) and nothing was painted.
+fn outline(surface: &mut Surface, s: &VStroke) -> bool {
+    let mut edges: Vec<Edge> = Vec::new();
+    for poly in s.outline(1.0) {
+        for (i, a) in poly.iter().enumerate() {
+            if let Some(b) = poly.get((i + 1) % poly.len()) {
+                edges.push((*a, *b));
+            }
+        }
+        if edges.len() > coverage::MAX_EDGES {
+            return false;
+        }
+    }
+    match coverage::rasterize(&edges, (surface.width(), surface.height())) {
+        Ok(Some(c)) => {
+            coverage::paint(surface, &c, s.color);
+            true
+        }
+        Ok(None) => true,
+        Err(_) => false,
+    }
+}
+
 /// The drawing at a layer's frame for a vector edit: it must be a vector drawing.
 fn vector_drawing(e: &Engine, layer: usize, frame: u32) -> Result<DrawingId> {
     let d = e.project.drawing_at(layer, frame).ok_or(EngineError::NoDrawing(frame))?;
@@ -123,11 +155,12 @@ fn commit(e: &mut Engine, id: DrawingId, v: VDrawing, surface: Surface, label: &
 }
 
 /// Add a drawn stroke to the vector drawing at a layer's frame (a new one on a blank cell).
-pub(crate) fn add_stroke(e: &mut Engine, layer: usize, frame: u32, color: [u8; 4], points: &[VPoint], tolerance: f32) -> Result<()> {
+pub(crate) fn add_stroke(e: &mut Engine, layer: usize, frame: u32, color: [u8; 4], points: &[VPoint], tolerance: f32, style: LineStyle) -> Result<()> {
     if !e.project.layer(layer)?.vector {
         return Err(EngineError::NotVector);
     }
-    let stroke = VStroke::from_points(points, color, tolerance)?;
+    let mut stroke = VStroke::from_points(points, color, tolerance)?;
+    stroke.style = style;
     if let Some(d) = e.project.drawing_at(layer, frame)
         && !e.project.vectors.contains_key(&d)
         && e.project.drawing(d).is_some_and(|s| !s.is_empty())
@@ -183,6 +216,10 @@ pub(crate) fn edit(e: &mut Engine, layer: usize, frame: u32, edit: VectorEdit) -
         VectorEdit::SetColor { stroke, color } => {
             v.strokes.get_mut(stroke).ok_or(tooncraft_vector::VectorError::NoStroke(stroke))?.color = color;
             "Line colour"
+        }
+        VectorEdit::SetStyle { stroke, style } => {
+            v.strokes.get_mut(stroke).ok_or(tooncraft_vector::VectorError::NoStroke(stroke))?.style = style;
+            "Line ends and corners"
         }
     };
     let surface = render(&v, e.project.width(), e.project.height())?;

@@ -154,6 +154,8 @@ pub struct Engine {
     /// drawings may stay in memory (see [`paging`]).
     pub(crate) pages: Option<std::sync::Arc<tooncraft_doc::paging::PageFile>>,
     pub page_budget: u64,
+    /// Ends and corners of new lines drawn on vector layers (not saved with the shot).
+    pub line_style: tooncraft_vector::LineStyle,
 }
 
 impl Engine {
@@ -169,6 +171,7 @@ impl Engine {
             saved_at: 0,
             pages: None,
             page_budget: paging::DEFAULT_PAGE_BUDGET,
+            line_style: Default::default(),
         }
     }
 
@@ -340,7 +343,7 @@ impl Engine {
         let stroke = Stroke::begin_with(surface, brush, images);
         let (w, h) = (self.project.width(), self.project.height());
         let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush))).collect();
-        let vector = vector::Live::begin(&self.project, layer, frame, drawing, brush);
+        let vector = vector::Live::begin(&self.project, layer, frame, drawing, brush, self.line_style);
         let snap = self.project.rulers.snapper(w, h);
         self.live =
             Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, vector, snap, held: Default::default() });

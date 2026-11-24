@@ -244,6 +244,7 @@ tooncraft	Copy Pixels
 tooncraft	Copy look from	
 tooncraft	Copy opacity, blend mode, label colour, folder, peg, depth and effects to this layer	
 tooncraft	Copy the layer with its drawings, just above it	
+tooncraft	Corners	
 tooncraft	Could not keep the workspace: {error}	
 tooncraft	Could not make the folder {dir}: {error}	
 tooncraft	Could not open the effects: {error}	
@@ -430,6 +431,7 @@ tooncraft	Fit / actual size
 tooncraft	Fit Curve to My Hand	
 tooncraft	Fit inside the canvas	
 tooncraft	Fit to Window	
+tooncraft	Flat	
 tooncraft	Flatten	
 tooncraft	Flatten Layers	
 tooncraft	Flip	
@@ -693,6 +695,7 @@ tooncraft	Light wrap
 tooncraft	Lighten	
 tooncraft	Lightness	
 tooncraft	Line	
+tooncraft	Line ends	
 tooncraft	Line spacing	
 tooncraft	Linear	
 tooncraft	Linear burn	
@@ -1215,6 +1218,7 @@ tooncraft	Shake the camera for 12 frames from the current frame
 tooncraft	Shakes	
 tooncraft	Shape from tilt	
 tooncraft	Shapes	
+tooncraft	Sharp	
 tooncraft	Sheet	
 tooncraft	Sheet and timeline	
 tooncraft	Sheet down the page (layers as columns)	
@@ -1300,6 +1304,7 @@ tooncraft	Split clip {n} here
 tooncraft	Split opposite	
 tooncraft	Spray	
 tooncraft	Spread under lines	
+tooncraft	Square	
 tooncraft	Square, 24 fps	
 tooncraft	Standard definition, 25 fps	
 tooncraft	Standard definition, 30 fps	
