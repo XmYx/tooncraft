@@ -4407,6 +4407,7 @@ dependencies = [
  "craft-fonts-build",
  "craft-i18n",
  "craft-keymap",
+ "craft-psd",
  "craft-ui",
  "eframe",
  "egui",
@@ -4441,6 +4442,7 @@ dependencies = [
 name = "tooncraft-cli"
 version = "0.1.0"
 dependencies = [
+ "craft-psd",
  "epaint_default_fonts",
  "serde_json",
  "tooncraft-brush",
@@ -4548,6 +4550,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "tooncraft-brush",
  "tooncraft-doc",
  "tooncraft-format",
  "tooncraft-fx",

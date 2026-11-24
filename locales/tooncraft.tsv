@@ -37,6 +37,7 @@ tooncraft	A take holds at most {n} keys: the rest was not recorded
 tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
 tooncraft	A window of its own	
 tooncraft	A4	
+tooncraft	ABR brush files	
 tooncraft	About ToonCraft	
 tooncraft	Across	
 tooncraft	Actual Size	
@@ -633,6 +634,7 @@ tooncraft	Icon Reference
 tooncraft	Image	
 tooncraft	Images	
 tooncraft	Import	
+tooncraft	Import Brushes (.abr)…	
 tooncraft	Import Brush…	
 tooncraft	Import Image Sequence…	
 tooncraft	Import Images	
@@ -1509,6 +1511,7 @@ tooncraft	Texture contrast
 tooncraft	Texture rotation	
 tooncraft	Texture size	
 tooncraft	Texture strength	
+tooncraft	That brush file is too large	
 tooncraft	That brush is not in the library	
 tooncraft	The basic palette cannot be changed; add the colour to a palette of the shot	
 tooncraft	The canvas stays in its place	
@@ -1739,6 +1742,8 @@ tooncraft	{name} · {n} pegs
 tooncraft	{name}, {category}	
 tooncraft	{name}, {category}, favourite	
 tooncraft	{n} brushes	
+tooncraft	{n} brushes imported	
+tooncraft	{n} brushes imported ({w} problems: {first})	
 tooncraft	{n} frames	
 tooncraft	{n} frames at {w}×{h}	
 tooncraft	{n} images, from frame {frame}	

@@ -162,7 +162,7 @@ Weight: 9
 | Brush blend modes (paint as multiply, behind, and so on) | TV CS PD | D | S | Behind, only on paint, multiply, screen, overlay, darken, lighten and add |
 | Brushes at large sizes stay real time | all | P | M | Dry brushes up to 1000 px stay inside a 60 Hz frame per dab (airbrush 1000 px: 5.7 ms, chalk 1000 px: 8.6 ms, big dabs stamped on several threads); wet brushes are still single-threaded (watercolour 600 px: 22 ms a dab) ([performance.md](performance.md)) |
 | Brush rendering on the GPU | TV CS PD | M | L | **Ours:** a craft-gpu dab path (RFC-0022) with the CPU path kept as the test oracle |
-| Import of Photoshop ABR brushes | CS PD | M | M | Tips and basic settings |
+| Import of Photoshop ABR brushes | CS PD | D | M | Tips and basic settings (spacing, diameter, angle; hardness and roundness of computed tips) from v1, v2 and v6+ files through the shared craft-psd reader, into the brush library or as `.toonbrush` files ([interop](interop.md)) |
 | Import of a vendor's own brush packages | CS PD | O | M | Out of scope: the native brush formats of Clip Studio and Procreate are proprietary and undocumented |
 
 ## Paper and textures

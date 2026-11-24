@@ -42,6 +42,7 @@ craft-fonts-build = { workspace = true }
 
 [dev-dependencies]
 egui_kittest = { workspace = true }
+craft-psd = { workspace = true }
 
 # Pen pressure, tilt, rotation, eraser end and side buttons where winit drops them (Linux X11
 # through XInput2, macOS through AppKit, Windows through pointer hooks and WinTab). Shared with
