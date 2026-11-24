@@ -12,7 +12,7 @@ Options:
                              pegs, library, effects, sound, lipsync, timing, history, drawings,
                              curves, palette)
   --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size,
-                             start, scene, colour-picker, icons, radial
+                             start, scene, colour-picker, icons, radial, import-video, pen
   --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet
   --vertical                 show the exposure sheet down the page
   --tool <NAME>              start with a tool (pencil, ink, fill, gradient, select, shape …)
@@ -62,8 +62,8 @@ pub struct Cli {
 }
 
 /// The windows `--open` knows.
-pub const OPEN_NAMES: [&str; 11] =
-    ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size", "start", "scene", "colour-picker", "icons", "radial"];
+pub const OPEN_NAMES: [&str; 13] =
+    ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size", "start", "scene", "colour-picker", "icons", "radial", "import-video", "pen"];
 /// The right-click menus `--context-menu` knows.
 pub const CONTEXT_MENU_NAMES: [&str; 11] = ["canvas", "selection", "cell", "ruler", "layer", "tool", "tab", "swatch", "brush", "library", "onion"];
 /// The layouts `--layout` knows.
