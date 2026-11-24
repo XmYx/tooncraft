@@ -96,6 +96,9 @@ mod pegs;
 mod pen_ui_tests;
 mod pipeline;
 mod preferences;
+mod quick_mask;
+#[cfg(test)]
+mod quick_mask_ui_tests;
 mod rulers_ui;
 #[cfg(test)]
 mod rulers_ui_tests;

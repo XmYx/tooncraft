@@ -1071,6 +1071,10 @@ tooncraft	Put this brush's own settings back (the colour stays)
 tooncraft	Put this tab's settings back	
 tooncraft	Put {pin} back where it was drawn	
 tooncraft	Quarter size	
+tooncraft	Quick Mask	
+tooncraft	Quick mask off: nothing selected	
+tooncraft	Quick mask off: the painted area is selected	
+tooncraft	Quick mask: paint to select, erase to deselect; the red is not selected	
 tooncraft	QuickTime MOV, H.264…	
 tooncraft	Quit	
 tooncraft	Radial	
@@ -1399,6 +1403,7 @@ tooncraft	Texture size
 tooncraft	Texture strength	
 tooncraft	That brush is not in the library	
 tooncraft	The basic palette cannot be changed; add the colour to a palette of the shot	
+tooncraft	The canvas is too large for quick mask	
 tooncraft	The canvas stays in its place	
 tooncraft	The current colour, half way	
 tooncraft	The current layer's drawing alone; draw here too	
@@ -1419,6 +1424,7 @@ tooncraft	The layer is locked
 tooncraft	The layers from the side, at their depth; drag one to move it nearer or farther	
 tooncraft	The layers marked Reference layer, and this one	
 tooncraft	The other tools of this group	
+tooncraft	The painted area is too detailed to make a selection from	
 tooncraft	The picker in a window of its own	
 tooncraft	The radial menu's palette is empty: add commands to it in the Tool Palette panel	
 tooncraft	The selection is too detailed to keep; nothing changed	

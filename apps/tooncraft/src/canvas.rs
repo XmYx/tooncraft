@@ -309,6 +309,11 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                 crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
             }
         }
+        // quick mask: brushes paint the selection, not the drawing
+        _ if crate::quick_mask::is_on(app) && app.tool.brush().is_some() => {
+            let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            crate::quick_mask::input(app, at, resp);
+        }
         _ if mods.alt => {
             if resp.clicked()
                 && let Some(p) = resp.interact_pointer_pos()
@@ -846,6 +851,7 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     let corners = paint_layers(app, &ui.ctx().clone(), &c, only_current.then_some(app.layer), true);
     // canvas edge
     painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
+    crate::quick_mask::overlay(&painter, app, &|x, y| c.screen(x, y));
     draw_selection(&painter, app, &c, pal);
     crate::draw_aids::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
     if app.tool == Tool::Clone {
