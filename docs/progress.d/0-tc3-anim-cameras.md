@@ -1,0 +1,1 @@
+- 2026-11-24: Several cameras and cuts: cameras besides the main one, each with its own keys and shakes, and cuts that film the shot through one of them from a frame on (Camera panel, `add_camera`, `set_camera_cut`); exports follow the cuts.

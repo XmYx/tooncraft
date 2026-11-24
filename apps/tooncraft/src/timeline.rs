@@ -156,7 +156,14 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         painter.line_segment([pos2(x, ruler.bottom() - if second { 8.0 } else { 4.0 }), pos2(x, ruler.bottom())], Stroke::new(1.0, pal.weak));
     }
     // camera keys on the ruler
-    for k in &app.engine.project.camera.keys {
+    // camera cuts: a bar across the ruler
+    for c in &app.engine.project.camera_cuts {
+        if c.frame >= first && c.frame < first + visible_cols {
+            let x = frames_area.left() + (c.frame - first) as f32 * CELL_W;
+            painter.line_segment([pos2(x, ruler.top() + 2.0), pos2(x, ruler.bottom())], Stroke::new(2.0, pal.playhead));
+        }
+    }
+    for k in &crate::camera_path::edited(app).keys {
         if k.frame >= first && k.frame < first + visible_cols {
             let x = frames_area.left() + (k.frame - first) as f32 * CELL_W + CELL_W * 0.5;
             let y = ruler.bottom() - 4.0;

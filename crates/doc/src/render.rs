@@ -529,14 +529,18 @@ fn uses_effects(p: &Project, frame: u32, o: RenderOptions) -> bool {
 /// with the camera off, this is [`render_frame`]. Each layer is filmed at its own depth
 /// (multiplane) through its peg chain; onion skin and light table are not filmed.
 pub fn render_camera(p: &Project, frame: u32, o: RenderOptions) -> RgbaImage {
-    if !p.camera.active() {
+    // the camera a cut chose for this frame
+    let camera = p.camera_at(frame);
+    if !camera.active() {
         return render_frame(p, frame, o);
     }
     let (w, h) = (p.width(), p.height());
     let mut out = background(p, (0, 0), w, h, o.paper);
     layers(p, frame, &mut out, (0, 0), o, |li, f| {
         let depth = p.layers.get(li).map(|l| l.depth).unwrap_or(0.0);
-        let cam = p.camera.layer_map(f, w, h, depth)?;
+        // the camera of this frame's cut, at the frame being drawn (time effects draw other
+        // frames through the same camera, so a trail never crosses a cut)
+        let cam = camera.layer_map(f, w, h, depth)?;
         Some(Some(p.layer_transform(li, f).then(&cam)))
     });
     out
@@ -667,6 +671,21 @@ mod tests {
         assert!(moved.pixel(22, 12)[0] < 50, "the drawing plane slides 10 px");
         let far = moved.pixel(16, 12)[0];
         assert!(far > 50 && far < 200, "the far plane slides 5 px: {far}");
+    }
+
+    #[test]
+    fn a_cut_films_the_frames_after_it_through_another_camera() {
+        let (mut p, d) = dot_project();
+        p.layers[0].cells = vec![Cell::Key(d), Cell::Hold, Cell::Hold, Cell::Hold];
+        // the main camera stays at rest; the second one is panned 10 px
+        let mut close = crate::Camera { enabled: true, ..Default::default() };
+        close.set(crate::CameraKey { frame: 0, x: 54.0, y: 32.0, zoom: 1.0, angle: 0.0 });
+        p.cameras.push(crate::ShotCamera { name: "Close".into(), camera: close });
+        p.camera_cuts.push(crate::CameraCut { frame: 2, camera: 1 });
+        let before = render_camera(&p, 1, RenderOptions::default());
+        let after = render_camera(&p, 2, RenderOptions::default());
+        assert!(before.pixel(12, 12)[0] < 50, "before the cut: the main camera, nothing moved");
+        assert!(after.pixel(22, 12)[0] < 50 && after.pixel(12, 12)[0] > 200, "after the cut: the second camera's pan");
     }
 
     #[test]

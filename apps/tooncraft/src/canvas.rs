@@ -316,6 +316,11 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
             crate::draw_aids::gradient_input(app, at, resp);
         }
+        Tool::Liquify => {
+            let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            let hover = resp.hover_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            crate::liquify_tool::input(app, at, hover, resp);
+        }
         Tool::Clone => {
             let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
             let hover = resp.hover_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
@@ -341,6 +346,11 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             if !crate::motion_record::input(app, ui, resp, &to_c) && !crate::camera_path::input(app, ui, resp, &to_c, &to_s) {
                 crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
             }
+        }
+        // quick mask: brushes paint the selection, not the drawing
+        _ if crate::quick_mask::is_on(app) && app.tool.brush().is_some() => {
+            let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            crate::quick_mask::input(app, at, resp);
         }
         _ if mods.alt => {
             if resp.clicked()
@@ -501,6 +511,23 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
     let tol = 10.0 / app.view.zoom.max(0.01);
     let mods = ui_mods(resp);
     let op = crate::selection_tools::combine_for(app, mods);
+    // mesh warp: the grid's points are the only handles
+    if let Some((cols, rows, mut pts)) = app.sel.mesh.clone() {
+        if resp.drag_started() {
+            app.sel.dragging = pts.iter().position(|k| (k.0 - c.x).hypot(k.1 - c.y) <= tol);
+        }
+        if resp.dragged()
+            && let Some(i) = app.sel.dragging
+            && let Some(p) = pts.get_mut(i)
+        {
+            *p = (c.x, c.y);
+            app.sel.mesh = Some((cols, rows, pts));
+        }
+        if resp.drag_stopped() {
+            app.sel.dragging = None;
+        }
+        return;
+    }
     // free distort: the four corners are the only handles
     if let Some(mut q) = app.sel.distort {
         if resp.drag_started() {
@@ -591,6 +618,8 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
                 resample,
                 feather: app.sel.feather,
             };
+            // while dragging, only the current drawing follows (a preview); with All selected
+            // cells the whole block is transformed once, on release
             x.applied = app.run(cmd);
             x.now = (dx, dy, sc, ang);
             let t = tooncraft_engine::select::affine(&x.base, dx, dy, sc, sc, ang);
@@ -600,6 +629,34 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
             app.xform = Some(x);
         }
         if resp.drag_stopped() {
+            if let Some(x) = app.xform.take()
+                && x.applied
+                && app.sel.all_cells
+                && app.has_range()
+                && app.engine.undo().is_ok()
+            {
+                let (dx, dy, sc, ang) = x.now;
+                let (layer, frame, resample, feather) = (app.layer, app.frame, app.sel.resample, app.sel.feather);
+                let cmd = Command::TransformSelection {
+                    layer,
+                    frame,
+                    polygon: x.base.clone(),
+                    rings: x.base_rings.clone(),
+                    dx,
+                    dy,
+                    scale_x: sc,
+                    scale_y: sc,
+                    angle: ang,
+                    skew_x: 0.0,
+                    skew_y: 0.0,
+                    resample,
+                    feather,
+                };
+                if !crate::selection_tools::run_transform(app, cmd, None) {
+                    // put the outline back where the drawings are
+                    crate::selection_tools::keep_rings(app, std::iter::once(x.base.clone()).chain(x.base_rings.iter().cloned()).collect());
+                }
+            }
             app.xform = None;
         }
         return;
@@ -667,6 +724,22 @@ fn draw_selection(painter: &egui::Painter, app: &ToonApp, c: &Ctx, pal: &crate::
     ants(&app.selecting);
     for r in crate::selection_tools::extra_rings(app) {
         ants(&r);
+    }
+    if let Some((cols, rows, pts)) = &app.sel.mesh {
+        let at = |i: u32, j: u32| pts.get((j * (cols + 1) + i) as usize).copied().unwrap_or((0.0, 0.0));
+        let st = Stroke::new(1.0, pal.playhead);
+        for j in 0..=*rows {
+            let line: Vec<Pos2> = (0..=*cols).map(|i| to(&at(i, j))).collect();
+            painter.add(Shape::line(line, st));
+        }
+        for i in 0..=*cols {
+            let line: Vec<Pos2> = (0..=*rows).map(|j| to(&at(i, j))).collect();
+            painter.add(Shape::line(line, st));
+        }
+        for k in pts {
+            painter.circle(to(k), 4.5, pal.panel, Stroke::new(1.5, pal.playhead));
+        }
+        return;
     }
     if let Some(q) = app.sel.distort {
         ants(&q);
@@ -884,8 +957,12 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     let corners = paint_layers(app, &ui.ctx().clone(), &c, only_current.then_some(app.layer), true);
     // canvas edge
     painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
+    crate::quick_mask::overlay(&painter, app, &|x, y| c.screen(x, y));
     draw_selection(&painter, app, &c, pal);
     crate::draw_aids::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    if app.tool == Tool::Liquify {
+        crate::liquify_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    }
     if app.tool == Tool::Clone {
         crate::clone_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
     }
@@ -915,8 +992,22 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     // camera frame
     // while a camera key is dragged, the frame follows it
     let preview = crate::camera_path::previewed(app);
-    let cam = preview.as_ref().unwrap_or(&app.engine.project.camera);
-    if app.show_camera && (!cam.keys.is_empty() || !cam.shakes.is_empty()) {
+    let filming = app.engine.project.camera_index_at(app.frame);
+    let edited = crate::camera_path::edited_index(app);
+    // the camera filming this frame; the edited one too, dimmed, when it is another
+    let mut frames = vec![filming];
+    if edited != filming {
+        frames.push(edited);
+    }
+    for index in frames {
+        let Some(own) = app.engine.project.camera_by_index(index) else { continue };
+        let cam = match (&preview, app.camera_drag) {
+            (Some(p), Some(d)) if d.camera == index => p,
+            _ => own,
+        };
+        if !app.show_camera || (cam.keys.is_empty() && cam.shakes.is_empty()) {
+            continue;
+        }
         let (w, h) = (app.engine.project.width(), app.engine.project.height());
         let map = cam.output_to_canvas(app.frame, w, h);
         let pts: Vec<Pos2> = [(0.0, 0.0), (w as f32, 0.0), (w as f32, h as f32), (0.0, h as f32)]
@@ -926,10 +1017,15 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
                 c.screen(cx, cy)
             })
             .collect();
-        let col = if cam.enabled { pal.accent } else { pal.weak };
-        painter.add(Shape::closed_line(pts.clone(), Stroke::new(2.0, col)));
+        let col = if !cam.enabled || index != filming { pal.weak } else { pal.accent };
+        painter.add(Shape::closed_line(pts.clone(), Stroke::new(if index == filming { 2.0 } else { 1.0 }, col)));
         if let Some(p0) = pts.first() {
-            painter.text(*p0 + vec2(4.0, 3.0), egui::Align2::LEFT_TOP, tl!("Camera"), egui::FontId::proportional(12.0), col);
+            let name = if app.engine.project.camera_count() > 1 {
+                app.engine.project.camera_name(index, tl!("Main camera")).to_owned()
+            } else {
+                tl!("Camera").to_owned()
+            };
+            painter.text(*p0 + vec2(4.0, 3.0), egui::Align2::LEFT_TOP, name, egui::FontId::proportional(12.0), col);
         }
     }
     crate::camera_path::draw(app, &painter, &|x, y| c.screen(x, y), pal.accent);
@@ -962,9 +1058,9 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     }
 }
 
-/// The paper and the layers seen through `c`, with the light table and onion skin; with `only`,
-/// that layer's drawing (and its onion skin) alone. Returns the paper's screen corners.
-/// Paper and layers; `aids` adds the light table and the onion skin (off for a thumbnail).
+/// The paper and the layers seen through `c`; with `only`, that layer's drawing (and its onion
+/// skin) alone; `aids` adds the light table and the onion skin (off for a thumbnail). Returns the
+/// paper's screen corners.
 fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<usize>, aids: bool) -> [Pos2; 4] {
     let size = c.size;
     let corners = [c.screen(0.0, 0.0), c.screen(size.x, 0.0), c.screen(size.x, size.y), c.screen(0.0, size.y)];

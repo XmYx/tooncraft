@@ -68,7 +68,7 @@ fn transform(app: &mut ToonApp, scale: (f32, f32), angle: f32, label: &str) {
         resample,
         feather: 0.0,
     };
-    if app.run(Command::Batch { label: label.into(), commands: vec![cmd] }) {
+    if crate::selection_tools::run_transform(app, cmd, Some(label)) {
         app.set_status(label.to_string());
     }
 }

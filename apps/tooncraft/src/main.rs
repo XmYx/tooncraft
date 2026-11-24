@@ -16,6 +16,8 @@ mod brush_presets;
 mod camera_path;
 #[cfg(test)]
 mod camera_path_ui_tests;
+#[cfg(test)]
+mod cameras_ui_tests;
 mod canvas;
 mod canvas_header;
 mod canvas_tools;
@@ -62,6 +64,8 @@ mod history_panel;
 #[cfg(test)]
 mod history_ui_tests;
 mod icons;
+#[cfg(test)]
+mod ik_ui_tests;
 mod import_dialog;
 #[cfg(test)]
 mod keyboard_reach_ui_tests;
@@ -73,6 +77,10 @@ mod layer_ops;
 mod layer_tree;
 mod layers_list;
 mod lipsync_panel;
+mod liquify_tool;
+#[cfg(test)]
+mod liquify_ui_tests;
+mod macro_ui;
 mod menu_actions;
 #[cfg(test)]
 mod menu_actions_tests;
@@ -80,9 +88,13 @@ mod menu_commands;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+#[cfg(test)]
+mod mesh_warp_ui_tests;
 mod motion_record;
 #[cfg(test)]
 mod motion_record_ui_tests;
+#[cfg(test)]
+mod multi_transform_ui_tests;
 mod onion_popover;
 mod panel_chrome;
 mod panel_views;
@@ -99,6 +111,12 @@ mod pipeline;
 #[cfg(test)]
 mod poses_ui_tests;
 mod preferences;
+mod quick_mask;
+#[cfg(test)]
+mod quick_mask_ui_tests;
+mod reference_viewer;
+#[cfg(test)]
+mod reference_viewer_ui_tests;
 mod rulers_ui;
 #[cfg(test)]
 mod rulers_ui_tests;
@@ -144,6 +162,8 @@ mod tool_options;
 mod tool_palettes;
 #[cfg(test)]
 mod tool_palettes_ui_tests;
+#[cfg(test)]
+mod tool_properties_ui_tests;
 mod tool_rail;
 mod top_bar;
 #[cfg(test)]

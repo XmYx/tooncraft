@@ -1,0 +1,1 @@
+- 2026-11-24: Transform several drawings at once: with cells selected across frames and layers and All selected cells ticked, a selection move, scale, turn, flip or skew changes every drawing in them as one undo step.
