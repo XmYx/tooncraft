@@ -22,6 +22,9 @@ mod colour_tools;
 mod colour_ui_tests;
 mod command_search;
 mod context_menus;
+mod curves;
+#[cfg(test)]
+mod curves_ui_tests;
 mod dock;
 mod draw_aids;
 #[cfg(test)]
@@ -47,9 +50,15 @@ mod menus_ui_tests;
 mod panels;
 #[cfg(test)]
 mod panels_ui_tests;
+mod peg_transform;
+#[cfg(test)]
+mod peg_transform_ui_tests;
 mod pegs;
 mod pipeline;
 mod preferences;
+mod rulers_ui;
+#[cfg(test)]
+mod rulers_ui_tests;
 mod scene_menus;
 mod scene_presets;
 #[cfg(test)]

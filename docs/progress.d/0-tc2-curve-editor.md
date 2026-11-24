@@ -1,0 +1,1 @@
+- 2026-11-23: Curves panel for peg keys: each value (move, rotation, scale, skew) plotted against frames with its keys; drag keys in time and value as one undo step (Escape cancels), choose and move them from the keyboard, give many keys one ease, drag or type the two ease handles (clamped). New commands `move_peg_keys`, `set_peg_eases`, `remove_peg_keys`.
