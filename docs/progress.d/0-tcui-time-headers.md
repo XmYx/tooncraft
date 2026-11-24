@@ -1,0 +1,1 @@
+- 2026-11-24: The Timeline header is one row of icon transport, loop, Play Around, speed and frame, in, out, fps and hold fields with a ⋯ menu for the rest; the canvas header is icon toggles with settings on right-click, including an onion popover with a slider per step; the status strip shows zoom, tool, layer, drawing, frame, colour and cursor, with fading notices.

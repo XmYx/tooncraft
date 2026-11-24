@@ -243,6 +243,76 @@ fn the_colour_chips_swap_back_to_the_previous_colour() {
 }
 
 #[test]
+fn the_options_bar_scrub_fields_take_keys_and_typed_percentages() {
+    let mut h = harness();
+    h.key_press(Key::P);
+    h.run();
+    let before = h.state().brushes[0].size;
+    h.get(By::new().role(egui::Role::SpinButton).label("Size")).focus();
+    h.run();
+    for _ in 0..3 {
+        h.key_press(Key::ArrowUp);
+        h.run();
+    }
+    assert!(h.state().brushes[0].size > before, "arrow keys grow the size");
+    // opacity is typed as a percentage
+    // the bar's opacity is the topmost of the "Opacity" boxes (the layers have their own)
+    fn top_opacity<'h>(h: &'h Harness<'static, ToonApp>) -> egui_kittest::Node<'h> {
+        h.query_all(By::new().role(egui::Role::SpinButton).label("Opacity")).min_by(|a, b| a.rect().top().total_cmp(&b.rect().top())).expect("an opacity box")
+    }
+    top_opacity(&h).focus();
+    h.run();
+    h.key_press_modifiers(egui::Modifiers::COMMAND, Key::A);
+    h.run();
+    top_opacity(&h).type_text("40");
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    assert!((h.state().brushes[0].opacity - 0.4).abs() < 1e-4, "40 % → {}", h.state().brushes[0].opacity);
+    // the bars are named for assistive technology too
+    h.get(By::new().role(egui::Role::Slider).label("Size bar"));
+    h.get(By::new().role(egui::Role::Slider).label("Smoothing bar"));
+}
+
+#[test]
+fn the_options_bar_starts_with_the_tool_and_its_group() {
+    let mut h = harness();
+    h.key_press(Key::P);
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Tool: Pencil")).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    h.get_by_label_contains("Watercolour").click();
+    h.run();
+    assert_eq!(h.state().tool, Tool::Watercolour);
+    assert_eq!(h.state().preferences.prefs.tool_rail.get("draw").map(String::as_str), Some("watercolour"));
+    // the preset dropdown opens on the presets and Revert
+    h.get(By::new().role(egui::Role::ComboBox).label("Preset")).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    h.get(By::new().role(egui::Role::Button).label("Revert"));
+}
+
+#[test]
+fn the_bucket_options_have_mode_gaps_tolerance_and_what_to_look_at() {
+    let mut h = harness();
+    h.key_press(Key::F);
+    h.run();
+    for name in ["Fill", "Empty Only", "Repaint", "Off", "Small", "Medium", "Large"] {
+        h.get(By::new().label(name).role(egui::Role::Button));
+    }
+    h.get(By::new().role(egui::Role::ComboBox).label("Look at"));
+    h.get(By::new().role(egui::Role::SpinButton).label("Tolerance")).focus();
+    h.run();
+    let before = h.state().fill.tolerance;
+    h.key_press(Key::ArrowUp);
+    h.run();
+    assert!(h.state().fill.tolerance > before);
+}
+
+#[test]
 fn workspace_changes_made_before_quitting_are_kept() {
     let dir = std::env::temp_dir().join(format!("tooncraft-workspace-exit-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
@@ -257,4 +327,50 @@ fn workspace_changes_made_before_quitting_are_kept() {
     let next = crate::workspaces::Workspaces::with_store(Some(store));
     assert_eq!(next.edit(Kind::Draw).map(|e| &e.layout), Some(&layout), "the next launch has the change");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn every_shown_tab_has_room_for_its_glyph() {
+    let h = harness();
+    // the glyph is painted over the tab craft-ui laid out; its id has to match
+    // (the canvas stands alone, with no tab strip)
+    for pane in [Pane::Timeline, Pane::Colour, Pane::Layers] {
+        let r = crate::panel_chrome::tab_rect(&h.ctx, pane).unwrap_or_else(|| panic!("{pane:?} has a tab"));
+        assert!(r.width() > 20.0 + crate::theme::metrics::ICON, "{pane:?}: {r:?}");
+    }
+    // the tab's accessible name is still the panel's name
+    h.get(By::new().role(egui::Role::Tab).label("Layers"));
+}
+
+#[test]
+fn the_stack_menu_has_the_panels_own_commands_then_float_move_and_close() {
+    let mut h = harness();
+    h.get(By::new().role(egui::Role::Button).label("Timeline panel menu")).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    for name in ["Float", "Move To", "Close"] {
+        h.get_by_label(name);
+    }
+    h.get(By::new().role(egui::Role::CheckBox).label("Vertical Exposure Sheet")).focus();
+    h.run();
+    h.key_press(Key::Space);
+    h.run();
+    assert!(h.state().tl.vertical, "the timeline's own command ran");
+    // close the layers stack's panel from its menu, by keyboard
+    h.key_press(Key::Escape);
+    h.run();
+    h.get(By::new().role(egui::Role::Button).label("Layers panel menu")).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    h.get(By::new().role(egui::Role::Button).label("Close")).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    assert!(!h.state().workspace.is_open(Pane::Layers), "closed from the menu");
+    // the Window menu puts it back
+    h.state_mut().workspace.open(Pane::Layers);
+    h.run();
+    assert!(h.state().workspace.is_open(Pane::Layers));
 }

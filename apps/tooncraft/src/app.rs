@@ -1277,8 +1277,8 @@ impl ToonApp {
         self.textures.begin_frame();
         self.shortcuts(&ctx);
         egui::Panel::top("top-bar").exact_size(crate::top_bar::HEIGHT).show(ui, |ui| crate::top_bar::show(self, ui));
-        egui::Panel::top("tool-options").show(ui, |ui| crate::panels::tool_options(self, ui));
-        egui::Panel::bottom("status").show(ui, |ui| self.status_bar(ui));
+        egui::Panel::top("tool-options").min_size(crate::tool_options::HEIGHT).show(ui, |ui| crate::tool_options::show(self, ui));
+        egui::Panel::bottom("status").show(ui, |ui| crate::status_strip::show(self, ui));
         egui::Panel::left("tools").exact_size(crate::tool_rail::WIDTH).resizable(false).show(ui, |ui| crate::tool_rail::show(self, ui));
         egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| crate::dock::show(self, ui));
         self.dialogs(&ctx);
@@ -1292,58 +1292,6 @@ impl ToonApp {
                 self.stats.frame_times.drain(..50_000);
             }
         }
-    }
-
-    fn status_bar(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            let p = &self.engine.project;
-            let layer = p.layers.get(self.layer).map(|l| l.name.clone()).unwrap_or_default();
-            ui.label(tlf!("Frame {frame} / {total}", frame = self.frame + 1, total = p.length()));
-            ui.separator();
-            ui.label(layer);
-            let drawing = match p.drawing_at(self.layer, self.frame) {
-                Some(d) => match p.drawing_names.get(&d) {
-                    Some(name) => tlf!("drawing {id}, {name}", id = d.0, name = name),
-                    None => tlf!("drawing {id}", id = d.0),
-                },
-                None => tl!("no drawing").to_string(),
-            };
-            ui.label(drawing);
-            ui.separator();
-            if let Some((x, y)) = self.pointer {
-                ui.label(tlf!("x {x}  y {y}", x = x, y = y));
-                ui.separator();
-            }
-            ui.label(self.tool.label());
-            let c = self.color;
-            let (r, swatch) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
-            ui.painter().rect(
-                r,
-                2.0,
-                egui::Color32::from_rgb(c[0], c[1], c[2]),
-                egui::Stroke::new(1.0, egui::Color32::from_gray(140)),
-                egui::StrokeKind::Inside,
-            );
-            let colour = tlf!("Colour #{hex}", hex = format!("{:02X}{:02X}{:02X}", c[0], c[1], c[2]));
-            swatch.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, colour.clone()));
-            ui.separator();
-            ui.label(format!("{:.0} %  {:.0}°", self.view.zoom * 100.0, self.view.rotation_degrees()));
-            ui.separator();
-            ui.label(tlf!("{w}×{h} · {fps} fps", w = p.width(), h = p.height(), fps = p.fps()));
-            ui.separator();
-            ui.label(tlf!("Memory: {pixels} MB drawings, {history} MB history", pixels = p.memory_bytes() >> 20, history = self.engine.history_bytes() >> 20));
-            ui.separator();
-            let perf = if self.playback.playing {
-                tlf!("{fps} fps playback · {ms} ms/frame", fps = format!("{:.0}", self.stats.playback_fps), ms = format!("{:.1}", self.stats.frame_ms))
-            } else {
-                tlf!("stroke {ms} ms", ms = format!("{:.2}", self.stats.stroke_ms))
-            };
-            ui.label(perf);
-            ui.separator();
-            // The status line is a polite live region: results of actions are announced.
-            let status = ui.label(&self.status);
-            ui.ctx().accesskit_node_builder(status.id, |n| n.set_live(egui::accesskit::Live::Polite));
-        });
     }
 
     pub(crate) fn menu_bar(&mut self, ui: &mut egui::Ui) {

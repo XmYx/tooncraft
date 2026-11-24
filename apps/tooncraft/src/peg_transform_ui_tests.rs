@@ -10,10 +10,11 @@ use tooncraft_engine::Command;
 use crate::app::{Tool, ToonApp};
 use crate::args::Cli;
 
+/// Tall enough that the paper, fitted by width, leaves room above it for the turn knob.
 fn harness(with_peg: bool) -> Harness<'static, ToonApp> {
     let ctx = egui::Context::default();
     let app = ToonApp::with_context(&ctx, Cli::default()).without_autosave();
-    let mut h = Harness::builder().with_size(egui::vec2(1500.0, 1000.0)).with_accessibility_check(true).build_ui_state(
+    let mut h = Harness::builder().with_size(egui::vec2(1500.0, 1100.0)).with_accessibility_check(true).build_ui_state(
         |ui, app: &mut ToonApp| {
             let ctx = ui.ctx().clone();
             app.tick(&ctx);
