@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use egui::{Color32, Sense, Stroke, vec2};
 
 use crate::app::{SelectMode, Tool, ToonApp};
+use crate::icons::Icon;
 
 /// The rail's width.
 pub const WIDTH: f32 = 44.0;
@@ -82,15 +83,22 @@ impl Variant {
         }
     }
 
-    /// Paint the variant's glyph.
-    pub fn paint(self, painter: &egui::Painter, rect: egui::Rect, color: Color32) {
-        // until the shared icon family lands, select modes and the selection transform use the
-        // nearest tool glyph
-        let tool = match self {
-            Variant::TransformSelection => Tool::Transform,
-            v => v.tool(),
-        };
-        crate::icons::tool(painter, rect, tool, color);
+    /// The variant's glyph.
+    pub fn icon(self) -> Icon {
+        match self {
+            Variant::Tool(t) => Icon::from(t),
+            Variant::Select(SelectMode::Lasso) => Icon::SelectLasso,
+            Variant::Select(SelectMode::Rectangle) => Icon::SelectRect,
+            Variant::Select(SelectMode::Ellipse) => Icon::SelectEllipse,
+            Variant::Select(SelectMode::Wand) => Icon::SelectWand,
+            Variant::TransformSelection => Icon::SelectTransform,
+        }
+    }
+
+    /// Paint the variant's glyph (filled while it is the tool in use).
+    pub fn paint(self, painter: &egui::Painter, rect: egui::Rect, color: Color32, filled: bool) {
+        let side = rect.width().min(rect.height()).min(crate::theme::metrics::ICON * 1.25);
+        crate::icons::paint(painter, egui::Rect::from_center_size(rect.center(), vec2(side, side)), self.icon(), color, filled);
     }
 }
 
@@ -225,7 +233,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
         // the view group and the colour chips sit at the bottom
-        let chips_h = 40.0;
+        let chips_h = 64.0;
         let bottom = full.bottom() - chips_h - BUTTON.y - 16.0;
         let gap = bottom - ui.cursor().top();
         if gap > 0.0 {
@@ -255,7 +263,7 @@ fn group_button(app: &mut ToonApp, ui: &mut egui::Ui, g: usize) {
     };
     ui.painter().rect(rect, 4.0, bg, if active { Stroke::new(1.0, pal.accent) } else { Stroke::NONE }, egui::StrokeKind::Inside);
     let fg = if active { pal.accent } else { pal.weak };
-    v.paint(ui.painter(), rect, fg);
+    v.paint(ui.painter(), rect, fg, active);
     if many {
         // the corner marker: this button holds more tools
         let c = rect.right_bottom() - vec2(3.0, 3.0);
@@ -309,7 +317,7 @@ fn flyout(app: &mut ToonApp, ui: &mut egui::Ui, g: usize) {
             ui.painter().rect_filled(rect, 3.0, if on { pal.accent.gamma_multiply(0.25) } else { pal.raised });
         }
         let icon = egui::Rect::from_min_size(rect.left_top() + vec2(4.0, 3.0), vec2(20.0, 20.0));
-        v.paint(ui.painter(), icon, if on { pal.accent } else { pal.text });
+        v.paint(ui.painter(), icon, if on { pal.accent } else { pal.text }, on);
         let font = egui::TextStyle::Button.resolve(ui.style());
         ui.painter().text(rect.left_center() + vec2(30.0, 0.0), egui::Align2::LEFT_CENTER, v.label(), font.clone(), pal.text);
         ui.painter().text(rect.right_center() - vec2(6.0, 0.0), egui::Align2::RIGHT_CENTER, &key, font, pal.weak);
@@ -403,6 +411,13 @@ fn colour_chips(app: &mut ToonApp, ui: &mut egui::Ui) {
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name.clone()));
     if resp.on_hover_text(tl!("Current colour: open the Colour panel")).clicked() {
         app.workspace.raise(crate::dock::Pane::Colour);
+    }
+    let why = prev.is_none().then(|| tl!("Pick another colour first").to_string());
+    let swap = crate::icons::IconButton::new(Icon::Swap, tl!("Swap colours")).size(20.0).disabled(why);
+    if ui.add(swap).clicked()
+        && let Some(p) = prev
+    {
+        crate::colour_tools::set_rgb(app, [p[0], p[1], p[2]]);
     }
 }
 

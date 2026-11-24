@@ -69,7 +69,7 @@ fn tool_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
     if resp.hovered() || resp.has_focus() {
         ui.painter().rect_filled(r, 4.0, pal.raised);
     }
-    variant.paint(ui.painter(), egui::Rect::from_min_size(r.min + vec2(2.0, 2.0), vec2(18.0, 18.0)), pal.accent);
+    variant.paint(ui.painter(), egui::Rect::from_min_size(r.min + vec2(2.0, 2.0), vec2(18.0, 18.0)), pal.accent, true);
     ui.painter().galley(egui::pos2(r.left() + 22.0, r.center().y - name.size().y * 0.5), name, pal.accent);
     caret(ui.painter(), egui::pos2(r.right() - 8.0, r.center().y), pal.weak);
     if resp.has_focus() {
