@@ -152,7 +152,11 @@ tooncraft	By
 tooncraft	By brightness	
 tooncraft	By drawings	
 tooncraft	By frames	
+tooncraft	Calibrate: draw a few strokes in the box below as you normally do.	
+tooncraft	Calibration pad	
 tooncraft	Camera	
+tooncraft	Camera key at frame {frame} moved	
+tooncraft	Camera move cancelled	
 tooncraft	Cancel	
 tooncraft	Cancel Distort	
 tooncraft	Cannot read this video: {reason}	
@@ -186,6 +190,7 @@ tooncraft	Clear Drawing
 tooncraft	Clear Flip Set	
 tooncraft	Clear Frame	
 tooncraft	Clear In and Out	
+tooncraft	Clear Readings	
 tooncraft	Clear Recent Shots	
 tooncraft	Clear frame	
 tooncraft	Clear frame / erase selection	
@@ -416,6 +421,7 @@ tooncraft	First / last frame
 tooncraft	First Frame	
 tooncraft	First frame	
 tooncraft	Fit / actual size	
+tooncraft	Fit Curve to My Hand	
 tooncraft	Fit inside the canvas	
 tooncraft	Fit to Window	
 tooncraft	Flatten	
@@ -494,8 +500,10 @@ tooncraft	Go back to just after this step
 tooncraft	Gradient	
 tooncraft	Gradient map	
 tooncraft	Grain	
+tooncraft	Grain contrast	
 tooncraft	Grain from Image…	
 tooncraft	Grain image	
+tooncraft	Grain rotation	
 tooncraft	Grain size	
 tooncraft	Grain strength	
 tooncraft	Grain texture	
@@ -813,6 +821,7 @@ tooncraft	No next drawing
 tooncraft	No other key drawing on this layer; mark keys from a cell's right-click menu	
 tooncraft	No pegs yet. Add one in the Pegs panel to see its keys here.	
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
+tooncraft	No pen readings yet (a mouse gives none).	
 tooncraft	No pixels of that colour on the layer	
 tooncraft	No pixels of this colour in the drawing	
 tooncraft	No recent shots	
@@ -928,6 +937,7 @@ tooncraft	Panels become a locked reference layer with their timings and camera m
 tooncraft	Paper	
 tooncraft	Paper colour	
 tooncraft	Paper grain	
+tooncraft	Paper texture	
 tooncraft	Paste	
 tooncraft	Paste Frames	
 tooncraft	Paste Frames, Moving Later Frames	
@@ -943,6 +953,7 @@ tooncraft	Peg Current Layer
 tooncraft	Peg {n}	
 tooncraft	Peg “{name}”	
 tooncraft	Pegs	
+tooncraft	Pen	
 tooncraft	Pen down: arrow keys draw, Enter lifts	
 tooncraft	Pen lifted	
 tooncraft	Pen rotation	
@@ -994,6 +1005,8 @@ tooncraft	Preset
 tooncraft	Preset name	
 tooncraft	Press a key…	
 tooncraft	Pressure	
+tooncraft	Pressure curve	
+tooncraft	Pressure curve for every brush (pen and touch; the mouse uses its own setting)	
 tooncraft	Pressure used when drawing with a mouse	
 tooncraft	Previous / next frame	
 tooncraft	Previous / next frame (timeline: move)	
@@ -1252,6 +1265,7 @@ tooncraft	Snap strokes to grid lines
 tooncraft	Snap to grid	
 tooncraft	Soft airbrush	
 tooncraft	Soft blur	
+tooncraft	Soft edge: moving, erasing, copying and filling the selection fade out over this many pixels	
 tooncraft	Soft eraser	
 tooncraft	Soft light	
 tooncraft	Soft mask	
@@ -1321,6 +1335,10 @@ tooncraft	Text
 tooncraft	Text dropped	
 tooncraft	Text placed	
 tooncraft	Texture	
+tooncraft	Texture contrast	
+tooncraft	Texture rotation	
+tooncraft	Texture size	
+tooncraft	Texture strength	
 tooncraft	That brush is not in the library	
 tooncraft	The basic palette cannot be changed; add the colour to a palette of the shot	
 tooncraft	The canvas stays in its place	
@@ -1522,6 +1540,7 @@ tooncraft	{n} frames at {w}×{h}
 tooncraft	{n} images, from frame {frame}	
 tooncraft	{n} keys	
 tooncraft	{n} points	
+tooncraft	{n} readings, hardest press {p} %	
 tooncraft	{panel} is back in its place	
 tooncraft	{panel} panel menu	
 tooncraft	{seconds} s	

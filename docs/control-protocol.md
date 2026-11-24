@@ -28,7 +28,7 @@ hand a script can do.
 | `lip_sync` | `layer`, `from`, `settings` (`silence` 0…1, `min_hold` frames) |
 | `import_mouth_sheet` | `layer`, `path`, `from` |
 | `set_audio_track` | `track`, optional `name`, `muted`, `solo`, `volume` |
-| `transform_selection` | `layer`, `frame`, `polygon`, `dx`, `dy`, `scale_x`, `scale_y`, `angle` (radians) |
+| `transform_selection` | `layer`, `frame`, `polygon`, `dx`, `dy`, `scale_x`, `scale_y`, `angle` (radians); optional `feather` (soft edge, pixels, up to 64; also on `distort_selection`, `clear_selection` and `gradient`) |
 | `clear_selection`, `paste_pixels` | `polygon`; or `x`, `y`, `width`, `height`, `rgba` |
 | `shape` | `layer`, `frame`, `brush`, `shape` (line / rectangle / ellipse), `from`, `to`, `constrain` |
 | `fill_all_frames` | as `fill`, without `frame` |
@@ -69,7 +69,7 @@ hand a script can do.
 | `set_marker`, `remove_marker` | `frame`, `text` (empty removes it, 500 characters at most); `frame` |
 | `set_drawing_name`, `expose_named` | `layer`, `frame`, `name` (names the drawing shown there; names are unique ignoring case); `layer`, `frame`, `name` (show that drawing at the frame, only that frame changes) |
 | `edit_swatch` | `palette`, `swatch` (0-based, a shot palette), `rgb`, optional `name`, `update_paint` (default true: paint in the old colour on every unlocked layer takes the new one) |
-| `set_length`, `set_fps`, `set_paper`, `set_onion`, `toggle_pin`, `set_light_table`, `purge_unused` | as named |
+| `set_length`, `set_fps`, `set_paper`, `set_paper_texture` (`texture`: `kind`, `image`, `scale`, `angle`, `contrast`, `strength`), `set_onion`, `toggle_pin`, `set_light_table`, `purge_unused` | as named |
 | `shift_pin` | `index`, `x`, `y` (canvas pixels), `turn` (tenths of a degree): shift and trace a light-table pin; a setting, not an undo step |
 | `save_to_library` | `layer`, `from`, `to` (0-based frames, either order), `name`: the drawings and timing of those frames become a drawing-library item with its own copies of the drawings |
 | `insert_from_library` | `item`, `layer`, `frame`, `linked` (default false: new copies; true: the layer shows the item's drawings, so editing one changes every linked use); cut at the end of the shot |
