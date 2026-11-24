@@ -281,6 +281,7 @@ pub struct ToonApp {
     /// Show the camera frame on the canvas.
     pub show_camera: bool,
     pub peg_ui: crate::pegs::PegUi,
+    pub curve_ui: crate::curves::CurveUi,
     pub layer_ui: crate::layer_tree::LayerUi,
     pub timing_ui: crate::timing_panel::TimingUi,
     pub canvas_ui: crate::canvas_tools::CanvasUi,
@@ -423,6 +424,7 @@ impl ToonApp {
             keys: crate::keys::Keys::new(!cfg!(test) && cli.screenshot.is_none()),
             show_camera: true,
             peg_ui: Default::default(),
+            curve_ui: Default::default(),
             layer_ui: Default::default(),
             timing_ui: Default::default(),
             canvas_ui: crate::canvas_tools::CanvasUi::new(!cfg!(test) && cli.screenshot.is_none()),
@@ -488,6 +490,9 @@ impl ToonApp {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
             app.run(Command::SetLightTable { enabled: Some(true), opacity: Some(0.3) });
+        }
+        if cli.rulers {
+            crate::rulers_ui::demo(&mut app);
         }
         if let Some(p) = app.path.clone() {
             crate::start_screen::note(&mut app, &p);
@@ -1685,7 +1690,8 @@ impl ToonApp {
         {
             self.selection = None;
         }
-        if ctx.input_mut(|i| i.consume_shortcut(&cmd(Key::A))) && !ctx.egui_wants_keyboard_input() {
+        // the Curves graph uses Ctrl+A to choose every key
+        if focus != Some(crate::curves::graph_id()) && ctx.input_mut(|i| i.consume_shortcut(&cmd(Key::A))) && !ctx.egui_wants_keyboard_input() {
             self.select_all();
         }
         // Alt+arrows pan the canvas from the keyboard.

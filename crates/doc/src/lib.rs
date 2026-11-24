@@ -18,6 +18,7 @@ pub mod paging;
 pub mod palette;
 pub mod peg;
 pub mod render;
+pub mod rulers;
 pub mod sound;
 pub mod symmetry;
 pub mod timing;
@@ -26,7 +27,7 @@ pub use camera::{Camera, CameraKey, Shake};
 pub use exposure::{Cell, ExposureError};
 pub use markers::{MAX_MARKER_TEXT, MAX_MARKERS, MAX_NAME, parse_timecode, timecode};
 pub use onion::{LightTable, MAX_STEPS as ONION_MAX_STEPS, OnionMode, OnionSkin, Pin};
-pub use peg::{Ease, Peg, PegId, PegKey};
+pub use peg::{Channel, Ease, Peg, PegId, PegKey};
 pub use render::{RenderOptions, render_camera, render_frame, render_region};
 pub use sound::{AudioTrack, Soundtrack, VolumeKey};
 pub use timing::{Mark, TimingPreset};
@@ -104,6 +105,12 @@ pub enum DocError {
     FolderLoop,
     #[error("“{0}” cannot be used as a folder name (empty or taken)")]
     FolderName(String),
+    #[error("there is no key at frame {}", .0 + 1)]
+    NoKey(u32),
+    #[error("another key is already at frame {}", .0 + 1)]
+    KeyInTheWay(u32),
+    #[error("a key cannot move before the first frame")]
+    KeyBeforeStart,
 }
 
 pub type Result<T> = std::result::Result<T, DocError>;
@@ -342,6 +349,8 @@ pub struct Project {
     pub palettes: Vec<palette::Palette>,
     /// Vector strokes of the drawings drawn on vector layers; their tiles are painted from these.
     pub vectors: BTreeMap<DrawingId, tooncraft_vector::VDrawing>,
+    /// Stroke rulers and grid snapping (a drawing aid stored with the shot).
+    pub rulers: rulers::Rulers,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -367,6 +376,7 @@ impl PartialEq for Project {
             && self.drawing_names == o.drawing_names
             && self.symmetry == o.symmetry
             && self.palettes == o.palettes
+            && self.rulers == o.rulers
     }
 }
 
@@ -395,6 +405,7 @@ impl Project {
             symmetry: symmetry::Symmetry::default(),
             palettes: Vec::new(),
             vectors: BTreeMap::new(),
+            rulers: rulers::Rulers::default(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
@@ -427,6 +438,7 @@ impl Project {
             symmetry: symmetry::Symmetry::default(),
             palettes: Vec::new(),
             vectors: BTreeMap::new(),
+            rulers: rulers::Rulers::default(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
