@@ -451,8 +451,8 @@ Weight: 4
 |---|---|---|---|---|
 | Headless command line: create, script, export, check | TV TB | D | M | `tooncraft-cli`; every action is an engine command |
 | Replay recorded actions (macros) | TV CS | P | M | JSON-lines command files replay; no recording in the app |
-| Batch processing of many shots | TV TB | P | S | Through shell scripts around the CLI |
-| Embedded scripting language with an object API | TV TB | M | L | |
+| Batch processing of many shots | TV TB | D | S | `tooncraft-cli batch-script <script> <shots…> [--out-dir]` runs a script on every shot, reports each, carries on past a failing shot and fails the batch at the end; tested |
+| Embedded scripting language with an object API | TV TB | P | L | Rhai in `tooncraft-script`: commands through `run(#{cmd: …})`, the shot and layers as maps, sandboxed with limits, one undo step per run and a full rollback on failure (`tooncraft-cli run-script`, [scripting.md](scripting.md)); not yet in the app, and reading covers the shot, layers, exposures and notes only |
 | Control from other programs over a socket | TB | M | M | **Ours:** planned on craft-control with an MCP server for agents |
 | Custom tool buttons that run scripts | TV TB | M | S | |
 | Plugin interface for effects and tools | TV TB CS | M | L | |
