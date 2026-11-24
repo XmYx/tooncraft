@@ -378,6 +378,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let pins: Vec<Pin> = app.engine.project.light_table.pins.clone();
     let mut clicked: Option<(usize, u32)> = None;
     let mut toggles: Vec<(usize, bool)> = Vec::new();
+    let mut locks: Vec<(usize, bool)> = Vec::new();
     let mut drag: Option<(usize, u32, u32)> = None;
     // right-click menus, shown after the rows (the rows borrow the project)
     let mut cell_menus: Vec<(usize, u32, egui::Response)> = Vec::new();
@@ -406,7 +407,16 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         } else {
             painter.line_segment([eye.left_bottom(), eye.right_top()], Stroke::new(1.3, ec));
         }
-        let name_rect = Rect::from_min_max(pos2(eye.right() + 4.0, y), pos2(area.left() + NAME_W - 4.0, y + ROW_H));
+        // lock toggle beside the eye
+        let lock = Rect::from_min_size(pos2(eye.right() + 3.0, y + 3.0), vec2(16.0, 16.0));
+        let lock_resp = ui.interact(lock, grid_id().with(("lock", layer.id)), Sense::click());
+        let lock_label = tlf!("Lock {layer}", layer = layer.name);
+        lock_resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, true, layer.locked, lock_label.clone()));
+        if lock_resp.clicked() {
+            locks.push((li, !layer.locked));
+        }
+        crate::timeline_rows::paint_lock(&painter, lock, layer.locked, if layer.locked { pal.accent } else { pal.weak });
+        let name_rect = Rect::from_min_max(pos2(lock.right() + 4.0, y), pos2(area.left() + NAME_W - 4.0, y + ROW_H));
         let name_resp = ui.interact(name_rect, grid_id().with(("name", layer.id)), Sense::click());
         let name_label = tlf!("Layer {name}", name = layer.name);
         name_resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, li == app.layer, name_label.clone()));
@@ -430,6 +440,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             name.push_str(&format!(" · {}", tl!("locked")));
         }
         painter.text(name_rect.left_center(), Align2::LEFT_CENTER, name, FontId::proportional(12.5), if li == app.layer { pal.text } else { pal.weak });
+        // the frames where the layer's pegs are keyed, marked on the cells and named for readers
+        let peg_keys: Vec<u32> = layer.peg.map(|id| crate::timeline_rows::key_frames(app, id, first, (first + visible_cols).min(len))).unwrap_or_default();
         // cells
         let mut f = first;
         while f < (first + visible_cols).min(len) {
@@ -477,6 +489,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             let mut label = tlf!("{layer}, frame {frame}: {cell}", layer = layer.name, frame = f + 1, cell = cell_text(cell));
             if let Some(m) = cell.key().and_then(|d| app.engine.project.marks.get(&d)) {
                 label = format!("{label}, {}", crate::timing_panel::mark_label(Some(*m)).to_lowercase());
+            }
+            if peg_keys.binary_search(&f).is_ok() {
+                label = format!("{label}, {}", tl!("peg key"));
+                crate::timeline_rows::paint_key(&painter, pos2(r.center().x, r.top() + 1.0), pal.accent, pal.bg);
             }
             resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Cell, true, selected, label.clone()));
             if cell == Cell::Hold
@@ -607,6 +623,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     for (li, v) in toggles {
         app.run(Command::SetLayer { layer: li, visible: Some(v), locked: None, opacity: None });
+    }
+    for (li, v) in locks {
+        app.run(Command::SetLayer { layer: li, visible: None, locked: Some(v), opacity: None });
     }
     if let Some((li, f)) = clicked {
         if ui.input(|i| i.modifiers.shift) {

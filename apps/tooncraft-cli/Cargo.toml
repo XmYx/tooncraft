@@ -23,3 +23,7 @@ tooncraft-format = { workspace = true }
 tooncraft-engine = { workspace = true }
 tooncraft-interop = { workspace = true }
 serde_json = { workspace = true }
+
+[dev-dependencies]
+# a fixed font for the text command test
+epaint_default_fonts = "0.37"

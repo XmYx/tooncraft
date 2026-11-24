@@ -23,32 +23,34 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 <!-- parity:start -->
 | | Value | Kind |
 |---|---|---|
-| In-scope feature rows | 267 | counted |
-| Done / exceeds / partial / missing | 118 / 3 / 34 / 112 | counted |
+| In-scope feature rows | 314 | counted |
+| Done / exceeds / partial / missing | 211 / 3 / 31 / 69 | counted |
 | Out of scope (not in any denominator) | 4 | counted |
-| **Row parity**, (D + X + ½·P) / rows | **51.7 %** | counted |
-| **Weighted parity**, area weights × size-weighted rows | **39.0 %** | counted |
-| Size-weighted parity over all rows, no area weights | 38.1 % | counted |
+| **Row parity**, (D + X + ½·P) / rows | **73.1 %** | counted |
+| **Weighted parity**, area weights × size-weighted rows | **56.1 %** | counted |
+| Size-weighted parity over all rows, no area weights | 56.9 % | counted |
+| **UI parity**, rows of the reference-layout area | **85.1 %** | counted |
 
 | Area | Weight | Rows | D | X | P | M | Out | Row parity | Effort parity |
 |---|---|---|---|---|---|---|---|---|---|
-| Brush engine | 9 (9 %) | 29 | 15 | 0 | 2 | 12 | 1 | 55 % | 46 % |
-| Paper and textures | 3 (3 %) | 10 | 6 | 0 | 2 | 2 | 0 | 70 % | 73 % |
-| Drawing tools | 7 (7 %) | 17 | 3 | 0 | 1 | 13 | 0 | 21 % | 9 % |
-| Selection and transform | 5 (5 %) | 14 | 4 | 0 | 1 | 9 | 0 | 32 % | 25 % |
-| Colour and paint | 7 (7 %) | 18 | 5 | 0 | 3 | 10 | 0 | 36 % | 23 % |
-| Layers | 6 (6 %) | 13 | 6 | 0 | 1 | 6 | 0 | 50 % | 43 % |
-| Timeline and exposure sheet | 9 (9 %) | 20 | 10 | 0 | 4 | 6 | 0 | 60 % | 36 % |
-| Onion skin and light table | 4 (4 %) | 11 | 7 | 0 | 1 | 3 | 0 | 68 % | 62 % |
-| Animation tools | 9 (9 %) | 18 | 8 | 1 | 2 | 7 | 0 | 56 % | 35 % |
+| Brush engine | 9 (9 %) | 29 | 19 | 0 | 2 | 8 | 1 | 69 % | 56 % |
+| Paper and textures | 3 (3 %) | 10 | 7 | 0 | 1 | 2 | 0 | 75 % | 77 % |
+| Drawing tools | 7 (7 %) | 17 | 12 | 0 | 2 | 3 | 0 | 76 % | 58 % |
+| Selection and transform | 5 (5 %) | 14 | 9 | 0 | 1 | 4 | 0 | 68 % | 53 % |
+| Colour and paint | 7 (7 %) | 18 | 14 | 0 | 1 | 3 | 0 | 81 % | 60 % |
+| Layers | 6 (6 %) | 13 | 10 | 0 | 0 | 3 | 0 | 77 % | 67 % |
+| Timeline and exposure sheet | 9 (9 %) | 20 | 16 | 0 | 1 | 3 | 0 | 82 % | 64 % |
+| Onion skin and light table | 4 (4 %) | 11 | 8 | 0 | 2 | 1 | 0 | 82 % | 75 % |
+| Animation tools | 9 (9 %) | 18 | 9 | 1 | 2 | 6 | 0 | 61 % | 37 % |
 | Camera | 4 (4 %) | 8 | 4 | 0 | 0 | 4 | 0 | 50 % | 40 % |
-| Effects and compositing | 7 (7 %) | 22 | 10 | 0 | 3 | 9 | 0 | 52 % | 32 % |
-| Audio and lip-sync | 4 (4 %) | 14 | 10 | 0 | 1 | 3 | 0 | 75 % | 67 % |
-| Import, export and pipeline | 7 (7 %) | 28 | 14 | 0 | 3 | 11 | 1 | 55 % | 46 % |
+| Effects and compositing | 7 (7 %) | 22 | 13 | 0 | 3 | 6 | 0 | 66 % | 41 % |
+| Audio and lip-sync | 4 (4 %) | 14 | 11 | 0 | 1 | 2 | 0 | 82 % | 72 % |
+| Import, export and pipeline | 7 (7 %) | 28 | 20 | 0 | 2 | 6 | 1 | 75 % | 62 % |
 | Scripting and automation | 4 (4 %) | 7 | 1 | 0 | 2 | 4 | 0 | 29 % | 22 % |
-| UI and workspace | 5 (5 %) | 14 | 5 | 1 | 4 | 4 | 0 | 57 % | 53 % |
-| Tablet and input | 4 (4 %) | 9 | 2 | 0 | 3 | 4 | 1 | 39 % | 35 % |
-| Collaboration and review | 2 (2 %) | 5 | 1 | 0 | 0 | 4 | 1 | 20 % | 11 % |
+| UI and workspace | 5 (5 %) | 14 | 8 | 1 | 3 | 2 | 0 | 75 % | 67 % |
+| UI parity with the reference layout | 5 (5 %) | 47 | 38 | 0 | 4 | 5 | 0 | 85 % | 72 % |
+| Tablet and input | 4 (4 %) | 9 | 3 | 0 | 3 | 3 | 1 | 50 % | 45 % |
+| Collaboration and review | 2 (2 %) | 5 | 2 | 0 | 0 | 3 | 1 | 40 % | 22 % |
 | Stability and performance | 4 (4 %) | 10 | 7 | 1 | 1 | 1 | 0 | 85 % | 69 % |
 <!-- parity:end -->
 
@@ -193,15 +195,15 @@ Weight: 7
 | Eyedropper | all | D | S | |
 | Gradient tool (linear, radial) | all | D | S | Gradient tool (G): drag start to end, to transparent or to white, kept inside the selection |
 | Symmetry and mirror drawing (axes, radial) | TV CS PD | D | M | Left and right, top and bottom, four ways, radial and mirrored radial (2 to 32 copies) with the axes drawn on the canvas; a mirrored stroke is one undo step and the setting is saved in the shot |
-| Stroke rulers: straight, curve, ellipse, concentric | TV TB CS | M | M | |
-| Perspective rulers with vanishing points | TV CS PD | M | M | |
-| Grid display and snapping strokes to it | TV TB CS | P | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it; freehand strokes do not |
+| Stroke rulers: straight, curve, ellipse, concentric | TV TB CS | D | M | Rulers above the canvas: a stroke started near a straight, curve or ellipse ruler follows it, a concentric ruler takes every stroke on the ellipse through its start; handles drag on the canvas or are typed in the Rulers menu; saved with the shot |
+| Perspective rulers with vanishing points | TV CS PD | D | M | One, two or three vanishing points; after a few pixels of travel the stroke runs on the line through the closest point in that direction |
+| Grid display and snapping strokes to it | TV TB CS | D | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it, and with Rulers ▸ Snap strokes to grid lines a freehand stroke started near a grid line runs along it |
 | Snap the end of a stroke to a clean line or ellipse when held | CS PD | D | S | Hold to straighten: hold the pen still for half a second and a rough line or loop becomes a clean line or ellipse |
-| Text tool | TV TB CS | M | M | |
+| Text tool | TV TB CS | D | M | Text tool (T): click or Enter at the keyboard pen places a box, type, Ctrl+Enter paints it as one undo step; font, size, alignment, line and letter spacing; shaped through craft-font-catalog, so kerning and joined scripts follow the font; `text` command for scripts (`tooncraft-cli run --font`). Text is pixels once placed |
 | Clone stamp | TV CS | M | S | |
 | Reference image viewer with eyedropper | TV CS PD | M | S | |
-| Vector stroke layers (strokes kept as editable curves) | TB CS | M | XL | Harmony and Clip Studio draw on vector layers by default |
-| Vector line editing: reshape, width, erase to the intersection | TB CS | M | L | Needs the vector stroke layers |
+| Vector stroke layers (strokes kept as editable curves) | TB CS | P | XL | The Layers panel's Vector lines switch: pen strokes on that layer are kept as centre lines with a width per point (`tooncraft-vector`), painted into the drawing's tiles so fill, onion skin and export read them; saved in the shot. Not yet: shapes, symmetry copies, duplicate drawing keeping the lines, a vector view of the line |
+| Vector line editing: reshape, width, erase to the intersection | TB CS | P | L | Commands move a point, set a width, smooth, delete, recolour and cut a line back to its crossings (one undo step each); the eraser on a vector layer cuts the line it touches back to its crossings. No point-dragging tool on the canvas yet |
 | 3D reference models and posable figures | TB CS | M | XL | |
 
 ## Selection and transform
@@ -236,11 +238,11 @@ Weight: 7
 | Fill reference: current layer or all visible layers | TV TB CS | D | S | |
 | Fill under lines (into the antialiasing) | TV TB CS | D | S | |
 | Fill every drawing of a layer at once | TV TB | D | S | One undo step. Also: fill, empty areas only, or repaint, and gap presets with the reach shown around the pointer |
-| Linked line and paint layers | TB TV CS | P | M | Paint on a layer below the ink with the all-visible reference; no linked pair |
+| Linked line and paint layers | TB TV CS | D | M | Add Colour Layer (a layer's menu): a layer below that follows the line layer's exposures, so new drawings, holds, re-timing and deleted frames act on both; painting there makes the colour drawing paired with the line drawing, and the bucket sees the lines through the all-visible reference; saved with the shot. No line-only onion and no automatic copy of line regions |
 | Paint the same regions across drawings automatically | TV TB | M | L | |
 | Colour swatches | all | D | S | Named palettes kept with the shot, plus the built-in Basic one; swatch names on hover; remove from a palette with a right-click |
 | Palette files: save, load, import common formats | all | D | S | GIMP .gpl open and save (read through craft-palette), Photoshop .aco open (RGB, HSB, grey) |
-| Linked colour styles (change a swatch, every fill using it updates) | TB CS | M | L | |
+| Linked colour styles (change a swatch, every fill using it updates) | TB CS | P | L | Edit Swatch: the swatch's paint on every unlocked layer takes the new colour (matched by colour at each pixel's opacity, so soft edges follow), one undo step; paint is not linked to the swatch, so unrelated paint in exactly that colour changes too |
 | HSV picker with keyboard fields | all | D | S | Hue, saturation and brightness typed from the keyboard, kittest-tested |
 | Colour wheel, sliders and harmony modes | TV CS PD | D | S | A hue wheel, and opposite, neighbour, three-way, split-opposite and four-way harmonies to pick from or add to a palette |
 | Recent colours | TV CS PD | D | S | The last 16 colours painted with, newest first, in the Colour panel |
@@ -292,7 +294,7 @@ Weight: 9
 | Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames |
 | Frame rate change and timecode display | all | D | S | Frame rate per shot; the position and the marker list show HH:MM:SS:FF (non-drop-frame) |
 | Timeline zoom and scroll | all | D | S | Zoom buttons, Alt+= and Alt+-, Ctrl and the wheel or a pinch; scroll as before |
-| Graph editor for keyed values | TB CS PD | M | L | Per-key easing and a two-handle curve; no curve view |
+| Graph editor for keyed values | TB CS PD | P | L | The Curves panel plots each peg value against frames: drag keys in time and value (one undo step, Escape cancels), move them from the keyboard, ease many keys at once, drag the two ease handles. Camera, opacity and effect keys still edit in their own panels |
 | Several shots or scenes in one project | TV TB | M | L | |
 | Nested sequences (a shot or symbol inside a shot) | TB CS PD | M | L | |
 | Record transforms live while playing | PD | M | M | |
@@ -327,7 +329,7 @@ Weight: 9
 | Re-time a range, with presets and re-timing between keys | TV TB | D | S | **Ours:** non-destructive, one undo step |
 | Reverse a range | TV TB | D | S | |
 | Cycles (repeat a range of cells) | TV TB | D | S | |
-| Pegs: nested parented transforms with pivots | TB | D | L | Move, rotate, scale and skew keys; loops refused |
+| Pegs: nested parented transforms with pivots | TB | D | L | Move, rotate, scale and skew keys; loops refused; dragged on the canvas with the Transform tool, through any parent pegs |
 | Keyed layer transforms with easing | TB CS PD | D | M | Linear, ease, hold or a custom curve per key |
 | Motion path on the canvas | TB PD | D | S | |
 | Inbetween guides from the spacing chart | — | X | S | **Ours:** new inbetweens placed along the chart, with blended guides on a locked layer |
@@ -438,7 +440,7 @@ Weight: 7
 | Scene export for compositing apps (layers, camera, timing) | TV TB | M | M | |
 | Printed exposure sheets and frames (PDF) | TV TB | M | S | |
 | Shot list and edit decisions out (EDL or OTIO) | TB | D | S | OpenTimelineIO: a track per layer, a clip per exposure, gaps and markers |
-| Asset library shared between shots | TB CS | M | M | |
+| Asset library shared between shots | TB CS | P | M | Drawings with their timing, through My Drawings (`.toondrawings` files in the user's folder, or anywhere); no shared sounds, templates or rigs |
 | Reading the references' native project files | all | O | XL | Out of scope: the native project formats of TVPaint, Harmony, Clip Studio and Procreate are proprietary and undocumented; exchange goes through PSD, XDTS and image sequences |
 
 ## Scripting and automation
@@ -489,20 +491,20 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
 | Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | P | M | Same family of layout; tool settings sit in a bar above the canvas, not in a properties panel |
-| Start screen with recent shots and a new-shot form | TB | M | S | ToonCraft opens straight into a blank shot |
+| Start screen with recent shots and a new-shot form | TB | D | S | With no shot to open: a new-shot form with size presets, the recent shots (missing ones marked), Open… and the demo shot; waits for a recovery offer to be answered; turn it off in Preferences (`--open start` shows it) |
 | Named workspaces picked from a bar | TB | D | S | The Workspace picker in the top bar (Drawing, Timing, Ink and Paint, Exposure Sheet); saved ones in View ▸ Workspaces (`--layout`) |
 | Compositing workspace with a node view | TB | M | XL | No node view |
 | Scripting workspace with a script editor and log | TB | M | L | No scripting panels |
-| Panels that can be closed and added back | TB | P | S | Tabs move and float through craft-ui docking; no close button or panel list to add one back |
+| Panels that can be closed and added back | TB | D | S | Every panel but the canvas closes from its tab; the Window menu puts it back where it was (`panels_ui_tests`) |
 | Many tabs in one stack stay readable | TB | P | S | Names shorten when a stack holds many tabs |
 | Dark theme and a light theme | TB | D | S | Contrast tested |
 | Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Frame, layer, drawing, canvas pixel under the pointer, tool, colour, zoom |
-| Top menus for play, drawing, scene and windows | TB | P | M | File, Edit, Frame, Layer, View, Help carry those commands |
-| File menu with recent files | TB | P | S | No recent list |
+| Top menus for play, drawing, scene and windows | TB | D | M | File, Edit, Frame, Layer, Drawing, Play, Scene, View, Window, Help |
+| File menu with recent files | TB | D | S | File ▸ Open Recent: the last 12 shots opened or saved, newest first, missing ones marked, Clear Recent Shots |
 | Edit menu with selection and transform items | TB | D | S | Undo and redo with names, Preferences, select, invert, grow and shrink, transform submenu |
 | View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | |
 | Play commands with speed | TB | D | S | Frame menu and timeline: play, step, in and out, speed, Play Around |
-| A Windows menu listing every panel | TB | M | S | A panel is raised from its tab, `--panel` or Find Command |
+| A Windows menu listing every panel | TB | D | S | Window: every panel with a tick when open, and Reset Panels |
 | Tool bar with flyouts for related tools | TB | D | S | Grouped buttons with a corner mark; right-click or press and hold for the group |
 | Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | New, Open, Save, undo, redo, workspace, play, the frame typed to go there, play from and to, frame rate and length |
 | Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | The strip above the canvas, with onion settings on right-click |
@@ -511,12 +513,12 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Pencil properties: caps and joins | TB | M | S | Size, opacity, smoothing, steady line; no caps or joins |
 | Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
 | Select properties: modes, typed position, size and angle | TB | D | S | Lasso, rectangle, ellipse, wand; add, remove, overlap; X, Y, width, height (proportions kept) and angle typed and applied as one step; flips, skew, distort |
-| Transform tool properties with typed values | TB | P | M | The Pegs panel types key values; no canvas transform tool |
-| Contour, text, rigging and morph tool properties | TB | M | L | Those tools are missing |
+| Transform tool properties with typed values | TB | D | M | The Transform tool (Q) drags the current layer's peg on the canvas: move, a corner to scale, a knob to turn, the pivot cross; one peg key per drag, Escape cancels; arrows, [ ] and Page Up / Down nudge; its options type Move X/Y, Rotation, Scale X/Y, or add a peg for a layer without one |
+| Contour, text, rigging and morph tool properties | TB | P | L | Text tool properties: font, size, alignment, line and letter spacing; the contour, rigging and morph tools are missing |
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
-| Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue and the brush's opacity |
-| Picker with alpha and a gradient | TB | P | S | The picker is docked in the Colour panel; no alpha in the colour itself |
-| Timeline layer rows with toggles | TB | P | S | Visibility in the row; lock and the rest in the Layers panel and the row's right-click menu |
+| Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue, the colour's own opacity and the brush's opacity |
+| Picker with alpha and a gradient | TB | P | S | A floating Colour Picker window (`--open colour-picker`) as well as the docked one; the colour has its own opacity; no gradient swatches |
+| Timeline layer rows with toggles | TB | D | S | Show and lock toggles in each row (named check boxes, keyboard reachable); a mark on every cell where the layer's pegs are keyed, named "peg key" for screen readers; the rest in the Layers panel and the row's right-click menu |
 | Timeline buttons | TB | D | S | |
 | Selected range highlight | TB | D | S | |
 | Right-click menu on timeline cells | TB | D | S | Swap drawing, marks, hold for, fill empty frames, frame and clipboard commands |
@@ -528,11 +530,11 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Light table on the canvas | TB | D | S | |
 | Camera frame and safe areas | TB | D | S | |
 | Separate drawing, reference and perspective views | TB | M | M | One canvas |
-| Curve editor | TB | M | L | |
+| Curve editor | TB | D | L | The Curves panel beside the timeline: value buttons, the graph with keys, other values faintly behind, an ease box with handles and typed values (`--panel curves`) |
 | Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
-| Library window for drawings | TB | M | L | The library holds brushes only |
+| Library window for drawings | TB | D | L | The Drawing Library panel: the shot's reusable drawings with thumbnails, names and lengths; add the selected frames, insert as copies or linked, rename, reorder, remove; My Drawings keeps items in the user's folder for every shot |
 | Preferences, shortcut editor with search, playback speed | TB | D | S | (`--open preferences`, `--open shortcuts`) |
-| Scene settings in one window | TB | P | S | Canvas size and frame rate are set in separate places |
+| Scene settings in one window | TB | D | S | Scene ▸ Scene Settings: size with presets, frame rate, length and duration, loop, ping-pong and speed (`--open scene`) |
 | Export dialog with range, size and options | TB | D | S | (`--open export`) |
 | Import dialog with options | TB | D | S | After picking images: a new layer, one layer per file name, or the current layer; hold; fit, actual size or fill; premultiplied colours |
 

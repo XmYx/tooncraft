@@ -94,12 +94,30 @@ pub fn tool(p: &Painter, rect: Rect, tool: Tool, color: Color32) {
             }
             p.rect_stroke(egui::Rect::from_min_max(at(-1.0, -0.8), at(1.0, 0.8)), 1.0, st, egui::StrokeKind::Middle);
         }
+        Tool::Transform => {
+            // a box with corner handles and a turn knob above it
+            p.rect_stroke(egui::Rect::from_min_max(at(-0.75, -0.45), at(0.75, 0.95)), 0.0, st, egui::StrokeKind::Middle);
+            for (x, y) in [(-0.75, -0.45), (0.75, -0.45), (0.75, 0.95), (-0.75, 0.95)] {
+                p.rect_filled(egui::Rect::from_center_size(at(x, y), vec2(s * 0.3, s * 0.3)), 0.0, color);
+            }
+            p.line_segment([at(0.0, -0.45), at(0.0, -0.85)], st);
+            p.circle_stroke(at(0.0, -1.0), s * 0.15, st);
+        }
         Tool::Hand => {
             for k in 0..4 {
                 let x = -0.6 + k as f32 * 0.4;
                 p.line_segment([at(x, 0.2), at(x, -0.9 + (k as f32 - 1.5).abs() * 0.15)], Stroke::new(2.0, color));
             }
             p.add(Shape::convex_polygon(vec![at(-0.75, 0.1), at(0.75, 0.1), at(0.5, 1.0), at(-0.5, 1.0)], color, Stroke::NONE));
+        }
+        Tool::Text => {
+            // a capital T: the bar, the stem and two small serifs
+            let thick = Stroke::new(2.0, color);
+            p.line_segment([at(-0.8, -0.85), at(0.8, -0.85)], thick);
+            p.line_segment([at(0.0, -0.85), at(0.0, 0.85)], thick);
+            p.line_segment([at(-0.3, 0.85), at(0.3, 0.85)], st);
+            p.line_segment([at(-0.8, -0.85), at(-0.8, -0.6)], st);
+            p.line_segment([at(0.8, -0.85), at(0.8, -0.6)], st);
         }
     }
 }

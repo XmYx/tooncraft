@@ -17,15 +17,24 @@ mod canvas;
 mod canvas_header;
 mod canvas_tools;
 mod color;
+mod colour_layers_ui;
+#[cfg(test)]
+mod colour_layers_ui_tests;
 mod colour_tools;
 #[cfg(test)]
 mod colour_ui_tests;
 mod command_search;
 mod context_menus;
+mod curves;
+#[cfg(test)]
+mod curves_ui_tests;
 mod dock;
 mod draw_aids;
 #[cfg(test)]
 mod drawaids_ui_tests;
+mod drawing_library;
+#[cfg(test)]
+mod drawing_library_ui_tests;
 mod effects_panel;
 mod export_dialog;
 mod frame_cache;
@@ -45,21 +54,43 @@ mod lipsync_panel;
 #[cfg(test)]
 mod menus_ui_tests;
 mod panels;
+#[cfg(test)]
+mod panels_ui_tests;
+mod peg_transform;
+#[cfg(test)]
+mod peg_transform_ui_tests;
 mod pegs;
 mod pipeline;
 mod preferences;
+mod rulers_ui;
+#[cfg(test)]
+mod rulers_ui_tests;
+mod scene_menus;
 mod scene_presets;
+#[cfg(test)]
+mod scene_ui_tests;
 mod selection_tools;
 #[cfg(test)]
 mod selection_ui_tests;
 mod sheet;
+#[cfg(test)]
+mod shell_ui_tests;
 mod sound;
 mod sound_panel;
+mod start_screen;
+#[cfg(test)]
+mod swatch_ui_tests;
 mod tablet;
+mod text_tool;
+#[cfg(test)]
+mod text_ui_tests;
 mod textures;
 mod theme;
 mod timeline;
 mod timeline_extras;
+mod timeline_rows;
+#[cfg(test)]
+mod timeline_rows_ui_tests;
 #[cfg(test)]
 mod timeline_ui_tests;
 mod timing_panel;
@@ -68,6 +99,11 @@ mod top_bar;
 mod touch_ui_tests;
 #[cfg(test)]
 mod ui_tests;
+mod unsaved;
+#[cfg(test)]
+mod unsaved_ui_tests;
+#[cfg(test)]
+mod vector_ui_tests;
 mod view;
 
 use args::{Cli, Launch};

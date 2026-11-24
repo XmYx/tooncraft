@@ -9,14 +9,17 @@ Options:
   --frame <N>                start on frame N (1-based)
   --screenshot <PNG>         render the window once to PNG and quit
   --panel <NAME>             bring a panel to the front (timeline, layers, brush, colour, onion, camera,
-                             pegs, library, effects, sound, lipsync, timing, history)
-  --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size
+                             pegs, library, effects, sound, lipsync, timing, history, drawings,
+                             curves)
+  --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size,
+                             start, scene, colour-picker
   --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet
   --vertical                 show the exposure sheet down the page
   --tool <NAME>              start with a tool (pencil, ink, fill, gradient, select, shape …)
   --bench-playback <SECONDS> play the shot for SECONDS, print frame timing and quit
   --select <A..B>            start with frames A to B (1-based) of the top layer selected
   --light-table              pin frame 1 of the top layer to the light table and show it
+  --rulers                   start with a straight ruler and two-point perspective rulers on
   --thumbnails               start with drawing thumbnails in the timeline
   --light                    light theme
   -h, --help                 print this help
@@ -40,10 +43,11 @@ pub struct Cli {
     pub layout: Option<String>,
     pub vertical: bool,
     pub tool: Option<String>,
+    pub rulers: bool,
 }
 
 /// The windows `--open` knows.
-pub const OPEN_NAMES: [&str; 6] = ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size"];
+pub const OPEN_NAMES: [&str; 9] = ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size", "start", "scene", "colour-picker"];
 /// The layouts `--layout` knows.
 pub const LAYOUT_NAMES: [&str; 4] = ["drawing", "timing", "ink-paint", "sheet"];
 
@@ -76,6 +80,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             "--demo" => cli.demo = true,
             "--light" => cli.light = true,
             "--light-table" => cli.light_table = true,
+            "--rulers" => cli.rulers = true,
             "--thumbnails" => cli.thumbnails = true,
             "--select" => {
                 let v = it.next().ok_or("--select needs A..B")?;

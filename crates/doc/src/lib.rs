@@ -10,14 +10,17 @@
 #![forbid(unsafe_code)]
 
 pub mod camera;
+pub mod colour_art;
 mod exposure;
 pub mod guides;
+pub mod library;
 pub mod markers;
 mod onion;
 pub mod paging;
 pub mod palette;
 pub mod peg;
 pub mod render;
+pub mod rulers;
 pub mod sound;
 pub mod symmetry;
 pub mod timing;
@@ -26,7 +29,7 @@ pub use camera::{Camera, CameraKey, Shake};
 pub use exposure::{Cell, ExposureError};
 pub use markers::{MAX_MARKER_TEXT, MAX_MARKERS, MAX_NAME, parse_timecode, timecode};
 pub use onion::{LightTable, MAX_STEPS as ONION_MAX_STEPS, OnionMode, OnionSkin, Pin};
-pub use peg::{Ease, Peg, PegId, PegKey};
+pub use peg::{Channel, Ease, Peg, PegId, PegKey};
 pub use render::{RenderOptions, render_camera, render_frame, render_region};
 pub use sound::{AudioTrack, Soundtrack, VolumeKey};
 pub use timing::{Mark, TimingPreset};
@@ -104,6 +107,12 @@ pub enum DocError {
     FolderLoop,
     #[error("“{0}” cannot be used as a folder name (empty or taken)")]
     FolderName(String),
+    #[error("there is no key at frame {}", .0 + 1)]
+    NoKey(u32),
+    #[error("another key is already at frame {}", .0 + 1)]
+    KeyInTheWay(u32),
+    #[error("a key cannot move before the first frame")]
+    KeyBeforeStart,
 }
 
 pub type Result<T> = std::result::Result<T, DocError>;
@@ -154,9 +163,18 @@ pub struct Layer {
     /// Transparency is locked: strokes only recolour paint that is already there.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub lock_alpha: bool,
+    /// Strokes drawn on this layer are kept as editable vector lines (`tooncraft-vector`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub vector: bool,
     /// This layer's own onion-skin settings (`None`: the shot's).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub onion: Option<OnionSkin>,
+    /// A colour layer: the line layer whose exposures this layer follows (see [`colour_art`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub colour_of: Option<LayerId>,
+    /// A colour layer's drawings: (line drawing, colour drawing) pairs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub colour_pairs: Vec<(DrawingId, DrawingId)>,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
 }
@@ -337,6 +355,12 @@ pub struct Project {
     pub symmetry: symmetry::Symmetry,
     /// Named colour palettes of the shot.
     pub palettes: Vec<palette::Palette>,
+    /// Vector strokes of the drawings drawn on vector layers; their tiles are painted from these.
+    pub vectors: BTreeMap<DrawingId, tooncraft_vector::VDrawing>,
+    /// The shot's drawing library (see [`library`]); its drawings live in the drawing table.
+    pub library: Vec<library::Item>,
+    /// Stroke rulers and grid snapping (a drawing aid stored with the shot).
+    pub rulers: rulers::Rulers,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -362,6 +386,8 @@ impl PartialEq for Project {
             && self.drawing_names == o.drawing_names
             && self.symmetry == o.symmetry
             && self.palettes == o.palettes
+            && self.library == o.library
+            && self.rulers == o.rulers
     }
 }
 
@@ -389,6 +415,9 @@ impl Project {
             onion: OnionSkin::default(),
             symmetry: symmetry::Symmetry::default(),
             palettes: Vec::new(),
+            vectors: BTreeMap::new(),
+            library: Vec::new(),
+            rulers: rulers::Rulers::default(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
@@ -420,6 +449,9 @@ impl Project {
             onion: OnionSkin::default(),
             symmetry: symmetry::Symmetry::default(),
             palettes: Vec::new(),
+            vectors: BTreeMap::new(),
+            library: Vec::new(),
+            rulers: rulers::Rulers::default(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
@@ -619,7 +651,10 @@ impl Project {
                 mouth_chart: BTreeMap::new(),
                 clip: false,
                 lock_alpha: false,
+                vector: false,
                 onion: None,
+                colour_of: None,
+                colour_pairs: Vec::new(),
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );
@@ -739,9 +774,10 @@ impl Project {
         self.layers.get(layer)?.drawing_at(frame)
     }
 
-    /// Drawings no cell refers to.
+    /// Drawings no cell of a layer or a library item refers to.
     pub fn unused_drawings(&self) -> Vec<DrawingId> {
-        let used: std::collections::BTreeSet<DrawingId> = self.layers.iter().flat_map(|l| l.cells.iter().filter_map(|c| c.key())).collect();
+        let used: std::collections::BTreeSet<DrawingId> =
+            self.layers.iter().flat_map(|l| l.cells.iter()).chain(self.library.iter().flat_map(|i| i.cells.iter())).filter_map(|c| c.key()).collect();
         self.drawings.keys().filter(|d| !used.contains(d)).copied().collect()
     }
 

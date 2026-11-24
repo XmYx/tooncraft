@@ -230,6 +230,10 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
         app.set_status(tl!("Stroke cancelled"));
         return;
     }
+    // a press on a ruler handle moves it, with any tool
+    if crate::rulers_ui::drag(app, ui, rect) {
+        return;
+    }
     let (layer, frame) = (app.layer, app.frame);
     match app.tool {
         Tool::Fill if app.aids.lasso_fill => {
@@ -267,7 +271,21 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
             crate::draw_aids::gradient_input(app, at, resp);
         }
+        Tool::Text => {
+            let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            crate::text_tool::input(app, at, resp);
+        }
         Tool::Hand => {}
+        Tool::Transform => {
+            let view = app.view;
+            let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
+            let to_c = |p: Pos2| {
+                let c = view.to_canvas(rect, size, p);
+                (c.x, c.y)
+            };
+            let to_s = |x: f32, y: f32| view.to_screen(rect, size, pos2(x, y));
+            crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
+        }
         _ if mods.alt => {
             if resp.clicked()
                 && let Some(p) = resp.interact_pointer_pos()
@@ -589,6 +607,10 @@ fn keyboard_pen(app: &mut ToonApp, ui: &egui::Ui, resp: &egui::Response) {
         }
         return;
     }
+    if app.tool == Tool::Transform {
+        crate::peg_transform::keyboard(app, ui);
+        return;
+    }
     if app.tool == Tool::Select && app.selection.is_some() {
         let (d, enter_or_esc) = ui.input(|i| {
             let step = if i.modifiers.shift { 10.0 } else { 1.0 };
@@ -653,6 +675,7 @@ fn keyboard_pen(app: &mut ToonApp, ui: &egui::Ui, resp: &egui::Response) {
                 app.color = [col[0], col[1], col[2], 255];
             }
             Tool::Hand => {}
+            Tool::Text => crate::text_tool::start(app, (pen.x, pen.y)),
             _ if pen.down => {
                 end(app);
                 pen.down = false;
@@ -746,6 +769,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     painter.add(Shape::convex_polygon(corners.to_vec(), Color32::from_rgb(pc[0], pc[1], pc[2]), Stroke::NONE));
     let ctx = ui.ctx().clone();
     let p = &app.engine.project;
+    // the layers' transforms, with a Transform drag's key in place while one is in progress
+    let transforms = crate::peg_transform::layer_transforms(app);
     let tex = &mut app.textures;
     if p.light_table.enabled {
         for pin in &p.light_table.pins {
@@ -808,7 +833,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             if let Some(d) = layer.drawing_at(app.frame)
                 && let Some(s) = p.drawing(d)
             {
-                draw_surface(tex, &ctx, &c, d, s, opacity, None, &p.layer_transform(li, app.frame), false);
+                let t = transforms.get(li).copied().unwrap_or_else(|| p.layer_transform(li, app.frame));
+                draw_surface(tex, &ctx, &c, d, s, opacity, None, &t, false);
             }
         }
     }
@@ -816,6 +842,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
     draw_selection(&painter, app, &c, pal);
     crate::draw_aids::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    crate::rulers_ui::overlay(&painter, app, &|x, y| c.screen(x, y));
+    crate::text_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
     // the bucket's gap-closing reach, as a ring around the pointer
     if app.tool == Tool::Fill
         && !app.aids.lasso_fill
@@ -833,6 +861,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     crate::canvas_tools::draw_guides(app, &painter, |x, y| c.screen(x, y));
     crate::pegs::draw_path(app, &painter, |x, y| c.screen(x, y), pal.accent);
+    if app.tool == Tool::Transform {
+        crate::peg_transform::overlay(app, &painter, &|x, y| c.screen(x, y), pal.accent, pal.panel);
+    }
     // camera frame
     let cam = &app.engine.project.camera;
     if app.show_camera && (!cam.keys.is_empty() || !cam.shakes.is_empty()) {
@@ -851,6 +882,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             painter.text(*p0 + vec2(4.0, 3.0), egui::Align2::LEFT_TOP, tl!("Camera"), egui::FontId::proportional(12.0), col);
         }
     }
+    // the text box being typed floats over the canvas
+    let (view, size) = (c.view, c.size);
+    crate::text_tool::edit_box(app, ui.ctx(), rect, &|x, y| view.to_screen(rect, size, pos2(x, y)));
     // cursors
     if let Some(k) = app.keyboard_pen {
         let at = c.screen(k.x, k.y);

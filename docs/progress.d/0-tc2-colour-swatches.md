@@ -1,0 +1,1 @@
+- 2026-11-24: Colour: the current colour has its own opacity (brushes and fills paint with it, times the brush opacity); a floating Colour Picker window (`--open colour-picker`); Edit Swatch from a swatch's right-click menu renames and recolours it, and the paint in the old colour on every unlocked layer follows in the same undo step (`edit_swatch`).

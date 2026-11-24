@@ -42,7 +42,7 @@ pub fn recent(app: &mut ToonApp, ui: &mut Ui) {
         }
     });
     if let Some(s) = chosen {
-        app.color = [s[0], s[1], s[2], 255];
+        crate::colour_tools::set_rgb(app, [s[0], s[1], s[2]]);
     }
 }
 

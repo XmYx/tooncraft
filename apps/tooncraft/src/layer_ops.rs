@@ -74,8 +74,25 @@ pub fn properties(app: &mut ToonApp, ui: &mut Ui) {
     let li = app.layer;
     let Some(layer) = app.engine.project.layers.get(li) else { return };
     let mut lock = layer.lock_alpha;
-    if ui.checkbox(&mut lock, tl!("Lock transparency")).on_hover_text(tl!("Strokes only recolour paint that is already on the layer")).changed() {
+    let mut vector = layer.vector;
+    // one row: the panel's height stays as it was
+    let (lock_changed, vector_changed) = ui
+        .horizontal(|ui| {
+            let a = ui.checkbox(&mut lock, tl!("Lock transparency")).on_hover_text(tl!("Strokes only recolour paint that is already on the layer")).changed();
+            let b = ui
+                .checkbox(&mut vector, tl!("Vector lines"))
+                .on_hover_text(tl!(
+                    "New drawings on this layer keep their strokes as lines that can be edited later; the eraser cuts a line back to where it crosses others"
+                ))
+                .changed();
+            (a, b)
+        })
+        .inner;
+    if lock_changed {
         app.run(Command::SetLayerLockAlpha { layer: li, lock });
+    }
+    if vector_changed {
+        app.run(Command::SetLayerVector { layer: li, vector });
     }
     let others: Vec<(usize, String)> = app
         .engine

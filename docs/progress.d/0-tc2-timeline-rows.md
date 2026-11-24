@@ -1,0 +1,1 @@
+- 2026-11-24: Timeline layer rows: a lock toggle beside each layer's eye, and a mark on every cell where the layer's peg (or a peg it hangs from) is keyed, named "peg key" for screen readers.

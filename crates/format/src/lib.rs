@@ -171,7 +171,28 @@ struct ProjectJson {
     symmetry: tooncraft_doc::symmetry::Symmetry,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     palettes: Vec<tooncraft_doc::palette::Palette>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    vectors: Vec<VectorEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    library: Vec<tooncraft_doc::library::Item>,
+    #[serde(default, skip_serializing_if = "no_rulers")]
+    rulers: tooncraft_doc::rulers::Rulers,
 }
+
+fn no_rulers(r: &tooncraft_doc::rulers::Rulers) -> bool {
+    *r == tooncraft_doc::rulers::Rulers::default()
+}
+
+/// One vector drawing's strokes.
+#[derive(Serialize, Deserialize)]
+struct VectorEntry {
+    drawing: DrawingId,
+    #[serde(flatten)]
+    strokes: tooncraft_vector::VDrawing,
+}
+
+/// Most vector points in a shot, all drawings together.
+pub const MAX_VECTOR_POINTS: usize = 4_000_000;
 
 fn is_off(s: &tooncraft_doc::symmetry::Symmetry) -> bool {
     !s.is_on()
@@ -224,6 +245,9 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             light_table: p.light_table.clone(),
             symmetry: p.symmetry,
             palettes: p.palettes.clone(),
+            vectors: p.vectors.iter().map(|(d, v)| VectorEntry { drawing: *d, strokes: v.clone() }).collect(),
+            library: p.library.clone(),
+            rulers: p.rulers.clone(),
             camera: p.camera.clone(),
             folders: p.folders.clone(),
             pegs: p.pegs.clone(),
@@ -371,6 +395,7 @@ fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::P
     let mut p = Project::from_parts(pj.name, (pj.width, pj.height), pj.fps, pj.length, pj.paper, pj.layers, placeholders, pj.onion, pj.light_table)?;
     p.symmetry = pj.symmetry.sanitized();
     p.palettes = tooncraft_doc::palette::sanitize_all(pj.palettes);
+    p.rulers = pj.rulers.sanitized();
     let none = std::collections::BTreeSet::new();
     for d in &m.drawings {
         let want = 8 + d.tiles as u64 * (4 + TILE_BYTES as u64);
@@ -386,8 +411,25 @@ fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::P
             p.page_out(file, &none, budget / 2)?;
         }
     }
+    let ids: std::collections::BTreeSet<DrawingId> = p.drawing_ids().collect();
+    p.library = tooncraft_doc::library::sanitize_all(pj.library, |d| ids.contains(&d));
     p.camera = pj.camera.sanitized(p.width(), p.height());
     p.set_pegs(pj.pegs);
+    // vector strokes only for drawings that exist, sanitized, within one budget for the shot
+    // (the id set, not `drawing()`: that would read paged drawings back into memory)
+    let ids: std::collections::BTreeSet<DrawingId> = p.drawing_ids().collect();
+    let mut points = 0usize;
+    for v in pj.vectors {
+        if !ids.contains(&v.drawing) || p.vectors.contains_key(&v.drawing) {
+            continue;
+        }
+        let d = v.strokes.sanitized();
+        points = points.saturating_add(d.point_count());
+        if points > MAX_VECTOR_POINTS {
+            return Err(FormatError::TooLarge("too many vector points".into()));
+        }
+        p.vectors.insert(v.drawing, d);
+    }
     for n in pj.names.into_iter().take(tooncraft_doc::MAX_MARKERS) {
         // a name for a missing drawing, or a repeated name, is dropped
         let _ = p.set_drawing_name(n.drawing, &n.name);

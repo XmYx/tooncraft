@@ -294,6 +294,7 @@ pub fn layer(app: &mut ToonApp, ui: &mut Ui, li: usize) {
         }
         ui.close();
     }
+    crate::colour_layers_ui::menu_items(app, ui, li);
     if ui.add_enabled(li > 0, egui::Button::new(tl!("Merge Layer Down"))).clicked() {
         crate::layer_ops::merge(app, Command::MergeDown { layer: li }, Some(li.saturating_sub(1)));
         ui.close();
