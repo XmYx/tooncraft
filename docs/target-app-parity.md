@@ -465,7 +465,7 @@ Weight: 5
 |---|---|---|---|---|
 | Dense dark theme and a light theme | all | D | S | |
 | Standard panels: tools, tool options, brush, colour, layers, timeline | all | D | S | |
-| Dockable panels: move, tab, float | TV TB CS | P | M | Through craft-ui docking; moving panels is not tested here |
+| Dockable panels: move, tab, float | TV TB CS | D | M | Through craft-ui docking: drag a tab onto another stack to tab it or to a panel's side to split, float from the stack menu and move the window by its title, Move To and Reset Panel from the keyboard; the canvas stays docked and a panel dropped on it floats there (`dock_ui_tests`) |
 | Saved workspaces | TV TB CS | D | S | Draw, Time, Ink & Paint and Sheet keep their own edits per user (Reset Workspace puts one back); Save Workspace As… keeps named layouts |
 | Keyboard shortcuts for every tool | all | D | S | |
 | Customisable shortcuts | all | D | S | Through craft-keymap, saved per user |
