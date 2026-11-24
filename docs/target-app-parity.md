@@ -432,7 +432,7 @@ Weight: 7
 | Image sequence import | all | D | S | PNG, JPEG, WebP, TIFF, BMP, GIF |
 | Animated GIF import | TV PD | D | S | |
 | Layers from PSD or OpenRaster | TV CS | D | S | |
-| Video file import | TV CS PD | M | M | |
+| Video file import | TV CS PD | D | M | File ▸ Import Video (`import_video`, `tooncraft-cli import-video`): MP4 / QuickTime, H.264 and H.265 (8-bit) through craft-media and craft-video; a picture per drawing, timed by the movie at the shot's rate; start, every n-th, a cap; under the drawing locked and faded to trace over, the shot grown to fit; one undo step |
 | XDTS exposure sheet exchange with drawing folders | TB CS | D | M | |
 | Storyboard or animatic as the starting layout | TB | D | S | BoardCraft panels with timings and camera moves ([interop.md](interop.md)) |
 | Scanned paper: peg-hole registration and clean-up | TV TB | M | L | |
