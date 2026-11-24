@@ -120,8 +120,9 @@ fn tool_groups_fill_modes_and_presets() {
     // presets: a picker and Revert for the brush tools
     h.key_press(Key::N);
     h.run();
-    h.get(By::new().role(egui::Role::ComboBox).label("Preset"));
     h.state_mut().brushes[1].size = 77.0;
+    h.get(By::new().role(egui::Role::ComboBox).label("Preset")).click();
+    h.run();
     click(&mut h, "Revert");
     assert_eq!(h.state().brushes[1].size, tooncraft_brush::Brush::preset(tooncraft_brush::BrushKind::Ink).size);
 }

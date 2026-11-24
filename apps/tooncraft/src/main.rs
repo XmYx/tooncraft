@@ -55,6 +55,7 @@ mod lipsync_panel;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+mod panel_chrome;
 mod panels;
 #[cfg(test)]
 mod panels_ui_tests;
@@ -101,6 +102,7 @@ mod timeline_ruler;
 #[cfg(test)]
 mod timeline_ui_tests;
 mod timing_panel;
+mod tool_options;
 mod tool_rail;
 mod top_bar;
 #[cfg(test)]
