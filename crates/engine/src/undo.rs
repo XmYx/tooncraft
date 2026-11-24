@@ -37,6 +37,11 @@ pub(crate) enum Part {
         id: u64,
         tip: Option<std::sync::Arc<tooncraft_brush::Tip>>,
     },
+    /// A drawing's vector strokes (`None`: not a vector drawing).
+    Vector {
+        id: tooncraft_doc::DrawingId,
+        strokes: Option<tooncraft_vector::VDrawing>,
+    },
 }
 
 /// One undo step.
@@ -84,6 +89,13 @@ impl Entry {
                         None => p.tips.remove(&id),
                     };
                     Part::Tip { id, tip: old }
+                }
+                Part::Vector { id, strokes } => {
+                    let old = match strokes {
+                        Some(v) => p.vectors.insert(id, v),
+                        None => p.vectors.remove(&id),
+                    };
+                    Part::Vector { id, strokes: old }
                 }
                 Part::Folders(f) => Part::Folders(std::mem::replace(&mut p.folders, f)),
                 Part::Pegs(g) => Part::Pegs(std::mem::replace(&mut p.pegs, g)),

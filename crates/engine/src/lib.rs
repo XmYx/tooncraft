@@ -34,6 +34,9 @@ pub mod select;
 pub mod shapes;
 pub mod touch;
 mod undo;
+pub mod vector;
+#[cfg(test)]
+mod vector_tests;
 
 pub use command::{Command, FillReference, sheet};
 pub use undo::Entry;
@@ -80,6 +83,10 @@ pub enum EngineError {
     EffectMismatch,
     #[error("cannot merge: {0}")]
     Merge(String),
+    #[error(transparent)]
+    Vector(#[from] tooncraft_vector::VectorError),
+    #[error("this is not a vector drawing (draw on a vector layer's blank frame)")]
+    NotVector,
     #[error("layer “{0}” has its transparency locked, so it cannot take a fill")]
     TransparencyLocked(String),
 }
@@ -95,6 +102,9 @@ struct LiveStroke {
     /// Symmetry copies: each has its own stroke engine (smoothing and spacing per copy), all
     /// painting into the same stroke so overlaps never darken.
     mirrors: Vec<(tooncraft_doc::symmetry::Mirror, StrokeEngine)>,
+    /// On a vector layer: where the stroke goes, its brush and the points drawn; the dabs are
+    /// only a preview, replaced by one vector stroke when it ends.
+    vector: Option<vector::Live>,
 }
 
 fn mirror_sample(m: &tooncraft_doc::symmetry::Mirror, s: Sample) -> Sample {
@@ -283,7 +293,8 @@ impl Engine {
         let stroke = Stroke::begin_with(surface, brush, images);
         let (w, h) = (self.project.width(), self.project.height());
         let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush))).collect();
-        self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors });
+        let vector = vector::Live::begin(&self.project, layer, frame, drawing, brush);
+        self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, vector });
         Ok(())
     }
 
@@ -296,6 +307,9 @@ impl Engine {
         let live = self.live.as_mut().ok_or(EngineError::NotStroking)?;
         if let Some(s) = sample.sanitized() {
             live.last = Some(s);
+            if let Some(v) = live.vector.as_mut() {
+                v.push(s);
+            }
         }
         let mut dabs = live.engine.feed(sample);
         for (m, eng) in &mut live.mirrors {
@@ -308,6 +322,11 @@ impl Engine {
 
     /// Finish the live stroke as one undo step.
     pub fn end_stroke(&mut self) -> Result<()> {
+        if let Some(v) = self.live.as_mut().and_then(|l| l.vector.take()) {
+            // the dabs were a preview: drop them, then add the line as vector data
+            self.cancel_stroke();
+            return v.finish(self);
+        }
         let mut live = self.live.take().ok_or(EngineError::NotStroking)?;
         let mut dabs = live.engine.finish();
         for (_, eng) in &mut live.mirrors {

@@ -200,8 +200,8 @@ Weight: 7
 | Text tool | TV TB CS | M | M | |
 | Clone stamp | TV CS | M | S | |
 | Reference image viewer with eyedropper | TV CS PD | M | S | |
-| Vector stroke layers (strokes kept as editable curves) | TB CS | M | XL | Harmony and Clip Studio draw on vector layers by default |
-| Vector line editing: reshape, width, erase to the intersection | TB CS | M | L | Needs the vector stroke layers |
+| Vector stroke layers (strokes kept as editable curves) | TB CS | P | XL | The Layers panel's Vector lines switch: pen strokes on that layer are kept as centre lines with a width per point (`tooncraft-vector`), painted into the drawing's tiles so fill, onion skin and export read them; saved in the shot. Not yet: shapes, symmetry copies, duplicate drawing keeping the lines, a vector view of the line |
+| Vector line editing: reshape, width, erase to the intersection | TB CS | P | L | Commands move a point, set a width, smooth, delete, recolour and cut a line back to its crossings (one undo step each); the eraser on a vector layer cuts the line it touches back to its crossings. No point-dragging tool on the canvas yet |
 | 3D reference models and posable figures | TB CS | M | XL | |
 
 ## Selection and transform

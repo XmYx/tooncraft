@@ -310,6 +310,29 @@ pub enum Command {
         #[serde(default)]
         peg: Option<PegId>,
     },
+    /// Keep the strokes drawn on a layer as editable vector lines (or not, for new drawings).
+    SetLayerVector {
+        layer: usize,
+        vector: bool,
+    },
+    /// Add a vector stroke through `points` (x, y, width) to the drawing at a vector layer's
+    /// frame (a new drawing on a blank cell); points closer than `tolerance` px to the line are
+    /// dropped.
+    VectorStroke {
+        layer: usize,
+        frame: u32,
+        color: [u8; 4],
+        points: Vec<tooncraft_vector::VPoint>,
+        #[serde(default = "vector_tolerance")]
+        tolerance: f32,
+    },
+    /// Change one stroke of a vector drawing: move a point, its width, smooth, erase to the
+    /// crossings, delete, recolour.
+    EditVector {
+        layer: usize,
+        frame: u32,
+        edit: crate::vector::VectorEdit,
+    },
     /// The layer's distance from the drawing plane for the multiplane camera (negative: nearer).
     SetLayerDepth {
         layer: usize,
@@ -888,6 +911,10 @@ fn pegs(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Proje
     }
 }
 
+fn vector_tolerance() -> f32 {
+    0.6
+}
+
 fn recolour_tolerance() -> u8 {
     24
 }
@@ -1172,6 +1199,12 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.peg = peg;
             Ok(())
         }),
+        Command::SetLayerVector { layer, vector } => edit_layers(e, "Vector layer", |e| {
+            e.project.layer_mut(layer)?.vector = vector;
+            Ok(())
+        }),
+        Command::VectorStroke { layer, frame, color, points, tolerance } => crate::vector::add_stroke(e, layer, frame, color, &points, tolerance),
+        Command::EditVector { layer, frame, edit } => crate::vector::edit(e, layer, frame, edit),
         Command::SetLayerDepth { layer, depth } => edit_layers(e, "Layer depth", |e| {
             let d = if depth.is_finite() { depth.clamp(tooncraft_doc::camera::MIN_DEPTH, tooncraft_doc::camera::MAX_DEPTH) } else { 0.0 };
             e.project.layer_mut(layer)?.depth = d;
