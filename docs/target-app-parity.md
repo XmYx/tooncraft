@@ -162,7 +162,7 @@ Weight: 9
 | Brush blend modes (paint as multiply, behind, and so on) | TV CS PD | D | S | Behind, only on paint, multiply, screen, overlay, darken, lighten and add |
 | Brushes at large sizes stay real time | all | P | M | Dry brushes up to 1000 px stay inside a 60 Hz frame per dab (airbrush 1000 px: 5.7 ms, chalk 1000 px: 8.6 ms, big dabs stamped on several threads); wet brushes are still single-threaded (watercolour 600 px: 22 ms a dab) ([performance.md](performance.md)) |
 | Brush rendering on the GPU | TV CS PD | M | L | **Ours:** a craft-gpu dab path (RFC-0022) with the CPU path kept as the test oracle |
-| Import of Photoshop ABR brushes | CS PD | M | M | Tips and basic settings |
+| Import of Photoshop ABR brushes | CS PD | D | M | Tips and basic settings (spacing, diameter, angle; hardness and roundness of computed tips) from v1, v2 and v6+ files through the shared craft-psd reader, into the brush library or as `.toonbrush` files ([interop](interop.md)) |
 | Import of a vendor's own brush packages | CS PD | O | M | Out of scope: the native brush formats of Clip Studio and Procreate are proprietary and undocumented |
 
 ## Paper and textures
@@ -176,7 +176,7 @@ Weight: 3
 | Visible paper texture under the drawing | TV CS PD | D | S | Any grain (also a grain image) shades the paper colour with its own strength, size, rotation and contrast: one repeating tile on the canvas, the same pixels in exports with the paper; `SetPaperTexture`, saved with the shot |
 | Paper and grain library, grain images from files | TV CS PD | D | M | Four built-in grains and tileable grain images saved in the shot |
 | Grain scale, rotation and contrast | TV CS | D | S | Per brush in the brush editor (`grain_scale`, `grain_angle`, `grain_contrast` in `.toonbrush` files), and for the paper texture |
-| Texture overlay on a layer or a fill | CS PD | M | S | |
+| Texture overlay on a layer or a fill | CS PD | D | S | The Texture overlay effect (Effects panel): a built-in grain (paper, canvas weave, speckle, clouds) fixed to the canvas thins the layer's paint in its valleys, so drawings and fills on the layer show it; size, rotation, contrast and amount, keyframable like the other effects |
 | Canvas size presets | all | D | S | Eleven video, cinema, square and portrait presets with their frame rates in New Shot and Canvas Size, the aspect ratio shown, and the user's own saved presets |
 | Canvas resize and crop with anchors | all | D | S | Drawings move whole pixels, never resampled; one undo step |
 | Large canvases (up to 16384 px a side) | TV | D | S | Sparse tiles: empty space costs nothing |
@@ -222,9 +222,9 @@ Weight: 5
 | Flips and 90° turns | all | D | S | |
 | Cut, copy and paste pixels between drawings | all | D | S | |
 | Free distort, perspective and skew | all | D | S | Distort: drag four corner handles (perspective), then Apply; skew by degrees; each one undo step |
-| Mesh warp | TV CS PD | M | M | |
-| Liquify (push, twirl, pinch) | TV CS PD | M | M | |
-| Transform across several drawings or layers at once | TV TB CS | M | M | |
+| Mesh warp | TV CS PD | D | M | Selection options: Mesh Warp puts a grid (1 to 8 cells a side) over the selection; drag its points and Apply bends the pixels, each cell bilinearly, as one undo step (`mesh_warp_selection` command, up to 16 cells a side) |
+| Liquify (push, twirl, pinch) | TV CS PD | D | M | Liquify tool (Shift+K, with Smudge on the rail): push, twirl left or right, pinch or bloat under a soft round brush (size, strength), resampled from the drawing as it was before the stroke; one undo step (`liquify` command) |
+| Transform across several drawings or layers at once | TV TB CS | D | M | Selection options: All selected cells moves, scales, turns, flips and skews every drawing in the timeline's selected cells (each held drawing once, locked layers left out) as one undo step, from the canvas handles, the typed box, the flip and rotate buttons or the whole-drawing transforms; a `batch` of `transform_selection` commands |
 | Resampling choice (nearest, bilinear, bicubic) | TV CS | D | S | For moving, scaling, turning, skewing and distorting a selection |
 
 ## Colour and paint
@@ -242,7 +242,7 @@ Weight: 7
 | Paint the same regions across drawings automatically | TV TB | M | L | |
 | Colour swatches | all | D | S | Named palettes kept with the shot, plus the built-in Basic one; swatch names on hover; a swatch's right-click menu (also Shift+F10) uses, edits, renames, duplicates or deletes it, or selects the pixels of its colour |
 | Palette files: save, load, import common formats | all | D | S | GIMP .gpl open and save (read through craft-palette), Photoshop .aco open (RGB, HSB, grey) |
-| Linked colour styles (change a swatch, every fill using it updates) | TB CS | P | L | Edit Swatch: the swatch's paint on every unlocked layer takes the new colour (matched by colour at each pixel's opacity, so soft edges follow), one undo step; paint is not linked to the swatch, so unrelated paint in exactly that colour changes too |
+| Linked colour styles (change a swatch, every fill using it updates) | TB CS | D | L | A paint-bucket fill made with a colour chosen from a shot palette swatch is linked to it (the filled pixels are kept with the swatch, saved with the shot); Edit Swatch with Update paint then recolours only that linked paint, one undo step, so other paint in the same colour stays; swatches with no links keep the old colour-matching update; Edit Swatch without Update paint forgets the links (that paint keeps the old colour); all links together are capped at 2 M runs, newest kept (`swatch_fill` command) |
 | HSV picker with keyboard fields | all | D | S | Hue, saturation and brightness typed from the keyboard, kittest-tested |
 | Colour wheel, sliders and harmony modes | TV CS PD | D | S | A hue wheel, and opposite, neighbour, three-way, split-opposite and four-way harmonies to pick from or add to a palette |
 | Recent colours | TV CS PD | D | S | The last 16 colours painted with, newest first, in the Colour panel |
@@ -384,7 +384,7 @@ Weight: 7
 | Time effects: trails, frame blending, time remap | TV TB PD | D | M | Trails (up to 16 earlier pictures, fading), Frame blending (mix of the next frame) and Time remap (speed and start, keyable for ramps, reverse and holds) |
 | Transitions between cuts | TV TB PD | D | S | Transition effect: a layer comes in or leaves over a number of frames by dissolve, wipe, iris or push; a cut between two layers is one going out as the other comes in |
 | Effect presets and saved stacks | TV TB | D | S | Five built-in looks added as one undo step; any layer's stack saved to and opened from a .toonfx file |
-| Node compositing graph | TB | M | XL | |
+| Node compositing graph | TB | P | XL | The shot's compositing graph (layer, effect, blend, mask and output nodes) builds the frame when switched on: saved with the shot, loops refused, every edit one undo step (`edit_comp` command); no node view yet (it waits for the shared node editor, storytold/craft-libs#3337) |
 
 ## Audio and lip-sync
 
@@ -403,7 +403,7 @@ Weight: 4
 | Split and duplicate clips | TB CS PD | D | S | Split a clip at the current frame, or copy it to start there; one undo step each |
 | Record a voice track from the microphone | TB CS PD | M | M | craft-audio has no capture yet |
 | Mouth-chart lip-sync detection | TB | P | M | Offline, model-free rules; checked on synthetic sounds, not on a speech corpus |
-| Lip-sync from the typed line of dialogue | TB | M | M | |
+| Lip-sync from the typed line of dialogue | TB | D | M | Lip Sync panel ▸ Line of dialogue and Mouths from the Typed Line (`lip_sync_text`): spelling rules give the mouths, spread in order over the voiced frames of the sound, resting in silence, or held a set number of frames without sound; one undo step, edited in the sheet like any timing |
 | Lip-sync result as editable exposure keys | TB | D | S | |
 | Mouth timing sheets in and out | TB | D | S | Our text sheet and the common switch-data `.dat` |
 
@@ -510,7 +510,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | Icon toggles above the canvas (onion, light table, field guide, safe areas, mirror, symmetry, rulers) with zoom and rotation; right-click or Shift+F10 on a toggle opens its settings, for onion a slider per step from 5 before to 5 after |
 | Brush properties: preset list with previews | TB | D | S | The tool options bar: the tool's glyph and name (its group's tools), a preset dropdown showing the current brush as a stroke and every preset as a stroke, Revert; size, opacity and smoothing as scrub fields (drag the name or bar, or type) |
 | Brush editor | TB | D | S | The Brush panel, every control keyboard-reachable |
-| Pencil properties: caps and joins | TB | M | S | Size, opacity, smoothing, steady line; no caps or joins |
+| Pencil properties: caps and joins | TB | D | S | Size, opacity, smoothing, steady line; on a vector layer the brush options set the next lines' ends (round, flat, square) and corners (round, sharp with a length limit, cut), filled as exact outlines; `edit_vector` `set_style` changes a drawn line (one undo step) |
 | Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
 | Select properties: modes, typed position, size and angle | TB | D | S | Lasso, rectangle, ellipse, wand; add, remove, overlap; X, Y, width, height (proportions kept) and angle typed and applied as one step; flips, skew, distort |
 | Transform tool properties with typed values | TB | D | M | The Transform tool (Q) drags the current layer's peg on the canvas: move, a corner to scale, a knob to turn, the pivot cross; one peg key per drag, Escape cancels; arrows, [ ] and Page Up / Down nudge; its options type Move X/Y, Rotation, Scale X/Y, or add a peg for a layer without one |
@@ -546,11 +546,11 @@ Weight: 4
 |---|---|---|---|---|
 | Pen pressure and tilt on X11 and macOS | all | D | S | Shared photocraft-tablet reader, also under Xwayland |
 | Pen pressure and tilt on Windows | all | P | S | Windows Ink gives pressure (as touch force), the eraser end and the barrel button; Preferences ▸ Pen ▸ WinTab reads pressure, tilt and rotation through the shared WinTab backend. Built and type-checked for Windows, not yet run on Windows hardware |
-| Pen input in Wayland-native windows | all | M | M | |
+| Pen input in Wayland sessions | all | D | M | Rescoped from "Wayland-native windows" by the maintainer (2026-11-24): binding the tablet protocol on winit's connection needs `unsafe`. On a Wayland session with a pen attached (found in the kernel's input device list) the window opens through Xwayland, where the tablet reader gets pressure, tilt, rotation and the eraser end; `TOONCRAFT_NATIVE_WAYLAND=1` keeps the native window |
 | Pen eraser end switches tool | TV CS | D | S | |
 | Pen side buttons mapped to actions | TV CS | D | S | Preferences ▸ Pen: each side button (sent as a middle or right click on X11 and macOS, the barrel button through the pointer hooks on Windows) runs any command over the canvas while the pen is near, instead of panning or opening the menu |
 | Touch gestures: pinch zoom and twist, taps for undo and redo | CS PD | D | S | Pinch and twist; a two-finger tap undoes and a three-finger tap redoes (the stroke the first finger began is dropped) |
-| Palm rejection while the pen is near | CS PD | P | S | Touches are ignored while the pen is seen and for 1.2 s after; the pen is seen through the tablet reader (X11, Xwayland, macOS, Windows in WinTab mode). Not with Windows Ink (the pointer hooks do not say which touch is the pen) or in Wayland-native windows |
+| Palm rejection while the pen is near | CS PD | P | S | Touches are ignored while the pen is seen and for 1.2 s after; the pen is seen through the tablet reader (X11, Xwayland, macOS, Windows in WinTab mode). On a Wayland session the window opens through Xwayland when a pen is attached, so the pen is seen there too. Not yet with Windows Ink: the shared pointer hooks do not say which touch is the pen |
 | Global pressure curve and calibration | TV CS PD | D | S | Preferences ▸ Pen (`--open pen`): one curve for every brush, applied to pen and touch pressure (the mouse keeps its own setting); a calibration pad records test strokes and Fit Curve to My Hand makes the hardest press (95th percentile) full pressure |
 | End-to-end stroke latency measured | — | P | S | Engine latency per sample is measured; input-to-screen is not |
 | iPad and Android tablet builds | CS PD | O | XL | Out of scope: the suite targets desktop Linux, macOS and Windows |

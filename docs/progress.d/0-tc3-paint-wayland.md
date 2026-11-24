@@ -1,0 +1,1 @@
+- 2026-11-24: Pen in Wayland sessions: with a pen attached the window opens through Xwayland (where the pen works) instead of as a Wayland-native window; `TOONCRAFT_NATIVE_WAYLAND=1` keeps the native window. The parity row is rescoped from "Wayland-native windows" by the maintainer.

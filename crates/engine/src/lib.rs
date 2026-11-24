@@ -32,6 +32,9 @@ mod interchange;
 mod layerops;
 pub mod library;
 pub mod lipsync;
+pub mod liquify;
+#[cfg(test)]
+mod liquify_tests;
 pub mod macros;
 pub mod paging;
 pub mod playback;
@@ -46,7 +49,7 @@ pub mod vector;
 #[cfg(test)]
 mod vector_tests;
 
-pub use command::{Command, FillReference, MAX_BATCH, sheet};
+pub use command::{Command, CompEdit, FillReference, MAX_BATCH, sheet};
 pub use interchange::{MAX_VIDEO_BYTES, VideoImport};
 pub use undo::Entry;
 
@@ -66,6 +69,8 @@ pub enum EngineError {
     Doc(#[from] DocError),
     #[error(transparent)]
     Raster(#[from] RasterError),
+    #[error(transparent)]
+    Comp(#[from] tooncraft_doc::comp::CompError),
     #[error("the layer has no mask")]
     NoMask,
     #[error("the layer already has a mask")]
@@ -169,6 +174,8 @@ pub struct Engine {
     /// drawings may stay in memory (see [`paging`]).
     pub(crate) pages: Option<std::sync::Arc<tooncraft_doc::paging::PageFile>>,
     pub page_budget: u64,
+    /// Ends and corners of new lines drawn on vector layers (not saved with the shot).
+    pub line_style: tooncraft_vector::LineStyle,
 }
 
 impl Engine {
@@ -184,6 +191,7 @@ impl Engine {
             saved_at: 0,
             pages: None,
             page_budget: paging::DEFAULT_PAGE_BUDGET,
+            line_style: Default::default(),
             recording: None,
         }
     }
@@ -408,7 +416,7 @@ impl Engine {
         let stroke = Stroke::begin_with(surface, brush, images);
         let (w, h) = (self.project.width(), self.project.height());
         let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush).at_frame(frame))).collect();
-        let vector = vector::Live::begin(&self.project, layer, frame, drawing, brush);
+        let vector = vector::Live::begin(&self.project, layer, frame, drawing, brush, self.line_style);
         let snap = self.project.rulers.snapper(w, h);
         self.live = Some(LiveStroke {
             last: None,
@@ -574,6 +582,19 @@ impl Engine {
         Ok(n)
     }
 
+    /// The undo parts of one fill (`None`: nothing filled), without pushing an undo step.
+    pub(crate) fn fill_parts_for(
+        &mut self,
+        layer: usize,
+        frame: u32,
+        at: (u32, u32),
+        color: [u8; 4],
+        options: FillOptions,
+        reference: FillReference,
+    ) -> Result<Option<Vec<Part>>> {
+        self.fill_parts(layer, frame, at.0, at.1, color, options, reference)
+    }
+
     fn fill_parts(
         &mut self,
         layer: usize,
@@ -644,6 +665,8 @@ impl Engine {
 
 #[cfg(test)]
 mod colour_art_tests;
+#[cfg(test)]
+mod comp_tests;
 #[cfg(test)]
 mod history_tests;
 #[cfg(test)]

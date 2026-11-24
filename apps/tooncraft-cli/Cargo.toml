@@ -28,3 +28,4 @@ serde_json = { workspace = true }
 epaint_default_fonts = "0.37"
 
 [dev-dependencies]
+craft-psd = { workspace = true }

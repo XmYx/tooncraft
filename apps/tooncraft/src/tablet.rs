@@ -9,7 +9,8 @@
 //!   not say which touch is the pen, so palm rejection needs WinTab mode there.) With Preferences ▸ Pen ▸ "WinTab" (Windows Ink off for the tablet in its driver), a
 //!   WinTab 1.4 context on the window supplies pressure, tilt, rotation and the eraser end too.
 //! - **Wayland-native windows** get no pen data: the tablet protocol needs `unsafe` interop on
-//!   winit's own connection, which ToonCraft does not allow.
+//!   winit's own connection, which ToonCraft does not allow. So on a Wayland session with a pen
+//!   attached the window opens through Xwayland instead (`display_session.rs`).
 //!
 //! Side buttons: X11 and macOS drivers send a pen's side buttons as the middle and right mouse
 //! buttons; on Windows the barrel button comes from the pointer hook. While the pen is near, a

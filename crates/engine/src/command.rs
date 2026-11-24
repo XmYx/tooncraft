@@ -57,6 +57,23 @@ pub enum Command {
         #[serde(default)]
         reference: FillReference,
     },
+    /// Fill with swatch `swatch` of the shot's palette `palette`, and link the paint to the
+    /// swatch so editing it later recolours this paint (and not other paint of that colour).
+    /// `all_frames`: the same point in every drawing on the layer.
+    SwatchFill {
+        palette: usize,
+        swatch: usize,
+        layer: usize,
+        frame: u32,
+        x: u32,
+        y: u32,
+        #[serde(default)]
+        options: FillOptions,
+        #[serde(default)]
+        reference: FillReference,
+        #[serde(default)]
+        all_frames: bool,
+    },
     /// Fill the same point in every drawing exposed on the layer (one undo step).
     FillAllFrames {
         layer: usize,
@@ -117,6 +134,16 @@ pub enum Command {
         /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
         #[serde(default, skip_serializing_if = "is_hard")]
         feather: f32,
+    },
+    /// Liquify along `points`: push, twirl, pinch or bloat the pixels under a soft brush.
+    Liquify {
+        layer: usize,
+        frame: u32,
+        #[serde(default)]
+        mode: crate::liquify::LiquifyMode,
+        #[serde(default)]
+        brush: crate::liquify::LiquifyBrush,
+        points: Vec<(f32, f32)>,
     },
     /// The clone stamp along `points`: each pixel takes the one at `offset` (source minus
     /// destination) on `source_layer` (this layer when absent) at the same frame.
@@ -521,6 +548,9 @@ pub enum Command {
         points: Vec<tooncraft_vector::VPoint>,
         #[serde(default = "vector_tolerance")]
         tolerance: f32,
+        /// Ends and corners (round and round when absent).
+        #[serde(default, skip_serializing_if = "tooncraft_vector::LineStyle::is_round")]
+        style: tooncraft_vector::LineStyle,
     },
     /// Change one stroke of a vector drawing: move a point, its width, smooth, erase to the
     /// crossings, delete, recolour.
@@ -679,6 +709,16 @@ pub enum Command {
         #[serde(default)]
         settings: tooncraft_lipsync::Settings,
     },
+    /// Key the mouths of a typed line of dialogue on the layer from `from`: laid over the voiced
+    /// frames of the shot's sound, or (with no sound) `settings.min_hold` frames per shape.
+    LipSyncText {
+        layer: usize,
+        #[serde(default)]
+        from: u32,
+        text: String,
+        #[serde(default)]
+        settings: tooncraft_lipsync::Settings,
+    },
     /// Key a mouth timing sheet (ToonCraft mouth sheet or switch data) on the layer from `from`.
     ImportMouthSheet {
         layer: usize,
@@ -740,6 +780,22 @@ pub enum Command {
         #[serde(default)]
         resample: tooncraft_raster::select::Resample,
         /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
+    },
+    /// Warp the pixels inside `polygon` with a grid of `cols` × `rows` cells over its box:
+    /// `points` ((cols + 1) × (rows + 1), row by row) are where the grid's points go.
+    MeshWarpSelection {
+        layer: usize,
+        frame: u32,
+        polygon: Vec<(f32, f32)>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        rings: Vec<Vec<(f32, f32)>>,
+        cols: u32,
+        rows: u32,
+        points: Vec<(f32, f32)>,
+        #[serde(default)]
+        resample: tooncraft_raster::select::Resample,
         #[serde(default, skip_serializing_if = "is_hard")]
         feather: f32,
     },
@@ -1100,6 +1156,10 @@ pub enum Command {
     RemoveLayerMask {
         layer: usize,
     },
+    /// One edit of the shot's compositing graph (one undo step).
+    EditComp {
+        edit: CompEdit,
+    },
     /// Several commands as one undo step called `label` (at most [`MAX_BATCH`], none of them a
     /// batch). When one fails, the ones before it are undone and the error is returned, so the
     /// project is as it was.
@@ -1248,6 +1308,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             frame_ok(e, frame)?;
             e.fill(layer, frame, x, y, color, options, reference).map(|_| ())
         }
+        Command::SwatchFill { palette, swatch, layer, frame, x, y, options, reference, all_frames } => {
+            frame_ok(e, frame)?;
+            crate::drawing::swatch_fill(e, (palette, swatch), layer, frame, (x, y), options, reference, all_frames)
+        }
         Command::FillAllFrames { layer, x, y, color, options, reference } => e.fill_all(layer, x, y, color, options, reference).map(|_| ()),
         Command::Shape { layer, frame, brush, shape, from, to, constrain } => {
             let samples = crate::shapes::samples(shape, from, to, constrain, 1.0);
@@ -1270,6 +1334,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
                 stops
             };
             crate::drawing::gradient(e, layer, frame, kind, from, to, &stops, area.as_deref(), &area_rings, feather)
+        }
+        Command::Liquify { layer, frame, mode, brush, points } => {
+            frame_ok(e, frame)?;
+            crate::liquify::liquify(e, layer, frame, mode, brush, &points)
         }
         Command::CloneStamp { layer, frame, source_layer, offset, tip, points } => {
             frame_ok(e, frame)?;
@@ -1473,6 +1541,9 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::DistortSelection { layer, frame, polygon, rings, corners, resample, feather } => {
             crate::select::distort(e, layer, frame, (&polygon, &rings, feather), corners, resample)
         }
+        Command::MeshWarpSelection { layer, frame, polygon, rings, cols, rows, points, resample, feather } => {
+            crate::select::mesh_warp(e, layer, frame, (&polygon, &rings, feather), cols, rows, &points, resample)
+        }
         Command::ClearSelection { layer, frame, polygon, rings, feather } => crate::select::clear(e, layer, frame, (&polygon, &rings, feather)),
         Command::PastePixels { layer, frame, x, y, width, height, rgba } => crate::select::paste(e, layer, frame, (x, y), width, height, &rgba),
         Command::SetSound { path, offset } => crate::audio::set(e, path.as_deref(), offset),
@@ -1662,7 +1733,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.vector = vector;
             Ok(())
         }),
-        Command::VectorStroke { layer, frame, color, points, tolerance } => crate::vector::add_stroke(e, layer, frame, color, &points, tolerance),
+        Command::VectorStroke { layer, frame, color, points, tolerance, style } => crate::vector::add_stroke(e, layer, frame, color, &points, tolerance, style),
         Command::EditVector { layer, frame, edit } => crate::vector::edit(e, layer, frame, edit),
         Command::SetLayerDepth { layer, depth } => edit_layers(e, "Layer depth", |e| {
             let d = if depth.is_finite() { depth.clamp(tooncraft_doc::camera::MIN_DEPTH, tooncraft_doc::camera::MAX_DEPTH) } else { 0.0 };
@@ -1772,6 +1843,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }),
         Command::LipSync { layer, from, settings } => crate::lipsync::detect(e, layer, from, settings).map(|_| ()),
+        Command::LipSyncText { layer, from, text, settings } => crate::lipsync::from_text(e, layer, from, &text, settings).map(|_| ()),
         Command::ImportMouthSheet { layer, path, from } => crate::lipsync::import(e, layer, &path, from).map(|_| ()),
         Command::SetAudioTrack { track, name, muted, solo, volume } => crate::audio::set_track(e, track, |t| {
             if let Some(v) = name {
@@ -2172,8 +2244,94 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.mask.take().ok_or(EngineError::NoMask)?;
             Ok(())
         }),
+        Command::EditComp { edit } => edit_comp(e, edit),
         Command::Batch { label, commands } => batch(e, &label, commands),
     }
+}
+
+/// One edit of the compositing graph.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case")]
+pub enum CompEdit {
+    /// Replace the graph with one that matches the layer stack, switched on.
+    FromLayers,
+    /// Switch the graph on or off.
+    SetEnabled {
+        enabled: bool,
+    },
+    AddNode {
+        kind: tooncraft_doc::comp::NodeKind,
+        #[serde(default)]
+        pos: [f32; 2],
+    },
+    RemoveNode {
+        node: u64,
+    },
+    /// Link an output to an input (it replaces any link into that input).
+    Link {
+        from: u64,
+        to: u64,
+        input: usize,
+    },
+    Unlink {
+        to: u64,
+        input: usize,
+    },
+    MoveNode {
+        node: u64,
+        pos: [f32; 2],
+    },
+    /// Change what a node does (its settings).
+    SetNode {
+        node: u64,
+        kind: tooncraft_doc::comp::NodeKind,
+    },
+}
+
+fn edit_comp(e: &mut Engine, edit: CompEdit) -> Result<()> {
+    let before = e.project.comp.clone();
+    let fresh = matches!(edit, CompEdit::FromLayers).then(|| tooncraft_doc::comp::CompGraph::from_layers(&e.project));
+    let g = &mut e.project.comp;
+    let label = match edit {
+        CompEdit::FromLayers => {
+            if let Some(f) = fresh {
+                *g = f;
+            }
+            "Compositing graph from layers"
+        }
+        CompEdit::SetEnabled { enabled } => {
+            g.enabled = enabled;
+            "Compositing graph on or off"
+        }
+        CompEdit::AddNode { kind, pos } => {
+            g.add(kind, pos)?;
+            "Add node"
+        }
+        CompEdit::RemoveNode { node } => {
+            g.remove(node)?;
+            "Remove node"
+        }
+        CompEdit::Link { from, to, input } => {
+            g.link(tooncraft_doc::comp::CompLink { from, to, input })?;
+            "Link nodes"
+        }
+        CompEdit::Unlink { to, input } => {
+            g.unlink(to, input);
+            "Unlink nodes"
+        }
+        CompEdit::MoveNode { node, pos } => {
+            g.place(node, pos)?;
+            "Move node"
+        }
+        CompEdit::SetNode { node, kind } => {
+            g.set_kind(node, kind)?;
+            "Node settings"
+        }
+    };
+    if e.project.comp != before {
+        e.push(Entry { label: label.into(), parts: vec![Part::Comp(Box::new(before))] });
+    }
+    Ok(())
 }
 
 /// Apply `commands` as one undo step; on an error, undo the ones applied and return it.

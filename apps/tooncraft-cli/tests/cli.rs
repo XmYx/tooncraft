@@ -310,6 +310,36 @@ fn import_video_round_trip() {
 }
 
 #[test]
+fn photoshop_brushes_become_toonbrush_files() {
+    use craft_psd::abr::{AbrSample, LegacyBrush, LegacyTip, write_v12};
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-abr-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let _gone = Gone(dir.clone());
+    let dot = AbrSample { id: String::new(), width: 12, height: 12, depth: 8, data: vec![200; 144] };
+    let brushes = [
+        LegacyBrush { name: "Soft/Dot".into(), spacing: 20, anti_alias: true, tip: LegacyTip::Sampled(dot.clone()) },
+        LegacyBrush { name: "Soft/Dot".into(), spacing: 20, anti_alias: true, tip: LegacyTip::Sampled(dot) },
+    ];
+    let abr = dir.join("set.abr");
+    std::fs::write(&abr, write_v12(2, &brushes, false).unwrap()).unwrap();
+    let out_dir = dir.join("out");
+    let (ok, out) = cli(&["brush", "import-abr", abr.to_str().unwrap(), out_dir.to_str().unwrap()]);
+    assert!(ok, "{out}");
+    let mut files: Vec<String> = std::fs::read_dir(&out_dir).unwrap().filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+    files.sort();
+    assert_eq!(files, ["Soft_Dot 2.toonbrush", "Soft_Dot.toonbrush"], "safe, unique file names");
+    // each is a working preset with its tip
+    let (ok, info) = cli(&["brush", "info", out_dir.join("Soft_Dot.toonbrush").to_str().unwrap()]);
+    assert!(ok, "{info}");
+    let v: serde_json::Value = serde_json::from_str(&info).unwrap();
+    assert_eq!(v["name"], "Soft/Dot");
+    assert_eq!(v["tip"]["size"], serde_json::json!([12, 12]));
+    let (ok, msg) = cli(&["brush", "import-abr", dir.join("missing.abr").to_str().unwrap(), out_dir.to_str().unwrap()]);
+    assert!(!ok && !msg.is_empty());
+}
+
+#[test]
 fn scripts_run_and_batch() {
     struct Gone(std::path::PathBuf);
     impl Drop for Gone {
