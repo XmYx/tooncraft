@@ -9,7 +9,7 @@ Options:
   --frame <N>                start on frame N (1-based)
   --screenshot <PNG>         render the window once to PNG and quit
   --panel <NAME>             bring a panel to the front (timeline, layers, brush, colour, onion, camera,
-                             pegs, library, effects, sound, lipsync, timing, history,
+                             pegs, library, effects, sound, lipsync, timing, history, drawings,
                              curves)
   --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size,
                              start, scene

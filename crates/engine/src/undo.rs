@@ -37,6 +37,8 @@ pub(crate) enum Part {
         id: u64,
         tip: Option<std::sync::Arc<tooncraft_brush::Tip>>,
     },
+    /// The shot's drawing library (its items, not their drawings).
+    Library(Vec<tooncraft_doc::library::Item>),
 }
 
 /// One undo step.
@@ -86,6 +88,7 @@ impl Entry {
                     Part::Tip { id, tip: old }
                 }
                 Part::Folders(f) => Part::Folders(std::mem::replace(&mut p.folders, f)),
+                Part::Library(l) => Part::Library(std::mem::replace(&mut p.library, l)),
                 Part::Pegs(g) => Part::Pegs(std::mem::replace(&mut p.pegs, g)),
                 Part::Whole(w) => Part::Whole(Box::new(std::mem::replace(p, *w))),
                 Part::Marks(m) => Part::Marks(std::mem::replace(&mut p.marks, m)),
