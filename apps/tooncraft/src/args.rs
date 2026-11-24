@@ -10,9 +10,9 @@ Options:
   --screenshot <PNG>         render the window once to PNG and quit
   --panel <NAME>             bring a panel to the front (timeline, layers, brush, colour, onion, camera,
                              pegs, library, effects, sound, lipsync, timing, history, drawings,
-                             curves)
+                             curves, palette)
   --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size,
-                             start, scene, colour-picker, icons
+                             start, scene, colour-picker, icons, radial
   --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet
   --vertical                 show the exposure sheet down the page
   --tool <NAME>              start with a tool (pencil, ink, fill, gradient, select, shape …)
@@ -56,7 +56,8 @@ pub struct Cli {
 }
 
 /// The windows `--open` knows.
-pub const OPEN_NAMES: [&str; 10] = ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size", "start", "scene", "colour-picker", "icons"];
+pub const OPEN_NAMES: [&str; 11] =
+    ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size", "start", "scene", "colour-picker", "icons", "radial"];
 /// The right-click menus `--context-menu` knows.
 pub const CONTEXT_MENU_NAMES: [&str; 11] = ["canvas", "selection", "cell", "ruler", "layer", "tool", "tab", "swatch", "brush", "library", "onion"];
 /// The layouts `--layout` knows.
