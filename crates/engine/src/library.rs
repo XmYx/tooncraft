@@ -430,11 +430,31 @@ fn collect(dir: &Path, depth: u32, out: &mut Vec<PathBuf>) {
 mod tests {
     use super::*;
 
-    fn dir(name: &str) -> PathBuf {
+    /// Removes a test's folder when the test ends, also when it fails: the bound tests write
+    /// thousands of files, and leaving them behind filled a small /tmp after a few runs.
+    struct Gone(PathBuf);
+
+    impl Drop for Gone {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    /// An empty folder for one test, and the guard that removes it.
+    fn dir(name: &str) -> (PathBuf, Gone) {
         let d = std::env::temp_dir().join(format!("tooncraft-library-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
-        d
+        (d.clone(), Gone(d))
+    }
+
+    #[test]
+    fn test_folders_are_removed_when_the_test_ends() {
+        let (d, gone) = dir("removed");
+        std::fs::write(d.join("a.toonbrush"), b"").unwrap();
+        assert!(d.exists());
+        drop(gone);
+        assert!(!d.exists(), "the folder and its files are gone");
     }
 
     fn q(text: &str) -> Query {
@@ -486,7 +506,7 @@ mod tests {
 
     #[test]
     fn favourites_and_recents_persist_and_are_bounded() {
-        let d = dir("persist");
+        let (d, _gone) = dir("persist");
         let mut l = Library::new(Some(d.clone()));
         assert!(l.favourites().is_empty() && l.recent().is_empty());
         l.set_favourite("builtin:Fine liner", true).unwrap();
@@ -517,7 +537,7 @@ mod tests {
 
     #[test]
     fn a_damaged_index_is_ignored() {
-        let d = dir("damaged");
+        let (d, _gone) = dir("damaged");
         std::fs::write(d.join(INDEX), b"{ not json").unwrap();
         let l = Library::new(Some(d.clone()));
         assert!(l.favourites().is_empty());
@@ -532,7 +552,7 @@ mod tests {
 
     #[test]
     fn files_are_found_by_folder_and_name() {
-        let d = dir("files");
+        let (d, _gone) = dir("files");
         let mut l = Library::new(Some(d.clone()));
         let brush = Brush { size: 21.0, ..Brush::preset(BrushKind::Chalk) };
         let id = l.add("Dusty", "Textures", &brush, None).unwrap();
@@ -563,7 +583,7 @@ mod tests {
 
     #[test]
     fn hostile_names_cannot_leave_the_library_folder() {
-        let d = dir("hostile");
+        let (d, _gone) = dir("hostile");
         let mut l = Library::new(Some(d.clone()));
         let brush = Brush::default();
         for (name, cat) in
@@ -600,7 +620,7 @@ mod tests {
         }
         assert_eq!(clean_category("nul"), "_nul");
         assert_eq!(clean_category("\u{0}nul"), "_nul");
-        let d = dir("reserved");
+        let (d, _gone) = dir("reserved");
         let mut l = Library::new(Some(d.clone()));
         let id = l.add("PRN", "AUX", &Brush::default(), None).unwrap();
         assert_eq!(id, "file:_AUX/_PRN.toonbrush");
@@ -609,7 +629,7 @@ mod tests {
 
     #[test]
     fn a_folder_called_my_brushes_does_not_clash_with_loose_files() {
-        let d = dir("clash");
+        let (d, _gone) = dir("clash");
         let mut l = Library::new(Some(d.clone()));
         let loose = l.add("Same", "", &Brush { size: 11.0, ..Brush::default() }, None).unwrap();
         std::fs::create_dir_all(d.join("My brushes")).unwrap();
@@ -641,7 +661,7 @@ mod tests {
 
     #[test]
     fn opening_does_not_read_brush_files_until_asked() {
-        let d = dir("lazy");
+        let (d, _gone) = dir("lazy");
         let mut l = Library::new(Some(d.clone()));
         l.add("Mine", "Cat", &Brush::default(), None).unwrap();
         let fresh = Library::unscanned(Some(d));
@@ -650,7 +670,7 @@ mod tests {
         fresh.rescan();
         assert!(fresh.get("file:Cat/Mine.toonbrush").is_some());
         // a large file is not listed
-        let big = dir("big");
+        let (big, _gone_big) = dir("big");
         let p = big.join("huge.toonbrush");
         std::fs::write(&p, vec![0u8; (preset::MAX_PEEK_BYTES + 1) as usize]).unwrap();
         assert!(preset::peek(&p).unwrap_err().contains("too large"));
@@ -658,7 +678,7 @@ mod tests {
 
     #[test]
     fn collecting_stops_at_a_bound() {
-        let d = dir("collect");
+        let (d, _gone) = dir("collect");
         for f in 0..4 {
             let sub = d.join(format!("c{f}"));
             std::fs::create_dir_all(&sub).unwrap();
@@ -674,7 +694,7 @@ mod tests {
 
     #[test]
     fn the_scan_is_bounded() {
-        let d = dir("many");
+        let (d, _gone) = dir("many");
         let b = Brush::default();
         let bytes = {
             let p = d.join("one.toonbrush");

@@ -51,47 +51,14 @@ impl Pane {
         Pane::Curves,
     ];
 
+    /// The panel's title (from the panel registry).
     pub fn label(self) -> String {
-        match self {
-            Pane::Canvas => tl!("Canvas"),
-            Pane::Timeline => tl!("Timeline"),
-            Pane::Colour => tl!("Colour"),
-            Pane::Brush => tl!("Brush"),
-            Pane::Layers => tl!("Layers"),
-            Pane::Onion => tl!("Onion Skin"),
-            Pane::Camera => tl!("Camera"),
-            Pane::Pegs => tl!("Pegs"),
-            Pane::Library => tl!("Brushes"),
-            Pane::Effects => tl!("Effects"),
-            Pane::Sound => tl!("Sound"),
-            Pane::LipSync => tl!("Lip Sync"),
-            Pane::Timing => tl!("Timing"),
-            Pane::History => tl!("Undo History"),
-            Pane::Drawings => tl!("Drawing Library"),
-            Pane::Curves => tl!("Curves"),
-        }
-        .to_string()
+        crate::panel_views::view(self).title()
     }
 
+    /// The panel a `--panel` name means (the canvas for an unknown name).
     pub fn from_name(name: &str) -> Pane {
-        match name.to_ascii_lowercase().as_str() {
-            "timeline" => Pane::Timeline,
-            "colour" | "color" => Pane::Colour,
-            "brush" => Pane::Brush,
-            "onion" => Pane::Onion,
-            "layers" => Pane::Layers,
-            "camera" => Pane::Camera,
-            "pegs" => Pane::Pegs,
-            "library" | "brushes" => Pane::Library,
-            "effects" => Pane::Effects,
-            "sound" => Pane::Sound,
-            "lipsync" | "lip-sync" => Pane::LipSync,
-            "timing" => Pane::Timing,
-            "history" => Pane::History,
-            "drawings" | "drawing-library" => Pane::Drawings,
-            "curves" | "curve" => Pane::Curves,
-            _ => Pane::Canvas,
-        }
+        crate::panel_views::by_name(name).unwrap_or(Pane::Canvas)
     }
 
     pub fn permissions(self) -> Permissions {
