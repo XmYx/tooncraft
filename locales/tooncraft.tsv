@@ -893,6 +893,7 @@ tooncraft	New-shot and onion settings apply to shots made from now on.
 tooncraft	Next Drawing	
 tooncraft	Next Frame	
 tooncraft	Next Key Drawing	
+tooncraft	Next Line	
 tooncraft	Next Marker	
 tooncraft	Next drawing	
 tooncraft	Next frame	
@@ -1139,6 +1140,7 @@ tooncraft	Previous / next frame (timeline: move)
 tooncraft	Previous Drawing	
 tooncraft	Previous Frame	
 tooncraft	Previous Key Drawing	
+tooncraft	Previous Line	
 tooncraft	Previous Marker	
 tooncraft	Previous colour #{hex}	
 tooncraft	Previous drawing	
