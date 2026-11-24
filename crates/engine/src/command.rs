@@ -121,6 +121,36 @@ pub enum Command {
         #[serde(default = "yes")]
         update_paint: bool,
     },
+    /// Save the layer's cells `from..=to` (0-based frames, either order) as a drawing-library item
+    /// called `name`, with its own copies of the drawings. One undo step.
+    SaveToLibrary {
+        layer: usize,
+        from: u32,
+        to: u32,
+        name: String,
+    },
+    /// Put library item `item` on the layer from `frame` on, over the cells there (cut at the end of
+    /// the shot). `linked`: the layer shows the item's own drawings, so drawing on one changes the
+    /// item and every linked use; otherwise the layer gets new copies. One undo step.
+    InsertFromLibrary {
+        item: usize,
+        layer: usize,
+        frame: u32,
+        #[serde(default)]
+        linked: bool,
+    },
+    RenameLibraryItem {
+        item: usize,
+        name: String,
+    },
+    /// Remove a library item (its drawings go with Purge Unused unless a linked layer shows them).
+    RemoveLibraryItem {
+        item: usize,
+    },
+    MoveLibraryItem {
+        item: usize,
+        to: usize,
+    },
     /// In every drawing of the layer, give the pixels close to `from` (within `tolerance` per
     /// channel) the colour `to`, keeping their opacity (antialiased edges stay soft). One undo
     /// step.
@@ -986,6 +1016,11 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }
         Command::EditSwatch { palette, swatch, rgb, name, update_paint } => crate::drawing::edit_swatch(e, palette, swatch, rgb, name, update_paint),
+        Command::SaveToLibrary { layer, from, to, name } => crate::drawing_library::save(e, layer, from, to, &name),
+        Command::InsertFromLibrary { item, layer, frame, linked } => crate::drawing_library::insert(e, item, layer, frame, linked),
+        Command::RenameLibraryItem { item, name } => crate::drawing_library::rename(e, item, &name),
+        Command::RemoveLibraryItem { item } => crate::drawing_library::remove(e, item),
+        Command::MoveLibraryItem { item, to } => crate::drawing_library::move_item(e, item, to),
         Command::RecolourLayer { layer, from, to, tolerance } => crate::drawing::recolour(e, layer, from, to, tolerance),
         Command::SetSymmetry { symmetry } => {
             e.project.symmetry = symmetry.sanitized();

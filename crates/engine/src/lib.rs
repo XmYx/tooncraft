@@ -18,6 +18,7 @@ mod command;
 mod curves_tests;
 pub mod demo;
 pub mod drawing;
+mod drawing_library;
 #[cfg(test)]
 mod drawing_tests;
 mod effects;
@@ -86,6 +87,8 @@ pub enum EngineError {
     TransparencyLocked(String),
     #[error("there is no swatch {1} in palette {0}")]
     NoSwatch(usize, usize),
+    #[error("there is no library item {0}")]
+    NoLibraryItem(usize),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
@@ -494,6 +497,7 @@ mod history_tests;
 mod layerops_tests;
 #[cfg(test)]
 mod swatch_tests;
+mod library_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
