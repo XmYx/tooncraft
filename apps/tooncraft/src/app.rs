@@ -489,6 +489,10 @@ impl ToonApp {
             app.sel_anchor = Some((app.layer, a.min(last)));
             app.frame = b.min(last);
         }
+        if let Some((a, b)) = cli.loop_range {
+            let len = app.engine.project.length();
+            app.tl.range = crate::timeline_ruler::moved(Some((a, b)), crate::timeline_ruler::End::In, a.min(b) as i64, len);
+        }
         crate::preferences::apply_live(&mut app);
         crate::preferences::apply_tool_defaults(&mut app);
         app.thumbnails = cli.thumbnails || app.preferences.prefs.thumbnails;
