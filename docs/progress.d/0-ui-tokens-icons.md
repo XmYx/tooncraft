@@ -1,0 +1,1 @@
+- 2026-11-24: Shared UI foundation: the §2 design tokens (surfaces, separators, hold, onion before/after, cell marks, metrics) with contrast checks, one code-drawn icon family of 88 glyphs with an accessible icon button that shows its shortcut, and Help ▸ Icon Reference (`--open icons`).
