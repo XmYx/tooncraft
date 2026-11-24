@@ -332,3 +332,28 @@ pub fn layer(app: &mut ToonApp, ui: &mut Ui, li: usize) {
         ui.close();
     }
 }
+
+fn launch_id() -> egui::Id {
+    egui::Id::new("tooncraft-launch-context-menu")
+}
+
+/// `--context-menu <target>`: remember the menu to open on the first frame, and set the shot up
+/// so the menu has something to act on (a selection for the selection menu).
+pub fn prepare_launch(app: &mut ToonApp, ctx: &egui::Context, target: &str) {
+    if target == "selection" && app.selection.is_none() {
+        let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+        crate::selection_tools::set_rings(app, vec![vec![(w * 0.3, h * 0.3), (w * 0.6, h * 0.3), (w * 0.6, h * 0.65), (w * 0.3, h * 0.65)]]);
+        app.tool = Tool::Select;
+    }
+    let target = target.to_string();
+    ctx.data_mut(|d| d.insert_temp(launch_id(), target));
+}
+
+/// Whether the launch asked for `target`'s menu; true once, then it is forgotten.
+pub fn launch_now(ctx: &egui::Context, target: &str) -> bool {
+    let wanted = ctx.data(|d| d.get_temp::<String>(launch_id())).is_some_and(|t| t == target);
+    if wanted {
+        ctx.data_mut(|d| d.remove::<String>(launch_id()));
+    }
+    wanted
+}

@@ -642,7 +642,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     // Shift+F10 or the Menu key: the menu of the current cell, from the keyboard
     if let Some((li, f, resp)) = current_cell.take() {
-        let now = menu_key(ui) && ui.memory(|m| m.has_focus(grid_id()));
+        let now = crate::context_menus::launch_now(ui.ctx(), "cell") || menu_key(ui) && ui.memory(|m| m.has_focus(grid_id()));
         keyboard_menu(ui, &resp, now, |ui| crate::context_menus::cell(app, ui, li, f));
     }
     for (li, f, resp) in cell_menus {

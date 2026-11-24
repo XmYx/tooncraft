@@ -513,6 +513,9 @@ impl ToonApp {
         if cli.rulers {
             crate::rulers_ui::demo(&mut app);
         }
+        if let Some(target) = cli.context_menu.as_deref() {
+            crate::context_menus::prepare_launch(&mut app, ctx, target);
+        }
         if let Some(p) = app.path.clone() {
             crate::start_screen::note(&mut app, &p);
         }

@@ -22,6 +22,8 @@ Options:
   --rulers                   start with a straight ruler and two-point perspective rulers on
   --thumbnails               start with drawing thumbnails in the timeline
   --light                    light theme
+  --context-menu <TARGET>    open a right-click menu (for screenshots): canvas, selection, cell, ruler,
+                             layer, tool, tab, swatch, brush, library, onion
   -h, --help                 print this help
   -V, --version              print the version
 ";
@@ -44,10 +46,14 @@ pub struct Cli {
     pub vertical: bool,
     pub tool: Option<String>,
     pub rulers: bool,
+    /// A right-click menu to open at start (for screenshots of the menus).
+    pub context_menu: Option<String>,
 }
 
 /// The windows `--open` knows.
 pub const OPEN_NAMES: [&str; 9] = ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size", "start", "scene", "colour-picker"];
+/// The right-click menus `--context-menu` knows.
+pub const CONTEXT_MENU_NAMES: [&str; 11] = ["canvas", "selection", "cell", "ruler", "layer", "tool", "tab", "swatch", "brush", "library", "onion"];
 /// The layouts `--layout` knows.
 pub const LAYOUT_NAMES: [&str; 4] = ["drawing", "timing", "ink-paint", "sheet"];
 
@@ -111,6 +117,13 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
                 cli.layout = Some(v);
             }
             "--vertical" => cli.vertical = true,
+            "--context-menu" => {
+                let v = it.next().ok_or("--context-menu needs a target")?;
+                if !CONTEXT_MENU_NAMES.contains(&v.as_str()) {
+                    return Err(format!("--context-menu: unknown target {v} (one of {})", CONTEXT_MENU_NAMES.join(", ")));
+                }
+                cli.context_menu = Some(v);
+            }
             "--tool" => cli.tool = Some(it.next().ok_or("--tool needs a name")?),
             "--bench-playback" => {
                 let v = it.next().ok_or("--bench-playback needs seconds")?;
@@ -147,5 +160,8 @@ mod tests {
         assert!(s(&["--open", "nope"]).is_err());
         assert!(s(&["--layout", "nope"]).is_err());
         assert!(s(&["--open"]).is_err());
+        assert_eq!(s(&["--context-menu", "cell"]), Ok(Launch::Run(Cli { context_menu: Some("cell".into()), ..Default::default() })));
+        assert!(s(&["--context-menu", "nope"]).is_err());
+        assert!(s(&["--context-menu"]).is_err());
     }
 }
