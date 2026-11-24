@@ -133,10 +133,8 @@ fn search(app: &mut ToonApp, ui: &mut egui::Ui) {
     let keyg = ui.painter().layout_no_wrap(key.clone(), egui::FontId::new((font.size * 0.85).max(11.0), font.family.clone()), pal.weak);
     let (r, resp) = ui.allocate_exact_size(vec2(text.size().x + keyg.size().x + 48.0, 24.0), Sense::click());
     ui.painter().rect(r, 4.0, pal.bg, Stroke::new(1.0, if resp.hovered() { pal.weak } else { pal.raised }), egui::StrokeKind::Inside);
-    // a magnifier drawn in place until the shared icon set has one
-    let c = r.left_center() + vec2(12.0, -1.0);
-    ui.painter().circle_stroke(c, 4.5, Stroke::new(1.5, pal.weak));
-    ui.painter().line_segment([c + vec2(3.2, 3.2), c + vec2(6.5, 6.5)], Stroke::new(1.5, pal.weak));
+    let glyph = egui::Rect::from_center_size(r.left_center() + vec2(12.0, 0.0), vec2(crate::theme::metrics::ICON, crate::theme::metrics::ICON));
+    crate::icons::paint(ui.painter(), glyph, crate::icons::Icon::Search, pal.weak, false);
     ui.painter().galley(egui::pos2(r.left() + 24.0, r.center().y - text.size().y * 0.5), text, pal.weak);
     let kr = egui::Rect::from_min_size(egui::pos2(r.right() - keyg.size().x - 10.0, r.center().y - keyg.size().y * 0.5), keyg.size());
     ui.painter().rect_stroke(kr.expand2(vec2(3.0, 1.0)), 3.0, Stroke::new(1.0, pal.raised), egui::StrokeKind::Inside);
@@ -153,46 +151,18 @@ fn search(app: &mut ToonApp, ui: &mut egui::Ui) {
 
 /// Undo and redo (laid out right to left: redo first).
 fn undo_redo(app: &mut ToonApp, ui: &mut egui::Ui) {
-    let can_redo = app.engine.can_redo();
-    if arrow_button(app, ui, true, can_redo, tl!("Redo step"), tl!("Redo (Ctrl+Shift+Z)"), tl!("Nothing to redo")).clicked() {
+    use crate::icons::{Icon, IconButton};
+    let side = 24.0;
+    let redo = IconButton::new(Icon::Redo, tl!("Redo step")).shortcut("Ctrl+Shift+Z").size(side);
+    let why = (!app.engine.can_redo()).then(|| tl!("Nothing to redo").to_string());
+    if ui.add(redo.disabled(why)).clicked() {
         app.redo();
     }
-    let can_undo = app.engine.can_undo();
-    if arrow_button(app, ui, false, can_undo, tl!("Undo step"), tl!("Undo (Ctrl+Z)"), tl!("Nothing to undo")).clicked() {
+    let undo = IconButton::new(Icon::Undo, tl!("Undo step")).shortcut("Ctrl+Z").size(side);
+    let why = (!app.engine.can_undo()).then(|| tl!("Nothing to undo").to_string());
+    if ui.add(undo.disabled(why)).clicked() {
         app.undo();
     }
-}
-
-/// A 24 px button with a curved arrow (to the right for redo), drawn in place until the shared
-/// icon set has undo and redo.
-fn arrow_button(app: &ToonApp, ui: &mut egui::Ui, redo: bool, enabled: bool, name: &str, tip: &str, why_not: &str) -> egui::Response {
-    let pal = crate::theme::palette(app.light_theme);
-    let sense = if enabled { Sense::click() } else { Sense::hover() };
-    let (r, resp) = ui.allocate_exact_size(vec2(24.0, 24.0), sense);
-    if enabled && resp.hovered() {
-        ui.painter().rect_filled(r, 4.0, pal.raised);
-    }
-    let colour = if enabled { pal.text } else { pal.weak.gamma_multiply(0.6) };
-    let st = Stroke::new(1.5, colour);
-    let c = r.center() + vec2(0.0, 1.5);
-    let flip = if redo { -1.0 } else { 1.0 };
-    // a half circle over the top, ending in an arrow head
-    let pts: Vec<egui::Pos2> = (0..=12)
-        .map(|k| {
-            let a = std::f32::consts::PI * (k as f32 / 12.0);
-            c + vec2(flip * 5.5 * a.cos(), -5.5 * a.sin())
-        })
-        .collect();
-    let tip_at = c + vec2(-flip * 5.5, 0.0);
-    ui.painter().add(egui::Shape::line(pts, st));
-    ui.painter().line_segment([tip_at, tip_at + vec2(flip * -2.8, -3.0)], st);
-    ui.painter().line_segment([tip_at, tip_at + vec2(flip * 3.0, -2.6)], st);
-    if resp.has_focus() {
-        ui.painter().rect_stroke(r, 4.0, Stroke::new(2.0, pal.playhead), egui::StrokeKind::Outside);
-    }
-    let name = name.to_string();
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, name.clone()));
-    resp.on_hover_text(if enabled { tip } else { why_not })
 }
 
 /// The current frame typed to go there, the playback in and out frames, the frame rate and the

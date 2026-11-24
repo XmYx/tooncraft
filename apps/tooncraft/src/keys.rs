@@ -6,65 +6,21 @@ use std::path::PathBuf;
 
 use craft_keymap::{Bindable, Binding, Chord, CommandRef, Keymap, Overrides, Platform, Policy, Scope, Scopes};
 
-/// (command id, label, default key).
-pub const COMMANDS: &[(&str, &str, &str)] = &[
-    ("tool.pencil", "Pencil", "P"),
-    ("tool.ink", "Ink pen", "N"),
-    ("tool.airbrush", "Airbrush", "A"),
-    ("tool.chalk", "Chalk", "C"),
-    ("tool.eraser", "Eraser", "E"),
-    ("tool.watercolour", "Watercolour", "W"),
-    ("tool.smudge", "Smudge", "K"),
-    ("tool.fill", "Paint bucket", "F"),
-    ("tool.picker", "Colour picker", "I"),
-    ("tool.select", "Select", "S"),
-    ("tool.shape", "Shapes", "U"),
-    ("tool.gradient", "Gradient", "G"),
-    ("tool.hand", "Hand", "H"),
-    ("tool.transform", "Transform layer", "Q"),
-    ("tool.text", "Text", "T"),
-    ("tool.zoom", "Zoom view", "Z"),
-    ("tool.rotate_view", "Rotate view", "R"),
-    ("frame.play", "Play / stop", "Enter"),
-    ("frame.prev", "Previous frame", ","),
-    ("frame.next", "Next frame", "."),
-    ("frame.prev_drawing", "Previous drawing", "Ctrl+Left"),
-    ("frame.next_drawing", "Next drawing", "Ctrl+Right"),
-    ("app.find_command", "Find a command", "Ctrl+Shift+P"),
-    ("select.invert", "Invert selection", "Ctrl+Shift+I"),
-    ("frame.swap_next", "Show the next drawing of the layer here", "Ctrl+Alt+Down"),
-    ("frame.swap_prev", "Show the previous drawing of the layer here", "Ctrl+Alt+Up"),
-    ("flip.toggle", "Add or remove this frame from the flip set", "Ctrl+Alt+Enter"),
-    ("flip.next", "Flip to the next chosen frame", "Ctrl+Alt+Right"),
-    ("flip.prev", "Flip to the previous chosen frame", "Ctrl+Alt+Left"),
-    ("frame.prev_key", "Previous key drawing", "Ctrl+Shift+Left"),
-    ("frame.next_key", "Next key drawing", "Ctrl+Shift+Right"),
-    ("layer.prev", "Layer below", "Ctrl+Down"),
-    ("layer.next", "Layer above", "Ctrl+Up"),
-    ("frame.first", "First frame", "Home"),
-    ("frame.last", "Last frame", "End"),
-    ("frame.new_drawing", "New drawing", "Shift+N"),
-    ("frame.duplicate", "Duplicate drawing", "Shift+D"),
-    ("frame.insert", "Insert frame", "Insert"),
-    ("frame.delete", "Delete frame", "Shift+Delete"),
-    ("frame.hold_more", "Hold one frame longer", "="),
-    ("frame.hold_less", "Hold one frame shorter", "-"),
-    ("frame.clear", "Clear frame / erase selection", "Delete"),
-    ("view.onion", "Onion skin on / off", "O"),
-    ("view.mirror", "Mirror view", "M"),
-    ("view.pin", "Pin frame to the light table", "Shift+L"),
-    ("brush.smaller", "Smaller brush", "["),
-    ("brush.bigger", "Bigger brush", "]"),
-    ("library.find", "Find brush", "Ctrl+B"),
-    ("marker.toggle", "Add or remove a marker on this frame", "Shift+M"),
-    ("marker.next", "Next marker", "Alt+."),
-    ("marker.prev", "Previous marker", "Alt+,"),
-    ("timeline.zoom_in", "Zoom the timeline in", "Alt+="),
-    ("timeline.zoom_out", "Zoom the timeline out", "Alt+-"),
-];
+/// The remappable command ids, in the shortcut editor's order (from the command registry).
+pub fn ids() -> impl Iterator<Item = &'static str> {
+    crate::commands::remappable().map(|(id, _, _)| id)
+}
 
 pub fn label(id: &str) -> String {
-    COMMANDS.iter().find(|c| c.0 == id).map(|c| tl!(c.1).to_string()).unwrap_or_else(|| id.to_string())
+    crate::commands::get(id).map(|c| c.label()).unwrap_or_else(|| id.to_string())
+}
+
+/// A key as the user sees it on this platform ("Ctrl+S"); the text itself when it does not parse.
+pub fn chord_text(key: &str) -> String {
+    match Chord::parse(key) {
+        Ok(c) => Binding::new(c).text(&Scope::app()),
+        Err(_) => key.to_string(),
+    }
 }
 
 fn platform() -> Platform {
@@ -78,10 +34,9 @@ fn platform() -> Platform {
 }
 
 fn catalog() -> Vec<Bindable> {
-    COMMANDS
-        .iter()
+    crate::commands::remappable()
         .map(|(id, label, key)| {
-            let b = Bindable::new(CommandRef::new(*id), *label, Scope::app());
+            let b = Bindable::new(CommandRef::new(id), label, Scope::app());
             match Chord::parse(key) {
                 Ok(c) => b.with_default(Binding::new(c)),
                 Err(_) => b,
@@ -170,10 +125,9 @@ impl Keys {
         let cmd = CommandRef::new(id.clone());
         // a key another command had: say which, so the user knows it moved
         let text = Binding::new(chord).text(&Scope::app());
-        self.taken = COMMANDS
-            .iter()
-            .find(|(other, _, _)| *other != id && self.map.bindings(&CommandRef::new(*other)).iter().any(|b| b.text(&Scope::app()) == text))
-            .map(|(other, _, _)| tlf!("{key} was taken from “{command}”", key = text, command = label(other)));
+        self.taken = ids()
+            .find(|other| *other != id && self.map.bindings(&CommandRef::new(*other)).iter().any(|b| b.text(&Scope::app()) == text))
+            .map(|other| tlf!("{key} was taken from “{command}”", key = text, command = label(other)));
         // The new key replaces the command's keys and is taken from any other command.
         let mut o = self.map.overrides().clone();
         o.insert(cmd.key(), Vec::new());
