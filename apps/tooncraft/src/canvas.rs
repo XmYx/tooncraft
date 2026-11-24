@@ -294,7 +294,9 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                 (c.x, c.y)
             };
             let to_s = |x: f32, y: f32| view.to_screen(rect, size, pos2(x, y));
-            crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
+            if !crate::motion_record::input(app, ui, resp, &to_c) {
+                crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
+            }
         }
         _ if mods.alt => {
             if resp.clicked()
@@ -666,7 +668,9 @@ fn keyboard_pen(app: &mut ToonApp, ui: &egui::Ui, resp: &egui::Response) {
         return;
     }
     if app.tool == Tool::Transform {
-        crate::peg_transform::keyboard(app, ui);
+        if !crate::motion_record::keyboard(app, ui) {
+            crate::peg_transform::keyboard(app, ui);
+        }
         return;
     }
     if app.tool == Tool::Select && app.selection.is_some() {
@@ -916,6 +920,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     if app.tool == Tool::Transform {
         crate::peg_transform::overlay(app, &painter, &|x, y| c.screen(x, y), pal.accent, pal.panel);
     }
+    crate::motion_record::overlay(app, &painter, rect, pal.text, pal.panel);
     // camera frame
     let cam = &app.engine.project.camera;
     if app.show_camera && (!cam.keys.is_empty() || !cam.shakes.is_empty()) {

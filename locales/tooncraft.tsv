@@ -29,6 +29,7 @@ tooncraft	A new layer
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
 tooncraft	A short bouncing-ball shot to try things on	
 tooncraft	A shot keeps at least one layer	
+tooncraft	A take holds at most {n} keys: the rest was not recorded	
 tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
 tooncraft	A window of its own	
 tooncraft	About ToonCraft	
@@ -284,6 +285,7 @@ tooncraft	Drag further from the pivot to scale or turn
 tooncraft	Drag inside to move, a corner to scale, the top knob to rotate	
 tooncraft	Drag the four corners freely (perspective), then Apply	
 tooncraft	Drag the handles to move, scale or turn the selection	
+tooncraft	Drag the layer while the shot plays and every frame it passes is keyed (one undo step; Escape drops the take)	
 tooncraft	Drag to move this end of the loop range, or use the arrow keys when it has the focus	
 tooncraft	Drag to move, a corner to scale, the knob to turn, the cross to move the pivot	
 tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates	
@@ -785,6 +787,7 @@ tooncraft	Not a matte
 tooncraft	Note for frame {n}	
 tooncraft	Nothing copied yet	
 tooncraft	Nothing is selected	
+tooncraft	Nothing moved: no motion recorded	
 tooncraft	Nothing to redo	
 tooncraft	Nothing to select there	
 tooncraft	Nothing to undo	
@@ -887,6 +890,7 @@ tooncraft	Paste frames, moving later frames right
 tooncraft	Pasted	
 tooncraft	Pause	
 tooncraft	Peg	
+tooncraft	Peg 1	
 tooncraft	Peg Current Layer	
 tooncraft	Peg {n}	
 tooncraft	Peg “{name}”	
@@ -983,6 +987,13 @@ tooncraft	Recent shots not saved: {error}
 tooncraft	Recolour Every Drawing of the Layer	
 tooncraft	Recolour Layer	
 tooncraft	Recoloured	
+tooncraft	Record Motion	
+tooncraft	Record armed	
+tooncraft	Record motion armed: with the Transform tool, drag the layer and it records while the shot plays	
+tooncraft	Record motion off	
+tooncraft	Recorded motion on {n} frames	
+tooncraft	Recording	
+tooncraft	Recording motion: Escape drops the take	
 tooncraft	Recover	
 tooncraft	Recover unsaved work	
 tooncraft	Recovered; save to keep it	
@@ -1250,6 +1261,7 @@ tooncraft	TGA Sequence
 tooncraft	TGA Sequence…	
 tooncraft	TIFF Sequence	
 tooncraft	TIFF Sequence…	
+tooncraft	Take dropped	
 tooncraft	Teeth on lip (F V)	
 tooncraft	Text	
 tooncraft	Text dropped	
