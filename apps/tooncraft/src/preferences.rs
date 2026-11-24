@@ -13,6 +13,7 @@ pub enum Tab {
     #[default]
     General,
     Drawing,
+    Pen,
     Onion,
     Timeline,
     Export,
@@ -26,6 +27,8 @@ pub struct Prefs {
     pub undo_megabytes: u32,
     /// Show the start window when ToonCraft opens with no shot.
     pub start_screen: bool,
+    /// The interface language's code (`de`, `pt-br`); empty follows the system.
+    pub language: String,
     // drawing
     pub smoothing: f32,
     pub gap: u8,
@@ -44,6 +47,14 @@ pub struct Prefs {
     // export
     pub export_scale: u32,
     pub export_paper: bool,
+    // pen
+    /// How the pen's (and touch) pressure maps to the pressure brushes see, for every brush.
+    pub pressure_curve: tooncraft_brush::Curve,
+    /// The command each pen side button runs over the canvas (lower, upper; empty: pan and the
+    /// canvas menu as usual).
+    pub pen_buttons: [String; 2],
+    /// Windows: read the pen through WinTab instead of Windows Ink (takes effect on restart).
+    pub wintab: bool,
     // the tool rail: the variant each group showed last (group id → variant id)
     pub tool_rail: std::collections::BTreeMap<String, String>,
     /// The custom tool palettes and the radial menu's palette.
@@ -58,6 +69,7 @@ impl Default for Prefs {
         Self {
             autosave_seconds: 45,
             start_screen: true,
+            language: String::new(),
             undo_megabytes: (tooncraft_engine::DEFAULT_UNDO_BUDGET >> 20) as u32,
             smoothing: 0.3,
             gap: 3,
@@ -73,6 +85,9 @@ impl Default for Prefs {
             thumbnails: false,
             export_scale: 1,
             export_paper: true,
+            pressure_curve: tooncraft_brush::Curve::linear(),
+            pen_buttons: [String::new(), String::new()],
+            wintab: false,
             tool_rail: Default::default(),
             palettes: Default::default(),
         }
@@ -99,9 +114,18 @@ impl Prefs {
             light_table_opacity: unit(self.light_table_opacity, d.light_table_opacity),
             export_scale: if [1, 2, 4].contains(&self.export_scale) { self.export_scale } else { 1 },
             tool_rail: crate::tool_rail::sanitized_memory(self.tool_rail.clone()),
+            pressure_curve: tooncraft_brush::Curve::from_points(self.pressure_curve.points()),
+            // a command that no longer exists (or never did) is dropped
+            pen_buttons: self.pen_buttons.clone().map(|id| if crate::commands::get(&id).is_some() { id } else { String::new() }),
             palettes: self.palettes.clone().sanitized(),
+            language: sanitized_language(&self.language),
             ..self
         }
+    }
+
+    /// The language to show: `None` follows the system.
+    pub fn language(&self) -> Option<&str> {
+        (!self.language.is_empty()).then_some(self.language.as_str())
     }
 
     /// Read the saved preferences (defaults when there are none or they cannot be read).
@@ -129,6 +153,7 @@ impl Prefs {
                 self.autosave_seconds = d.autosave_seconds;
                 self.undo_megabytes = d.undo_megabytes;
                 self.start_screen = d.start_screen;
+                self.language = d.language;
             }
             Tab::Drawing => {
                 self.smoothing = d.smoothing;
@@ -137,6 +162,11 @@ impl Prefs {
                 self.height = d.height;
                 self.fps = d.fps;
                 self.frames = d.frames;
+            }
+            Tab::Pen => {
+                self.pressure_curve = d.pressure_curve;
+                self.pen_buttons = d.pen_buttons;
+                self.wintab = d.wintab;
             }
             Tab::Onion => {
                 self.onion_before = d.onion_before;
@@ -156,11 +186,46 @@ impl Prefs {
     }
 }
 
+/// The pressure a brush sees for a raw pen or touch reading.
+pub fn pen_pressure(curve: &tooncraft_brush::Curve, raw: f32) -> f32 {
+    if curve.is_linear() { if raw.is_finite() { raw.clamp(0.0, 1.0) } else { 0.5 } } else { curve.eval(raw) }
+}
+
+/// Calibration: the curve that makes the hardest press seen in the test strokes full pressure
+/// (an artist with a light hand reaches every brush's full size and opacity) and leaves the light
+/// end where it is. Too few or too weak readings give the straight line back.
+pub fn calibrated(readings: &[f32]) -> tooncraft_brush::Curve {
+    let usable: Vec<f32> = readings.iter().copied().filter(|p| p.is_finite() && *p > 0.0).map(|p| p.min(1.0)).collect();
+    if usable.len() < 8 {
+        return tooncraft_brush::Curve::linear();
+    }
+    let mut sorted = usable;
+    sorted.sort_by(f32::total_cmp);
+    // the 95th percentile, so one spike does not decide
+    let hardest = sorted[(sorted.len() - 1) * 95 / 100];
+    if !(0.1..0.97).contains(&hardest) {
+        return tooncraft_brush::Curve::linear();
+    }
+    tooncraft_brush::Curve::from_points(&[[0.0, 0.0], [hardest, 1.0], [1.0, 1.0]])
+}
+
+/// The calibration pad's readings while the Pen tab is open (not saved).
+#[derive(Default)]
+pub struct Calibration {
+    pub readings: Vec<f32>,
+}
+
+/// Most pen readings the calibration pad keeps.
+const MAX_READINGS: usize = 4096;
+
 /// The preferences window's state.
 pub struct State {
     pub prefs: Prefs,
     pub open: bool,
     pub tab: Tab,
+    pub calibration: Calibration,
+    /// The selected point of the pressure curve editor.
+    pub curve_point: usize,
     /// Where they are saved (none in tests and screenshots).
     store: Option<PathBuf>,
 }
@@ -168,13 +233,14 @@ pub struct State {
 impl State {
     pub fn new(persist: bool) -> Self {
         let store = if persist { crate::keys::overrides_path().and_then(|p| p.parent().map(|d| d.join("preferences.json"))) } else { None };
-        Self { prefs: Prefs::load(store.as_ref()), open: false, tab: Tab::General, store }
+        Self { prefs: Prefs::load(store.as_ref()), open: false, tab: Tab::General, calibration: Calibration::default(), curve_point: 0, store }
     }
 }
 
 /// Settings that take effect at once (autosave interval, undo budget, timeline view).
 pub fn apply_live(app: &mut ToonApp) {
     let p = &app.preferences.prefs;
+    crate::i18n::set_language(p.language());
     app.engine.undo_budget = (p.undo_megabytes as u64) << 20;
     app.tl.vertical = p.vertical_sheet;
     app.thumbnails = p.thumbnails;
@@ -200,10 +266,38 @@ pub fn apply_tool_defaults(app: &mut ToonApp) {
     app.fill.gap = p.gap;
 }
 
+/// A language code from a settings file: at most 24 characters of ASCII letters, digits and `-`,
+/// lower case; anything else follows the system. An unknown code also falls back when applied.
+fn sanitized_language(code: &str) -> String {
+    let c = code.trim().to_ascii_lowercase();
+    if c.len() <= 24 && c.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '-') { c } else { String::new() }
+}
+
+/// The interface language: "System language" first, then English and every language whose catalog
+/// is built in, each by its own name.
+fn language_picker(ui: &mut egui::Ui, code: &mut String) {
+    let i18n = &crate::i18n::I18N;
+    let system = tl!("System language").to_string();
+    let mut options: Vec<(String, String)> = vec![(String::new(), system.clone())];
+    options.extend(i18n.languages().into_iter().map(|l| (i18n.code(l).to_string(), i18n.name(l).to_string())));
+    let shown = options.iter().find(|(c, _)| c == code).map_or_else(|| code.clone(), |(_, n)| n.clone());
+    let l = ui.label(tl!("Language"));
+    egui::ComboBox::from_id_salt("prefs-language")
+        .selected_text(shown)
+        .show_ui(ui, |ui| {
+            for (c, name) in &options {
+                ui.selectable_value(code, c.clone(), name);
+            }
+        })
+        .response
+        .labelled_by(l.id);
+}
+
 fn tab_name(t: Tab) -> String {
     match t {
         Tab::General => tl!("General"),
         Tab::Drawing => tl!("Drawing"),
+        Tab::Pen => tl!("Pen"),
         Tab::Onion => tl!("Onion skin"),
         Tab::Timeline => tl!("Sheet and timeline"),
         Tab::Export => tl!("Export"),
@@ -220,12 +314,15 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
     let before = app.preferences.prefs.clone();
     egui::Window::new(tl!("Preferences")).open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
         ui.horizontal(|ui| {
-            for t in [Tab::General, Tab::Drawing, Tab::Onion, Tab::Timeline, Tab::Export] {
+            for t in [Tab::General, Tab::Drawing, Tab::Pen, Tab::Onion, Tab::Timeline, Tab::Export] {
                 ui.selectable_value(&mut app.preferences.tab, t, tab_name(t));
             }
         });
         ui.separator();
         let tab = app.preferences.tab;
+        if tab == Tab::Pen {
+            pen_tab(app, ui);
+        }
         let p = &mut app.preferences.prefs;
         egui::Grid::new("prefs-grid").num_columns(2).spacing(egui::vec2(10.0, 6.0)).show(ui, |ui| {
             let num = |ui: &mut egui::Ui, label: &str, v: &mut u32, lo: u32, hi: u32, suffix: &str| {
@@ -238,6 +335,8 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
                     num(ui, tl!("Autosave every"), &mut p.autosave_seconds, AUTOSAVE_RANGE.0, AUTOSAVE_RANGE.1, tl!(" s"));
                     num(ui, tl!("Undo memory"), &mut p.undo_megabytes, UNDO_RANGE.0, UNDO_RANGE.1, tl!(" MB"));
                     ui.checkbox(&mut p.start_screen, tl!("Show the start window when opening with no shot"));
+                    ui.end_row();
+                    language_picker(ui, &mut p.language);
                     ui.end_row();
                 }
                 Tab::Drawing => {
@@ -267,6 +366,7 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
                     ui.add(egui::Slider::new(&mut p.light_table_opacity, 0.0..=1.0)).labelled_by(l.id);
                     ui.end_row();
                 }
+                Tab::Pen => {}
                 Tab::Timeline => {
                     ui.checkbox(&mut p.vertical_sheet, tl!("Sheet down the page (layers as columns)"));
                     ui.end_row();
@@ -310,6 +410,103 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
     if !open || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
         app.preferences.open = false;
     }
+}
+
+/// The Pen tab: the global pressure curve and the calibration pad.
+fn pen_tab(app: &mut ToonApp, ui: &mut egui::Ui) {
+    ui.label(tl!("Pressure curve for every brush (pen and touch; the mouse uses its own setting)"));
+    let st = &mut app.preferences;
+    crate::brush_editor::curve_editor_with_id(
+        ui,
+        egui::Id::unique("prefs-pressure-curve"),
+        &mut st.prefs.pressure_curve,
+        &mut st.curve_point,
+        tl!("Pressure curve"),
+    );
+    ui.separator();
+    ui.label(tl!("Calibrate: draw a few strokes in the box below as you normally do."));
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(ui.available_width().clamp(160.0, 320.0), 90.0), egui::Sense::drag());
+    let resp = resp.on_hover_text(tl!("Calibration pad"));
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Canvas, true, tl!("Calibration pad")));
+    let pal = crate::theme::palette(app.light_theme);
+    ui.painter().rect_filled(rect, 4.0, pal.workspace);
+    if resp.dragged() {
+        // the tablet reading beats touch force, like on the canvas
+        let force = ui.input(|i| {
+            i.events.iter().rev().find_map(|e| match e {
+                egui::Event::Touch { force: Some(f), .. } => Some(*f),
+                _ => None,
+            })
+        });
+        if let Some(p) = app.tablet.pen().map(|p| p.pressure).or(force)
+            && app.preferences.calibration.readings.len() < MAX_READINGS
+        {
+            app.preferences.calibration.readings.push(p);
+        }
+    }
+    let readings = &app.preferences.calibration.readings;
+    let hardest = readings.iter().copied().filter(|p| p.is_finite()).fold(0.0f32, f32::max);
+    let count = readings.len();
+    ui.label(if count == 0 {
+        tl!("No pen readings yet (a mouse gives none).").to_string()
+    } else {
+        tlf!("{n} readings, hardest press {p} %", n = count, p = (hardest * 100.0).round())
+    });
+    ui.horizontal(|ui| {
+        let enough = count >= 8;
+        if ui.add_enabled(enough, egui::Button::new(tl!("Fit Curve to My Hand"))).clicked() {
+            let c = calibrated(&app.preferences.calibration.readings);
+            app.preferences.prefs.pressure_curve = c;
+            app.preferences.curve_point = 0;
+        }
+        if ui.add_enabled(count > 0, egui::Button::new(tl!("Clear Readings"))).clicked() {
+            app.preferences.calibration.readings.clear();
+        }
+    });
+    ui.separator();
+    side_buttons(app, ui);
+    ui.separator();
+    let t = &app.tablet;
+    let status =
+        if t.status.is_empty() { tlf!("Pen input: {backend}", backend = if t.backend.is_empty() { "—" } else { t.backend }) } else { t.status.clone() };
+    ui.label(egui::RichText::new(status).weak());
+    if cfg!(target_os = "windows") {
+        ui.checkbox(&mut app.preferences.prefs.wintab, tl!("Read the pen through WinTab (turn Windows Ink off in the tablet driver; on restart)"));
+    }
+}
+
+/// The command each pen side button runs over the canvas.
+fn side_buttons(app: &mut ToonApp, ui: &mut egui::Ui) {
+    use crate::tablet::SideButton;
+    ui.label(tl!("Pen side buttons over the canvas (while the pen is near)"));
+    let choices: Vec<(&'static str, String)> = crate::commands::ALL.iter().map(|c| (c.id, c.label())).collect();
+    egui::Grid::new("prefs-pen-buttons").num_columns(2).show(ui, |ui| {
+        for b in SideButton::ALL {
+            let (label, default) = match b {
+                SideButton::Lower => (tl!("Lower button (middle click)"), tl!("Pan the view")),
+                SideButton::Upper => (tl!("Upper button (right click)"), tl!("Canvas menu")),
+            };
+            let current = app.preferences.prefs.pen_buttons[b.index()].clone();
+            let shown = choices.iter().find(|c| c.0 == current).map(|c| c.1.clone()).unwrap_or_else(|| default.to_string());
+            let l = ui.label(label);
+            let mut pick = current.clone();
+            egui::ComboBox::from_id_salt(("prefs-pen-button", b.index()))
+                .selected_text(shown)
+                .height(320.0)
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut pick, String::new(), default);
+                    for (id, name) in &choices {
+                        ui.selectable_value(&mut pick, id.to_string(), name);
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+            if pick != current {
+                app.preferences.prefs.pen_buttons[b.index()] = pick;
+            }
+            ui.end_row();
+        }
+    });
 }
 
 /// Write the preferences now (nothing in tests and screenshots); a failure is a status message.
@@ -359,5 +556,59 @@ mod tests {
         p.restore(Tab::Drawing);
         assert_eq!(p.gap, Prefs::default().gap);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_pressure_curve_maps_pen_pressure_and_survives_a_hostile_file() {
+        use tooncraft_brush::Curve;
+        let lin = Curve::linear();
+        assert_eq!(pen_pressure(&lin, 0.3), 0.3);
+        assert_eq!(pen_pressure(&lin, f32::NAN), 0.5);
+        assert_eq!(pen_pressure(&lin, 7.0), 1.0);
+        let soft = Curve::ease_out();
+        assert!(pen_pressure(&soft, 0.3) > 0.3, "a soft curve gives more for a light press");
+        // saved and read back as JSON; a broken curve in the file is repaired, not trusted
+        let p = Prefs { pressure_curve: soft, ..Prefs::default() };
+        let back: Prefs = serde_json::from_slice(&serde_json::to_vec(&p).unwrap_or_default()).map(Prefs::sanitized).unwrap_or_default();
+        assert_eq!(back.pressure_curve, soft);
+        let hostile: Prefs =
+            serde_json::from_str(r#"{"pressure_curve": [[0.9, 2.0], [0.1, -5.0], [0.5, 0.5], [0.5, 0.5]]}"#).map(Prefs::sanitized).unwrap_or_default();
+        for x in [0.0, 0.25, 0.5, 0.75, 1.0] {
+            assert!((0.0..=1.0).contains(&pen_pressure(&hostile.pressure_curve, x)));
+        }
+        let mut r = Prefs { pressure_curve: soft, ..Prefs::default() };
+        r.restore(Tab::Pen);
+        assert!(r.pressure_curve.is_linear());
+    }
+
+    #[test]
+    fn pen_button_mappings_keep_only_known_commands() {
+        let p: Prefs = serde_json::from_str(r#"{"pen_buttons": ["edit.undo", "rm -rf"], "wintab": true}"#).map(Prefs::sanitized).unwrap_or_default();
+        assert_eq!(p.pen_buttons, ["edit.undo".to_string(), String::new()]);
+        assert!(p.wintab);
+        let mut r = p.clone();
+        r.restore(Tab::Pen);
+        assert_eq!((r.pen_buttons, r.wintab), ([String::new(), String::new()], false));
+        // a file from before the mapping existed reads as no mapping
+        let old: Prefs = serde_json::from_str(r#"{"autosave_seconds": 60}"#).map(Prefs::sanitized).unwrap_or_default();
+        assert_eq!(old.pen_buttons, [String::new(), String::new()]);
+    }
+
+    #[test]
+    fn calibration_makes_the_hardest_press_full_pressure() {
+        // a light hand: presses up to about 0.6
+        let light: Vec<f32> = (0..200).map(|i| 0.1 + 0.5 * (i as f32 / 199.0)).collect();
+        let c = calibrated(&light);
+        assert!(pen_pressure(&c, 0.6) > 0.97, "{}", pen_pressure(&c, 0.6));
+        assert!(pen_pressure(&c, 0.3) > 0.4 && pen_pressure(&c, 0.0) < 0.05);
+        // one spike does not decide
+        let mut spiky = light.clone();
+        spiky.push(1.0);
+        assert!(pen_pressure(&calibrated(&spiky), 0.6) > 0.9);
+        // too few readings, a heavy hand, or junk: the straight line
+        assert!(calibrated(&light[..5]).is_linear());
+        assert!(calibrated(&[0.99; 50]).is_linear());
+        assert!(calibrated(&[f32::NAN; 50]).is_linear());
+        assert!(calibrated(&[]).is_linear());
     }
 }

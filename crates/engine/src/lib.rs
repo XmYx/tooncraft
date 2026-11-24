@@ -13,6 +13,9 @@ mod boards;
 pub mod burnin;
 #[cfg(test)]
 mod cells_tests;
+pub mod clone;
+#[cfg(test)]
+mod clone_tests;
 mod command;
 #[cfg(test)]
 mod curves_tests;
@@ -106,6 +109,8 @@ pub enum EngineError {
     NoLibraryItem(usize),
     #[error("text: {0}")]
     Text(String),
+    #[error("there is no grain image {0} in this shot")]
+    NoGrainImage(u64),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
@@ -374,11 +379,20 @@ impl Engine {
         let surface = self.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
         let stroke = Stroke::begin_with(surface, brush, images);
         let (w, h) = (self.project.width(), self.project.height());
-        let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush))).collect();
+        let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush).at_frame(frame))).collect();
         let vector = vector::Live::begin(&self.project, layer, frame, drawing, brush);
         let snap = self.project.rulers.snapper(w, h);
-        self.live =
-            Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, vector, snap, held: Default::default() });
+        self.live = Some(LiveStroke {
+            last: None,
+            drawing,
+            created,
+            engine: StrokeEngine::new(brush).at_frame(frame),
+            stroke,
+            mirrors,
+            vector,
+            snap,
+            held: Default::default(),
+        });
         Ok(())
     }
 
@@ -546,10 +560,7 @@ impl Engine {
         let space = self.project.layer_transform(layer, frame).inverse().filter(|t| !t.is_identity(1e-6));
         // repainting looks at this layer's own paint only
         let reference = if options.mode == fill::FillMode::Repaint { FillReference::Layer } else { reference };
-        let opts = match reference {
-            FillReference::Layer => RenderOptions { paper: false, only_layer: Some(layer), space, effects: false, ..Default::default() },
-            FillReference::AllLayers => RenderOptions { paper: false, space, effects: false, ..Default::default() },
-        };
+        let opts = RenderOptions { space, ..reference.render_options(layer) };
         let reference_img = tooncraft_doc::render_region(&self.project, frame, rect, opts);
         let seed_alpha = reference_img.pixel(x - rect.0, y - rect.1)[3];
         match options.mode {

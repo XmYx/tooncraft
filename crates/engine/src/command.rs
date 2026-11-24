@@ -17,6 +17,20 @@ pub enum FillReference {
     /// Every visible layer (paint under ink on its own layer).
     #[default]
     AllLayers,
+    /// The layers marked as references, and the layer itself.
+    ReferenceLayers,
+}
+
+impl FillReference {
+    /// How to render the picture this reference looks at, for `layer`.
+    pub fn render_options(self, layer: usize) -> tooncraft_doc::RenderOptions {
+        let base = tooncraft_doc::RenderOptions { paper: false, effects: false, ..Default::default() };
+        match self {
+            FillReference::Layer => tooncraft_doc::RenderOptions { only_layer: Some(layer), ..base },
+            FillReference::AllLayers => base,
+            FillReference::ReferenceLayers => tooncraft_doc::RenderOptions { references_with: Some(layer), ..base },
+        }
+    }
 }
 
 /// One change to a project. `layer` is a layer index (0 = bottom), `frame` is 0-based.
@@ -97,6 +111,24 @@ pub enum Command {
         /// More rings of the selection (holes, other parts), with `area`.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         area_rings: Vec<Vec<(f32, f32)>>,
+        /// A gradient swatch's stops; two or more replace `start` and `end`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        stops: Vec<tooncraft_doc::palette::Stop>,
+        /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
+    },
+    /// The clone stamp along `points`: each pixel takes the one at `offset` (source minus
+    /// destination) on `source_layer` (this layer when absent) at the same frame.
+    CloneStamp {
+        layer: usize,
+        frame: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source_layer: Option<usize>,
+        offset: (f32, f32),
+        #[serde(default)]
+        tip: crate::clone::CloneTip,
+        points: Vec<(f32, f32)>,
     },
     /// Give a layer its own onion-skin settings (`None`: back to the shot's). A setting, not an
     /// undo step.
@@ -319,21 +351,50 @@ pub enum Command {
         offset: i32,
     },
     /// Set (or replace) the camera key at `frame`: centre `x`, `y` in canvas pixels, `zoom` (1 =
-    /// whole canvas), `angle` in degrees. The camera is switched on.
+    /// whole canvas), `angle` in degrees. The camera is switched on. `camera`: which camera (0,
+    /// the default, is the main one).
     SetCameraKey {
         frame: u32,
         x: f32,
         y: f32,
         zoom: f32,
         angle: f32,
+        #[serde(default)]
+        camera: usize,
     },
     /// Remove the camera key at `frame`.
     RemoveCameraKey {
         frame: u32,
+        #[serde(default)]
+        camera: usize,
     },
     /// Render exports through the camera, or not.
     SetCamera {
         enabled: bool,
+        #[serde(default)]
+        camera: usize,
+    },
+    /// A new camera besides the main one, switched on; `from`: start as a copy of that camera.
+    AddCamera {
+        name: String,
+        #[serde(default)]
+        from: Option<usize>,
+    },
+    RenameCamera {
+        camera: usize,
+        name: String,
+    },
+    /// Remove a camera besides the main one; cuts to it go, later cameras move down one.
+    RemoveCamera {
+        camera: usize,
+    },
+    /// From `frame` on, film through `camera` (replaces a cut at that frame).
+    SetCameraCut {
+        frame: u32,
+        camera: usize,
+    },
+    RemoveCameraCut {
+        frame: u32,
     },
     /// Add a peg (pivot at the canvas centre), optionally hanging from `parent`.
     AddPeg {
@@ -386,9 +447,34 @@ pub enum Command {
         #[serde(default)]
         ease: Ease,
     },
+    /// Set (or replace) several keys of one peg as one undo step: a recorded take. Refused whole
+    /// when a key lies past the end of the shot or there are more than a peg can hold.
+    SetPegKeys {
+        peg: PegId,
+        keys: Vec<PegKey>,
+    },
     RemovePegKey {
         peg: PegId,
         frame: u32,
+    },
+    /// Keep the pose of `peg` and every peg below it at `frame` under `name` (the pose library).
+    SavePose {
+        peg: PegId,
+        frame: u32,
+        name: String,
+    },
+    /// Key the pegs of pose `index` at `frame` as they were saved (pegs the shot no longer has
+    /// are skipped; refused when it has none of them).
+    ApplyPose {
+        index: usize,
+        frame: u32,
+    },
+    RenamePose {
+        index: usize,
+        name: String,
+    },
+    RemovePose {
+        index: usize,
     },
     /// Move several keys of one peg together (the curve editor's drag): by `by_frames` in time
     /// and, with a `channel`, by `by_value` in that value. Refused whole when a key would leave
@@ -451,10 +537,14 @@ pub enum Command {
     /// Add a camera shake.
     AddCameraShake {
         shake: Shake,
+        #[serde(default)]
+        camera: usize,
     },
     /// Remove the camera shake at `index`.
     RemoveCameraShake {
         index: usize,
+        #[serde(default)]
+        camera: usize,
     },
     /// Add an image brush tip (grey mask; dark is ink) under `id`, replacing a tip with that id.
     AddTip {
@@ -634,6 +724,9 @@ pub enum Command {
         skew_y: f32,
         #[serde(default)]
         resample: tooncraft_raster::select::Resample,
+        /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
     },
     /// Distort the pixels inside `polygon` so the corners of its box land on `corners`
     /// (top-left, top-right, bottom-right, bottom-left): free distort and perspective.
@@ -646,6 +739,9 @@ pub enum Command {
         corners: [(f32, f32); 4],
         #[serde(default)]
         resample: tooncraft_raster::select::Resample,
+        /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
     },
     /// Erase the pixels inside `polygon`.
     ClearSelection {
@@ -654,6 +750,9 @@ pub enum Command {
         polygon: Vec<(f32, f32)>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         rings: Vec<Vec<(f32, f32)>>,
+        /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
     },
     /// Paste straight-RGBA pixels with their top-left at (x, y) (a new drawing on a blank cell).
     PastePixels {
@@ -890,6 +989,11 @@ pub enum Command {
     SetPaper {
         color: [u8; 3],
     },
+    /// The visible paper texture under the drawing (strength 0 switches it off). A setting like
+    /// the paper colour: saved with the shot, outside the undo history.
+    SetPaperTexture {
+        texture: tooncraft_doc::PaperTexture,
+    },
     /// Add an effect to the layer's stack at `index` (default: last, so it runs after the others).
     /// Append several effects (a preset or a saved stack) as one undo step.
     AddEffects {
@@ -962,6 +1066,12 @@ pub enum Command {
         #[serde(default)]
         matte: Option<tooncraft_doc::Matte>,
     },
+    /// Mark the layer as a reference for the fill bucket and the magic wand (when they look at
+    /// reference layers), or not.
+    SetLayerReference {
+        layer: usize,
+        reference: bool,
+    },
     /// Make the layer an adjustment layer (its effects act on everything below it) or a normal
     /// layer again.
     SetLayerAdjustment {
@@ -1008,6 +1118,11 @@ fn centre() -> (f32, f32) {
 
 fn yes() -> bool {
     true
+}
+
+/// A feather too small to soften anything (left out of saved command files).
+fn is_hard(f: &f32) -> bool {
+    f.is_nan() || *f < 0.5
 }
 
 fn unit() -> f32 {
@@ -1061,6 +1176,24 @@ fn folders(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Pr
         }
         Err(err) => {
             e.project.folders = before;
+            Err(err.into())
+        }
+    }
+}
+
+/// Run `edit` on the shot's cameras and cuts as one undo step when it returns `true` (a change);
+/// on error they are restored.
+fn cameras(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Project) -> std::result::Result<bool, DocError>) -> Result<()> {
+    let before = (e.project.camera.clone(), e.project.cameras.clone(), e.project.camera_cuts.clone());
+    match edit(&mut e.project) {
+        Ok(changed) => {
+            if changed {
+                e.push(Entry { label: label.into(), parts: vec![Part::Cameras(before.0, before.1, before.2)] });
+            }
+            Ok(())
+        }
+        Err(err) => {
+            (e.project.camera, e.project.cameras, e.project.camera_cuts) = before;
             Err(err.into())
         }
     }
@@ -1128,9 +1261,19 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::PathShape { layer, frame, brush, points, closed, curve, outline, fill } => {
             crate::drawing::path_shape(e, layer, frame, brush, &points, closed, curve, outline, fill)
         }
-        Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings } => {
+        Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, stops, feather } => {
             frame_ok(e, frame)?;
-            crate::drawing::gradient(e, layer, frame, kind, from, to, start, end, area.as_deref(), &area_rings)
+            let stops = tooncraft_doc::palette::sanitize_stops(stops);
+            let stops = if stops.is_empty() {
+                vec![tooncraft_doc::palette::Stop { at: 0.0, rgba: start }, tooncraft_doc::palette::Stop { at: 1.0, rgba: end }]
+            } else {
+                stops
+            };
+            crate::drawing::gradient(e, layer, frame, kind, from, to, &stops, area.as_deref(), &area_rings, feather)
+        }
+        Command::CloneStamp { layer, frame, source_layer, offset, tip, points } => {
+            frame_ok(e, frame)?;
+            crate::clone::clone_stamp(e, layer, frame, source_layer, offset, tip, &points)
         }
         Command::SetLayerOnion { layer, onion } => {
             e.project.layer_mut(layer)?.onion = onion.map(OnionSkin::sanitized);
@@ -1324,37 +1467,79 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }),
         Command::ImportImages { paths, frame, hold, name, options } => crate::import::images(e, &paths, frame, hold.clamp(1, 64), &name, &options),
-        Command::TransformSelection { layer, frame, polygon, rings, dx, dy, scale_x, scale_y, angle, skew_x, skew_y, resample } => {
-            crate::select::transform(e, layer, frame, &polygon, &rings, (dx, dy, scale_x, scale_y, angle), (skew_x, skew_y), resample)
+        Command::TransformSelection { layer, frame, polygon, rings, dx, dy, scale_x, scale_y, angle, skew_x, skew_y, resample, feather } => {
+            crate::select::transform(e, layer, frame, (&polygon, &rings, feather), (dx, dy, scale_x, scale_y, angle), (skew_x, skew_y), resample)
         }
-        Command::DistortSelection { layer, frame, polygon, rings, corners, resample } => {
-            crate::select::distort(e, layer, frame, &polygon, &rings, corners, resample)
+        Command::DistortSelection { layer, frame, polygon, rings, corners, resample, feather } => {
+            crate::select::distort(e, layer, frame, (&polygon, &rings, feather), corners, resample)
         }
-        Command::ClearSelection { layer, frame, polygon, rings } => crate::select::clear(e, layer, frame, &polygon, &rings),
+        Command::ClearSelection { layer, frame, polygon, rings, feather } => crate::select::clear(e, layer, frame, (&polygon, &rings, feather)),
         Command::PastePixels { layer, frame, x, y, width, height, rgba } => crate::select::paste(e, layer, frame, (x, y), width, height, &rgba),
         Command::SetSound { path, offset } => crate::audio::set(e, path.as_deref(), offset),
-        Command::SetCameraKey { frame, x, y, zoom, angle } => {
+        Command::SetCameraKey { frame, x, y, zoom, angle, camera } => {
             frame_ok(e, frame)?;
-            let before = Part::Camera(e.project.camera.clone());
             let (w, h) = (e.project.width(), e.project.height());
-            e.project.camera.set(tooncraft_doc::CameraKey { frame, x, y, zoom, angle }.sanitized(w, h));
-            e.project.camera.enabled = true;
-            e.push(Entry { label: "Camera key".into(), parts: vec![before] });
-            Ok(())
+            cameras(e, "Camera key", |p| {
+                let c = p.camera_by_index_mut(camera).ok_or(DocError::NoSuchCamera(camera))?;
+                c.set(tooncraft_doc::CameraKey { frame, x, y, zoom, angle }.sanitized(w, h));
+                c.enabled = true;
+                Ok(true)
+            })
         }
-        Command::RemoveCameraKey { frame } => {
-            let before = Part::Camera(e.project.camera.clone());
-            if e.project.camera.remove(frame) {
-                e.push(Entry { label: "Remove camera key".into(), parts: vec![before] });
+        Command::RemoveCameraKey { frame, camera } => {
+            cameras(e, "Remove camera key", |p| Ok(p.camera_by_index_mut(camera).ok_or(DocError::NoSuchCamera(camera))?.remove(frame)))
+        }
+        Command::SetCamera { enabled, camera } => cameras(e, "Camera", |p| {
+            p.camera_by_index_mut(camera).ok_or(DocError::NoSuchCamera(camera))?.enabled = enabled;
+            Ok(true)
+        }),
+        Command::AddCamera { name, from } => cameras(e, "Add camera", |p| {
+            if p.cameras.len() >= tooncraft_doc::camera::MAX_CAMERAS {
+                return Err(DocError::TooManyCameras);
             }
-            Ok(())
+            let camera = match from {
+                Some(i) => p.camera_by_index(i).cloned().ok_or(DocError::NoSuchCamera(i))?,
+                None => tooncraft_doc::Camera::default(),
+            };
+            let name = name.trim().chars().take(tooncraft_doc::camera::MAX_CAMERA_NAME).collect();
+            p.cameras.push(tooncraft_doc::ShotCamera { name, camera: tooncraft_doc::Camera { enabled: true, ..camera } });
+            Ok(true)
+        }),
+        Command::RenameCamera { camera, name } => cameras(e, "Rename camera", |p| {
+            let c = camera.checked_sub(1).and_then(|i| p.cameras.get_mut(i)).ok_or(DocError::NoSuchCamera(camera))?;
+            c.name = name.trim().chars().take(tooncraft_doc::camera::MAX_CAMERA_NAME).collect();
+            Ok(true)
+        }),
+        Command::RemoveCamera { camera } => cameras(e, "Remove camera", |p| {
+            let i = camera.checked_sub(1).filter(|i| *i < p.cameras.len()).ok_or(DocError::NoSuchCamera(camera))?;
+            p.cameras.remove(i);
+            p.camera_cuts.retain(|c| c.camera != camera);
+            for c in &mut p.camera_cuts {
+                if c.camera > camera {
+                    c.camera -= 1;
+                }
+            }
+            Ok(true)
+        }),
+        Command::SetCameraCut { frame, camera } => {
+            frame_ok(e, frame)?;
+            cameras(e, "Camera cut", |p| {
+                if camera >= p.camera_count() {
+                    return Err(DocError::NoSuchCamera(camera));
+                }
+                match p.camera_cuts.binary_search_by_key(&frame, |c| c.frame) {
+                    Ok(i) => p.camera_cuts[i].camera = camera,
+                    Err(_) if p.camera_cuts.len() >= tooncraft_doc::camera::MAX_CUTS => return Err(DocError::TooManyCuts),
+                    Err(i) => p.camera_cuts.insert(i, tooncraft_doc::CameraCut { frame, camera }),
+                }
+                Ok(true)
+            })
         }
-        Command::SetCamera { enabled } => {
-            let before = Part::Camera(e.project.camera.clone());
-            e.project.camera.enabled = enabled;
-            e.push(Entry { label: "Camera".into(), parts: vec![before] });
-            Ok(())
-        }
+        Command::RemoveCameraCut { frame } => cameras(e, "Remove camera cut", |p| {
+            let before = p.camera_cuts.len();
+            p.camera_cuts.retain(|c| c.frame != frame);
+            Ok(p.camera_cuts.len() != before)
+        }),
         Command::AddPeg { name, parent } => pegs(e, "Add peg", |p| p.add_peg(&name, parent).map(|_| ())),
         Command::AddPegForLayer { layer, name } => {
             e.project.layer(layer)?;
@@ -1384,6 +1569,60 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             frame_ok(e, frame)?;
             pegs(e, "Peg key", |p| {
                 p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.set_key(PegKey { frame, x, y, angle, scale_x, scale_y, skew, ease });
+                Ok(())
+            })
+        }
+        Command::SavePose { peg, frame, name } => {
+            frame_ok(e, frame)?;
+            if e.project.poses.len() >= tooncraft_doc::pose::MAX_POSES {
+                return Err(DocError::TooManyPoses.into());
+            }
+            let pose = tooncraft_doc::pose::Pose::capture(&e.project.pegs, peg, frame, &name).ok_or(DocError::NoPeg(peg.0))?;
+            let before = Part::Poses(e.project.poses.clone());
+            e.project.poses.push(pose);
+            e.push(Entry { label: "Save pose".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::ApplyPose { index, frame } => {
+            frame_ok(e, frame)?;
+            let pose = e.project.poses.get(index).cloned().ok_or(DocError::NoSuchPose(index))?;
+            pegs(e, "Apply pose", |p| if pose.apply(&mut p.pegs, frame) == 0 { Err(DocError::PoseFitsNoPeg) } else { Ok(()) })
+        }
+        Command::RenamePose { index, name } => {
+            let before = Part::Poses(e.project.poses.clone());
+            let pose = e.project.poses.get_mut(index).ok_or(DocError::NoSuchPose(index))?;
+            pose.name = name.trim().chars().take(tooncraft_doc::pose::MAX_POSE_NAME).collect();
+            e.push(Entry { label: "Rename pose".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::RemovePose { index } => {
+            if index >= e.project.poses.len() {
+                return Err(DocError::NoSuchPose(index).into());
+            }
+            let before = Part::Poses(e.project.poses.clone());
+            e.project.poses.remove(index);
+            e.push(Entry { label: "Remove pose".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::SetPegKeys { peg, keys } => {
+            if keys.len() > tooncraft_doc::peg::MAX_PEG_KEYS {
+                return Err(DocError::TooManyPegKeys.into());
+            }
+            if let Some(k) = keys.iter().find(|k| k.frame >= e.project.length()) {
+                return Err(DocError::NoFrame(k.frame).into());
+            }
+            if keys.is_empty() {
+                return Ok(());
+            }
+            pegs(e, "Record motion", |p| {
+                let pg = p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?;
+                let new = keys.iter().filter(|k| !pg.has_key(k.frame)).map(|k| k.frame).collect::<std::collections::BTreeSet<_>>().len();
+                if pg.keys.len() + new > tooncraft_doc::peg::MAX_PEG_KEYS {
+                    return Err(DocError::TooManyPegKeys);
+                }
+                for k in keys {
+                    pg.set_key(k);
+                }
                 Ok(())
             })
         }
@@ -1430,24 +1669,27 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.depth = d;
             Ok(())
         }),
-        Command::AddCameraShake { shake } => {
-            if e.project.camera.shakes.len() >= tooncraft_doc::camera::MAX_SHAKES {
+        Command::AddCameraShake { shake, camera } => {
+            let c = e.project.camera_by_index(camera).ok_or(DocError::NoSuchCamera(camera))?;
+            if c.shakes.len() >= tooncraft_doc::camera::MAX_SHAKES {
                 return Err(EngineError::Limit("camera shakes"));
             }
-            let before = Part::Camera(e.project.camera.clone());
-            e.project.camera.shakes.push(shake.sanitized());
-            e.project.camera.enabled = true;
-            e.push(Entry { label: "Camera shake".into(), parts: vec![before] });
-            Ok(())
+            cameras(e, "Camera shake", |p| {
+                let c = p.camera_by_index_mut(camera).ok_or(DocError::NoSuchCamera(camera))?;
+                c.shakes.push(shake.sanitized());
+                c.enabled = true;
+                Ok(true)
+            })
         }
-        Command::RemoveCameraShake { index } => {
-            if index >= e.project.camera.shakes.len() {
+        Command::RemoveCameraShake { index, camera } => {
+            let c = e.project.camera_by_index(camera).ok_or(DocError::NoSuchCamera(camera))?;
+            if index >= c.shakes.len() {
                 return Err(EngineError::Limit("camera shake index"));
             }
-            let before = Part::Camera(e.project.camera.clone());
-            e.project.camera.shakes.remove(index);
-            e.push(Entry { label: "Remove camera shake".into(), parts: vec![before] });
-            Ok(())
+            cameras(e, "Remove camera shake", |p| {
+                p.camera_by_index_mut(camera).ok_or(DocError::NoSuchCamera(camera))?.shakes.remove(index);
+                Ok(true)
+            })
         }
         Command::AddTip { id, name, width, height, alpha } => {
             let tip = tooncraft_brush::Tip::new(&name, width, height, alpha).ok_or(tooncraft_raster::RasterError::BadImage { got: 0, want: 1 })?;
@@ -1869,6 +2111,15 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.touch();
             Ok(())
         }
+        Command::SetPaperTexture { texture } => {
+            let texture = texture.sanitized();
+            if let Some(i) = texture.image.filter(|i| !e.project.tips.contains_key(i)) {
+                return Err(EngineError::NoGrainImage(i));
+            }
+            e.project.paper.texture = texture;
+            e.touch();
+            Ok(())
+        }
         Command::AddEffect { layer, effect, index } => crate::effects::add(e, layer, effect, index),
         Command::AddEffects { layer, effects } => crate::effects::add_all(e, layer, effects),
         Command::SetEffect { layer, index, effect } => crate::effects::edit(e, layer, index, "Effect", |fx| {
@@ -1899,6 +2150,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }),
         Command::SetLayerMatte { layer, matte } => edit_layers(e, "Matte", |e| {
             e.project.layer_mut(layer)?.matte = matte;
+            Ok(())
+        }),
+        Command::SetLayerReference { layer, reference } => edit_layers(e, "Reference layer", |e| {
+            e.project.layer_mut(layer)?.reference = reference;
             Ok(())
         }),
         Command::SetLayerAdjustment { layer, adjustment } => edit_layers(e, "Adjustment layer", |e| {

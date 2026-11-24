@@ -28,7 +28,11 @@ pub use curve::{Curve, MAX_POINTS, MIN_GAP};
 pub use dab::Dab;
 #[cfg(test)]
 mod paint_tests;
-pub use grain::{GrainKind, builtin_grain, paper_grain};
+#[cfg(test)]
+mod tip_tests;
+#[cfg(test)]
+mod wet_tests;
+pub use grain::{Grain, GrainKind, builtin_grain, paper_grain};
 pub use response::{Dynamics, Inputs, Mapping, Response, Source, Target, hash01};
 pub use stabilizer::Stabilizer;
 pub use stroke::{Images, Stroke, StrokeEngine, paint, paint_with};
@@ -85,6 +89,51 @@ impl BrushKind {
     pub fn from_id(id: &str) -> Option<BrushKind> {
         BrushKind::ALL.into_iter().find(|k| k.id() == id)
     }
+}
+
+/// How an image tip is laid along the stroke.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TipMode {
+    /// Stamped at every dab, at the tip's own angle.
+    #[default]
+    Stamp,
+    /// Repeated end to end along the stroke, each copy turned to the stroke's direction.
+    Pattern,
+    /// Stretched along the stroke as one continuous band (the image repeats every brush width).
+    Ribbon,
+}
+
+impl TipMode {
+    pub const ALL: [TipMode; 3] = [TipMode::Stamp, TipMode::Pattern, TipMode::Ribbon];
+}
+
+/// Which cell of a tip made of several cells (side by side in one image) each dab shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TipOrder {
+    /// One after another along the stroke.
+    #[default]
+    Sequence,
+    /// A random cell for every dab (replays exactly).
+    Random,
+    /// The cell of the timeline frame being drawn on (frame 1 shows the first).
+    Frame,
+}
+
+impl TipOrder {
+    pub const ALL: [TipOrder; 3] = [TipOrder::Sequence, TipOrder::Random, TipOrder::Frame];
+}
+
+/// Most cells a tip image can be split into.
+pub const MAX_TIP_CELLS: u8 = 64;
+
+fn is_stamp(m: &TipMode) -> bool {
+    *m == TipMode::Stamp
+}
+
+fn is_sequence(o: &TipOrder) -> bool {
+    *o == TipOrder::Sequence
 }
 
 /// Where a brush puts its paint relative to what is already on the layer.
@@ -217,6 +266,17 @@ fn is_off_jitter(j: &ColorJitter) -> bool {
     j.is_off()
 }
 
+fn is_zero(v: &f32) -> bool {
+    *v == 0.0
+}
+
+fn is_unit(v: &f32) -> bool {
+    *v == 1.0
+}
+
+/// Most a grain's contrast can be raised.
+pub const MAX_GRAIN_CONTRAST: f32 = 4.0;
+
 fn is_one(n: &u8) -> bool {
     *n == 1
 }
@@ -255,11 +315,41 @@ pub struct Wet {
     /// off, the brush paints its own colour). On the smudge brush: how fast it lets go of the
     /// colour it carries and reloads from the layer (low values drag long smears).
     pub pickup: f32,
+    /// 0 … 1: water in the paint. Diluted paint goes on thinner and more transparent.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub dilution: f32,
+    /// 0 … 1: how quickly the brush runs dry along the stroke (0 never does).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub dry: f32,
+    /// 0 … 1: pigment pooling at the edge of the stroke as it dries (watercolour edges).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub edge: f32,
+    /// 0 … 1: paint creeping a little way past the edge of the stroke into the paper.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub bleed: f32,
 }
 
 impl Default for Wet {
     fn default() -> Self {
-        Self { pickup: 0.0 }
+        Self { pickup: 0.0, dilution: 0.0, dry: 0.0, edge: 0.0, bleed: 0.0 }
+    }
+}
+
+impl Wet {
+    /// Whether the brush carries a load of paint (pickup, water or drying).
+    pub fn carries_paint(&self) -> bool {
+        self.pickup > 0.0 || self.dilution > 0.0 || self.dry > 0.0
+    }
+
+    fn sanitized(self, preset: Wet) -> Wet {
+        let f = |v: f32, d: f32| if v.is_finite() { v.clamp(0.0, 1.0) } else { d };
+        Wet {
+            pickup: f(self.pickup, preset.pickup),
+            dilution: f(self.dilution, 0.0),
+            dry: f(self.dry, 0.0),
+            edge: f(self.edge, 0.0),
+            bleed: f(self.bleed, 0.0),
+        }
     }
 }
 
@@ -288,6 +378,12 @@ pub struct Brush {
     pub grain_scale: f32,
     /// Which texture the grain uses.
     pub grain_kind: GrainKind,
+    /// Grain rotation in degrees, -180 … 180 (turns the texture, not the dab).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub grain_angle: f32,
+    /// Grain contrast, 0.1 (flat) … 4 (hard peaks and valleys); 1 leaves the texture as it is.
+    #[serde(skip_serializing_if = "is_unit")]
+    pub grain_contrast: f32,
     /// The grain image (its id in the project's tip table) when `grain_kind` is `Image`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub grain_image: Option<u64>,
@@ -308,6 +404,15 @@ pub struct Brush {
     /// Dabs laid at each spacing step, 1 … [`MAX_COUNT`]; with scatter, a spray.
     #[serde(skip_serializing_if = "is_one")]
     pub count: u8,
+    /// How the image tip is laid along the stroke.
+    #[serde(skip_serializing_if = "is_stamp")]
+    pub tip_mode: TipMode,
+    /// The image tip is this many cells side by side (1 … [`MAX_TIP_CELLS`]): an animated tip.
+    #[serde(skip_serializing_if = "is_one")]
+    pub tip_cells: u8,
+    /// Which cell each dab shows.
+    #[serde(skip_serializing_if = "is_sequence")]
+    pub tip_order: TipOrder,
 }
 
 impl Default for Brush {
@@ -331,6 +436,8 @@ impl Brush {
             grain: 0.0,
             grain_scale: 2.0,
             grain_kind: GrainKind::Paper,
+            grain_angle: 0.0,
+            grain_contrast: 1.0,
             grain_image: None,
             dynamics: Dynamics::default(),
             wet: Wet::default(),
@@ -340,6 +447,9 @@ impl Brush {
             compose: Compose::Normal,
             jitter: ColorJitter::default(),
             count: 1,
+            tip_mode: TipMode::Stamp,
+            tip_cells: 1,
+            tip_order: TipOrder::Sequence,
         };
         match kind {
             BrushKind::Pencil => Brush { size: 3.5, hardness: 0.7, grain: 0.55, grain_scale: 1.6, opacity: 0.9, ..base },
@@ -374,7 +484,7 @@ impl Brush {
                 grain_scale: 3.0,
                 grain_kind: GrainKind::Clouds,
                 dynamics: Dynamics::linear(0.3, 0.6, 0.0, 0.15),
-                wet: Wet { pickup: 0.45 },
+                wet: Wet { pickup: 0.45, edge: 0.35, ..Wet::default() },
                 smoothing: Smoothing { average: 0.4, ..Smoothing::default() },
                 ..base
             },
@@ -384,7 +494,7 @@ impl Brush {
                 flow: 0.55,
                 spacing: 0.06,
                 dynamics: Dynamics::linear(0.3, 0.0, 0.0, 0.15),
-                wet: Wet { pickup: 0.3 },
+                wet: Wet { pickup: 0.3, ..Wet::default() },
                 ..base
             },
         }
@@ -407,13 +517,15 @@ impl Brush {
             grain: f(self.grain, 0.0, 1.0, p.grain),
             grain_scale: f(self.grain_scale, 0.5, 64.0, p.grain_scale),
             grain_kind: self.grain_kind,
+            grain_angle: if self.grain_angle.is_finite() { (self.grain_angle + 180.0).rem_euclid(360.0) - 180.0 } else { 0.0 },
+            grain_contrast: f(self.grain_contrast, 0.1, MAX_GRAIN_CONTRAST, 1.0),
             grain_image: self.grain_image,
             dynamics: Dynamics {
                 tilt: f(self.dynamics.tilt, 0.0, 1.0, p.dynamics.tilt),
                 min_size: f(self.dynamics.min_size, 0.01, 1.0, p.dynamics.min_size),
                 response: self.dynamics.response.sanitized(),
             },
-            wet: Wet { pickup: f(self.wet.pickup, 0.0, 1.0, p.wet.pickup) },
+            wet: self.wet.sanitized(p.wet),
             smoothing: Smoothing {
                 average: f(self.smoothing.average, 0.0, 1.0, p.smoothing.average),
                 string: f(self.smoothing.string, 0.0, 500.0, p.smoothing.string),
@@ -424,6 +536,9 @@ impl Brush {
             compose: self.compose,
             jitter: self.jitter.sanitized(),
             count: self.count.clamp(1, MAX_COUNT),
+            tip_mode: self.tip_mode,
+            tip_cells: self.tip_cells.clamp(1, MAX_TIP_CELLS),
+            tip_order: self.tip_order,
         }
     }
 }

@@ -13,9 +13,17 @@ mod args;
 mod brush_editor;
 mod brush_library;
 mod brush_presets;
+mod camera_path;
+#[cfg(test)]
+mod camera_path_ui_tests;
+#[cfg(test)]
+mod cameras_ui_tests;
 mod canvas;
 mod canvas_header;
 mod canvas_tools;
+mod clone_tool;
+#[cfg(test)]
+mod clone_ui_tests;
 mod color;
 mod colour_layers_ui;
 #[cfg(test)]
@@ -48,13 +56,21 @@ mod fx_ui_tests;
 #[cfg(test)]
 mod gaps_ui_tests;
 #[cfg(test)]
+mod gradient_swatch_ui_tests;
+#[cfg(test)]
 mod guidance_ui_tests;
 mod history_panel;
 #[cfg(test)]
 mod history_ui_tests;
 mod icons;
+#[cfg(test)]
+mod ik_ui_tests;
 mod import_dialog;
+#[cfg(test)]
+mod keyboard_reach_ui_tests;
 mod keys;
+#[cfg(test)]
+mod language_ui_tests;
 mod layer_fx;
 mod layer_ops;
 mod layer_tree;
@@ -67,6 +83,9 @@ mod menu_commands;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+mod motion_record;
+#[cfg(test)]
+mod motion_record_ui_tests;
 mod onion_popover;
 mod panel_chrome;
 mod panel_views;
@@ -77,8 +96,15 @@ mod peg_transform;
 #[cfg(test)]
 mod peg_transform_ui_tests;
 mod pegs;
+#[cfg(test)]
+mod pen_ui_tests;
 mod pipeline;
+#[cfg(test)]
+mod poses_ui_tests;
 mod preferences;
+mod reference_viewer;
+#[cfg(test)]
+mod reference_viewer_ui_tests;
 mod rulers_ui;
 #[cfg(test)]
 mod rulers_ui_tests;
@@ -124,6 +150,8 @@ mod tool_options;
 mod tool_palettes;
 #[cfg(test)]
 mod tool_palettes_ui_tests;
+#[cfg(test)]
+mod tool_properties_ui_tests;
 mod tool_rail;
 mod top_bar;
 #[cfg(test)]
@@ -137,6 +165,9 @@ mod unsaved_ui_tests;
 mod vector_ui_tests;
 mod video_dialog;
 mod view;
+mod views;
+#[cfg(test)]
+mod views_ui_tests;
 mod workspaces;
 
 use args::{Cli, Launch};
