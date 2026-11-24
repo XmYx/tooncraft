@@ -1,0 +1,1 @@
+- Effects: motion blur from movement, trails, frame blending, time remap and transitions (dissolve, wipe, iris, push).

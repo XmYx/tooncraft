@@ -249,6 +249,20 @@ fn any_kind() -> impl Strategy<Value = EffectKind> {
             amount_y,
             brightness
         }),
+        (f(), any::<u32>()).prop_map(|(shutter, samples)| EffectKind::MotionBlur { shutter, samples }),
+        (any::<u32>(), any::<u32>(), f()).prop_map(|(count, step, fade)| EffectKind::Trails { count, step, fade }),
+        f().prop_map(|amount| EffectKind::FrameBlend { amount }),
+        (f(), f()).prop_map(|(speed, offset)| EffectKind::TimeRemap { speed, offset }),
+        (0u8..4, 0u32..20, any::<u32>(), any::<bool>(), f(), f(), f(), f()).prop_map(|(st, start, length, out, angle, x, y, size)| EffectKind::Transition {
+            style: [TransitionStyle::Dissolve, TransitionStyle::Wipe, TransitionStyle::Iris, TransitionStyle::Push][st as usize % 4],
+            start,
+            length,
+            out,
+            angle,
+            x,
+            y,
+            size
+        }),
         (col(), col(), f()).prop_map(|(dark, light, amount)| EffectKind::GradientMap { dark, light, amount }),
         any::<u32>().prop_map(|levels| EffectKind::Posterize { levels }),
         f().prop_map(|level| EffectKind::Threshold { level }),
