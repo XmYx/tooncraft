@@ -68,3 +68,4 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Rulers, Straight ruler, Curve ruler, Ellipse ruler, Concentric ruler, One-, Two-, Three-Point Perspective, Snap strokes to grid lines, Reach | Generic drafting terms and our wording | Use (common) |
 | Text, Place Text, Align left, Centre, Align right, Line spacing, Letter spacing | Generic typesetting terms | Use (common) |
 | Colour layer, Add Colour Layer, Colour of …, Stop Following the Line Layer | Generic ink-and-paint terms and our wording | Use (common) |
+| Feather (selection) | Generic image-editing term for a soft selection edge, used descriptively by many apps | Use (common) |

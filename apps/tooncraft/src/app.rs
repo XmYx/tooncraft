@@ -761,6 +761,7 @@ impl ToonApp {
             skew_x: 0.0,
             skew_y: 0.0,
             resample,
+            feather: self.sel.feather,
         };
         if self.run(cmd) {
             let t = tooncraft_engine::select::affine(&poly, dx, dy, scale.0, scale.1, angle);
@@ -771,7 +772,7 @@ impl ToonApp {
     pub fn delete_selected_pixels(&mut self) {
         if let Some(poly) = self.selection.clone() {
             let (layer, frame, rings) = (self.layer, self.frame, crate::selection_tools::extra_rings(self));
-            self.run(Command::ClearSelection { layer, frame, polygon: poly, rings });
+            self.run(Command::ClearSelection { layer, frame, polygon: poly, rings, feather: self.sel.feather });
         }
     }
 
@@ -782,7 +783,7 @@ impl ToonApp {
     }
 
     pub fn copy_pixels(&mut self, cut: bool) {
-        let Some(mask) = crate::selection_tools::mask(self) else { return };
+        let Some(mask) = crate::selection_tools::soft_mask(self) else { return };
         let Some(s) = self.engine.project.drawing_at(self.layer, self.frame).and_then(|d| self.engine.project.drawing(d)) else { return };
         let img = tooncraft_raster::select::copy(s, &mask);
         self.pixel_clipboard = Some((img.to_straight(), img.width, img.height, (mask.x as f32, mask.y as f32)));

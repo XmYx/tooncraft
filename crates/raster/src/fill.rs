@@ -72,7 +72,8 @@ pub struct Mask {
     pub y: u32,
     pub width: u32,
     pub height: u32,
-    /// One byte per pixel, 0 or 255.
+    /// One byte per pixel: 0 is outside, 255 inside; values between are a soft (feathered)
+    /// edge, and the operations that take a mask weight by it.
     pub data: Vec<u8>,
 }
 
@@ -83,6 +84,15 @@ impl Mask {
         }
         let i = (y - self.y) as usize * self.width as usize + (x - self.x) as usize;
         self.data.get(i).is_some_and(|v| *v != 0)
+    }
+
+    /// How much of the pixel is selected, 0 (outside, or off the mask) to 255.
+    pub fn value(&self, x: u32, y: u32) -> u8 {
+        if x < self.x || y < self.y || x >= self.x + self.width || y >= self.y + self.height {
+            return 0;
+        }
+        let i = (y - self.y) as usize * self.width as usize + (x - self.x) as usize;
+        self.data.get(i).copied().unwrap_or(0)
     }
 
     pub fn count(&self) -> usize {
@@ -293,6 +303,15 @@ fn grow(region: &mut [bool], w: usize, h: usize, steps: usize, through: Option<&
     }
 }
 
+/// A premultiplied colour scaled by a mask value (255 keeps it as it is).
+pub fn weigh(p: [u8; 4], m: u8) -> [u8; 4] {
+    if m == 255 {
+        return p;
+    }
+    let k = |v: u8| ((v as u32 * m as u32 + 127) / 255) as u8;
+    [k(p[0]), k(p[1]), k(p[2]), k(p[3])]
+}
+
 /// Paint `color` (premultiplied) over the existing pixels of `surface` wherever `mask` is set
 /// (filled shapes, lasso fill).
 pub fn paint_over(surface: &mut Surface, mask: &Mask, color: [u8; 4]) {
@@ -309,9 +328,10 @@ pub fn paint_over(surface: &mut Surface, mask: &Mask, color: [u8; 4]) {
             let px = tile.bytes_mut();
             for r in 0..TILE {
                 for c in 0..TILE {
-                    if mask.get(tx * TILE + c, ty * TILE + r) {
+                    let m = mask.value(tx * TILE + c, ty * TILE + r);
+                    if m != 0 {
                         let i = ((r * TILE + c) * 4) as usize;
-                        let out = over([px[i], px[i + 1], px[i + 2], px[i + 3]], color);
+                        let out = over([px[i], px[i + 1], px[i + 2], px[i + 3]], weigh(color, m));
                         px[i..i + 4].copy_from_slice(&out);
                     }
                 }
@@ -342,10 +362,11 @@ pub fn apply(surface: &mut Surface, mask: &Mask, color: [u8; 4]) {
             let px = tile.bytes_mut();
             for r in 0..TILE {
                 for c in 0..TILE {
-                    if mask.get(tx * TILE + c, ty * TILE + r) {
+                    let m = mask.value(tx * TILE + c, ty * TILE + r);
+                    if m != 0 {
                         let i = ((r * TILE + c) * 4) as usize;
                         let existing = [px[i], px[i + 1], px[i + 2], px[i + 3]];
-                        let out = over(color, existing);
+                        let out = over(weigh(color, m), existing);
                         px[i..i + 4].copy_from_slice(&out);
                     }
                 }

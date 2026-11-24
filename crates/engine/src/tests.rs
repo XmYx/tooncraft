@@ -488,13 +488,14 @@ fn selection_commands() {
         skew_x: 0.0,
         skew_y: 0.0,
         resample: Default::default(),
+        feather: 0.0,
     })
     .unwrap();
     assert_eq!(e.pick_color(0, 210, 80), before, "the ring moved by (150, 40)");
     assert_ne!(e.pick_color(0, 60, 40), before);
     e.undo().unwrap();
     assert_eq!(e.pick_color(0, 60, 40), before);
-    e.apply(Command::ClearSelection { layer: 0, frame: 0, polygon: sq, rings: Vec::new() }).unwrap();
+    e.apply(Command::ClearSelection { layer: 0, frame: 0, polygon: sq, rings: Vec::new(), feather: 0.0 }).unwrap();
     assert!(e.project.drawing(e.project.drawing_at(0, 0).unwrap()).unwrap().is_empty());
     e.apply(Command::PastePixels { layer: 0, frame: 3, x: 10.0, y: 10.0, width: 2, height: 1, rgba: vec![255, 0, 0, 255, 0, 0, 255, 255] }).unwrap();
     assert_eq!(e.pick_color(3, 10, 10), [255, 0, 0, 255]);

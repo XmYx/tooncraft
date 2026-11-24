@@ -266,6 +266,90 @@ pub fn grow(m: &Mask, n: i32, w: u32, h: u32) -> Option<Mask> {
     crop(&buf, w, h)
 }
 
+/// Largest feather radius, in pixels.
+pub const MAX_FEATHER: f32 = 64.0;
+
+/// A soft-edged copy of the mask: the edge fades over about `radius` pixels on each side (three
+/// box blurs, close to a Gaussian), so moving, erasing, copying or filling the selection blends
+/// into what is around it. `radius` is clamped to [`MAX_FEATHER`]; below half a pixel the mask
+/// comes back as it is. Work is linear in the mask's box (grown by the radius) whatever the
+/// radius; `None` past [`MAX_SELECTION_PIXELS`] or when nothing is left.
+pub fn feather(m: &Mask, radius: f32, w: u32, h: u32) -> Option<Mask> {
+    let radius = if radius.is_finite() { radius.clamp(0.0, MAX_FEATHER) } else { 0.0 };
+    if radius < 0.5 || m.width == 0 || m.height == 0 {
+        return Some(m.clone());
+    }
+    // three boxes of radius b have a spread of about b·1.4; reach the full radius with them
+    let b = ((radius / 1.5).round() as u32).max(1);
+    let pad = 3 * b;
+    let x0 = m.x.saturating_sub(pad);
+    let y0 = m.y.saturating_sub(pad);
+    let x1 = m.x.saturating_add(m.width).saturating_add(pad).min(w);
+    let y1 = m.y.saturating_add(m.height).saturating_add(pad).min(h);
+    if x0 >= x1 || y0 >= y1 {
+        return None;
+    }
+    let (bw, bh) = ((x1 - x0) as usize, (y1 - y0) as usize);
+    if bw as u64 * bh as u64 > MAX_SELECTION_PIXELS {
+        return None;
+    }
+    // values ×255 kept as u32 so three passes do not lose the faint ends of the edge
+    let mut buf = vec![0u32; bw * bh];
+    for y in 0..bh {
+        for x in 0..bw {
+            buf[y * bw + x] = m.value(x0 + x as u32, y0 + y as u32) as u32 * 255;
+        }
+    }
+    let r = b as usize;
+    let mut line = Vec::new();
+    let mut blur = |buf: &mut Vec<u32>, len: usize, lines: usize, at: &dyn Fn(usize, usize) -> usize| {
+        let div = (2 * r + 1) as u64;
+        line.resize(len, 0u32);
+        for l in 0..lines {
+            // sliding sum over [i - r, i + r]; outside the box counts as unselected
+            let mut sum: u64 = (0..r.min(len)).map(|i| buf[at(l, i)] as u64).sum();
+            for i in 0..len {
+                if i + r < len {
+                    sum += buf[at(l, i + r)] as u64;
+                }
+                if i > r {
+                    sum -= buf[at(l, i - r - 1)] as u64;
+                }
+                line[i] = (sum / div) as u32;
+            }
+            for (i, v) in line.iter().enumerate() {
+                buf[at(l, i)] = *v;
+            }
+        }
+    };
+    for _ in 0..3 {
+        blur(&mut buf, bw, bh, &|l, i| l * bw + i);
+        blur(&mut buf, bh, bw, &|l, i| i * bw + l);
+    }
+    let data: Vec<u8> = buf.iter().map(|v| ((*v + 127) / 255).min(255) as u8).collect();
+    // crop to what is still set
+    let (mut cx0, mut cy0, mut cx1, mut cy1) = (usize::MAX, usize::MAX, 0, 0);
+    for y in 0..bh {
+        for x in 0..bw {
+            if data[y * bw + x] != 0 {
+                cx0 = cx0.min(x);
+                cy0 = cy0.min(y);
+                cx1 = cx1.max(x + 1);
+                cy1 = cy1.max(y + 1);
+            }
+        }
+    }
+    if cx0 >= cx1 {
+        return None;
+    }
+    let (mw, mh) = (cx1 - cx0, cy1 - cy0);
+    let mut out = Vec::with_capacity(mw * mh);
+    for y in cy0..cy1 {
+        out.extend_from_slice(&data[y * bw + cx0..y * bw + cx1]);
+    }
+    Some(Mask { x: x0 + cx0 as u32, y: y0 + cy0 as u32, width: mw as u32, height: mh as u32, data: out })
+}
+
 /// Most corner points the traced outline of a selection may have.
 pub const MAX_TRACE_POINTS: usize = 200_000;
 
@@ -422,10 +506,11 @@ pub fn copy(surface: &Surface, mask: &Mask) -> RgbaImage {
     let mut img = RgbaImage::transparent(mask.width, mask.height);
     surface.composite_region(&mut img, mask.x, mask.y, 1.0, None);
     for (i, m) in mask.data.iter().enumerate() {
-        if *m == 0 {
+        if *m != 255 {
             let at = i * 4;
             if let Some(px) = img.data.get_mut(at..at + 4) {
-                px.copy_from_slice(&[0; 4]);
+                let w = crate::fill::weigh([px[0], px[1], px[2], px[3]], *m);
+                px.copy_from_slice(&w);
             }
         }
     }
@@ -448,9 +533,11 @@ pub fn clear(surface: &mut Surface, mask: &Mask) {
             let px = tile.bytes_mut();
             for r in 0..TILE {
                 for c in 0..TILE {
-                    if mask.get(tx * TILE + c, ty * TILE + r) {
+                    let m = mask.value(tx * TILE + c, ty * TILE + r);
+                    if m != 0 {
                         let i = ((r * TILE + c) * 4) as usize;
-                        px[i..i + 4].copy_from_slice(&[0; 4]);
+                        let kept = crate::fill::weigh([px[i], px[i + 1], px[i + 2], px[i + 3]], 255 - m);
+                        px[i..i + 4].copy_from_slice(&kept);
                     }
                 }
             }
@@ -764,8 +851,57 @@ mod tests {
         assert!(t.apply(30.0, 40.0).0 > 30.0, "points below the pivot shift right");
     }
 
+    #[test]
+    fn feather_softens_the_edge_and_weights_erase_and_copy() {
+        let (w, h) = (100, 100);
+        let hard = polygon_mask(w, h, &rect(30.0, 30.0, 70.0, 70.0)).unwrap();
+        assert!(feather(&hard, 0.2, w, h).unwrap() == hard, "under half a pixel: unchanged");
+        let soft = feather(&hard, 6.0, w, h).unwrap();
+        assert_eq!(soft.value(50, 50), 255, "the middle stays fully selected");
+        assert_eq!(soft.value(5, 5), 0, "far outside stays out");
+        let edge = soft.value(30, 50);
+        assert!(edge > 60 && edge < 200, "the edge is half selected, got {edge}");
+        assert!(soft.value(26, 50) > 0 && soft.value(26, 50) < edge, "it fades outside the outline");
+        assert!(soft.value(34, 50) > edge && soft.value(34, 50) < 255, "and inside it");
+        assert!(soft.x < hard.x && soft.width > hard.width, "the box grows with the fade");
+        // hostile radii are clamped, and a radius past the cap costs no more than the cap
+        assert!(feather(&hard, f32::NAN, w, h).unwrap() == hard);
+        let capped = feather(&hard, 1e9, w, h).unwrap();
+        assert_eq!(capped, feather(&hard, MAX_FEATHER, w, h).unwrap());
+        // erase: fully inside clears, the edge keeps part of the paint, outside keeps it all
+        let mut s = Surface::new(w, h).unwrap();
+        let red = [255, 0, 0, 255];
+        let all = Mask { x: 0, y: 0, width: w, height: h, data: vec![255; (w * h) as usize] };
+        crate::fill::paint_over(&mut s, &all, red);
+        let copied = copy(&s, &soft);
+        let at = |img: &RgbaImage, x: u32, y: u32| img.pixel(x - soft.x, y - soft.y);
+        assert_eq!(at(&copied, 50, 50), red);
+        assert_eq!(at(&copied, 30, 50)[3], edge, "the copy carries the mask's softness");
+        clear(&mut s, &soft);
+        assert_eq!(s.pixel(50, 50)[3], 0);
+        assert_eq!(s.pixel(30, 50)[3], 255 - edge);
+        assert_eq!(s.pixel(5, 5), red);
+        // a soft fill paints less at the edge
+        let mut s = Surface::new(w, h).unwrap();
+        crate::fill::paint_over(&mut s, &soft, red);
+        assert_eq!(s.pixel(50, 50), red);
+        assert_eq!(s.pixel(30, 50)[3], edge);
+    }
+
     proptest::proptest! {
         #![proptest_config(proptest::prelude::ProptestConfig::with_cases(48))]
+        #[test]
+        fn hostile_feather_never_panics(pts in proptest::collection::vec((-500f32..700.0, -500f32..700.0), 0..12), r in -1e6f32..1e6) {
+            if let Some(m) = polygon_mask(200, 150, &pts) {
+                if let Some(f) = feather(&m, r, 200, 150) {
+                    proptest::prop_assert!(f.x + f.width <= 200 && f.y + f.height <= 150);
+                    proptest::prop_assert_eq!(f.data.len(), (f.width * f.height) as usize);
+                    let mut s = dot_surface();
+                    let _ = transform(&mut s, &f, Affine::translate(3.0, -2.0));
+                }
+            }
+        }
+
         #[test]
         fn hostile_selection_ops_never_panic(pts in proptest::collection::vec((-500f32..700.0, -500f32..700.0), 0..12), n in -200i32..200, q in proptest::collection::vec((-1e5f32..1e5, -1e5f32..1e5), 4)) {
             if let Some(m) = polygon_mask(200, 150, &pts) {

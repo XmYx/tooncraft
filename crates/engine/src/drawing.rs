@@ -151,6 +151,7 @@ pub(crate) fn gradient(
     end: [u8; 4],
     area: Option<&[(f32, f32)]>,
     area_rings: &[Vec<(f32, f32)>],
+    feather: f32,
 ) -> Result<()> {
     if !finite(&[from, to]) {
         return Err(EngineError::Import("gradient ends must be finite".into()));
@@ -167,6 +168,8 @@ pub(crate) fn gradient(
         rings.extend(area_rings.iter().filter(|r| finite(r)).map(|r| r.as_slice()).take(crate::select::MAX_RINGS));
     }
     let Some(mask) = select::rings_mask(w, h, &rings) else { return Ok(()) };
+    // a feather softens the selection's edge only (a whole-canvas gradient has none)
+    let Some(mask) = (if area.is_some() { select::feather(&mask, feather, w, h) } else { Some(mask) }) else { return Ok(()) };
     let (dx, dy) = (to.0 - from.0, to.1 - from.1);
     let len2 = (dx * dx + dy * dy).max(1e-6);
     let lerp = |t: f32| -> [u8; 4] {
@@ -189,7 +192,8 @@ pub(crate) fn gradient(
             for r in 0..t {
                 for c in 0..t {
                     let (x, y) = (tx * t + c, ty * t + r);
-                    if !mask.get(x, y) {
+                    let m = mask.value(x, y);
+                    if m == 0 {
                         continue;
                     }
                     let (px_x, px_y) = (x as f32 + 0.5 - from.0, y as f32 + 0.5 - from.1);
@@ -198,7 +202,7 @@ pub(crate) fn gradient(
                         GradientKind::Radial => (px_x * px_x + px_y * px_y).sqrt() / len2.sqrt(),
                     };
                     let i = ((r * t + c) * 4) as usize;
-                    let out = tooncraft_raster::over([px[i], px[i + 1], px[i + 2], px[i + 3]], lerp(f));
+                    let out = tooncraft_raster::over([px[i], px[i + 1], px[i + 2], px[i + 3]], tooncraft_raster::fill::weigh(lerp(f), m));
                     px[i..i + 4].copy_from_slice(&out);
                 }
             }
