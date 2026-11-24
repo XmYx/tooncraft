@@ -46,6 +46,7 @@ pub mod vector;
 mod vector_tests;
 
 pub use command::{Command, FillReference, MAX_BATCH, sheet};
+pub use interchange::{MAX_VIDEO_BYTES, VideoImport};
 pub use undo::Entry;
 
 use tooncraft_brush::{Brush, Sample, Stroke, StrokeEngine};
@@ -108,6 +109,8 @@ pub enum EngineError {
     NoLibraryItem(usize),
     #[error("text: {0}")]
     Text(String),
+    #[error("there is no grain image {0} in this shot")]
+    NoGrainImage(u64),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;

@@ -220,7 +220,7 @@ pub fn gradient_input(app: &mut ToonApp, at: Option<(f32, f32)>, resp: &egui::Re
         let start = app.color;
         let end = if app.aids.gradient_to_transparent { [start[0], start[1], start[2], 0] } else { [255, 255, 255, 255] };
         let (layer, frame, kind, area, area_rings) = (app.layer, app.frame, app.aids.gradient, app.selection.clone(), crate::selection_tools::extra_rings(app));
-        app.run(Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings });
+        app.run(Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, feather: app.sel.feather });
     }
 }
 

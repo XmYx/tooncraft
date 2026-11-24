@@ -331,6 +331,7 @@ pub static ALL: &[Cmd] = &[
     }),
     cmd("file.save_version", tlm!("Save New Version"), None, G::File, Fixed("Ctrl+Alt+S"), |a, _, _| a.save_new_version()),
     cmd("file.import_images", tlm!("Import Image Sequence…"), None, G::File, NoKey, |a, _, _| a.import_images()),
+    cmd("file.import_video", tlm!("Import Video…"), None, G::File, NoKey, |a, _, _| crate::video_dialog::open(a)),
     cmd("file.import_sound", tlm!("Import Sound…"), Some(Icon::Sound), G::File, NoKey, |a, _, _| a.import_sound()),
     when(
         cmd("file.remove_sound", tlm!("Remove Sound"), None, G::File, NoKey, |a, _, _| {
