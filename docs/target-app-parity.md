@@ -217,7 +217,7 @@ Weight: 5
 | Select by colour with tolerance (magic wand) | all | D | S | Magic Wand mode: tolerance, this drawing or all visible layers, the touching area or that colour everywhere |
 | Add, subtract and intersect selections | all | D | S | A mode option, or Shift (add), Alt (subtract) and both (intersect) while dragging; holes and separate parts stay one selection |
 | Invert, grow, shrink and feather a selection | all | D | S | Invert (Ctrl+Shift+I), grow and shrink by up to 64 px; Feather in the Select tool's options (up to 64 px) softens the edge, and moving, distorting, erasing, copying and filling the selection blend over it (one undo step each; `feather` in command files) |
-| Painted selection masks (quick mask) | TV CS PD | M | M | |
+| Painted selection masks (quick mask) | TV CS PD | D | M | Select > Quick Mask (Shift+Q): the selection becomes a mask the brushes paint into (the eraser takes away) under a red tint for what is not selected; turning it off traces the painted area back into the selection |
 | Move, scale and rotate a selection with a live preview | all | D | S | One undo step |
 | Flips and 90° turns | all | D | S | |
 | Cut, copy and paste pixels between drawings | all | D | S | |
