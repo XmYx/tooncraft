@@ -98,6 +98,18 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         area_rings: Vec<Vec<(f32, f32)>>,
     },
+    /// The clone stamp along `points`: each pixel takes the one at `offset` (source minus
+    /// destination) on `source_layer` (this layer when absent) at the same frame.
+    CloneStamp {
+        layer: usize,
+        frame: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source_layer: Option<usize>,
+        offset: (f32, f32),
+        #[serde(default)]
+        tip: crate::clone::CloneTip,
+        points: Vec<(f32, f32)>,
+    },
     /// Give a layer its own onion-skin settings (`None`: back to the shot's). A setting, not an
     /// undo step.
     SetLayerOnion {
@@ -1120,6 +1132,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings } => {
             frame_ok(e, frame)?;
             crate::drawing::gradient(e, layer, frame, kind, from, to, start, end, area.as_deref(), &area_rings)
+        }
+        Command::CloneStamp { layer, frame, source_layer, offset, tip, points } => {
+            frame_ok(e, frame)?;
+            crate::clone::clone_stamp(e, layer, frame, source_layer, offset, tip, &points)
         }
         Command::SetLayerOnion { layer, onion } => {
             e.project.layer_mut(layer)?.onion = onion.map(OnionSkin::sanitized);

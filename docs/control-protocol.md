@@ -67,6 +67,7 @@ hand a script can do.
 | `set_marker`, `remove_marker` | `frame`, `text` (empty removes it, 500 characters at most); `frame` |
 | `set_drawing_name`, `expose_named` | `layer`, `frame`, `name` (names the drawing shown there; names are unique ignoring case); `layer`, `frame`, `name` (show that drawing at the frame, only that frame changes) |
 | `edit_swatch` | `palette`, `swatch` (0-based, a shot palette), `rgb`, optional `name`, `update_paint` (default true: paint in the old colour on every unlocked layer takes the new one) |
+| `clone_stamp` | `layer`, `frame`, `offset` (source minus destination, pixels), `points` (the path, at most 20 000), optional `source_layer` (another layer's drawing at the same frame), `tip` (`size` 1…1000 px, `hardness` and `opacity` 0…1) |
 | `set_length`, `set_fps`, `set_paper`, `set_onion`, `toggle_pin`, `set_light_table`, `purge_unused` | as named |
 | `shift_pin` | `index`, `x`, `y` (canvas pixels), `turn` (tenths of a degree): shift and trace a light-table pin; a setting, not an undo step |
 | `save_to_library` | `layer`, `from`, `to` (0-based frames, either order), `name`: the drawings and timing of those frames become a drawing-library item with its own copies of the drawings |

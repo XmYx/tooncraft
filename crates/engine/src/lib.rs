@@ -13,6 +13,9 @@ mod boards;
 pub mod burnin;
 #[cfg(test)]
 mod cells_tests;
+pub mod clone;
+#[cfg(test)]
+mod clone_tests;
 mod command;
 #[cfg(test)]
 mod curves_tests;

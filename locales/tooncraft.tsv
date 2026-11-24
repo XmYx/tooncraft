@@ -83,8 +83,12 @@ tooncraft	Airbrush
 tooncraft	Airbrushes	
 tooncraft	Align left	
 tooncraft	Align right	
+tooncraft	Aligned	
 tooncraft	All	
 tooncraft	All visible layers	
+tooncraft	Alt+click sets a new source	
+tooncraft	Alt+click where to copy from first	
+tooncraft	Alt+click where to copy from, then paint	
 tooncraft	Amount	
 tooncraft	An image under the drawing, locked and faded, shown for the whole shot	
 tooncraft	Angle	
@@ -194,6 +198,8 @@ tooncraft	Clip to Layer Below
 tooncraft	Clip to the layer below	
 tooncraft	Clip volume here	
 tooncraft	Clip {n}: {name}	
+tooncraft	Clone source set at {x}, {y}	
+tooncraft	Clone stamp	
 tooncraft	Close	
 tooncraft	Close gaps	
 tooncraft	Close gaps by default	
@@ -229,6 +235,7 @@ tooncraft	Copy
 tooncraft	Copy / cut / paste frames	
 tooncraft	Copy Frames	
 tooncraft	Copy Pixels	
+tooncraft	Copy from	
 tooncraft	Copy look from	
 tooncraft	Copy opacity, blend mode, label colour, folder, peg, depth and effects to this layer	
 tooncraft	Copy the layer with its drawings, just above it	
@@ -596,6 +603,7 @@ tooncraft	Keep the chosen item for other shots
 tooncraft	Keep the left side in place	
 tooncraft	Keep the outside	
 tooncraft	Keep the right side in place	
+tooncraft	Keep the same offset from one stroke to the next	
 tooncraft	Keep the top in place	
 tooncraft	Keep the top left in place	
 tooncraft	Keep the top right in place	

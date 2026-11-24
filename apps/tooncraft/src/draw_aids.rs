@@ -45,6 +45,8 @@ pub struct DrawAids {
     pub gradient: GradientKind,
     pub gradient_to_transparent: bool,
     pub gradient_drag: Option<((f32, f32), (f32, f32))>,
+    /// The clone stamp tool's settings and stroke.
+    pub clone: crate::clone_tool::CloneTool,
     pub snap_grid: bool,
     pub hold_straighten: bool,
     /// The ruler handle being dragged (ruler, handle, the rulers as they were at the press, so
@@ -70,6 +72,7 @@ impl Default for DrawAids {
             gradient: GradientKind::Linear,
             gradient_to_transparent: true,
             gradient_drag: None,
+            clone: Default::default(),
             snap_grid: false,
             hold_straighten: true,
             ruler_drag: None,
