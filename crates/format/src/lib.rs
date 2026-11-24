@@ -173,6 +173,12 @@ struct ProjectJson {
     palettes: Vec<tooncraft_doc::palette::Palette>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     library: Vec<tooncraft_doc::library::Item>,
+    #[serde(default, skip_serializing_if = "no_rulers")]
+    rulers: tooncraft_doc::rulers::Rulers,
+}
+
+fn no_rulers(r: &tooncraft_doc::rulers::Rulers) -> bool {
+    *r == tooncraft_doc::rulers::Rulers::default()
 }
 
 fn is_off(s: &tooncraft_doc::symmetry::Symmetry) -> bool {
@@ -227,6 +233,7 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             symmetry: p.symmetry,
             palettes: p.palettes.clone(),
             library: p.library.clone(),
+            rulers: p.rulers.clone(),
             camera: p.camera.clone(),
             folders: p.folders.clone(),
             pegs: p.pegs.clone(),
@@ -374,6 +381,7 @@ fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::P
     let mut p = Project::from_parts(pj.name, (pj.width, pj.height), pj.fps, pj.length, pj.paper, pj.layers, placeholders, pj.onion, pj.light_table)?;
     p.symmetry = pj.symmetry.sanitized();
     p.palettes = tooncraft_doc::palette::sanitize_all(pj.palettes);
+    p.rulers = pj.rulers.sanitized();
     let none = std::collections::BTreeSet::new();
     for d in &m.drawings {
         let want = 8 + d.tiles as u64 * (4 + TILE_BYTES as u64);

@@ -43,6 +43,7 @@ hand a script can do.
 | `set_layer_clip` | `layer`, `clip` (show only where the layer below has paint) |
 | `add_peg`, `delete_peg`, `rename_peg`, `set_peg_parent`, `set_peg_pivot` | `name`, optional `parent`; `peg` (+ `name`, `parent`, `x`/`y`) |
 | `set_peg_key`, `remove_peg_key` | `peg`, `frame`, `x`, `y`, `angle` (degrees), `scale_x`, `scale_y`, `skew` (degrees), `ease` (`{"kind":"linear"}`, `in`, `out`, `in_out`, `hold`, or `{"kind":"curve","x1","y1","x2","y2"}`) |
+| `move_peg_keys`, `set_peg_eases`, `remove_peg_keys` | `peg`, `frames` (the keys); `by_frames`, optional `channel` (`x`, `y`, `angle`, `scale_x`, `scale_y`, `skew`) and `by_value`; `ease`. Each is one undo step; a move that would leave the shot or land on a key that is not moving is refused whole |
 | `set_layer_peg`, `set_layer_depth` | `layer`, `peg` (absent: off the peg); `depth` (0 the drawing plane, above 0 further away) |
 | `add_camera_shake`, `remove_camera_shake` | `shake` (`from`, `to`, `amplitude` px, `rotation` degrees, `frequency` per frame, `fade` frames, `seed`); `index` |
 | `set_layer_blend`, `set_layer_color`, `set_layer_folder`, `set_folder` | blend mode (24: `normal`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `add`, `color_dodge`, `color_burn`, `hard_light`, `soft_light`, `difference`, `exclusion`, `linear_burn`, `linear_light`, `vivid_light`, `pin_light`, `hard_mix`, `subtract`, `divide`, `hue`, `saturation`, `colour`, `luminosity`); colour; folder name; folder `visible`, `opacity`, `collapsed` |

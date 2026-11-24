@@ -27,11 +27,12 @@ pub enum Pane {
     Timing,
     History,
     Drawings,
+    Curves,
 }
 
 impl Pane {
     /// Every panel, in the Window menu's order.
-    pub const ALL: [Pane; 15] = [
+    pub const ALL: [Pane; 16] = [
         Pane::Canvas,
         Pane::Timeline,
         Pane::Colour,
@@ -47,6 +48,7 @@ impl Pane {
         Pane::LipSync,
         Pane::Timing,
         Pane::History,
+        Pane::Curves,
     ];
 
     pub fn label(self) -> String {
@@ -66,6 +68,7 @@ impl Pane {
             Pane::Timing => tl!("Timing"),
             Pane::History => tl!("Undo History"),
             Pane::Drawings => tl!("Drawing Library"),
+            Pane::Curves => tl!("Curves"),
         }
         .to_string()
     }
@@ -86,6 +89,7 @@ impl Pane {
             "timing" => Pane::Timing,
             "history" => Pane::History,
             "drawings" | "drawing-library" => Pane::Drawings,
+            "curves" | "curve" => Pane::Curves,
             _ => Pane::Canvas,
         }
     }
@@ -119,7 +123,7 @@ impl Default for Workspace {
             axis: SplitAxis::Vertical,
             size: SplitSize::FixedSecond(236.0),
             first: Box::new(tabs(&[Pane::Canvas], 0)),
-            second: Box::new(tabs(&[Pane::Timeline], 0)),
+            second: Box::new(tabs(&[Pane::Timeline, Pane::Curves], 0)),
         };
         let right = Node::Split {
             axis: SplitAxis::Vertical,
@@ -239,6 +243,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             Pane::Timing => crate::timing_panel::panel(app, ui),
             Pane::History => crate::history_panel::panel(app, ui),
             Pane::Drawings => crate::drawing_library::panel(app, ui),
+            Pane::Curves => crate::curves::panel(app, ui),
         },
     );
     if let Some(e) = out.error {
