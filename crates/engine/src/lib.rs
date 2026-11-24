@@ -43,6 +43,7 @@ pub mod vector;
 mod vector_tests;
 
 pub use command::{Command, FillReference, MAX_BATCH, sheet};
+pub use interchange::{MAX_VIDEO_BYTES, VideoImport};
 pub use undo::Entry;
 
 use tooncraft_brush::{Brush, Sample, Stroke, StrokeEngine};

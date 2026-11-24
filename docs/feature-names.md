@@ -28,6 +28,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Paste as New Drawings, Paste Frames Moving Later Frames | Our wording | Use |
 | Reverse Selected Frames, Repeat Selected Frames | Descriptive (instead of vendor terms for cycles) | Use |
 | Import Image Sequence | Descriptive | Use |
+| Import Video | Descriptive | Use |
 | Video (MP4, H.264), Animated PNG | Format names (allowed by rule 3) | Use |
 | Select, Lasso, Rectangle, Transform Selection, Flip Horizontally / Vertically | Generic | Use (common) |
 | Shapes, Line, Rectangle, Ellipse | Generic | Use (common) |

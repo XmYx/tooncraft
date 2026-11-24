@@ -973,3 +973,128 @@ fn import_options_by_name_into_a_layer_and_placement() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Removes a test's folder when the test ends, also when it fails.
+struct Gone(std::path::PathBuf);
+
+impl Drop for Gone {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// An empty folder for one test, and the guard that removes it.
+fn scratch_dir(name: &str) -> (std::path::PathBuf, Gone) {
+    let d = scratch(name);
+    let _ = std::fs::remove_dir_all(&d);
+    std::fs::create_dir_all(&d).unwrap();
+    (d.clone(), Gone(d))
+}
+
+/// A 6-frame shot whose frame `i` has a black square at `x = 20 + 40 i`, written as an MP4.
+fn moving_square_movie(dir: &std::path::Path) -> String {
+    let mut e = Engine::new(Project::new("Square", 320, 240, 12, 6).unwrap());
+    for i in 0..6u32 {
+        let x = 20 + 40 * i;
+        let mut img = tooncraft_raster::RgbaImage::transparent(320, 240);
+        for y in 100..140 {
+            for xx in x..x + 30 {
+                img.set_pixel(xx, y, [0, 0, 0, 255]);
+            }
+        }
+        let mut s = tooncraft_raster::Surface::new(320, 240).unwrap();
+        s.load_image(&img).unwrap();
+        let id = e.project.add_drawing(Some(s)).unwrap();
+        e.project.layers[0].cells[i as usize] = tooncraft_doc::Cell::Key(id);
+    }
+    let path = dir.join("square.mp4");
+    mp4(&e.project, &path, ExportOptions::whole(&e.project), |_| {}).unwrap();
+    path.to_string_lossy().into_owned()
+}
+
+#[test]
+fn import_video_as_a_reference_layer() {
+    let (dir, _gone) = scratch_dir("video");
+    let movie = moving_square_movie(&dir);
+    let mut e = Engine::new(Project::new("Roto", 320, 240, 24, 4).unwrap());
+    let before = e.project.clone();
+    e.apply(Command::ImportVideo { path: movie.clone(), frame: 0, options: Default::default() }).unwrap();
+    // 12 fps video into a 24 fps shot: every picture held two frames; the shot grows to fit
+    assert_eq!(e.project.length(), 12);
+    let l = &e.project.layers[0];
+    assert_eq!(l.name, "square");
+    assert!(l.locked && (l.opacity - 0.5).abs() < 1e-6, "a locked, faded reference at the bottom");
+    assert_eq!(sheet(&l.cells), "#-#-#-#-#-#-");
+    // each picture is the right one: the square moves 40 px a picture
+    for i in 0..6u32 {
+        let f = i * 2;
+        assert!(e.pick_color(f, 20 + 40 * i + 15, 120)[0] < 170, "picture {i} has its square (black at half opacity)");
+        if i > 0 {
+            assert!(e.pick_color(f, 20 + 40 * (i - 1) + 5, 120)[0] > 220, "picture {i} is not the one before");
+        }
+    }
+    e.undo().unwrap();
+    assert_eq!(e.project, before, "one undo step takes it all back");
+}
+
+#[test]
+fn import_part_of_a_video_on_a_layer_on_top() {
+    let (dir, _gone) = scratch_dir("video-part");
+    let movie = moving_square_movie(&dir);
+    let mut e = engine(); // 12 fps, 8 frames
+    let options = crate::VideoImport { from_seconds: 1.0 / 12.0, every: 2, max_frames: 2, reference: false, grow: false };
+    e.apply(Command::ImportVideo { path: movie, frame: 3, options }).unwrap();
+    let l = e.project.layers.last().unwrap();
+    assert!(!l.locked);
+    // pictures 1 and 3, each held for two frames (every 2nd picture of a 12 fps video)
+    assert_eq!(sheet(&l.cells), "...#-#-.");
+    assert!(e.pick_color(3, 60 + 15, 120)[0] < 60);
+    assert!(e.pick_color(5, 140 + 15, 120)[0] < 60);
+    assert_eq!(e.project.length(), 8, "without grow the shot keeps its length");
+}
+
+#[test]
+fn a_bad_video_changes_nothing() {
+    let (dir, _gone) = scratch_dir("video-bad");
+    let mut e = engine();
+    let before = e.project.clone();
+    let junk = dir.join("junk.mp4");
+    std::fs::write(&junk, b"\0\0\0\x18ftypisom not really a movie").unwrap();
+    let missing = dir.join("missing.mp4");
+    for p in [junk, missing] {
+        assert!(matches!(
+            e.apply(Command::ImportVideo { path: p.to_string_lossy().into_owned(), frame: 0, options: Default::default() }),
+            Err(EngineError::Import(_))
+        ));
+    }
+    let movie = moving_square_movie(&dir);
+    // past the end of the video, and past the shot's end
+    let late = crate::VideoImport { from_seconds: 60.0, ..Default::default() };
+    assert!(e.apply(Command::ImportVideo { path: movie.clone(), frame: 0, options: late }).is_err());
+    assert!(e.apply(Command::ImportVideo { path: movie, frame: 8, options: Default::default() }).is_err());
+    assert_eq!(e.project, before);
+}
+
+#[test]
+fn import_video_command_reads_from_json() {
+    let c: Command = serde_json::from_str(r#"{"cmd":"import_video","path":"a.mp4"}"#).unwrap();
+    assert_eq!(c, Command::ImportVideo { path: "a.mp4".into(), frame: 0, options: Default::default() });
+    let c: Command = serde_json::from_str(r#"{"cmd":"import_video","path":"a.mp4","frame":2,"options":{"every":2,"reference":false}}"#).unwrap();
+    let Command::ImportVideo { frame, options, .. } = c else { panic!("not a video import") };
+    assert_eq!((frame, options.every, options.reference, options.grow), (2, 2, false, true));
+}
+
+#[test]
+fn video_import_is_capped_by_memory_and_count() {
+    use crate::interchange::video_fit;
+    assert_eq!(video_fit(320, 240), crate::import::MAX_IMPORT, "small canvases stop at the drawing cap");
+    assert_eq!(video_fit(1920, 1080), (crate::MAX_VIDEO_BYTES / (1920 * 1080 * 4)) as usize);
+    assert_eq!(video_fit(16384, 16384), 2);
+    assert!(video_fit(0, 0) <= crate::import::MAX_IMPORT);
+    // a cap below the video's length keeps that many pictures, no more
+    let (dir, _gone) = scratch_dir("video-cap");
+    let movie = moving_square_movie(&dir);
+    let mut e = engine();
+    e.apply(Command::ImportVideo { path: movie, frame: 0, options: crate::VideoImport { max_frames: 1, ..Default::default() } }).unwrap();
+    assert_eq!(sheet(&e.project.layers[0].cells), "#.......");
+}
