@@ -214,3 +214,28 @@ fn brush_files_make_inspect_and_preview() {
     assert!(!cli(&["brush", "info", file.to_str().unwrap()]).0);
     assert!(!cli(&["brush", "preview", file.to_str().unwrap(), png.to_str().unwrap(), "--size", "1x1"]).0);
 }
+
+#[test]
+fn text_commands_use_the_fonts_given() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-text-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let shot = dir.join("shot.toon");
+    let shot_s = shot.to_str().unwrap();
+    assert!(cli(&["new", shot_s, "--size", "320x120", "--frames", "2"]).0);
+    let font = dir.join("Hack.ttf");
+    std::fs::write(&font, epaint_default_fonts::HACK_REGULAR).unwrap();
+    let cmds = dir.join("text.jsonl");
+    std::fs::write(&cmds, r#"{"cmd":"text","layer":0,"frame":0,"text":"Title","x":10,"y":10,"style":{"font":"Hack","size":40}}"#).unwrap();
+    // without the font: an error that says why
+    let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap()]);
+    assert!(!ok && out.contains("Hack"), "{out}");
+    let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap(), "--font", font.to_str().unwrap()]);
+    assert!(ok, "{out}");
+    let (ok, out) = cli(&["info", shot_s]);
+    assert!(ok && out.contains("\"drawings\": 1"), "{out}");
+    let junk = dir.join("junk.ttf");
+    std::fs::write(&junk, b"no font here").unwrap();
+    let (ok, out) = cli(&["run", shot_s, cmds.to_str().unwrap(), "--font", junk.to_str().unwrap()]);
+    assert!(!ok && out.contains("not a font"), "{out}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

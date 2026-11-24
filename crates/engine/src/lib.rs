@@ -35,6 +35,7 @@ pub mod preset;
 pub mod preview;
 pub mod select;
 pub mod shapes;
+pub mod text;
 pub mod touch;
 mod undo;
 pub mod vector;
@@ -98,6 +99,8 @@ pub enum EngineError {
     NoLineArt(u32),
     #[error("there is no library item {0}")]
     NoLibraryItem(usize),
+    #[error("text: {0}")]
+    Text(String),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;
@@ -135,6 +138,8 @@ pub struct Engine {
     redo: Vec<Entry>,
     /// Most bytes of tile data the undo history may hold.
     pub undo_budget: u64,
+    /// Fonts the text tool may use (not saved with the shot).
+    pub fonts: text::Fonts,
     live: Option<LiveStroke>,
     changes: u64,
     saved_at: u64,
@@ -151,6 +156,7 @@ impl Engine {
             undo: Vec::new(),
             redo: Vec::new(),
             undo_budget: DEFAULT_UNDO_BUDGET,
+            fonts: text::Fonts::default(),
             live: None,
             changes: 0,
             saved_at: 0,

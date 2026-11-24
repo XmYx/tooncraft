@@ -182,6 +182,17 @@ pub enum Command {
     SetRulers {
         rulers: tooncraft_doc::rulers::Rulers,
     },
+    /// Paint text into the drawing (one undo step): `x`, `y` is the anchor at the top of the
+    /// first line (its left edge, centre or right edge by the alignment).
+    Text {
+        layer: usize,
+        frame: u32,
+        text: String,
+        x: f32,
+        y: f32,
+        #[serde(default)]
+        style: crate::text::TextStyle,
+    },
     /// Add a colour layer just below `layer` that follows its exposures (line and colour art in
     /// one drawing). One undo step.
     AddColourLayer {
@@ -1089,6 +1100,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.rulers = rulers.sanitized();
             e.touch();
             Ok(())
+        }
+        Command::Text { layer, frame, text, x, y, style } => {
+            frame_ok(e, frame)?;
+            crate::text::paint_text(e, layer, frame, &text, (x, y), &style)
         }
         Command::NewDrawing { layer, frame } => {
             e.check_unlocked(layer)?;

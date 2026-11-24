@@ -34,6 +34,7 @@ pub enum Tool {
     Hand,
     /// Move, scale and turn the current layer's peg on the canvas.
     Transform,
+    Text,
 }
 
 /// How the select tool draws a new selection.
@@ -67,7 +68,7 @@ pub enum XformKind {
 }
 
 impl Tool {
-    pub const ALL: [Tool; 14] = [
+    pub const ALL: [Tool; 15] = [
         Tool::Pencil,
         Tool::Ink,
         Tool::Airbrush,
@@ -82,6 +83,7 @@ impl Tool {
         Tool::Gradient,
         Tool::Hand,
         Tool::Transform,
+        Tool::Text,
     ];
 
     pub fn brush(self) -> Option<BrushKind> {
@@ -113,6 +115,7 @@ impl Tool {
             Tool::Gradient => tl!("Gradient"),
             Tool::Hand => tl!("Hand"),
             Tool::Transform => tl!("Transform layer"),
+            Tool::Text => tl!("Text"),
         }
         .to_string()
     }
@@ -134,6 +137,7 @@ impl Tool {
             Tool::Gradient => "gradient",
             Tool::Hand => "hand",
             Tool::Transform => "transform",
+            Tool::Text => "text",
         }
     }
 }
@@ -461,6 +465,7 @@ impl ToonApp {
         if let Some(name) = &cli.panel {
             app.workspace.raise(Pane::from_name(name));
         }
+        crate::text_tool::register_fonts(&mut app);
         if let Some(t) = cli.tool.as_deref().and_then(|n| Tool::ALL.into_iter().find(|t| t.id() == n)) {
             app.tool = t;
         }
