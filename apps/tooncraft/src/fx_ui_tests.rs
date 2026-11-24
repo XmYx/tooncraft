@@ -101,3 +101,83 @@ fn layer_masks_and_adjustment_layers_from_the_effects_panel() {
         assert!(crate::commands::get(id).is_some(), "{id}");
     }
 }
+
+#[test]
+fn each_tool_chooses_its_own_reference_layers() {
+    let mut h = harness();
+    h.get(By::new().role(Role::CheckBox).label("Reference layer")).click();
+    h.run();
+    assert!(h.state().engine.project.layers[0].reference);
+    assert_eq!(h.state().engine.undo_label(), Some("Reference layer"));
+    // the fill bucket's own choice
+    h.state_mut().tool = crate::app::Tool::Fill;
+    h.run();
+    h.get(By::new().role(Role::ComboBox).label("Look at")).click();
+    h.run();
+    click(&mut h, "Reference layers");
+    assert_eq!(h.state().fill_reference, tooncraft_engine::FillReference::ReferenceLayers);
+    // the wand keeps its own, untouched by the fill's
+    h.state_mut().tool = crate::app::Tool::Select;
+    h.state_mut().select_mode = crate::app::SelectMode::Wand;
+    h.run();
+    assert_eq!(h.state().sel.wand_reference, tooncraft_engine::FillReference::Layer);
+    h.get(By::new().role(Role::ComboBox).label("Look at")).click();
+    h.run();
+    click(&mut h, "Reference layers");
+    assert_eq!(h.state().sel.wand_reference, tooncraft_engine::FillReference::ReferenceLayers);
+    assert!(crate::commands::get("layer.reference").is_some());
+}
+
+#[test]
+fn time_effects_and_transitions_in_the_panel() {
+    let mut h = harness();
+    h.state_mut().frame = 4;
+    h.run();
+    h.get(By::new().role(Role::ComboBox).label("Add effect")).click();
+    h.run();
+    click(&mut h, "Transition");
+    let EffectKind::Transition { start, .. } = h.state().engine.project.layers[0].effects[0].kind else { panic!("a transition") };
+    assert_eq!(start, 4, "starts at the current frame");
+    h.get(By::new().role(Role::ComboBox).label("Style"));
+    h.get(By::new().role(Role::CheckBox).label("Out (the layer leaves)")).click();
+    h.run();
+    assert!(matches!(h.state().engine.project.layers[0].effects[0].kind, EffectKind::Transition { out: true, .. }));
+    for (name, field) in [
+        ("Motion blur from movement", "Shutter (frames)"),
+        ("Trails", "Frames apart"),
+        ("Frame blending", "Mix of the next frame"),
+        ("Time remap", "Start at frame"),
+    ] {
+        h.get(By::new().role(Role::ComboBox).label("Add effect")).click();
+        h.run();
+        click(&mut h, name);
+        h.get_by_label(field);
+    }
+    assert_eq!(h.state().engine.project.layers[0].effects.len(), 5);
+}
+
+#[test]
+fn particles_and_lighting_in_the_panel() {
+    let mut h = harness();
+    assert!(h.state_mut().run(Command::AddLayer { name: "Shadow".into(), index: None }));
+    h.state_mut().layer = 0;
+    h.run();
+    for (name, field) in [("Particles", "New per frame"), ("Tone from a matte", "Highlight (lighten)"), ("Light from normals", "Roundness")] {
+        h.get(By::new().role(Role::ComboBox).label("Add effect")).click();
+        h.run();
+        click(&mut h, name);
+        h.get_by_label(field);
+    }
+    let shadow = h.state().engine.project.layers[1].id.0;
+    assert!(
+        matches!(h.state().engine.project.layers[0].effects[1].kind, EffectKind::MatteTone { layer, .. } if layer == shadow),
+        "the tone reads the other layer"
+    );
+    h.get(By::new().role(Role::ComboBox).label("Normals"));
+    // particles on a layer with no drawing still render
+    let p = &h.state().engine.project;
+    let f = p.length().saturating_sub(1);
+    assert!(p.layers[0].drawing_at(f).is_none());
+    let img = tooncraft_doc::render_frame(p, f, tooncraft_doc::RenderOptions { paper: false, ..Default::default() });
+    assert!(img.data.as_chunks::<4>().0.iter().any(|px| px[3] > 0), "snow has fallen by the last frame");
+}

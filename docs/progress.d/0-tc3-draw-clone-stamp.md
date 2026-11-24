@@ -1,0 +1,1 @@
+- 2026-11-24: Clone stamp tool (J): Alt+click sets where to copy from, then painting copies from there with a soft round tip, from the same layer or another one, aligned or restarting at the source each stroke; one undo step per stroke and a `clone_stamp` command.

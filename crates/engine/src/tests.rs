@@ -987,6 +987,41 @@ impl Drop for Gone {
     }
 }
 
+#[test]
+fn video_export_in_every_codec_and_container() {
+    use crate::export::{Container, VideoCodec, video};
+    let dir = scratch("codecs");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let _gone = Gone(dir.clone());
+    let mut e = engine();
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: circle(100.0, 100.0, 40.0) }).unwrap();
+    let mut o = ExportOptions::whole(&e.project);
+    o.end = 4;
+    for (codec, container, name, want) in [
+        (VideoCodec::H264, Container::Mov, "a.mov", "h264"),
+        (VideoCodec::Hevc, Container::Mp4, "b.mp4", "hevc"),
+        (VideoCodec::Hevc, Container::Mov, "c.mov", "hevc"),
+        (VideoCodec::Av1, Container::Mp4, "d.mp4", "av1"),
+    ] {
+        let path = dir.join(name);
+        video(&e.project, &path, o, codec, container, |_| {}).unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        let file = craft_media::isobmff::open(bytes.as_slice()).unwrap();
+        assert_eq!(file.is_quicktime, container == Container::Mov, "{name}");
+        let t = file.track_of_kind(craft_media::isobmff::TrackKind::Video).unwrap();
+        let t = &file.tracks[t];
+        assert_eq!(t.codec().map(|c| c.name()), Some(want), "{name}");
+        assert_eq!(t.samples.len(), 4, "{name}");
+        assert!(t.samples[0].is_sync, "{name} starts on a key picture");
+        assert!(t.samples.iter().all(|s| s.size > 0), "{name}");
+    }
+    // AV1 has no QuickTime mapping: an error, and no file
+    let path = dir.join("e.mov");
+    assert!(video(&e.project, &path, o, VideoCodec::Av1, Container::Mov, |_| {}).is_err());
+    assert!(!path.exists());
+}
+
 /// An empty folder for one test, and the guard that removes it.
 fn scratch_dir(name: &str) -> (std::path::PathBuf, Gone) {
     let d = scratch(name);
@@ -1159,4 +1194,55 @@ fn shift_pin_moves_a_pin_as_a_setting_and_refuses_a_missing_one() {
     e.apply(c).unwrap();
     assert_eq!(e.project.light_table.pins[0].shift.x, tooncraft_doc::MAX_PIN_SHIFT);
     assert_eq!(e.project.light_table.pins[0].shift.turn, 0);
+}
+
+#[test]
+fn layered_exr_holds_the_composite_and_each_visible_layer() {
+    use crate::export::{ExportOptions, exr_layered_sequence};
+    struct Gone(std::path::PathBuf);
+    impl Drop for Gone {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let dir = std::env::temp_dir().join(format!("tooncraft-exr-layers-{}", std::process::id()));
+    let _gone = Gone(dir.clone());
+    let mut e = Engine::new(tooncraft_doc::Project::new("Layers", 32, 24, 12, 1).unwrap());
+    e.apply(Command::Fill { layer: 0, frame: 0, x: 2, y: 2, color: [200, 30, 30, 255], options: Default::default(), reference: Default::default() }).unwrap();
+    // two more layers with the same awkward name, the top one hidden
+    for _ in 0..2 {
+        let n = e.project.layers.len();
+        e.project.add_layer("ink.lines", n).unwrap();
+    }
+    e.project.layers[2].visible = false;
+    let base = e.project.layers[0].name.replace('.', "_");
+    let o = ExportOptions { start: 0, end: 1, paper: false, ..Default::default() };
+    let files = exr_layered_sequence(&e.project, &dir, "c", o, |_| {}).unwrap();
+    assert_eq!(files.len(), 1);
+    let bytes = std::fs::read(&files[0]).unwrap();
+    let part = craft_exr::decode::decode_part(&bytes, 0, &|_| true, &craft_exr::decode::Limits::default()).unwrap();
+    let mut names: Vec<&str> = part.channels.iter().map(|c| c.name.as_str()).collect();
+    names.sort_unstable();
+    let mut want = vec!["A".to_string(), "B".into(), "G".into(), "R".into()];
+    for l in [base.as_str(), "ink_lines"] {
+        want.extend(["A", "B", "G", "R"].map(|c| format!("{l}.{c}")));
+    }
+    want.sort_unstable();
+    assert_eq!(names, want, "the main picture and the two visible layers, the hidden one left out");
+    let value = |name: &str, i: usize| match &part.channels.iter().find(|c| c.name == name).unwrap().samples {
+        craft_exr::decode::Samples::F16(v) => v[i].to_f32(),
+        _ => panic!("half floats"),
+    };
+    // red 200 in sRGB is about 0.58 in linear light, opaque
+    assert!((value("R", 5) - 0.578).abs() < 0.01, "linear red, got {}", value("R", 5));
+    assert!((value(&format!("{base}.A"), 5) - 1.0).abs() < 1e-3);
+    assert_eq!(value("ink_lines.A", 5), 0.0, "the empty layer is transparent");
+    // an impossible size is refused before anything is written
+    let many = ExportOptions { start: 0, end: 1, paper: false, ..Default::default() };
+    let mut big = tooncraft_doc::Project::new("Big", 4096, 4096, 12, 1).unwrap();
+    for i in 0..4 {
+        big.add_layer("x", i).unwrap();
+    }
+    assert!(exr_layered_sequence(&big, &dir.join("big"), "b", many, |_| {}).is_err());
+    assert!(!dir.join("big").exists());
 }

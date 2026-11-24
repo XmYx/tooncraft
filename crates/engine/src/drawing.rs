@@ -147,8 +147,7 @@ pub(crate) fn gradient(
     kind: GradientKind,
     from: (f32, f32),
     to: (f32, f32),
-    start: [u8; 4],
-    end: [u8; 4],
+    stops: &[tooncraft_doc::palette::Stop],
     area: Option<&[(f32, f32)]>,
     area_rings: &[Vec<(f32, f32)>],
     feather: f32,
@@ -172,11 +171,7 @@ pub(crate) fn gradient(
     let Some(mask) = (if area.is_some() { select::feather(&mask, feather, w, h) } else { Some(mask) }) else { return Ok(()) };
     let (dx, dy) = (to.0 - from.0, to.1 - from.1);
     let len2 = (dx * dx + dy * dy).max(1e-6);
-    let lerp = |t: f32| -> [u8; 4] {
-        let t = t.clamp(0.0, 1.0);
-        let c = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t).round() as u8;
-        premultiply([c(start[0], end[0]), c(start[1], end[1]), c(start[2], end[2]), c(start[3], end[3])])
-    };
+    let lerp = |t: f32| -> [u8; 4] { premultiply(tooncraft_doc::palette::stop_colour(stops, t)) };
     let (drawing, mut parts) = e.ensure_drawing(layer, frame)?;
     let s = e.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
     s.begin_capture();

@@ -1,0 +1,1 @@
+- Paint bucket and magic wand: look at the layers marked as reference layers (each tool keeps its own choice).

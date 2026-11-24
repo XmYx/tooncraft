@@ -17,6 +17,20 @@ pub enum FillReference {
     /// Every visible layer (paint under ink on its own layer).
     #[default]
     AllLayers,
+    /// The layers marked as references, and the layer itself.
+    ReferenceLayers,
+}
+
+impl FillReference {
+    /// How to render the picture this reference looks at, for `layer`.
+    pub fn render_options(self, layer: usize) -> tooncraft_doc::RenderOptions {
+        let base = tooncraft_doc::RenderOptions { paper: false, effects: false, ..Default::default() };
+        match self {
+            FillReference::Layer => tooncraft_doc::RenderOptions { only_layer: Some(layer), ..base },
+            FillReference::AllLayers => base,
+            FillReference::ReferenceLayers => tooncraft_doc::RenderOptions { references_with: Some(layer), ..base },
+        }
+    }
 }
 
 /// One change to a project. `layer` is a layer index (0 = bottom), `frame` is 0-based.
@@ -97,9 +111,24 @@ pub enum Command {
         /// More rings of the selection (holes, other parts), with `area`.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         area_rings: Vec<Vec<(f32, f32)>>,
+        /// A gradient swatch's stops; two or more replace `start` and `end`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        stops: Vec<tooncraft_doc::palette::Stop>,
         /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
         #[serde(default, skip_serializing_if = "is_hard")]
         feather: f32,
+    },
+    /// The clone stamp along `points`: each pixel takes the one at `offset` (source minus
+    /// destination) on `source_layer` (this layer when absent) at the same frame.
+    CloneStamp {
+        layer: usize,
+        frame: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source_layer: Option<usize>,
+        offset: (f32, f32),
+        #[serde(default)]
+        tip: crate::clone::CloneTip,
+        points: Vec<(f32, f32)>,
     },
     /// Give a layer its own onion-skin settings (`None`: back to the shot's). A setting, not an
     /// undo step.
@@ -427,6 +456,25 @@ pub enum Command {
     RemovePegKey {
         peg: PegId,
         frame: u32,
+    },
+    /// Keep the pose of `peg` and every peg below it at `frame` under `name` (the pose library).
+    SavePose {
+        peg: PegId,
+        frame: u32,
+        name: String,
+    },
+    /// Key the pegs of pose `index` at `frame` as they were saved (pegs the shot no longer has
+    /// are skipped; refused when it has none of them).
+    ApplyPose {
+        index: usize,
+        frame: u32,
+    },
+    RenamePose {
+        index: usize,
+        name: String,
+    },
+    RemovePose {
+        index: usize,
     },
     /// Move several keys of one peg together (the curve editor's drag): by `by_frames` in time
     /// and, with a `channel`, by `by_value` in that value. Refused whole when a key would leave
@@ -1018,6 +1066,12 @@ pub enum Command {
         #[serde(default)]
         matte: Option<tooncraft_doc::Matte>,
     },
+    /// Mark the layer as a reference for the fill bucket and the magic wand (when they look at
+    /// reference layers), or not.
+    SetLayerReference {
+        layer: usize,
+        reference: bool,
+    },
     /// Make the layer an adjustment layer (its effects act on everything below it) or a normal
     /// layer again.
     SetLayerAdjustment {
@@ -1207,9 +1261,19 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::PathShape { layer, frame, brush, points, closed, curve, outline, fill } => {
             crate::drawing::path_shape(e, layer, frame, brush, &points, closed, curve, outline, fill)
         }
-        Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, feather } => {
+        Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, stops, feather } => {
             frame_ok(e, frame)?;
-            crate::drawing::gradient(e, layer, frame, kind, from, to, start, end, area.as_deref(), &area_rings, feather)
+            let stops = tooncraft_doc::palette::sanitize_stops(stops);
+            let stops = if stops.is_empty() {
+                vec![tooncraft_doc::palette::Stop { at: 0.0, rgba: start }, tooncraft_doc::palette::Stop { at: 1.0, rgba: end }]
+            } else {
+                stops
+            };
+            crate::drawing::gradient(e, layer, frame, kind, from, to, &stops, area.as_deref(), &area_rings, feather)
+        }
+        Command::CloneStamp { layer, frame, source_layer, offset, tip, points } => {
+            frame_ok(e, frame)?;
+            crate::clone::clone_stamp(e, layer, frame, source_layer, offset, tip, &points)
         }
         Command::SetLayerOnion { layer, onion } => {
             e.project.layer_mut(layer)?.onion = onion.map(OnionSkin::sanitized);
@@ -1507,6 +1571,38 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
                 p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.set_key(PegKey { frame, x, y, angle, scale_x, scale_y, skew, ease });
                 Ok(())
             })
+        }
+        Command::SavePose { peg, frame, name } => {
+            frame_ok(e, frame)?;
+            if e.project.poses.len() >= tooncraft_doc::pose::MAX_POSES {
+                return Err(DocError::TooManyPoses.into());
+            }
+            let pose = tooncraft_doc::pose::Pose::capture(&e.project.pegs, peg, frame, &name).ok_or(DocError::NoPeg(peg.0))?;
+            let before = Part::Poses(e.project.poses.clone());
+            e.project.poses.push(pose);
+            e.push(Entry { label: "Save pose".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::ApplyPose { index, frame } => {
+            frame_ok(e, frame)?;
+            let pose = e.project.poses.get(index).cloned().ok_or(DocError::NoSuchPose(index))?;
+            pegs(e, "Apply pose", |p| if pose.apply(&mut p.pegs, frame) == 0 { Err(DocError::PoseFitsNoPeg) } else { Ok(()) })
+        }
+        Command::RenamePose { index, name } => {
+            let before = Part::Poses(e.project.poses.clone());
+            let pose = e.project.poses.get_mut(index).ok_or(DocError::NoSuchPose(index))?;
+            pose.name = name.trim().chars().take(tooncraft_doc::pose::MAX_POSE_NAME).collect();
+            e.push(Entry { label: "Rename pose".into(), parts: vec![before] });
+            Ok(())
+        }
+        Command::RemovePose { index } => {
+            if index >= e.project.poses.len() {
+                return Err(DocError::NoSuchPose(index).into());
+            }
+            let before = Part::Poses(e.project.poses.clone());
+            e.project.poses.remove(index);
+            e.push(Entry { label: "Remove pose".into(), parts: vec![before] });
+            Ok(())
         }
         Command::SetPegKeys { peg, keys } => {
             if keys.len() > tooncraft_doc::peg::MAX_PEG_KEYS {
@@ -2054,6 +2150,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }),
         Command::SetLayerMatte { layer, matte } => edit_layers(e, "Matte", |e| {
             e.project.layer_mut(layer)?.matte = matte;
+            Ok(())
+        }),
+        Command::SetLayerReference { layer, reference } => edit_layers(e, "Reference layer", |e| {
+            e.project.layer_mut(layer)?.reference = reference;
             Ok(())
         }),
         Command::SetLayerAdjustment { layer, adjustment } => edit_layers(e, "Adjustment layer", |e| {
