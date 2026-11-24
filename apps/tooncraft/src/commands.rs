@@ -495,6 +495,21 @@ pub static ALL: &[Cmd] = &[
     when(cmd("layer.add_peg", tlm!("Add Peg"), Some(Icon::Peg), G::Layer, NoKey, mc::run_layer), mc::can_add_peg),
     when(cmd("layer.move_up", tlm!("Move Layer Up"), None, G::Layer, NoKey, mc::run_layer), mc::not_top),
     when(cmd("layer.move_down", tlm!("Move Layer Down"), None, G::Layer, NoKey, mc::run_layer), mc::not_bottom),
+    toggle(cmd("layer.adjustment", tlm!("Adjustment Layer"), Some(Icon::Effects), G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::is_adjustment),
+    when(cmd("layer.mask_add", tlm!("Add Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::no_mask),
+    toggle(
+        when(cmd("layer.mask_edit", tlm!("Paint on Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::has_mask),
+        crate::layer_fx::is_editing,
+    ),
+    toggle(
+        when(cmd("layer.mask_enabled", tlm!("Use Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::has_mask),
+        crate::layer_fx::is_enabled,
+    ),
+    toggle(
+        when(cmd("layer.mask_invert", tlm!("Invert Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::has_mask),
+        crate::layer_fx::is_inverted,
+    ),
+    when(cmd("layer.mask_remove", tlm!("Remove Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::has_mask),
     toggle(cmd("layer.label_red", tlm!("Red"), Some(Icon::Label), G::Layer, NoKey, mc::run_label), mc::label_red),
     toggle(cmd("layer.label_orange", tlm!("Orange"), Some(Icon::Label), G::Layer, NoKey, mc::run_label), mc::label_orange),
     toggle(cmd("layer.label_yellow", tlm!("Yellow"), Some(Icon::Label), G::Layer, NoKey, mc::run_label), mc::label_yellow),
