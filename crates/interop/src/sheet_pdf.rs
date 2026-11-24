@@ -238,9 +238,9 @@ impl Sheet<'_> {
         for i in 0..=(end - start) {
             let f = start + i;
             let y = body + ROW * i as f32;
-            let (weight, grey) = if f % fps == 0 || i == end - start {
+            let (weight, grey) = if f.is_multiple_of(fps) || i == end - start {
                 (1.0, 0)
-            } else if f % 6 == 0 {
+            } else if f.is_multiple_of(6) {
                 (0.5, 90)
             } else {
                 (0.3, 175)
