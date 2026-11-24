@@ -94,7 +94,7 @@ fn a_second_finger_cancels_the_stroke_the_first_one_began() {
 fn a_palm_while_the_pen_is_near_draws_nothing() {
     let mut h = harness();
     let c = canvas_centre(&h);
-    h.state().tablet.set(Some(Pen { pressure: 0.0, tilt_x: 0.0, tilt_y: 0.0, eraser: false }));
+    h.state().tablet.set(Some(Pen { pressure: 0.0, tilt_x: 0.0, tilt_y: 0.0, rotation: 0.0, eraser: false }));
     h.run();
     touch(&h, 1, TouchPhase::Start, c);
     h.run();

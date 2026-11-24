@@ -21,6 +21,8 @@ pub fn samples(w: u32, h: u32) -> Vec<Sample> {
                 tilt_x: 0.85 * (t * std::f32::consts::PI * 1.5).sin(),
                 tilt_y: 0.4 * (t * std::f32::consts::PI).cos(),
                 time,
+                // half a turn of the barrel along the stroke, so a mapping from it shows
+                rotation: t * 0.5,
             }
         })
         .collect()

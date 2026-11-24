@@ -45,6 +45,7 @@ fn stroke_latency(brush: Brush) -> Result<(f64, f64, f64), String> {
                 tilt_x: 0.2,
                 tilt_y: 0.1,
                 time: i as f64 / 240.0,
+                rotation: 0.0,
             };
             let t0 = Instant::now();
             e.stroke_to(sample).map_err(|e| e.to_string())?;

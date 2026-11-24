@@ -8,8 +8,9 @@
 //! | `Pressure` | pen pressure |
 //! | `Tilt` | how far the pen leans from upright |
 //! | `Speed` | pointer speed, 0 at rest, 1 at 2500 px/s or faster |
-//! | `Rotation` | the stroke's heading in turns (0 is rightwards, 0.25 downwards); a pen's barrel rotation is not part of a sample yet |
+//! | `Rotation` | the stroke's heading in turns (0 is rightwards, 0.25 downwards) |
 //! | `Random` | a fresh deterministic random number for every dab and target |
+//! | `Barrel` | the pen's barrel rotation in turns (0 … 1, clockwise; 0 for a mouse or a pen without it) |
 //!
 //! `Size`, `Opacity` and `Flow` are scaled: every source contributes the factor
 //! `1 − amount · (1 − curve(input))`, and the factors multiply. At amount 1 and the identity curve
@@ -33,10 +34,12 @@ pub enum Source {
     Speed,
     Rotation,
     Random,
+    /// The pen's barrel rotation (pens with a rotating barrel).
+    Barrel,
 }
 
 impl Source {
-    pub const ALL: [Source; 5] = [Source::Pressure, Source::Tilt, Source::Speed, Source::Rotation, Source::Random];
+    pub const ALL: [Source; 6] = [Source::Pressure, Source::Tilt, Source::Speed, Source::Rotation, Source::Random, Source::Barrel];
 
     /// Stable id used in `.toonbrush` files and command files.
     pub fn id(self) -> &'static str {
@@ -46,6 +49,7 @@ impl Source {
             Source::Speed => "speed",
             Source::Rotation => "rotation",
             Source::Random => "random",
+            Source::Barrel => "barrel",
         }
     }
 
@@ -117,12 +121,12 @@ impl Default for Mapping {
 }
 
 /// The normalised input values of one dab, indexed by [`Source::index`].
-pub type Inputs = [f32; 5];
+pub type Inputs = [f32; 6];
 
 /// Every mapping of a brush.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Response {
-    m: [[Mapping; 5]; 5],
+    m: [[Mapping; 6]; 5],
 }
 
 impl Default for Response {
@@ -138,7 +142,7 @@ impl Default for Response {
 impl Response {
     /// Every mapping off, with each source's starting curve.
     pub fn off() -> Self {
-        let mut m = [[Mapping::default(); 5]; 5];
+        let mut m = [[Mapping::default(); 6]; 5];
         for row in m.iter_mut() {
             for s in Source::ALL {
                 row[s.index()].curve = s.default_curve();
@@ -334,7 +338,7 @@ mod tests {
     use super::*;
 
     fn inputs(p: f32, speed: f32) -> Inputs {
-        [p, 0.0, speed, 0.0, 0.5]
+        [p, 0.0, speed, 0.0, 0.5, 0.0]
     }
 
     #[test]
@@ -356,8 +360,8 @@ mod tests {
         let mut r = Response::off();
         r.set(Target::Scatter, Source::Random, 0.5);
         r.get_mut(Target::Scatter, Source::Random).curve = Curve::from_points(&[[0.0, 0.0], [0.5, 0.0], [1.0, 1.0]]);
-        let low = r.offset(Target::Scatter, &[0.0, 0.0, 0.0, 0.0, 0.25]);
-        let high = r.offset(Target::Scatter, &[0.0, 0.0, 0.0, 0.0, 1.0]);
+        let low = r.offset(Target::Scatter, &[0.0, 0.0, 0.0, 0.0, 0.25, 0.0]);
+        let high = r.offset(Target::Scatter, &[0.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
         assert!(low < 0.05 && (high - 0.5).abs() < 1e-5, "{low} {high}");
     }
 
