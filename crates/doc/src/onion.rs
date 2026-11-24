@@ -232,6 +232,7 @@ mod tests {
             mouth_chart: Default::default(),
             clip: false,
             lock_alpha: false,
+            vector: false,
             onion: None,
             cells,
         }

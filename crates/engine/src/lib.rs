@@ -37,6 +37,9 @@ pub mod select;
 pub mod shapes;
 pub mod touch;
 mod undo;
+pub mod vector;
+#[cfg(test)]
+mod vector_tests;
 
 pub use command::{Command, FillReference, sheet};
 pub use undo::Entry;
@@ -83,6 +86,10 @@ pub enum EngineError {
     EffectMismatch,
     #[error("cannot merge: {0}")]
     Merge(String),
+    #[error(transparent)]
+    Vector(#[from] tooncraft_vector::VectorError),
+    #[error("this is not a vector drawing (draw on a vector layer's blank frame)")]
+    NotVector,
     #[error("layer “{0}” has its transparency locked, so it cannot take a fill")]
     TransparencyLocked(String),
     #[error("there is no swatch {1} in palette {0}")]
@@ -102,6 +109,9 @@ struct LiveStroke {
     /// Symmetry copies: each has its own stroke engine (smoothing and spacing per copy), all
     /// painting into the same stroke so overlaps never darken.
     mirrors: Vec<(tooncraft_doc::symmetry::Mirror, StrokeEngine)>,
+    /// On a vector layer: where the stroke goes, its brush and the points drawn; the dabs are
+    /// only a preview, replaced by one vector stroke when it ends.
+    vector: Option<vector::Live>,
     /// The stroke follows a ruler (see [`tooncraft_doc::rulers`]); positions are snapped before
     /// smoothing and symmetry.
     snap: Option<tooncraft_doc::rulers::Snapper>,
@@ -296,8 +306,10 @@ impl Engine {
         let stroke = Stroke::begin_with(surface, brush, images);
         let (w, h) = (self.project.width(), self.project.height());
         let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush))).collect();
+        let vector = vector::Live::begin(&self.project, layer, frame, drawing, brush);
         let snap = self.project.rulers.snapper(w, h);
-        self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, snap, held: Default::default() });
+        self.live =
+            Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, vector, snap, held: Default::default() });
         Ok(())
     }
 
@@ -325,6 +337,10 @@ impl Engine {
         };
         let mut dabs = Vec::new();
         for sample in samples {
+            // a vector line keeps the positions after ruler snapping
+            if let (Some(v), Some(s)) = (live.vector.as_mut(), sample.sanitized()) {
+                v.push(s);
+            }
             dabs.extend(live.engine.feed(sample));
             for (m, eng) in &mut live.mirrors {
                 dabs.extend(eng.feed(mirror_sample(m, sample)));
@@ -337,6 +353,11 @@ impl Engine {
 
     /// Finish the live stroke as one undo step.
     pub fn end_stroke(&mut self) -> Result<()> {
+        if let Some(v) = self.live.as_mut().and_then(|l| l.vector.take()) {
+            // the dabs were a preview: drop them, then add the line as vector data
+            self.cancel_stroke();
+            return v.finish(self);
+        }
         let mut live = self.live.take().ok_or(EngineError::NotStroking)?;
         let mut dabs = Vec::new();
         // samples a ruler still held back (a short tap near a perspective ruler)

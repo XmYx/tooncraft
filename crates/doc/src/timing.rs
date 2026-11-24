@@ -222,6 +222,7 @@ mod tests {
             depth: 0.0,
             clip: false,
             lock_alpha: false,
+            vector: false,
             onion: None,
             effects: Vec::new(),
             opacity_keys: Vec::new(),

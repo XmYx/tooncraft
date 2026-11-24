@@ -14,6 +14,10 @@ A ZIP archive (PKWARE APPNOTE), written and read with craft-zip.
 `angle`, `scale_x`, `scale_y`, `skew`, `ease`) and `camera.shakes`; a layer may name its `peg` and its
 `depth`, and `clip` (clipped to the layer below). Folders may carry `locked`, `color` and `parent`
 (the folder they are in). `project.marks` lists `{drawing, mark}` (`key`, `breakdown`, `inbetween`).
+`project.vectors` lists `{drawing, strokes}`: each stroke has `color` and `points` (`x`, `y`, `width`),
+the centre line of a line on a layer with `"vector": true`; the drawing's tiles hold the painted line,
+so readers that ignore `vectors` still show it. Loaders keep strokes only for drawings that exist,
+clamp every number and refuse a shot with more than 4 000 000 vector points.
 Older readers ignore these fields; loaders drop unknown parents, break loops and clamp values.
 
 Layers list bottom to top; each has `id`, `name`, `visible`, `locked`, `opacity` and `cells`, one per
