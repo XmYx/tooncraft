@@ -49,7 +49,7 @@ pub mod vector;
 #[cfg(test)]
 mod vector_tests;
 
-pub use command::{Command, FillReference, MAX_BATCH, sheet};
+pub use command::{Command, CompEdit, FillReference, MAX_BATCH, sheet};
 pub use interchange::{MAX_VIDEO_BYTES, VideoImport};
 pub use undo::Entry;
 
@@ -69,6 +69,8 @@ pub enum EngineError {
     Doc(#[from] DocError),
     #[error(transparent)]
     Raster(#[from] RasterError),
+    #[error(transparent)]
+    Comp(#[from] tooncraft_doc::comp::CompError),
     #[error("the layer has no mask")]
     NoMask,
     #[error("the layer already has a mask")]
@@ -650,6 +652,8 @@ impl Engine {
 
 #[cfg(test)]
 mod colour_art_tests;
+#[cfg(test)]
+mod comp_tests;
 #[cfg(test)]
 mod history_tests;
 #[cfg(test)]

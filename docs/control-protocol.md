@@ -68,6 +68,7 @@ hand a script can do.
 | `add_layer_mask` | `layer`, `invert` (optional): an empty painted mask; painting goes into it |
 | `set_layer_mask` | `layer`, `enabled`, `invert`, `editing` (each optional) |
 | `remove_layer_mask` | `layer` |
+| `edit_comp` | `edit` with `op`: `from_layers`, `set_enabled` (`enabled`), `add_node` (`kind`, `pos`), `remove_node` (`node`), `link` (`from`, `to`, `input`), `unlink` (`to`, `input`), `move_node` (`node`, `pos`), `set_node` (`node`, `kind`); node kinds `layer` (`layer` id), `effect` (`effect`), `blend` (`mode`, `opacity`), `mask` (`invert`), `output` |
 | `batch` | `label`, `commands` (at most 256, no batch inside): one undo step; if one fails, the ones before it are undone |
 | `add_layer` | `name`, optional `index` |
 | `delete_layer` / `rename_layer` / `move_layer` / `set_layer` | `layer` (+ `name`, `from`/`to`, `visible`/`locked`/`opacity`) |

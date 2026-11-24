@@ -1139,6 +1139,10 @@ pub enum Command {
     RemoveLayerMask {
         layer: usize,
     },
+    /// One edit of the shot's compositing graph (one undo step).
+    EditComp {
+        edit: CompEdit,
+    },
     /// Several commands as one undo step called `label` (at most [`MAX_BATCH`], none of them a
     /// batch). When one fails, the ones before it are undone and the error is returned, so the
     /// project is as it was.
@@ -2219,8 +2223,94 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.mask.take().ok_or(EngineError::NoMask)?;
             Ok(())
         }),
+        Command::EditComp { edit } => edit_comp(e, edit),
         Command::Batch { label, commands } => batch(e, &label, commands),
     }
+}
+
+/// One edit of the compositing graph.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case")]
+pub enum CompEdit {
+    /// Replace the graph with one that matches the layer stack, switched on.
+    FromLayers,
+    /// Switch the graph on or off.
+    SetEnabled {
+        enabled: bool,
+    },
+    AddNode {
+        kind: tooncraft_doc::comp::NodeKind,
+        #[serde(default)]
+        pos: [f32; 2],
+    },
+    RemoveNode {
+        node: u64,
+    },
+    /// Link an output to an input (it replaces any link into that input).
+    Link {
+        from: u64,
+        to: u64,
+        input: usize,
+    },
+    Unlink {
+        to: u64,
+        input: usize,
+    },
+    MoveNode {
+        node: u64,
+        pos: [f32; 2],
+    },
+    /// Change what a node does (its settings).
+    SetNode {
+        node: u64,
+        kind: tooncraft_doc::comp::NodeKind,
+    },
+}
+
+fn edit_comp(e: &mut Engine, edit: CompEdit) -> Result<()> {
+    let before = e.project.comp.clone();
+    let fresh = matches!(edit, CompEdit::FromLayers).then(|| tooncraft_doc::comp::CompGraph::from_layers(&e.project));
+    let g = &mut e.project.comp;
+    let label = match edit {
+        CompEdit::FromLayers => {
+            if let Some(f) = fresh {
+                *g = f;
+            }
+            "Compositing graph from layers"
+        }
+        CompEdit::SetEnabled { enabled } => {
+            g.enabled = enabled;
+            "Compositing graph on or off"
+        }
+        CompEdit::AddNode { kind, pos } => {
+            g.add(kind, pos)?;
+            "Add node"
+        }
+        CompEdit::RemoveNode { node } => {
+            g.remove(node)?;
+            "Remove node"
+        }
+        CompEdit::Link { from, to, input } => {
+            g.link(tooncraft_doc::comp::CompLink { from, to, input })?;
+            "Link nodes"
+        }
+        CompEdit::Unlink { to, input } => {
+            g.unlink(to, input);
+            "Unlink nodes"
+        }
+        CompEdit::MoveNode { node, pos } => {
+            g.place(node, pos)?;
+            "Move node"
+        }
+        CompEdit::SetNode { node, kind } => {
+            g.set_kind(node, kind)?;
+            "Node settings"
+        }
+    };
+    if e.project.comp != before {
+        e.push(Entry { label: label.into(), parts: vec![Part::Comp(Box::new(before))] });
+    }
+    Ok(())
 }
 
 /// Apply `commands` as one undo step; on an error, undo the ones applied and return it.

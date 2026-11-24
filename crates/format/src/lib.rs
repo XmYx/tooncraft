@@ -183,6 +183,8 @@ struct ProjectJson {
     rulers: tooncraft_doc::rulers::Rulers,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     poses: Vec<tooncraft_doc::pose::Pose>,
+    #[serde(default, skip_serializing_if = "tooncraft_doc::comp::CompGraph::is_empty")]
+    comp: tooncraft_doc::comp::CompGraph,
 }
 
 fn no_rulers(r: &tooncraft_doc::rulers::Rulers) -> bool {
@@ -255,6 +257,7 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             library: p.library.clone(),
             rulers: p.rulers.clone(),
             poses: p.poses.clone(),
+            comp: p.comp.clone(),
             camera: p.camera.clone(),
             cameras: p.cameras.clone(),
             camera_cuts: p.camera_cuts.clone(),
@@ -405,6 +408,7 @@ fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::P
     p.symmetry = pj.symmetry.sanitized();
     p.palettes = tooncraft_doc::palette::sanitize_all(pj.palettes);
     p.rulers = pj.rulers.sanitized();
+    p.comp = pj.comp.sanitized();
     p.poses = pj.poses.into_iter().take(tooncraft_doc::pose::MAX_POSES).map(tooncraft_doc::pose::Pose::sanitized).collect();
     let none = std::collections::BTreeSet::new();
     for d in &m.drawings {
