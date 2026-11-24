@@ -281,63 +281,64 @@ impl Stroke {
             return;
         }
         let (sin, cos) = dab.angle.sin_cos();
+        let ctx = Dry {
+            shape: &self.shape,
+            color: self.color,
+            alpha: self.brush.color[3],
+            opacity: (self.brush.opacity * 255.0).round().clamp(0.0, 255.0) as u32,
+            eraser: self.brush.kind == BrushKind::Eraser,
+            compose: self.brush.compose,
+            build: self.brush.kind.builds_up(),
+            cos,
+            sin,
+        };
         let t = TILE as i64;
-        let opacity = (self.brush.opacity * 255.0).round().clamp(0.0, 255.0) as u32;
-        let eraser = self.brush.kind == BrushKind::Eraser;
-        let compose = self.brush.compose;
-        let build = self.brush.kind.builds_up();
-        for ty in y0 / t..=y1 / t {
-            for tx in x0 / t..=x1 / t {
-                let Some(index) = surface.tile_index(tx as u32, ty as u32) else { continue };
+        let tiles: Vec<(u32, i64, i64)> = (y0 / t..=y1 / t)
+            .flat_map(|ty| (x0 / t..=x1 / t).map(move |tx| (tx, ty)))
+            .filter_map(|(tx, ty)| surface.tile_index(tx as u32, ty as u32).map(|i| (i, tx, ty)))
+            .collect();
+        let bounds = (x0, y0, x1, y1);
+        if tiles.len() < PARALLEL_TILES || serial() {
+            for (index, tx, ty) in tiles {
                 let original: Option<Arc<Tile>> = surface.original(index);
-                if eraser && original.is_none() {
+                if ctx.eraser && original.is_none() {
                     continue; // nothing to erase in a missing tile
                 }
                 let cov = self.coverage.entry(index).or_insert_with(|| vec![0u16; TILE_PIXELS]);
                 let Some(tile) = surface.tile_mut(index) else { continue };
-                let px = tile.bytes_mut();
-                let (bx, by) = (tx * t, ty * t);
-                for y in y0.max(by)..=y1.min(by + t - 1) {
-                    for x in x0.max(bx)..=x1.min(bx + t - 1) {
-                        let a = dab.coverage(x, y, &self.shape, cos, sin);
-                        if a <= 0.0 {
-                            continue;
-                        }
-                        let li = ((y - by) * t + (x - bx)) as usize;
-                        let old = cov[li] as f32 / 65535.0;
-                        let new = if build { old + a * (1.0 - old) } else { old.max(a) };
-                        if new <= old {
-                            continue;
-                        }
-                        cov[li] = (new * 65535.0).round() as u16;
-                        let k = ((new * opacity as f32).round() as u32).min(255) as u8;
-                        let i = li * 4;
-                        let base = match &original {
-                            Some(o) => {
-                                let b = o.bytes();
-                                [b[i], b[i + 1], b[i + 2], b[i + 3]]
-                            }
-                            None => [0; 4],
-                        };
-                        let colour = match dab.color {
-                            Some(c) => premultiply([c[0], c[1], c[2], self.brush.color[3]]),
-                            None => self.color,
-                        };
-                        let paint = scale_alpha(colour, k);
-                        let out = match (eraser, compose) {
-                            (true, Compose::Normal) => scale_alpha(base, 255 - k),
-                            // erasing "behind", inside a locked layer or in a blend mode changes
-                            // nothing sensible
-                            (true, _) => base,
-                            (false, Compose::Normal) => over(base, paint),
-                            (false, Compose::Behind) => over(paint, base),
-                            (false, Compose::KeepAlpha) => keep_alpha(base, paint),
-                            (false, mode) => blend_over(base, paint, mode),
-                        };
-                        px[i..i + 4].copy_from_slice(&out);
-                    }
-                }
+                ctx.stamp(dab, bounds, (tx, ty), tile.bytes_mut(), cov, original.as_deref());
             }
+            return;
+        }
+        // a big dab: its tiles are independent, so they are stamped on several threads (copies
+        // of the tiles, written back in order; the result is the same as one thread's)
+        let mut jobs: Vec<(u32, i64, i64, Option<Arc<Tile>>, Vec<u16>, Vec<u8>)> = Vec::with_capacity(tiles.len());
+        for (index, tx, ty) in tiles {
+            let original = surface.original(index);
+            if ctx.eraser && original.is_none() {
+                continue;
+            }
+            let cov = self.coverage.remove(&index).unwrap_or_else(|| vec![0u16; TILE_PIXELS]);
+            let Some(tile) = surface.tile_mut(index) else { continue };
+            jobs.push((index, tx, ty, original, cov, tile.bytes().to_vec()));
+        }
+        let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).clamp(1, MAX_THREADS);
+        let per = jobs.len().div_ceil(threads).max(1);
+        std::thread::scope(|scope| {
+            for chunk in jobs.chunks_mut(per) {
+                let ctx = &ctx;
+                scope.spawn(move || {
+                    for (_, tx, ty, original, cov, px) in chunk.iter_mut() {
+                        ctx.stamp(dab, bounds, (*tx, *ty), px, cov, original.as_deref());
+                    }
+                });
+            }
+        });
+        for (index, _, _, _, cov, px) in jobs {
+            if let Some(tile) = surface.tile_mut(index) {
+                tile.bytes_mut().copy_from_slice(&px);
+            }
+            self.coverage.insert(index, cov);
         }
     }
 
@@ -553,6 +554,93 @@ fn keep_alpha(base: [u8; 4], paint: [u8; 4]) -> [u8; 4] {
     [c(mixed[0]), c(mixed[1]), c(mixed[2]), base[3]]
 }
 
+/// A dab that touches this many tiles or more is stamped on several threads.
+const PARALLEL_TILES: usize = 24;
+/// Most threads one dab uses.
+const MAX_THREADS: usize = 8;
+
+#[cfg(test)]
+thread_local! {
+    /// Tests: stamp every dab on one thread, to compare with the threaded path.
+    static SERIAL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn serial() -> bool {
+    #[cfg(test)]
+    {
+        SERIAL.with(|s| s.get())
+    }
+    #[cfg(not(test))]
+    {
+        false
+    }
+}
+
+/// Everything a dry dab needs per tile, shared read-only between threads.
+struct Dry<'a> {
+    shape: &'a Shape,
+    color: [u8; 4],
+    alpha: u8,
+    opacity: u32,
+    eraser: bool,
+    compose: Compose,
+    build: bool,
+    cos: f32,
+    sin: f32,
+}
+
+impl Dry<'_> {
+    /// Stamp `dab` into tile `(tx, ty)`: `px` its pixels, `cov` the stroke's coverage there,
+    /// `original` the tile as it was before the stroke.
+    fn stamp(&self, dab: &Dab, (x0, y0, x1, y1): (i64, i64, i64, i64), (tx, ty): (i64, i64), px: &mut [u8], cov: &mut [u16], original: Option<&Tile>) {
+        let t = TILE as i64;
+        let (bx, by) = (tx * t, ty * t);
+        let colour = match dab.color {
+            Some(c) => premultiply([c[0], c[1], c[2], self.alpha]),
+            None => self.color,
+        };
+        for y in y0.max(by)..=y1.min(by + t - 1) {
+            for x in x0.max(bx)..=x1.min(bx + t - 1) {
+                let a = dab.coverage(x, y, self.shape, self.cos, self.sin);
+                if a <= 0.0 {
+                    continue;
+                }
+                let li = ((y - by) * t + (x - bx)) as usize;
+                let Some(c) = cov.get_mut(li) else { continue };
+                let old = *c as f32 / 65535.0;
+                let new = if self.build { old + a * (1.0 - old) } else { old.max(a) };
+                if new <= old {
+                    continue;
+                }
+                *c = (new * 65535.0).round() as u16;
+                let k = ((new * self.opacity as f32).round() as u32).min(255) as u8;
+                let i = li * 4;
+                let base = match original {
+                    Some(o) => {
+                        let b = o.bytes();
+                        [b[i], b[i + 1], b[i + 2], b[i + 3]]
+                    }
+                    None => [0; 4],
+                };
+                let paint = scale_alpha(colour, k);
+                let out = match (self.eraser, self.compose) {
+                    (true, Compose::Normal) => scale_alpha(base, 255 - k),
+                    // erasing "behind", inside a locked layer or in a blend mode changes
+                    // nothing sensible
+                    (true, _) => base,
+                    (false, Compose::Normal) => over(base, paint),
+                    (false, Compose::Behind) => over(paint, base),
+                    (false, Compose::KeepAlpha) => keep_alpha(base, paint),
+                    (false, mode) => blend_over(base, paint, mode),
+                };
+                if let Some(dst) = px.get_mut(i..i + 4) {
+                    dst.copy_from_slice(&out);
+                }
+            }
+        }
+    }
+}
+
 /// The mean of the premultiplied colours under a dab (13 sample points inside its radius).
 fn average_under(surface: &Surface, dab: &Dab) -> Load {
     let r = dab.radius.max(0.5);
@@ -640,6 +728,43 @@ mod tests {
         let mut many = Surface::new(200, 100).unwrap();
         paint(&mut many, brush, &back_and_forth);
         assert!(many.pixel(100, 50)[3] > once.pixel(100, 50)[3]);
+    }
+
+    #[test]
+    fn big_dabs_on_several_threads_give_the_same_pixels_as_one_thread() {
+        let stroke = |serial: bool, brush: Brush| {
+            super::SERIAL.with(|s| s.set(serial));
+            let mut s = Surface::new(1600, 900).unwrap();
+            let pts: Vec<Sample> = (0..30).map(|i| Sample::at(300.0 + i as f32 * 30.0, 450.0 + (i as f32 * 0.3).sin() * 80.0, 0.8, i as f64 * 0.02)).collect();
+            let undo = paint(&mut s, brush, &pts);
+            super::SERIAL.with(|s| s.set(false));
+            (s, undo)
+        };
+        for brush in [
+            Brush { size: 700.0, ..Brush::preset(BrushKind::Airbrush) },
+            Brush { size: 600.0, ..Brush::preset(BrushKind::Chalk) },
+            Brush { size: 500.0, compose: Compose::Multiply, ..Brush::preset(BrushKind::Ink) },
+        ] {
+            let (threaded, undo) = stroke(false, brush);
+            let (single, _) = stroke(true, brush);
+            assert!(!threaded.is_empty());
+            assert_eq!(threaded, single, "{:?}", brush.kind);
+            // and the one undo step still restores the canvas
+            let mut back = threaded.clone();
+            back.swap_snapshot(undo);
+            back.prune();
+            assert!(back.is_empty());
+        }
+        // a big eraser over paint, threaded and not
+        let erase = |serial: bool| {
+            let mut s = Surface::new(1200, 600).unwrap();
+            paint(&mut s, Brush { size: 300.0, ..Brush::preset(BrushKind::Ink) }, &line(60, 1.0));
+            super::SERIAL.with(|c| c.set(serial));
+            paint(&mut s, Brush { size: 800.0, ..Brush::preset(BrushKind::Eraser) }, &line(60, 1.0));
+            super::SERIAL.with(|c| c.set(false));
+            s
+        };
+        assert_eq!(erase(false), erase(true));
     }
 
     #[test]

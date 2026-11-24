@@ -32,6 +32,24 @@ curve for every source on every property adds about 13 % to the ink pen; the can
 about 7 % over paper grain on chalk; the wet brushes cost 2 to 2.5 times the dry ones because they read
 and rewrite the pixels under every dab. Every row is far below the 4.2 ms of a 240 Hz pen sample.
 
+### Large brushes
+
+Same bench, 2026-11-24, release build, with the machine loaded by other builds (load average about
+11 on 24 threads). At 500 px and more a dab lands only every 40 to 80 samples, so the median is 0
+and the 99th percentile is the cost of one dab. A dab that touches 24 tiles or more (64 px each) is
+stamped on up to 8 threads; the threaded and single-thread results are identical (tested).
+
+| Brush | One thread, 99th percentile | Threaded, 99th percentile | Threaded, mean per sample |
+|---|---|---|---|
+| Airbrush 500 px | 6.59 ms | 2.02 ms | 0.205 ms |
+| Airbrush 1000 px | 21.90 ms | 5.68 ms | 0.313 ms |
+| Ink 500 px | 1.26 ms | 0.57 ms | 0.075 ms |
+| Chalk 1000 px (paper grain) | 34.35 ms | 8.63 ms | 0.390 ms |
+| Watercolour 600 px (wet mixing) | 22.47 ms | not threaded yet | 2.439 ms |
+
+Dry brushes up to the 1000 px maximum now stay inside one 60 Hz frame (16.7 ms) per dab; wet
+brushes are still stamped on one thread.
+
 In the app, the status bar shows the time from the first pen sample of a UI frame to the changed
 tiles being queued for upload ("stroke … ms"). Only tiles a stroke touched are re-uploaded
 (16 KB each). The input-to-photon latency is then one display refresh plus the compositor, which
