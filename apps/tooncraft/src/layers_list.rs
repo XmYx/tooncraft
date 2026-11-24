@@ -58,34 +58,42 @@ fn add_other(app: &mut ToonApp, ui: &mut Ui) {
     });
 }
 
-/// The toolbar above the list.
+/// The toolbar above the list. Its buttons act on the current layer and say so in their names, so
+/// they never share a name with the same command in a layer row's right-click menu.
 pub fn toolbar(app: &mut ToonApp, ui: &mut Ui) {
     let n = app.engine.project.layers.len();
     let layer = app.layer;
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 2.0;
-        if ui.add(IconButton::new(Icon::Add, tl!("Add"))).on_hover_text(tl!("New layer above the current one")).clicked() {
+        if ui.add(IconButton::new(Icon::Add, tl!("New Layer"))).on_hover_text(tl!("New layer above the current one")).clicked() {
             add_layer(app);
         }
         add_other(app, ui);
         ui.add_space(6.0);
-        if ui.add(IconButton::new(Icon::Duplicate, tl!("Duplicate Layer"))).on_hover_text(tl!("Copy the layer with its drawings, just above it")).clicked()
+        if ui
+            .add(IconButton::new(Icon::Duplicate, tl!("Duplicate Current Layer")))
+            .on_hover_text(tl!("Copy the layer with its drawings, just above it"))
+            .clicked()
             && app.run(Command::DuplicateLayer { layer })
         {
             app.layer += 1;
         }
         let below = (layer == 0).then(|| tl!("There is no layer below").to_string());
-        if ui.add(IconButton::new(Icon::MergeDown, tl!("Merge Down")).disabled(below)).on_hover_text(tl!("Merge the layer into the one below it")).clicked() {
+        if ui
+            .add(IconButton::new(Icon::MergeDown, tl!("Merge Current Layer Down")).disabled(below))
+            .on_hover_text(tl!("Merge the layer into the one below it"))
+            .clicked()
+        {
             crate::layer_ops::merge(app, Command::MergeDown { layer }, Some(layer.saturating_sub(1)));
         }
         let has_peg = app.engine.project.layers.get(layer).is_some_and(|l| l.peg.is_some());
         let why = has_peg.then(|| tl!("The layer already hangs from a peg").to_string());
-        if ui.add(IconButton::new(Icon::Peg, tl!("Add Peg")).disabled(why)).clicked() {
+        if ui.add(IconButton::new(Icon::Peg, tl!("Peg Current Layer")).disabled(why)).clicked() {
             let name = tlf!("Peg {n}", n = app.engine.project.pegs.len() + 1);
             app.run(Command::AddPegForLayer { layer, name });
         }
         let last = (n <= 1).then(|| tl!("A shot keeps at least one layer").to_string());
-        if ui.add(IconButton::new(Icon::Delete, tl!("Delete Layer")).disabled(last)).on_hover_text(tl!("Delete the current layer")).clicked() {
+        if ui.add(IconButton::new(Icon::Delete, tl!("Delete Current Layer")).disabled(last)).on_hover_text(tl!("Delete the current layer")).clicked() {
             app.run(Command::DeleteLayer { layer });
             app.clamp_selection();
         }
@@ -176,7 +184,7 @@ pub fn rows(app: &mut ToonApp, ui: &mut Ui) {
                     if resp.clicked() {
                         select = Some(li);
                     }
-                    if resp.secondary_clicked() || resp.context_menu_opened() {
+                    if crate::context_menus::wants_menu(ui, &resp, if current { "layer" } else { "" }) {
                         menus.push((li, resp));
                     }
                 }
@@ -194,7 +202,8 @@ pub fn rows(app: &mut ToonApp, ui: &mut Ui) {
         app.run(c);
     }
     for (li, resp) in menus {
-        resp.context_menu(|ui| crate::context_menus::layer(app, ui, li));
+        let launch = if li == app.layer { "layer" } else { "" };
+        crate::context_menus::attach(ui, &resp, launch, |ui| crate::context_menus::layer(app, ui, li));
     }
 }
 

@@ -205,7 +205,6 @@ pub fn palettes(app: &mut ToonApp, ui: &mut Ui) {
     }
     let p = shown(app);
     let mut chosen = None;
-    let mut remove = None;
     ui.horizontal_wrapped(|ui| {
         for (i, s) in p.swatches.iter().enumerate() {
             let label =
@@ -215,40 +214,14 @@ pub fn palettes(app: &mut ToonApp, ui: &mut Ui) {
             if resp.clicked() {
                 chosen = Some(s.rgb);
             }
-            if app.colour.current > 0 {
-                let palette = app.colour.current - 1;
-                let mut items = |ui: &mut Ui| {
-                    if ui.button(tl!("Edit Swatch…")).clicked() {
-                        app.colour.edit = Some(SwatchEdit { palette, swatch: i, name: s.name.clone(), rgb: s.rgb, update_paint: true });
-                        ui.close();
-                    }
-                    if ui.button(tl!("Remove from Palette")).clicked() {
-                        remove = Some(i);
-                        ui.close();
-                    }
-                };
-                // Shift+F10 or the Menu key on the focused swatch opens the same menu
-                let now = resp.has_focus() && crate::timeline::menu_key(ui);
-                if now || egui::Popup::is_id_open(ui.ctx(), resp.id.with("keyboard-menu")) {
-                    crate::timeline::keyboard_menu(ui, &resp, now, &mut items);
-                } else {
-                    resp.context_menu(&mut items);
-                }
-            }
+            // right-click, or the Menu key / Shift+F10 on the focused swatch
+            let (index, rgb) = (i, s.rgb);
+            let launch = if i == 0 { "swatch" } else { "" };
+            crate::context_menus::attach(ui, &resp, launch, |ui| crate::context_menus::swatch(app, ui, index, rgb));
         }
     });
     if let Some(c) = chosen {
         set_rgb(app, [c[0], c[1], c[2]]);
-    }
-    if let Some(i) = remove {
-        let pi = app.colour.current - 1;
-        edit(app, |v| {
-            if let Some(p) = v.get_mut(pi)
-                && i < p.swatches.len()
-            {
-                p.swatches.remove(i);
-            }
-        });
     }
     if ui.button(tl!("Add Current Colour")).on_hover_text(tl!("To the palette shown (on Basic, a new shot palette)")).clicked() {
         let c = [app.color[0], app.color[1], app.color[2]];

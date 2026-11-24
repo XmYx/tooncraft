@@ -6,6 +6,23 @@ tooncraft	 frames
 tooncraft	 px	
 tooncraft	 s	
 tooncraft	0: four, or more for a long shot	
+tooncraft	1 Each Side	
+tooncraft	1 frame	
+tooncraft	10 %	
+tooncraft	100 %	
+tooncraft	2 Each Side	
+tooncraft	2 frames	
+tooncraft	25 %	
+tooncraft	3 Each Side	
+tooncraft	3 frames	
+tooncraft	4 frames	
+tooncraft	5 Each Side	
+tooncraft	5 frames	
+tooncraft	50 %	
+tooncraft	6 frames	
+tooncraft	7 frames	
+tooncraft	75 %	
+tooncraft	8 frames	
 tooncraft	A copy of the clip starting at the current frame	
 tooncraft	A layer below for colour that follows this layer's drawings and timing	
 tooncraft	A new layer	
@@ -79,6 +96,7 @@ tooncraft	Apply Box
 tooncraft	Apply Distort	
 tooncraft	Apply Skew	
 tooncraft	Around	
+tooncraft	Arrange	
 tooncraft	As a GIMP palette (.gpl)	
 tooncraft	Audio tracks	
 tooncraft	Autosave every	
@@ -102,15 +120,21 @@ tooncraft	Breakdown
 tooncraft	Brightness	
 tooncraft	Brightness jitter	
 tooncraft	Brush	
+tooncraft	Brush deleted	
+tooncraft	Brush duplicated	
+tooncraft	Brush files	
 tooncraft	Brush imported	
 tooncraft	Brush opacity	
 tooncraft	Brush pen	
 tooncraft	Brush preset	
 tooncraft	Brush preset: {name}	
 tooncraft	Brush preview: a stroke drawn with the current settings	
+tooncraft	Brush renamed to {name}	
+tooncraft	Brush saved	
 tooncraft	Brush settings reverted	
 tooncraft	Brush {name} loaded	
 tooncraft	Brushes	
+tooncraft	Built-in brushes cannot be changed; duplicate one to make your own	
 tooncraft	Burn in the shot, frame and timecode	
 tooncraft	By	
 tooncraft	By drawings	
@@ -131,7 +155,6 @@ tooncraft	Centre Y
 tooncraft	Chalk	
 tooncraft	Chalks	
 tooncraft	Change every frame	
-tooncraft	Change this tool's key in the shortcut editor	
 tooncraft	Change {what}	
 tooncraft	Choose Change, then press the new key. Escape cancels.	
 tooncraft	Choose a brush tool first	
@@ -148,6 +171,7 @@ tooncraft	Clear Drawing
 tooncraft	Clear Flip Set	
 tooncraft	Clear Frame	
 tooncraft	Clear In and Out	
+tooncraft	Clear Loop	
 tooncraft	Clear Recent Shots	
 tooncraft	Clear frame	
 tooncraft	Clear frame / erase selection	
@@ -195,6 +219,7 @@ tooncraft	Copies
 tooncraft	Copy	
 tooncraft	Copy / cut / paste frames	
 tooncraft	Copy Frames	
+tooncraft	Copy Pixels	
 tooncraft	Copy look from	
 tooncraft	Copy opacity, blend mode, label colour, folder, peg, depth and effects to this layer	
 tooncraft	Copy the layer with its drawings, just above it	
@@ -218,17 +243,22 @@ tooncraft	Curves
 tooncraft	Custom curve	
 tooncraft	Cut	
 tooncraft	Cut Frames	
+tooncraft	Cut Pixels	
 tooncraft	Cut the clip in two at the current frame	
 tooncraft	Dabs per step	
 tooncraft	Dark colour	
 tooncraft	Darken	
 tooncraft	Default size	
 tooncraft	Delete	
+tooncraft	Delete Brush	
+tooncraft	Delete Current Layer	
 tooncraft	Delete Frame	
 tooncraft	Delete Frame in All Layers	
+tooncraft	Delete Item	
 tooncraft	Delete Layer	
 tooncraft	Delete Palette	
 tooncraft	Delete Peg	
+tooncraft	Delete Swatch	
 tooncraft	Delete frame	
 tooncraft	Delete the current layer	
 tooncraft	Delete {name}	
@@ -251,6 +281,7 @@ tooncraft	Drag from start to end; inside the selection when there is one
 tooncraft	Drag further from the pivot to scale or turn	
 tooncraft	Drag inside to move, a corner to scale, the top knob to rotate	
 tooncraft	Drag the four corners freely (perspective), then Apply	
+tooncraft	Drag the handles to move, scale or turn the selection	
 tooncraft	Drag to move this end of the loop range, or use the arrow keys when it has the focus	
 tooncraft	Drag to move, a corner to scale, the knob to turn, the cross to move the pivot	
 tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates	
@@ -277,8 +308,11 @@ tooncraft	Drop the text (Escape)
 tooncraft	Dry chalk	
 tooncraft	Dry wash	
 tooncraft	Duplicate	
+tooncraft	Duplicate Brush	
+tooncraft	Duplicate Current Layer	
 tooncraft	Duplicate Drawing	
 tooncraft	Duplicate Layer	
+tooncraft	Duplicate Swatch	
 tooncraft	Duplicate clip {n} here	
 tooncraft	Duplicate drawing	
 tooncraft	Duration	
@@ -314,6 +348,7 @@ tooncraft	Every panel back in its first place
 tooncraft	Every unlocked layer: paint in the old colour takes the new one	
 tooncraft	Exclusion	
 tooncraft	Export	
+tooncraft	Export Brush…	
 tooncraft	Export Mouth Sheet…	
 tooncraft	Export Sound Mix…	
 tooncraft	Export failed: {error}	
@@ -338,7 +373,9 @@ tooncraft	File
 tooncraft	File {name}	
 tooncraft	Fill	
 tooncraft	Fill Empty Frames	
+tooncraft	Fill Selection	
 tooncraft	Fill only empty areas; a click on paint does nothing	
+tooncraft	Fill selection	
 tooncraft	Fill the area under the click	
 tooncraft	Fill the canvas	
 tooncraft	Filled	
@@ -359,6 +396,9 @@ tooncraft	Fit inside the canvas
 tooncraft	Fit to Window	
 tooncraft	Flatten	
 tooncraft	Flatten Layers	
+tooncraft	Flip	
+tooncraft	Flip Drawing Horizontally	
+tooncraft	Flip Drawing Vertically	
 tooncraft	Flip H	
 tooncraft	Flip Horizontally	
 tooncraft	Flip V	
@@ -420,6 +460,9 @@ tooncraft	Give the workspace a name
 tooncraft	Glow	
 tooncraft	Glow and fringe	
 tooncraft	Glow colour	
+tooncraft	Go	
+tooncraft	Go To	
+tooncraft	Go To Frame	
 tooncraft	Go back to just after this step	
 tooncraft	Gradient	
 tooncraft	Gradient map	
@@ -464,7 +507,6 @@ tooncraft	Hold
 tooncraft	Hold For	
 tooncraft	Hold One Frame Longer	
 tooncraft	Hold One Frame Shorter	
-tooncraft	Hold each drawing of the layer until the next one	
 tooncraft	Hold each for	
 tooncraft	Hold each mouth at least	
 tooncraft	Hold one frame longer	
@@ -498,6 +540,7 @@ tooncraft	In
 tooncraft	In-between	
 tooncraft	Inbetween	
 tooncraft	Inbetweens	
+tooncraft	Include in Onion Skin	
 tooncraft	Include in onion skin	
 tooncraft	Include the paper	
 tooncraft	Include {layer} in onion skin	
@@ -535,6 +578,7 @@ tooncraft	Keep the top in place
 tooncraft	Keep the top left in place	
 tooncraft	Keep the top right in place	
 tooncraft	Keep this layer's drawings, but stop following the line layer's timing	
+tooncraft	Kept inside the shot; save it to My Drawings to have it as a file	
 tooncraft	Key	
 tooncraft	Key Here	
 tooncraft	Key at frame {n}	
@@ -546,6 +590,7 @@ tooncraft	Key {name} here
 tooncraft	Keyboard Shortcuts	
 tooncraft	Keyboard pen: move, put down / lift	
 tooncraft	Keyboard shortcuts	
+tooncraft	Keys Only	
 tooncraft	Keys and breakdowns stay put; the drawings between them follow the spacing	
 tooncraft	Keys only	
 tooncraft	Label Colour	
@@ -614,11 +659,12 @@ tooncraft	Loop
 tooncraft	Loop in	
 tooncraft	Loop out	
 tooncraft	Loop playback	
+tooncraft	Loop range cleared	
 tooncraft	Luminosity	
 tooncraft	Magic Wand	
 tooncraft	Magic wand	
 tooncraft	Make a new peg and hang the current layer from it	
-tooncraft	Mark Drawing	
+tooncraft	Mark As	
 tooncraft	Marker	
 tooncraft	Marker added at frame {n}	
 tooncraft	Marker at frame {n}: {text}	
@@ -628,6 +674,7 @@ tooncraft	Matte
 tooncraft	Matte: keep inside	
 tooncraft	Matte: keep outside	
 tooncraft	Medium	
+tooncraft	Merge Current Layer Down	
 tooncraft	Merge Down	
 tooncraft	Merge Layer Down	
 tooncraft	Merge Visible	
@@ -706,6 +753,7 @@ tooncraft	No Mark
 tooncraft	No command matches	
 tooncraft	No drawing files yet: save an item here to use it in other shots.	
 tooncraft	No drawing here to swap	
+tooncraft	No drawing on this frame	
 tooncraft	No drawing on this frame to hold	
 tooncraft	No drawings have names yet	
 tooncraft	No drawings yet: select frames on the timeline and add them.	
@@ -716,6 +764,7 @@ tooncraft	No font is available
 tooncraft	No in and out range is set	
 tooncraft	No later drawing on this layer	
 tooncraft	No later marker	
+tooncraft	No loop range is set	
 tooncraft	No mark	
 tooncraft	No markers yet	
 tooncraft	No next drawing	
@@ -723,9 +772,11 @@ tooncraft	No other key drawing on this layer; mark keys from a cell's right-clic
 tooncraft	No pegs yet. Add one in the Pegs panel to see its keys here.	
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
 tooncraft	No pixels of that colour on the layer	
+tooncraft	No pixels of this colour in the drawing	
 tooncraft	No recent shots	
 tooncraft	No settings folder on this system, so My Drawings is not available.	
 tooncraft	No sound in this shot.	
+tooncraft	No such layer	
 tooncraft	No symmetry	
 tooncraft	None	
 tooncraft	Normal	
@@ -752,6 +803,7 @@ tooncraft	On twos
 tooncraft	Once per stroke	
 tooncraft	One colour change for the whole stroke instead of one per dab	
 tooncraft	One layer per file name	
+tooncraft	Onion Range	
 tooncraft	Onion Skin	
 tooncraft	Onion opacity	
 tooncraft	Onion opacity, {n} after	
@@ -763,7 +815,6 @@ tooncraft	Onion skin on / off
 tooncraft	Onion skin on every visible layer	
 tooncraft	Onion skin reach after	
 tooncraft	Onion skin reach before	
-tooncraft	Only brush tools have settings to reset	
 tooncraft	Only for files made that way; most are not	
 tooncraft	Only on paint	
 tooncraft	Opacity	
@@ -776,6 +827,11 @@ tooncraft	Open Palette…
 tooncraft	Open Recent	
 tooncraft	Open Stack…	
 tooncraft	Open the Demo Shot	
+tooncraft	Open the menu on a brush	
+tooncraft	Open the menu on a library item	
+tooncraft	Open the menu on a panel tab	
+tooncraft	Open the menu on a swatch	
+tooncraft	Open the menu on the canvas to pick there	
 tooncraft	OpenEXR Sequence	
 tooncraft	OpenEXR Sequence…	
 tooncraft	OpenRaster, Current Frame	
@@ -821,11 +877,14 @@ tooncraft	Paper grain
 tooncraft	Paste	
 tooncraft	Paste Frames	
 tooncraft	Paste Frames, Moving Later Frames	
+tooncraft	Paste Pixels	
+tooncraft	Paste Reversed	
 tooncraft	Paste as New Drawings	
 tooncraft	Paste frames, moving later frames right	
 tooncraft	Pasted	
 tooncraft	Pause	
 tooncraft	Peg	
+tooncraft	Peg Current Layer	
 tooncraft	Peg {n}	
 tooncraft	Peg “{name}”	
 tooncraft	Pegs	
@@ -845,12 +904,14 @@ tooncraft	Picker Window
 tooncraft	Pin This Frame	
 tooncraft	Pin frame to the light table	
 tooncraft	Pin light	
-tooncraft	Pin to Light Table	
 tooncraft	Ping-pong	
 tooncraft	Pivot X	
 tooncraft	Pivot Y	
 tooncraft	Pixels	
 tooncraft	Place Text	
+tooncraft	Place as New Layer	
+tooncraft	Place as new layer	
+tooncraft	Place in Cell	
 tooncraft	Placement	
 tooncraft	Play	
 tooncraft	Play / stop	
@@ -944,7 +1005,6 @@ tooncraft	Remove Unused Drawings
 tooncraft	Remove clip {n}	
 tooncraft	Remove clip {n} volume key	
 tooncraft	Remove from Library	
-tooncraft	Remove from Palette	
 tooncraft	Remove opacity key	
 tooncraft	Remove point	
 tooncraft	Remove this ruler	
@@ -954,14 +1014,18 @@ tooncraft	Remove {name} from favourites
 tooncraft	Remove {name} key	
 tooncraft	Removed {count} unused drawings	
 tooncraft	Rename	
+tooncraft	Rename Brush…	
 tooncraft	Rename Item	
+tooncraft	Rename Item…	
 tooncraft	Rename Layer	
 tooncraft	Rename Layer…	
+tooncraft	Rename Swatch…	
 tooncraft	Repaint	
 tooncraft	Repeat Selected Frames	
 tooncraft	Resampling	
 tooncraft	Reset All Shortcuts	
 tooncraft	Reset Brush	
+tooncraft	Reset Panel	
 tooncraft	Reset Panels	
 tooncraft	Reset Rotation	
 tooncraft	Reset Tool Settings	
@@ -979,6 +1043,10 @@ tooncraft	Ripple
 tooncraft	Rotate 90°	
 tooncraft	Rotate 90° Clockwise	
 tooncraft	Rotate 90° Counter-clockwise	
+tooncraft	Rotate 90° clockwise	
+tooncraft	Rotate 90° counter-clockwise	
+tooncraft	Rotate Drawing 90° Clockwise	
+tooncraft	Rotate Drawing 90° Counter-clockwise	
 tooncraft	Rotate Left	
 tooncraft	Rotate Right	
 tooncraft	Rotate view	
@@ -998,6 +1066,7 @@ tooncraft	Saturation jitter
 tooncraft	Save	
 tooncraft	Save / save as	
 tooncraft	Save As…	
+tooncraft	Save Current Brush Into	
 tooncraft	Save Drawing File…	
 tooncraft	Save Item to My Drawings	
 tooncraft	Save New Version	
@@ -1009,7 +1078,9 @@ tooncraft	Save as Preset
 tooncraft	Save new version	
 tooncraft	Save the shot before quitting?	
 tooncraft	Save this layer's effects to a file (.toonfx)	
+tooncraft	Save to Library	
 tooncraft	Saved brush {name}	
+tooncraft	Saved to the library as {name}	
 tooncraft	Saved workspace {name}	
 tooncraft	Saved {file}	
 tooncraft	Saved {file} ({size} KB)	
@@ -1029,6 +1100,7 @@ tooncraft	Select
 tooncraft	Select All	
 tooncraft	Select Layer Above	
 tooncraft	Select Layer Below	
+tooncraft	Select Pixels of This Colour	
 tooncraft	Select a range of frames in the exposure sheet first	
 tooncraft	Select everything that is not selected (Ctrl+Shift+I)	
 tooncraft	Select frames	
@@ -1039,6 +1111,8 @@ tooncraft	Selected {n} pixels
 tooncraft	Selection	
 tooncraft	Set In	
 tooncraft	Set Key	
+tooncraft	Set Loop In Here	
+tooncraft	Set Loop Out Here	
 tooncraft	Set Name	
 tooncraft	Set Out	
 tooncraft	Set a key at the current frame with the peg's values there	
@@ -1062,6 +1136,7 @@ tooncraft	Show
 tooncraft	Show Layer	
 tooncraft	Show a mouth drawing at the current frame, then press its “Use” button.	
 tooncraft	Show and edit this value	
+tooncraft	Show in Folder	
 tooncraft	Show layers labelled	
 tooncraft	Show onion skin	
 tooncraft	Show pinned frames	
@@ -1140,13 +1215,14 @@ tooncraft	Steps
 tooncraft	Steps after	
 tooncraft	Steps before	
 tooncraft	Stop	
-tooncraft	Stop Clipping	
 tooncraft	Stop Following the Line Layer	
 tooncraft	Straight line from the last stroke	
 tooncraft	Straight ruler	
 tooncraft	Straightened	
 tooncraft	Strength	
+tooncraft	Stroke Selection	
 tooncraft	Stroke cancelled	
+tooncraft	Stroke selection	
 tooncraft	Strokes follow rulers	
 tooncraft	Strokes only recolour paint that is already on the layer	
 tooncraft	Strokes started near a ruler follow it; right-click to add rulers and choose grid snapping	
@@ -1169,13 +1245,18 @@ tooncraft	Text
 tooncraft	Text dropped	
 tooncraft	Text placed	
 tooncraft	Texture	
+tooncraft	That brush is not in the library	
+tooncraft	The basic palette cannot be changed; add the colour to a palette of the shot	
+tooncraft	The canvas stays in its place	
 tooncraft	The current layer, from this frame	
+tooncraft	The current tool is not a brush of this kind	
 tooncraft	The drawings' own colours	
 tooncraft	The flip set holds at most {n} frames	
 tooncraft	The last save of this shot was interrupted and there is no backup.	
 tooncraft	The last save was interrupted and the backup does not open: {error}	
 tooncraft	The layer already hangs from a peg	
 tooncraft	The layer has no other drawing	
+tooncraft	The layer is locked	
 tooncraft	The other tools of this group	
 tooncraft	The picker in a window of its own	
 tooncraft	The selection is too detailed to keep; nothing changed	
@@ -1183,6 +1264,7 @@ tooncraft	The shot has as many palettes as it can hold
 tooncraft	The shot has no sound	
 tooncraft	The size changes around the centre; Canvas Size… keeps another part in place. Each change is one undo step.	
 tooncraft	The tool has no brush	
+tooncraft	There is no layer above	
 tooncraft	There is no layer below	
 tooncraft	Thicken lines	
 tooncraft	This frame	
@@ -1190,6 +1272,7 @@ tooncraft	This layer
 tooncraft	This layer already has a colour layer; another one follows it too	
 tooncraft	This layer gets its own steps, opacity and colours; the others keep the shot's	
 tooncraft	This layer hangs from no peg: add one from the tool options	
+tooncraft	This tool has no brush settings	
 tooncraft	Three-way	
 tooncraft	Threshold	
 tooncraft	Thumbnails	
@@ -1250,6 +1333,8 @@ tooncraft	Unpin This Frame
 tooncraft	Unsaved changes	
 tooncraft	Update Marker	
 tooncraft	Update paint in this colour	
+tooncraft	Use Brush	
+tooncraft	Use Colour	
 tooncraft	Use brush {name}	
 tooncraft	Use for This Shot	
 tooncraft	Use for {mouth}	
@@ -1301,6 +1386,7 @@ tooncraft	and
 tooncraft	becomes the current colour	
 tooncraft	blank	
 tooncraft	clipped	
+tooncraft	copy	
 tooncraft	drawing {id}	
 tooncraft	drawing {id}, {name}	
 tooncraft	drawing {n}	
@@ -1343,11 +1429,11 @@ tooncraft	{n} frames
 tooncraft	{n} frames at {w}×{h}	
 tooncraft	{n} images, from frame {frame}	
 tooncraft	{n} keys	
+tooncraft	{panel} is back in its place	
 tooncraft	{panel} panel menu	
 tooncraft	{seconds} s	
 tooncraft	{tool} selected	
 tooncraft	{tool} settings reset	
-tooncraft	{tool}: size, opacity, smoothing and the rest back to the first settings	
 tooncraft	{tool}; hold or right-click for the other {group} tools	
 tooncraft	{workspace} back to its first layout	
 tooncraft	{workspace} is back to its first layout	

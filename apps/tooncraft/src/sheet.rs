@@ -100,7 +100,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         if head_resp.clicked() {
             clicked = Some((li, app.frame));
         }
-        if head_resp.secondary_clicked() || head_resp.context_menu_opened() {
+        if crate::context_menus::wants_menu(ui, &head_resp, if li == app.layer { "layer" } else { "" }) {
             layer_menus.push((li, head_resp));
         }
         let tint = layer.color.map(|c| Color32::from_rgb(c[0], c[1], c[2])).unwrap_or(pal.cell_key);
@@ -177,7 +177,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         resp.context_menu(|ui| crate::context_menus::cell(app, ui, li, f));
     }
     for (li, resp) in layer_menus {
-        resp.context_menu(|ui| crate::context_menus::layer(app, ui, li));
+        let launch = if li == app.layer { "layer" } else { "" };
+        crate::context_menus::attach(ui, &resp, launch, |ui| crate::context_menus::layer(app, ui, li));
     }
     ui.allocate_rect(area, Sense::hover());
 }

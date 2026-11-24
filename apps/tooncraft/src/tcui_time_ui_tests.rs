@@ -229,7 +229,7 @@ fn the_layers_toolbar_adds_from_the_split_button_by_keyboard_and_rows_show_thumb
     h.state_mut().workspace.raise(crate::dock::Pane::Layers);
     h.run();
     let n = h.state().engine.project.layers.len();
-    h.get(By::new().role(egui::Role::Button).label("Add")).focus();
+    h.get(By::new().role(egui::Role::Button).label("New Layer")).focus();
     h.run();
     h.key_press(Key::Space);
     h.run();
@@ -255,7 +255,7 @@ fn the_layers_toolbar_adds_from_the_split_button_by_keyboard_and_rows_show_thumb
     // with only one layer below, Merge Down is offered; on the bottom layer it says why not
     h.state_mut().layer = 0;
     h.run();
-    h.get(By::new().role(egui::Role::Button).label("Merge Down"));
+    h.get(By::new().role(egui::Role::Button).label("Merge Current Layer Down"));
 }
 
 #[test]

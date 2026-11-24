@@ -237,6 +237,8 @@ pub struct ToonApp {
     pub stroke_start: Option<Instant>,
     pub light_theme: bool,
     pub renaming: Option<(usize, String)>,
+    /// What the open right-click menu acts on, and a rename typed from a menu.
+    pub menus: crate::menu_commands::State,
     pub new_shot: Option<NewShot>,
     /// Preferences and their window.
     pub preferences: crate::preferences::State,
@@ -418,6 +420,7 @@ impl ToonApp {
             stroke_start: None,
             light_theme: cli.light,
             renaming: None,
+            menus: Default::default(),
             new_shot: None,
             scene_form: None,
             preferences: crate::preferences::State::new(!cfg!(test) && cli.screenshot.is_none()),
@@ -539,6 +542,9 @@ impl ToonApp {
         }
         if cli.rulers {
             crate::rulers_ui::demo(&mut app);
+        }
+        if let Some(target) = cli.context_menu.as_deref() {
+            crate::context_menus::prepare_launch(&mut app, target);
         }
         if let Some(p) = app.path.clone() {
             crate::start_screen::note(&mut app, &p);
@@ -1276,6 +1282,7 @@ impl ToonApp {
         let ctx = ui.ctx().clone();
         self.textures.begin_frame();
         self.shortcuts(&ctx);
+        crate::context_menus::frame(self, &ctx);
         egui::Panel::top("top-bar").exact_size(crate::top_bar::HEIGHT).show(ui, |ui| crate::top_bar::show(self, ui));
         egui::Panel::top("tool-options").min_size(crate::tool_options::HEIGHT).show(ui, |ui| crate::tool_options::show(self, ui));
         egui::Panel::bottom("status").show(ui, |ui| crate::status_strip::show(self, ui));

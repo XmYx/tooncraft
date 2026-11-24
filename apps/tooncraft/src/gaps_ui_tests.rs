@@ -50,7 +50,8 @@ fn the_layer_buttons_are_named_and_duplicate_selects_the_copy() {
     paint_two_layers(&mut h);
     h.state_mut().layer = 0;
     h.run();
-    for name in ["Add", "Add Other", "Duplicate Layer", "Merge Down", "Add Peg", "Delete Layer", "Layer options"] {
+    for name in ["New Layer", "Add Other", "Duplicate Current Layer", "Merge Current Layer Down", "Peg Current Layer", "Delete Current Layer", "Layer options"]
+    {
         h.get(By::new().role(egui::Role::Button).label(name));
     }
     // the less used ones are in the ⋯ menu
@@ -60,7 +61,7 @@ fn the_layer_buttons_are_named_and_duplicate_selects_the_copy() {
     }
     h.key_press(egui::Key::Escape);
     h.run();
-    click(&mut h, "Duplicate Layer");
+    click(&mut h, "Duplicate Current Layer");
     assert_eq!(h.state().engine.project.layers.len(), 3);
     assert_eq!(h.state().layer, 1, "the copy is the current layer");
     assert_eq!(h.state().engine.project.layers[1].name, "Layer 1 copy");
@@ -74,7 +75,7 @@ fn merge_down_flatten_and_the_limits_are_reported() {
     paint_two_layers(&mut h);
     h.state_mut().layer = 1;
     h.run();
-    click(&mut h, "Merge Down");
+    click(&mut h, "Merge Current Layer Down");
     assert_eq!(h.state().engine.project.layers.len(), 1);
     assert_eq!(h.state().layer, 0, "the selection follows the merged layer");
     assert_eq!(h.state().engine.undo_label(), Some("Merge down"));
@@ -83,7 +84,7 @@ fn merge_down_flatten_and_the_limits_are_reported() {
     // a locked layer refuses, and says so in the status bar
     h.state_mut().run(Command::SetLayer { layer: 1, visible: None, locked: Some(true), opacity: None });
     h.run();
-    click(&mut h, "Merge Down");
+    click(&mut h, "Merge Current Layer Down");
     assert_eq!(h.state().engine.project.layers.len(), 2);
     h.state_mut().run(Command::SetLayer { layer: 1, visible: None, locked: Some(false), opacity: None });
     h.run();

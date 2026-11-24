@@ -132,6 +132,11 @@ impl DockContent<Pane> for Chrome<'_> {
         let resp = ui.add(IconButton::new(Icon::More, name).size(ui.max_rect().height().min(24.0)));
         egui::Popup::menu(&resp).show(|ui| stack_menu(self, ui, pane, floating));
     }
+
+    /// The tab's right-click menu: Reset Panel (craft-ui adds Float, Move To and Close after it).
+    fn panel_menu(&mut self, ui: &mut Ui, pane: &Pane) {
+        crate::context_menus::panel_tab(self.app, ui, *pane);
+    }
 }
 
 /// The `⋯` menu of the stack showing `pane`.
@@ -162,6 +167,8 @@ fn stack_menu(c: &mut Chrome<'_>, ui: &mut Ui, pane: Pane, floating: bool) {
         c.queued.push(Action::Close { panel: pane });
         ui.close();
     }
+    ui.separator();
+    crate::context_menus::panel_tab(c.app, ui, pane);
 }
 
 /// The panel's own commands at the top of its `⋯` menu; false when it has none.
