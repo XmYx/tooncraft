@@ -47,3 +47,8 @@ egui_kittest = { workspace = true }
 # PhotoCraft rather than copied (house rule 16).
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
 photocraft-tablet = { git = "https://github.com/storytold/photocraft", rev = "c337d6e4e831584e7f9ad11481c683a9b45ea134" }
+
+# Choose the X11 backend (Xwayland) on a Wayland session with a pen attached, through winit's own
+# event-loop builder (see display_session.rs). The suite's winit fork, patched in the workspace.
+[target.'cfg(target_os = "linux")'.dependencies]
+winit = { version = "0.30", default-features = false }

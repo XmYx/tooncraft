@@ -4322,6 +4322,7 @@ dependencies = [
  "tooncraft-interop",
  "tooncraft-lipsync",
  "tooncraft-raster",
+ "winit",
 ]
 
 [[package]]

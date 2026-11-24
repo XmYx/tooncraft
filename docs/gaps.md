@@ -223,4 +223,8 @@ A crash mid-stroke loses that stroke (at most one autosave interval of 45 s othe
   preview while drawing (the dabs are a raster preview today), closed shapes and fills that follow
   edited lines.
 - The pen reader (`photocraft-tablet`) belongs in craft-libs as `craft-tablet` (item I1).
+- Choosing Xwayland on a Wayland session with a pen attached (`apps/tooncraft/src/display_session.rs`:
+  the pen found in `/proc/bus/input/devices`, winit's X11 backend through eframe's event-loop hook)
+  is written for ToonCraft; PhotoCraft does the same in its own app code. It belongs beside the pen
+  reader in a shared `craft-tablet`, so both apps use one copy.
 - `craft-palette` reads GIMP palettes but has no writer and no Photoshop `.aco` reader. ToonCraft writes `.gpl` and reads `.aco` in `tooncraft-interop::palette` until craft-palette grows them; both are small and ready to move there.
