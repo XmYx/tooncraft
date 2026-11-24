@@ -1241,6 +1241,7 @@ tooncraft	Snap strokes to grid lines
 tooncraft	Snap to grid	
 tooncraft	Soft airbrush	
 tooncraft	Soft blur	
+tooncraft	Soft edge: moving, erasing, copying and filling the selection fade out over this many pixels	
 tooncraft	Soft eraser	
 tooncraft	Soft light	
 tooncraft	Soft mask	

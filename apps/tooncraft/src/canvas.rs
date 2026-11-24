@@ -543,6 +543,7 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
                 skew_x: 0.0,
                 skew_y: 0.0,
                 resample,
+                feather: app.sel.feather,
             };
             x.applied = app.run(cmd);
             x.now = (dx, dy, sc, ang);

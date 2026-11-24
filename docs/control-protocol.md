@@ -28,7 +28,7 @@ hand a script can do.
 | `lip_sync` | `layer`, `from`, `settings` (`silence` 0…1, `min_hold` frames) |
 | `import_mouth_sheet` | `layer`, `path`, `from` |
 | `set_audio_track` | `track`, optional `name`, `muted`, `solo`, `volume` |
-| `transform_selection` | `layer`, `frame`, `polygon`, `dx`, `dy`, `scale_x`, `scale_y`, `angle` (radians) |
+| `transform_selection` | `layer`, `frame`, `polygon`, `dx`, `dy`, `scale_x`, `scale_y`, `angle` (radians); optional `feather` (soft edge, pixels, up to 64; also on `distort_selection`, `clear_selection` and `gradient`) |
 | `clear_selection`, `paste_pixels` | `polygon`; or `x`, `y`, `width`, `height`, `rgba` |
 | `shape` | `layer`, `frame`, `brush`, `shape` (line / rectangle / ellipse), `from`, `to`, `constrain` |
 | `fill_all_frames` | as `fill`, without `frame` |
