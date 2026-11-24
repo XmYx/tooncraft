@@ -568,6 +568,7 @@ tooncraft	Icon Reference
 tooncraft	Image	
 tooncraft	Images	
 tooncraft	Import	
+tooncraft	Import Brushes (.abr)…	
 tooncraft	Import Brush…	
 tooncraft	Import Image Sequence…	
 tooncraft	Import Images	
@@ -974,6 +975,7 @@ tooncraft	Pencils
 tooncraft	Perspective, one point	
 tooncraft	Perspective, three points	
 tooncraft	Perspective, two points	
+tooncraft	Photoshop brushes	
 tooncraft	Pick Colour Here	
 tooncraft	Pick another colour first	
 tooncraft	Pick colour	
@@ -1362,6 +1364,7 @@ tooncraft	Texture contrast
 tooncraft	Texture rotation	
 tooncraft	Texture size	
 tooncraft	Texture strength	
+tooncraft	That brush file is too large	
 tooncraft	That brush is not in the library	
 tooncraft	The basic palette cannot be changed; add the colour to a palette of the shot	
 tooncraft	The canvas stays in its place	
@@ -1570,6 +1573,8 @@ tooncraft	{name} is no longer a favourite
 tooncraft	{name}, {category}	
 tooncraft	{name}, {category}, favourite	
 tooncraft	{n} brushes	
+tooncraft	{n} brushes imported	
+tooncraft	{n} brushes imported ({w} problems: {first})	
 tooncraft	{n} frames	
 tooncraft	{n} frames at {w}×{h}	
 tooncraft	{n} images, from frame {frame}	

@@ -41,6 +41,7 @@ craft-fonts-build = { workspace = true }
 
 [dev-dependencies]
 egui_kittest = { workspace = true }
+craft-psd = { workspace = true }
 
 # Pen pressure, tilt and eraser end where winit drops them (Linux X11 through XInput2, macOS through
 # AppKit). Shared with PhotoCraft rather than copied (house rule 16); Windows Ink already reports

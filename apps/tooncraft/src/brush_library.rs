@@ -399,9 +399,59 @@ pub fn panel(app: &mut ToonApp, ui: &mut Ui) {
                 Err(e) => app.set_status(e),
             }
         }
+        if ui.add_enabled(can, egui::Button::new(tl!("Import Brushes (.abr)…"))).clicked()
+            && let Some(f) = rfd::FileDialog::new().add_filter(tl!("Photoshop brushes"), &["abr"]).pick_file()
+        {
+            import_abr(app, &f);
+        }
         if ui.button(tl!("Reload Library")).clicked() {
             app.library.library.rescan();
         }
+    });
+}
+
+/// Import a Photoshop brush file: every brush in it joins the library, under the category typed
+/// in the Category field or, when that is empty, a category named after the file.
+pub fn import_abr(app: &mut ToonApp, path: &std::path::Path) {
+    let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| tl!("Imported").to_string());
+    let bytes = match std::fs::metadata(path) {
+        Ok(m) if m.len() > 512 << 20 => {
+            app.set_status(tl!("That brush file is too large"));
+            return;
+        }
+        Ok(_) => std::fs::read(path),
+        Err(e) => Err(e),
+    };
+    let read = bytes.map_err(|e| e.to_string()).and_then(|b| tooncraft_interop::abr::read(&b, &stem));
+    let imported = match read {
+        Ok(i) => i,
+        Err(e) => {
+            app.set_status(e);
+            return;
+        }
+    };
+    let category = if app.library.new_category.trim().is_empty() { stem } else { app.library.new_category.trim().to_string() };
+    let mut added = 0;
+    let mut first = None;
+    for b in &imported.brushes {
+        let brush = tooncraft_brush::Brush { color: app.color, ..b.brush };
+        match app.library.library.add(&b.name, &category, &brush, b.tip.as_ref()) {
+            Ok(id) => {
+                added += 1;
+                first.get_or_insert(id);
+            }
+            Err(e) => {
+                app.set_status(e);
+                return;
+            }
+        }
+    }
+    app.library.selected = first;
+    let skipped = imported.warnings.len();
+    app.set_status(if skipped == 0 {
+        tlf!("{n} brushes imported", n = added)
+    } else {
+        tlf!("{n} brushes imported ({w} problems: {first})", n = added, w = skipped, first = imported.warnings[0].clone())
     });
 }
 
@@ -609,5 +659,51 @@ mod tests {
         h.run();
         assert_eq!(h.state().brushes[3].size, 31.0);
         assert_eq!(h.state().tool, Tool::Chalk);
+    }
+
+    #[test]
+    fn a_photoshop_brush_file_joins_the_library_under_its_name() {
+        struct Gone(std::path::PathBuf);
+        impl Drop for Gone {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let dir = temp("abr");
+        let _gone = Gone(dir.clone());
+        use craft_psd::abr::{AbrSample, LegacyBrush, LegacyTip, write_v12};
+        let dot = AbrSample { id: String::new(), width: 16, height: 16, depth: 8, data: vec![255; 256] };
+        let bytes = write_v12(
+            2,
+            &[
+                LegacyBrush { name: "Stamp".into(), spacing: 25, anti_alias: true, tip: LegacyTip::Sampled(dot) },
+                LegacyBrush {
+                    name: String::new(),
+                    spacing: 40,
+                    anti_alias: true,
+                    tip: LegacyTip::Computed { diameter: 30, hardness: 80, angle: 0, roundness: 100 },
+                },
+            ],
+            true,
+        )
+        .unwrap();
+        let file = dir.join("Inks.abr");
+        std::fs::write(&file, bytes).unwrap();
+        let mut h = harness(&dir.join("lib"));
+        import_abr(h.state_mut(), &file);
+        h.run();
+        let n = names(&h);
+        assert!(n.contains(&"Stamp".to_string()) && n.contains(&"Inks 2".to_string()), "{n:?}");
+        let s = &h.state().library;
+        let stamp = s.library.entries().iter().find(|e| e.name == "Stamp").unwrap();
+        assert_eq!(stamp.category, "Inks", "the file name is the category");
+        // the brush with its tip is put to use like any library brush
+        let id = s.selected.clone().unwrap();
+        use_brush(h.state_mut(), &id);
+        assert!(h.state().engine.project.tips.values().any(|t| t.width == 16));
+        // a broken file is an error in the status bar, not a crash
+        std::fs::write(&file, b"8BPS junk").unwrap();
+        import_abr(h.state_mut(), &file);
+        assert!(!h.state().status.is_empty());
     }
 }

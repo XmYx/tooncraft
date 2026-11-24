@@ -27,3 +27,4 @@ serde_json = { workspace = true }
 [dev-dependencies]
 # a fixed font for the text command test
 epaint_default_fonts = "0.37"
+craft-psd = { workspace = true }
