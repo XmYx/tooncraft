@@ -37,6 +37,15 @@ single clip.
 never a hold). Its drawings are ordinary entries of `drawings`. Loading keeps at most 256 items of 1024
 cells, cuts names to 80 characters, turns keys to missing drawings into blanks and drops empty items.
 
+## Drawing files
+
+A `.toondrawings` file is one drawing-library item to use in other shots: a ZIP whose first entry is
+a stored `mimetype` (`application/vnd.storyteller.tooncraft-drawings`), then `item.json`
+(`{"format":"tooncraft-drawings","version":1,"name","width","height","cells":["blank" | "hold" | {"key": <drawing index>}],"drawings":<count>}`)
+and `drawings/<index>.png`, one straight-alpha PNG per drawing at `width`×`height`. Readers cap the file
+at 256 MB, the drawings at 1024 and the pictures at the declared size before decoding, and repair the
+cells like a shot's (keys past the drawings and orphan holds become blanks, at most 1024 cells kept).
+
 A layer's `mouth_chart` maps mouths (`rest`, `closed`, `open`, `wide`, `round`, `pucker`, `teeth`,
 `tongue`, `consonant`) to drawing ids.
 

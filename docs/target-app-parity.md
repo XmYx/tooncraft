@@ -438,7 +438,7 @@ Weight: 7
 | Scene export for compositing apps (layers, camera, timing) | TV TB | M | M | |
 | Printed exposure sheets and frames (PDF) | TV TB | M | S | |
 | Shot list and edit decisions out (EDL or OTIO) | TB | D | S | OpenTimelineIO: a track per layer, a clip per exposure, gaps and markers |
-| Asset library shared between shots | TB CS | M | M | |
+| Asset library shared between shots | TB CS | P | M | Drawings with their timing, through My Drawings (`.toondrawings` files in the user's folder, or anywhere); no shared sounds, templates or rigs |
 | Reading the references' native project files | all | O | XL | Out of scope: the native project formats of TVPaint, Harmony, Clip Studio and Procreate are proprietary and undocumented; exchange goes through PSD, XDTS and image sequences |
 
 ## Scripting and automation
@@ -530,7 +530,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Separate drawing, reference and perspective views | TB | M | M | One canvas |
 | Curve editor | TB | D | L | The Curves panel beside the timeline: value buttons, the graph with keys, other values faintly behind, an ease box with handles and typed values (`--panel curves`) |
 | Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
-| Library window for drawings | TB | P | L | The Drawing Library panel: the shot's reusable drawings with thumbnails, names and lengths; add the selected frames, insert as copies or linked, rename, reorder, remove; no library shared between shots yet |
+| Library window for drawings | TB | D | L | The Drawing Library panel: the shot's reusable drawings with thumbnails, names and lengths; add the selected frames, insert as copies or linked, rename, reorder, remove; My Drawings keeps items in the user's folder for every shot |
 | Preferences, shortcut editor with search, playback speed | TB | D | S | (`--open preferences`, `--open shortcuts`) |
 | Scene settings in one window | TB | D | S | Scene ▸ Scene Settings: size with presets, frame rate, length and duration, loop, ping-pong and speed (`--open scene`) |
 | Export dialog with range, size and options | TB | D | S | (`--open export`) |

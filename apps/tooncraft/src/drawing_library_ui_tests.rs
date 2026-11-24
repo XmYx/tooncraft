@@ -133,3 +133,65 @@ fn an_empty_frame_cannot_be_added() {
     click(&mut h, "Add Frames to Library");
     assert!(h.state().engine.project.library.is_empty(), "the button is disabled on a blank frame");
 }
+
+fn temp(name: &str) -> std::path::PathBuf {
+    let d = std::env::temp_dir().join(format!("tooncraft-mydrawings-{}-{name}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    std::fs::create_dir_all(&d).unwrap();
+    d
+}
+
+#[test]
+fn my_drawings_keep_an_item_for_other_shots() {
+    let dir = temp("keep");
+    let mut h = harness();
+    crate::drawing_library::set_folder(&h.ctx, &dir);
+    click(&mut h, "Add Frames to Library");
+    // open My Drawings from the keyboard
+    h.get_by_label("My Drawings").focus();
+    h.run();
+    h.key_press(Key::Space);
+    h.run();
+    h.get_by_label("No drawing files yet: save an item here to use it in other shots.");
+    click(&mut h, "Save Item to My Drawings");
+    let file = dir.join("Drawing 1.toondrawings");
+    assert!(file.is_file(), "saved into the user's folder");
+    h.run();
+    h.get_by_label("File Drawing 1");
+    // saving again does not overwrite: a second name
+    click(&mut h, "Save Item to My Drawings");
+    assert!(dir.join("Drawing 1 2.toondrawings").is_file());
+    // a new shot gets it back from the folder
+    h.state_mut().engine = tooncraft_engine::Engine::new(tooncraft_doc::Project::new("Next", 320, 240, 12, 24).unwrap());
+    h.run();
+    click(&mut h, "File Drawing 1");
+    click(&mut h, "Add File to Shot Library");
+    let p = &h.state().engine.project;
+    assert_eq!(p.library.len(), 1);
+    assert_eq!(p.library[0].name, "Drawing 1");
+    assert_eq!(p.library[0].len(), 2, "the exposure of two frames came along");
+    assert_eq!(h.state().engine.undo_label(), Some("Add drawing file to library"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_crowded_folder_is_listed_up_to_the_cap() {
+    let dir = temp("crowded");
+    for i in 0..620 {
+        std::fs::write(dir.join(format!("d{i:04}.toondrawings")), b"x").unwrap();
+    }
+    std::fs::write(dir.join("notes.txt"), b"x").unwrap();
+    let mut h = harness();
+    crate::drawing_library::set_folder(&h.ctx, &dir);
+    h.run();
+    click(&mut h, "My Drawings");
+    h.get_by_label("File d0000");
+    h.get_by_label("File d0499");
+    assert!(h.query_by_label("File d0500").is_none(), "at most 500 files are listed");
+    assert!(h.query_by_label("File notes").is_none(), "only drawing files");
+    // a damaged file says so and changes nothing
+    click(&mut h, "File d0000");
+    click(&mut h, "Add File to Shot Library");
+    assert!(h.state().engine.project.library.is_empty());
+    let _ = std::fs::remove_dir_all(&dir);
+}

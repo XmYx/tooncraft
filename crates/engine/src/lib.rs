@@ -18,7 +18,7 @@ mod command;
 mod curves_tests;
 pub mod demo;
 pub mod drawing;
-mod drawing_library;
+pub mod drawing_library;
 #[cfg(test)]
 mod drawing_tests;
 mod effects;

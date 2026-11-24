@@ -64,6 +64,7 @@ hand a script can do.
 | `save_to_library` | `layer`, `from`, `to` (0-based frames, either order), `name`: the drawings and timing of those frames become a drawing-library item with its own copies of the drawings |
 | `insert_from_library` | `item`, `layer`, `frame`, `linked` (default false: new copies; true: the layer shows the item's drawings, so editing one changes every linked use); cut at the end of the shot |
 | `rename_library_item`, `move_library_item`, `remove_library_item` | `item` (+ `name`; `to`) |
+| `save_library_file`, `open_library_file` | `item`, `path` (write a `.toondrawings` file; not an undo step); `path`, `placement` (`fit` default, `actual`, `fill`: drawings from another canvas size are centred) |
 
 Example:
 

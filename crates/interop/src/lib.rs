@@ -15,6 +15,7 @@
 //! | [`prores`] | export | Apple ProRes 4444 (with alpha) or 422 HQ in a QuickTime movie |
 //! | [`boards`] | import | a BoardCraft board or animatic: panels, timings and camera moves |
 //! | [`otio`] | export | edit decisions as OpenTimelineIO: a track per layer, a clip per exposure, markers |
+//! | [`drawing_file`] | export, import | one drawing-library item (drawings and timing) as a `.toondrawings` file |
 //! | [`palette`] | export, import | colour palettes: GIMP `.gpl` (read through craft-palette), Photoshop swatches `.aco` |
 //!
 //! Imported files are hostile: every reader bounds its allocations and returns an error for
@@ -30,6 +31,7 @@
 
 pub mod boards;
 mod common;
+pub mod drawing_file;
 pub mod gif;
 pub mod layer_sequences;
 pub mod levels;
