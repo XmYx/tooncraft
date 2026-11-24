@@ -347,20 +347,26 @@ fn symmetry_name(m: SymmetryMode) -> String {
 /// Symmetry and hold-to-straighten for the brush tools (tool options bar).
 pub fn brush_options(app: &mut ToonApp, ui: &mut egui::Ui) {
     let mut sym = app.engine.project.symmetry;
-    let l = ui.label(tl!("Symmetry"));
-    egui::ComboBox::from_id_salt("symmetry")
-        .selected_text(symmetry_name(sym.mode))
-        .show_ui(ui, |ui| {
-            for m in [SymmetryMode::Off, SymmetryMode::Vertical, SymmetryMode::Horizontal, SymmetryMode::Both, SymmetryMode::Radial, SymmetryMode::RadialMirror]
-            {
-                ui.selectable_value(&mut sym.mode, m, symmetry_name(m));
-            }
-        })
-        .response
-        .labelled_by(l.id);
+    // label and control stay together when the row wraps (the Tool Properties panel)
+    ui.horizontal(|ui| {
+        let l = ui.label(tl!("Symmetry"));
+        egui::ComboBox::from_id_salt("symmetry")
+            .selected_text(symmetry_name(sym.mode))
+            .show_ui(ui, |ui| {
+                for m in
+                    [SymmetryMode::Off, SymmetryMode::Vertical, SymmetryMode::Horizontal, SymmetryMode::Both, SymmetryMode::Radial, SymmetryMode::RadialMirror]
+                {
+                    ui.selectable_value(&mut sym.mode, m, symmetry_name(m));
+                }
+            })
+            .response
+            .labelled_by(l.id);
+    });
     if matches!(sym.mode, SymmetryMode::Radial | SymmetryMode::RadialMirror) {
-        let l = ui.label(tl!("Copies"));
-        ui.add(egui::DragValue::new(&mut sym.spokes).range(2..=32)).labelled_by(l.id);
+        ui.horizontal(|ui| {
+            let l = ui.label(tl!("Copies"));
+            ui.add(egui::DragValue::new(&mut sym.spokes).range(2..=32)).labelled_by(l.id);
+        });
     }
     if sym != app.engine.project.symmetry {
         app.run(Command::SetSymmetry { symmetry: sym });

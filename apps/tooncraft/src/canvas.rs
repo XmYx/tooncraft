@@ -981,9 +981,9 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     }
 }
 
-/// The paper and the layers seen through `c`, with the light table and onion skin; with `only`,
-/// that layer's drawing (and its onion skin) alone. Returns the paper's screen corners.
-/// Paper and layers; `aids` adds the light table and the onion skin (off for a thumbnail).
+/// The paper and the layers seen through `c`; with `only`, that layer's drawing (and its onion
+/// skin) alone; `aids` adds the light table and the onion skin (off for a thumbnail). Returns the
+/// paper's screen corners.
 fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<usize>, aids: bool) -> [Pos2; 4] {
     let size = c.size;
     let corners = [c.screen(0.0, 0.0), c.screen(size.x, 0.0), c.screen(size.x, size.y), c.screen(0.0, size.y)];

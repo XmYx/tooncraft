@@ -147,6 +147,8 @@ mod tool_options;
 mod tool_palettes;
 #[cfg(test)]
 mod tool_palettes_ui_tests;
+#[cfg(test)]
+mod tool_properties_ui_tests;
 mod tool_rail;
 mod top_bar;
 #[cfg(test)]
