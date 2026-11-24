@@ -7,16 +7,87 @@ use serde::{Deserialize, Serialize};
 pub const MAX_PALETTES: usize = 64;
 pub const MAX_SWATCHES: usize = 1024;
 pub const MAX_NAME: usize = 80;
+/// Most stops one gradient swatch keeps.
+pub const MAX_STOPS: usize = 16;
 
-/// One named colour.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// One stop of a gradient swatch: where it sits (0 at the start, 1 at the end) and its
+/// straight RGBA colour.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Stop {
+    pub at: f32,
+    pub rgba: [u8; 4],
+}
+
+/// The colour of `stops` (sorted, at least one) at `t` (0…1), straight RGBA, mixed linearly
+/// between the two stops around it; before the first and after the last the end colours hold.
+pub fn stop_colour(stops: &[Stop], t: f32) -> [u8; 4] {
+    let t = if t.is_finite() { t.clamp(0.0, 1.0) } else { 0.0 };
+    let (Some(first), Some(last)) = (stops.first(), stops.last()) else { return [0; 4] };
+    if t <= first.at {
+        return first.rgba;
+    }
+    for w in stops.windows(2) {
+        let (a, b) = (w[0], w[1]);
+        if t <= b.at {
+            let span = b.at - a.at;
+            let f = if span > 1e-6 { (t - a.at) / span } else { 1.0 };
+            let mix = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * f).round().clamp(0.0, 255.0) as u8;
+            return [mix(a.rgba[0], b.rgba[0]), mix(a.rgba[1], b.rgba[1]), mix(a.rgba[2], b.rgba[2]), mix(a.rgba[3], b.rgba[3])];
+        }
+    }
+    last.rgba
+}
+
+/// Gradient stops within the limits: finite positions in 0…1, sorted, at most [`MAX_STOPS`];
+/// fewer than two stops is no gradient (empty).
+pub fn sanitize_stops(mut stops: Vec<Stop>) -> Vec<Stop> {
+    stops.truncate(MAX_STOPS);
+    for s in &mut stops {
+        s.at = if s.at.is_finite() { s.at.clamp(0.0, 1.0) } else { 0.0 };
+    }
+    stops.sort_by(|a, b| a.at.total_cmp(&b.at));
+    if stops.len() < 2 { Vec::new() } else { stops }
+}
+
+fn opaque() -> u8 {
+    255
+}
+
+fn is_opaque(a: &u8) -> bool {
+    *a == 255
+}
+
+/// One named colour, with its opacity; or a gradient (its stops, `rgb` the first one's colour).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Swatch {
     #[serde(default)]
     pub name: String,
     pub rgb: [u8; 3],
+    /// Opacity (255: opaque). Files from before swatches had one read as opaque.
+    #[serde(default = "opaque", skip_serializing_if = "is_opaque")]
+    pub alpha: u8,
+    /// A gradient swatch's stops (empty: a plain colour).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub gradient: Vec<Stop>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+impl Swatch {
+    /// A plain, opaque colour.
+    pub fn colour(name: &str, rgb: [u8; 3]) -> Self {
+        Self { name: cut(name), rgb, alpha: 255, gradient: Vec::new() }
+    }
+
+    /// The colour as straight RGBA.
+    pub fn rgba(&self) -> [u8; 4] {
+        [self.rgb[0], self.rgb[1], self.rgb[2], self.alpha]
+    }
+
+    pub fn is_gradient(&self) -> bool {
+        self.gradient.len() >= 2
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Palette {
     pub name: String,
     #[serde(default)]
@@ -40,6 +111,11 @@ impl Palette {
         self.swatches.truncate(MAX_SWATCHES);
         for s in &mut self.swatches {
             s.name = cut(&s.name);
+            s.gradient = sanitize_stops(std::mem::take(&mut s.gradient));
+            if let Some(f) = s.gradient.first() {
+                s.rgb = [f.rgba[0], f.rgba[1], f.rgba[2]];
+                s.alpha = f.rgba[3];
+            }
         }
         self
     }
@@ -49,7 +125,28 @@ impl Palette {
         if self.swatches.len() >= MAX_SWATCHES {
             return false;
         }
-        self.swatches.push(Swatch { name: cut(name), rgb });
+        self.swatches.push(Swatch::colour(name, rgb));
+        true
+    }
+
+    /// Add a colour with its opacity (refused past the limit).
+    pub fn push_rgba(&mut self, name: &str, rgba: [u8; 4]) -> bool {
+        if self.swatches.len() >= MAX_SWATCHES {
+            return false;
+        }
+        self.swatches.push(Swatch { alpha: rgba[3], ..Swatch::colour(name, [rgba[0], rgba[1], rgba[2]]) });
+        true
+    }
+
+    /// Add a gradient swatch (refused past the limit, or with fewer than two usable stops).
+    pub fn push_gradient(&mut self, name: &str, stops: Vec<Stop>) -> bool {
+        let stops = sanitize_stops(stops);
+        let Some(first) = stops.first().copied() else { return false };
+        if self.swatches.len() >= MAX_SWATCHES {
+            return false;
+        }
+        let rgb = [first.rgba[0], first.rgba[1], first.rgba[2]];
+        self.swatches.push(Swatch { name: cut(name), rgb, alpha: first.rgba[3], gradient: stops });
         true
     }
 }
@@ -58,4 +155,35 @@ impl Palette {
 pub fn sanitize_all(mut v: Vec<Palette>) -> Vec<Palette> {
     v.truncate(MAX_PALETTES);
     v.into_iter().map(Palette::sanitized).collect()
+}
+
+#[cfg(test)]
+mod stop_tests {
+    use super::*;
+
+    #[test]
+    fn stops_mix_sanitize_and_old_swatches_read_as_opaque() {
+        let s = vec![Stop { at: 1.0, rgba: [0, 0, 0, 0] }, Stop { at: 0.0, rgba: [200, 100, 0, 255] }];
+        let s = sanitize_stops(s);
+        assert_eq!(s[0].at, 0.0, "sorted");
+        assert_eq!(stop_colour(&s, 0.5), [100, 50, 0, 128]);
+        assert_eq!(stop_colour(&s, f32::NAN), [200, 100, 0, 255]);
+        assert_eq!(stop_colour(&s, 9.0), [0, 0, 0, 0]);
+        assert!(sanitize_stops(vec![Stop { at: 0.3, rgba: [1; 4] }]).is_empty(), "one stop is no gradient");
+        let many = vec![Stop { at: f32::INFINITY, rgba: [1; 4] }; 100];
+        assert_eq!(sanitize_stops(many).len(), MAX_STOPS);
+        let old: Palette = serde_json::from_str(r#"{"name":"Old","swatches":[{"name":"a","rgb":[1,2,3]}]}"#).unwrap();
+        assert_eq!(old.swatches[0].rgba(), [1, 2, 3, 255]);
+        assert!(!old.swatches[0].is_gradient());
+        let mut p = Palette::new("New");
+        assert!(p.push_rgba("glass", [9, 9, 9, 40]));
+        assert!(!p.push_gradient("bad", vec![Stop { at: 0.0, rgba: [1; 4] }]));
+        assert!(p.push_gradient("g", vec![Stop { at: 0.0, rgba: [1, 2, 3, 4] }, Stop { at: 1.0, rgba: [5; 4] }]));
+        let json = serde_json::to_string(&p).unwrap();
+        let back: Palette = serde_json::from_str::<Palette>(&json).unwrap().sanitized();
+        assert_eq!(back, p);
+        assert_eq!(back.swatches[1].rgba(), [1, 2, 3, 4], "a gradient's colour is its first stop");
+        let plain = serde_json::to_string(&Swatch::colour("x", [1, 2, 3])).unwrap();
+        assert!(!plain.contains("alpha") && !plain.contains("gradient"), "{plain}");
+    }
 }

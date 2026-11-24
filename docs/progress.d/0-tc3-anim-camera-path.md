@@ -1,0 +1,1 @@
+- 2026-11-24: The camera path on the canvas: a line through the camera centre with a square per key; with the Transform tool keys drag along it, and the current frame's cross drags to add a key (one undo step, Escape cancels).

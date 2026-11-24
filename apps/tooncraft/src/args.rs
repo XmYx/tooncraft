@@ -10,16 +10,22 @@ Options:
   --screenshot <PNG>         render the window once to PNG and quit
   --panel <NAME>             bring a panel to the front (timeline, layers, brush, colour, onion, camera,
                              pegs, library, effects, sound, lipsync, timing, history, drawings,
-                             curves, palette)
+                             curves, palette, view2, navigator, tool-properties)
   --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size,
-                             start, scene, colour-picker, icons, radial, import-video, pen
+                             start, scene, colour-picker, reference, icons, radial, import-video, pen, print-frames
+  --second-view <LOOK>       show the second view in a look: shot, drawing, camera, side
   --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet
   --vertical                 show the exposure sheet down the page
   --tool <NAME>              start with a tool (pencil, ink, fill, gradient, select, shape …)
   --bench-playback <SECONDS> play the shot for SECONDS, print frame timing and quit
   --select <A..B>            start with frames A to B (1-based) of the top layer selected
   --loop <A..B>              start with the loop range on frames A to B (1-based)
+  --poses                    a peg rig with two saved poses, the Pegs panel raised (the pose library)
+  --record-motion            hang the layer from a peg, pick the Transform tool and arm record motion
+  --ik                       an arm of three pegs, the layer on the hand, Transform with IK on
+  --cameras                  a second, closer camera cut in halfway, the Camera panel raised
   --light-table              pin frame 1 of the top layer to the light table and show it
+  --camera-path              key a camera move and pick the Transform tool (the camera path)
   --shift-trace              as --light-table, with the pin shifted and turned (shift and trace)
   --rulers                   start with a straight ruler and two-point perspective rulers on
   --thumbnails               start with drawing thumbnails in the timeline
@@ -38,9 +44,16 @@ pub struct Cli {
     pub frame: Option<u32>,
     pub screenshot: Option<PathBuf>,
     pub panel: Option<String>,
+    /// The second view's look at start (`--second-view side`), with the panel in front.
+    pub second_view: Option<String>,
     pub bench_playback: Option<f64>,
     pub light: bool,
     pub light_table: bool,
+    pub ik: bool,
+    pub cameras: bool,
+    pub poses: bool,
+    pub record_motion: bool,
+    pub camera_path: bool,
     pub shift_trace: bool,
     pub select: Option<(u32, u32)>,
     pub thumbnails: bool,
@@ -60,8 +73,23 @@ pub struct Cli {
 }
 
 /// The windows `--open` knows.
-pub const OPEN_NAMES: [&str; 13] =
-    ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size", "start", "scene", "colour-picker", "icons", "radial", "import-video", "pen"];
+pub const OPEN_NAMES: [&str; 15] = [
+    "preferences",
+    "export",
+    "shortcuts",
+    "find",
+    "new-shot",
+    "canvas-size",
+    "start",
+    "scene",
+    "colour-picker",
+    "reference",
+    "icons",
+    "radial",
+    "import-video",
+    "pen",
+    "print-frames",
+];
 /// The right-click menus `--context-menu` knows.
 pub const CONTEXT_MENU_NAMES: [&str; 11] = ["canvas", "selection", "cell", "ruler", "layer", "tool", "tab", "swatch", "brush", "library", "onion"];
 /// The layouts `--layout` knows.
@@ -97,6 +125,11 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             "--demo" => cli.demo = true,
             "--light" => cli.light = true,
             "--light-table" => cli.light_table = true,
+            "--ik" => cli.ik = true,
+            "--cameras" => cli.cameras = true,
+            "--poses" => cli.poses = true,
+            "--record-motion" => cli.record_motion = true,
+            "--camera-path" => cli.camera_path = true,
             "--shift-trace" => (cli.light_table, cli.shift_trace) = (true, true),
             "--rulers" => cli.rulers = true,
             "--thumbnails" => cli.thumbnails = true,
@@ -121,6 +154,13 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             }
             "--screenshot" => cli.screenshot = Some(PathBuf::from(it.next().ok_or("--screenshot needs a file")?)),
             "--panel" => cli.panel = Some(it.next().ok_or("--panel needs a name")?),
+            "--second-view" => {
+                let v = it.next().ok_or("--second-view needs a look")?;
+                if crate::views::Look::from_id(&v).is_none() {
+                    return Err(format!("--second-view: unknown look {v} (shot, drawing, camera or side)"));
+                }
+                cli.second_view = Some(v);
+            }
             "--open" => {
                 let v = it.next().ok_or("--open needs a window name")?;
                 if !OPEN_NAMES.contains(&v.as_str()) {

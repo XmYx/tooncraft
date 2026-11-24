@@ -193,27 +193,138 @@ fn to_yuv420(img: &tooncraft_raster::RgbaImage, w: u32, h: u32) -> (Vec<u8>, Vec
     (y, u, v)
 }
 
-/// Write an H.264 MP4 (craft-video encoder, craft-media muxer), one sample per shot frame at the
-/// shot's frame rate. Odd canvas sizes lose their last column or row (4:2:0 needs even sizes).
-pub fn mp4(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(u32)) -> Result<()> {
-    use craft_media::isobmff::{AvcConfig, Brand, Mp4Writer, SampleEntry, TrackConfig, WriteSample, WriterOptions};
-    use craft_video::h264::{Encoder, EncoderConfig, PacketFormat, RateControl, YuvFrame};
+/// A video codec for [`video`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VideoCodec {
+    /// H.264 / AVC (ITU-T H.264), High profile.
+    #[default]
+    H264,
+    /// H.265 / HEVC (ITU-T H.265), Main profile.
+    Hevc,
+    /// AV1 (AOMedia Video 1), Main profile; MP4 only.
+    Av1,
+}
+
+/// A movie container for [`video`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Container {
+    /// ISO MP4 (ISO/IEC 14496-14).
+    #[default]
+    Mp4,
+    /// QuickTime movie.
+    Mov,
+}
+
+/// Write an H.264 MP4 (see [`video`]).
+pub fn mp4(p: &Project, path: &Path, o: ExportOptions, progress: impl FnMut(u32)) -> Result<()> {
+    video(p, path, o, VideoCodec::H264, Container::Mp4, progress)
+}
+
+/// The codecs' own encoders behind one face: picture in, samples out.
+enum VideoEncoder {
+    H264(Box<craft_video::h264::Encoder>),
+    Hevc(Box<craft_video::hevc::Encoder>),
+    Av1(Box<craft_video::av1::Encoder>),
+}
+
+/// One coded sample: data, composition offset in frames, key picture.
+type Coded = (Vec<u8>, i32, bool);
+
+impl VideoEncoder {
+    fn new(codec: VideoCodec, w: u32, h: u32, fps: u32, writer: String) -> Result<Self> {
+        let e = |m: String| ExportError::Encode(m);
+        Ok(match codec {
+            VideoCodec::H264 => {
+                use craft_video::h264::{Encoder, EncoderConfig, PacketFormat, RateControl};
+                let mut cfg = EncoderConfig::new(w, h, fps, 1);
+                cfg.format = PacketFormat::LengthPrefixed;
+                cfg.bframes = 0;
+                cfg.keyint = fps * 2;
+                cfg.rate = RateControl::Crf(18.0);
+                cfg.writer = writer;
+                VideoEncoder::H264(Box::new(Encoder::new(cfg).map_err(|x| e(x.to_string()))?))
+            }
+            VideoCodec::Hevc => {
+                use craft_video::hevc::{Encoder, EncoderConfig, RateControl};
+                let mut cfg = EncoderConfig::new(w, h, fps, 1);
+                cfg.keyint = fps * 2;
+                cfg.rate = RateControl::ConstantQp(24);
+                VideoEncoder::Hevc(Box::new(Encoder::new(cfg).map_err(|x| e(format!("{x:?}")))?))
+            }
+            VideoCodec::Av1 => {
+                use craft_video::av1::{Encoder, EncoderConfig, RateControl};
+                let mut cfg = EncoderConfig::new(w, h, fps, 1);
+                cfg.keyint = fps * 2;
+                cfg.rate = RateControl::ConstantQ(80);
+                VideoEncoder::Av1(Box::new(Encoder::new(cfg).map_err(|x| e(format!("{x:?}")))?))
+            }
+        })
+    }
+
+    /// The sample entry for the movie's track (it carries the parameter sets).
+    fn entry(&self, w: u32, h: u32) -> Result<craft_media::isobmff::SampleEntry> {
+        use craft_media::isobmff::{Av1Config, AvcConfig, HevcConfig, SampleEntry};
+        let mux = |x: craft_media::isobmff::Error| ExportError::Encode(x.to_string());
+        Ok(match self {
+            VideoEncoder::H264(enc) => SampleEntry::avc(AvcConfig::parse(&enc.avcc()).map_err(mux)?, w as u16, h as u16),
+            VideoEncoder::Hevc(enc) => SampleEntry::hevc(HevcConfig::parse(&enc.hvcc()).map_err(mux)?, w as u16, h as u16),
+            VideoEncoder::Av1(enc) => SampleEntry::av1(Av1Config::parse(&enc.av1c()).map_err(mux)?, w as u16, h as u16),
+        })
+    }
+
+    fn encode(&mut self, y: &[u8], u: &[u8], v: &[u8], w: u32, index: i64) -> Result<Vec<Coded>> {
+        let e = |m: String| ExportError::Encode(m);
+        let wide = |s: &[u8]| s.iter().map(|b| *b as u16).collect::<Vec<u16>>();
+        Ok(match self {
+            VideoEncoder::H264(enc) => {
+                let frame = craft_video::h264::YuvFrame { y, u, v, y_stride: w as usize, uv_stride: w as usize / 2 };
+                let packets = enc.encode(&frame, index).map_err(|x| e(x.to_string()))?;
+                packets.into_iter().map(|pk| (pk.data, (pk.pts - pk.dts).clamp(i32::MIN as i64, i32::MAX as i64) as i32, pk.keyframe)).collect()
+            }
+            VideoEncoder::Hevc(enc) => {
+                let (y, u, v) = (wide(y), wide(u), wide(v));
+                let frame = craft_video::hevc::Frame { y: &y, u: &u, v: &v, y_stride: w as usize, uv_stride: w as usize / 2 };
+                let pk = enc.encode(&frame).map_err(|x| e(format!("{x:?}")))?;
+                vec![(pk.data, 0, pk.keyframe)]
+            }
+            VideoEncoder::Av1(enc) => {
+                let (y, u, v) = (wide(y), wide(u), wide(v));
+                let frame = craft_video::av1::Frame { y: &y, u: &u, v: &v, y_stride: w as usize, uv_stride: w as usize / 2 };
+                let pk = enc.encode(&frame).map_err(|x| e(format!("{x:?}")))?;
+                vec![(pk.data, 0, pk.keyframe)]
+            }
+        })
+    }
+
+    fn flush(&mut self) -> Vec<Coded> {
+        match self {
+            VideoEncoder::H264(enc) => {
+                enc.flush().into_iter().map(|pk| (pk.data, (pk.pts - pk.dts).clamp(i32::MIN as i64, i32::MAX as i64) as i32, pk.keyframe)).collect()
+            }
+            VideoEncoder::Hevc(_) | VideoEncoder::Av1(_) => Vec::new(),
+        }
+    }
+}
+
+/// Write a movie in `codec` and `container` (craft-video encoders, craft-media muxer), one sample
+/// per shot frame at the shot's frame rate, with the sound mix as AAC. Odd canvas sizes lose their
+/// last column or row (4:2:0 needs even sizes). AV1 goes only in MP4.
+pub fn video(p: &Project, path: &Path, o: ExportOptions, codec: VideoCodec, container: Container, mut progress: impl FnMut(u32)) -> Result<()> {
+    use craft_media::isobmff::{Brand, Mp4Writer, TrackConfig, WriteSample, WriterOptions};
     o.check(p)?;
+    if codec == VideoCodec::Av1 && container == Container::Mov {
+        return Err(ExportError::Encode("AV1 goes in MP4, not in a QuickTime movie".into()));
+    }
     let (w, h) = o.size(p);
     let (w, h) = (w & !1, h & !1);
     if w < 16 || h < 16 {
         return Err(ExportError::Encode("video needs a canvas of at least 16×16".into()));
     }
     let fps = p.fps().max(1);
-    let enc_err = |e: craft_video::h264::Error| ExportError::Encode(e.to_string());
     let mux_err = |e: craft_media::isobmff::Error| ExportError::Encode(e.to_string());
-    let mut cfg = EncoderConfig::new(w, h, fps, 1);
-    cfg.format = PacketFormat::LengthPrefixed;
-    cfg.bframes = 0;
-    cfg.keyint = fps * 2;
-    cfg.rate = RateControl::Crf(18.0);
-    cfg.writer = format!("ToonCraft {}", env!("CARGO_PKG_VERSION"));
-    let mut enc = Encoder::new(cfg).map_err(enc_err)?;
+    let mut enc = VideoEncoder::new(codec, w, h, fps, format!("ToonCraft {}", env!("CARGO_PKG_VERSION")))?;
     // The sound mix under the exported frames, as AAC in its own M4A, whose track is copied in.
     let sound = match crate::audio::mix_project(p, o.start, o.end) {
         Some(Ok(seg)) => {
@@ -224,34 +335,30 @@ pub fn mp4(p: &Project, path: &Path, o: ExportOptions, mut progress: impl FnMut(
         Some(Err(e)) => return Err(ExportError::Encode(format!("sound: {e}"))),
         None => None,
     };
-    let entry = |enc: &Encoder| -> Result<SampleEntry> { Ok(SampleEntry::avc(AvcConfig::parse(&enc.avcc()).map_err(mux_err)?, w as u16, h as u16)) };
+    let brand = match container {
+        Container::Mp4 => Brand::Mp4,
+        Container::Mov => Brand::Mov,
+    };
     let result = craft_atomic::atomic_write_with(path, |file| {
         let io = |e: ExportError| std::io::Error::other(e.to_string());
-        let mut mux = Mp4Writer::new(file, WriterOptions::new(Brand::Mp4)).map_err(|e| io(mux_err(e)))?;
-        let track = mux.add_track(TrackConfig::new(entry(&enc).map_err(io)?, fps)).map_err(|e| io(mux_err(e)))?;
-        let write = |mux: &mut Mp4Writer<&mut std::fs::File>, packets: Vec<craft_video::h264::Packet>| -> std::io::Result<()> {
-            for pk in packets {
-                let s = WriteSample {
-                    data: &pk.data,
-                    duration: 1,
-                    composition_offset: (pk.pts - pk.dts).clamp(i32::MIN as i64, i32::MAX as i64) as i32,
-                    is_sync: pk.keyframe,
-                };
-                mux.write_sample(track, s).map_err(|e| io(mux_err(e)))?;
+        let mut mux = Mp4Writer::new(file, WriterOptions::new(brand)).map_err(|e| io(mux_err(e)))?;
+        let track = mux.add_track(TrackConfig::new(enc.entry(w, h).map_err(io)?, fps)).map_err(|e| io(mux_err(e)))?;
+        let write = |mux: &mut Mp4Writer<&mut std::fs::File>, coded: Vec<Coded>| -> std::io::Result<()> {
+            for (data, composition_offset, is_sync) in coded {
+                mux.write_sample(track, WriteSample { data: &data, duration: 1, composition_offset, is_sync }).map_err(|e| io(mux_err(e)))?;
             }
             Ok(())
         };
         for (i, f) in (o.start..o.end).enumerate() {
             let img = o.render(p, f, true);
             let (y, u, v) = to_yuv420(&img, w, h);
-            let frame = YuvFrame { y: &y, u: &u, v: &v, y_stride: w as usize, uv_stride: w as usize / 2 };
-            let packets = enc.encode(&frame, i as i64).map_err(|e| io(enc_err(e)))?;
-            write(&mut mux, packets)?;
+            let coded = enc.encode(&y, &u, &v, w, i as i64).map_err(io)?;
+            write(&mut mux, coded)?;
             progress(f);
         }
-        let packets = enc.flush();
-        write(&mut mux, packets)?;
-        mux.set_sample_entry(track, entry(&enc).map_err(io)?).map_err(|e| io(mux_err(e)))?;
+        let coded = enc.flush();
+        write(&mut mux, coded)?;
+        mux.set_sample_entry(track, enc.entry(w, h).map_err(io)?).map_err(|e| io(mux_err(e)))?;
         if let Some(aac) = &sound {
             add_aac_track(&mut mux, aac).map_err(io)?;
         }
@@ -532,6 +639,102 @@ pub fn exr_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, pro
     frame_files(p, dir, prefix, "exr", o, progress, |img, alpha| {
         craft_image_codecs::encode(&straight_image(img, alpha)?, craft_image_codecs::Format::OpenExr, &Default::default()).map_err(codec_err)
     })
+}
+
+/// Samples one layered OpenEXR frame may hold in memory (all layers and the composite).
+pub const MAX_LAYERED_EXR_SAMPLES: usize = 1 << 28;
+
+/// Write `<dir>/<prefix>_0001.exr`, …: one OpenEXR file per frame holding the composite as the
+/// main picture (`R`, `G`, `B`, `A`) and every visible layer, through the camera, as a layer of
+/// its own (`<name>.R`, `<name>.G`, …). Samples are linear and premultiplied, as compositing
+/// applications expect.
+pub fn exr_layered_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, mut progress: impl FnMut(u32)) -> Result<Vec<PathBuf>> {
+    o.check(p)?;
+    let names = exr_layer_names(p);
+    let (w, h) = o.size(p);
+    let pictures = names.iter().flatten().count() + 1;
+    let samples = (w as usize).saturating_mul(h as usize).saturating_mul(4).saturating_mul(pictures);
+    if samples > MAX_LAYERED_EXR_SAMPLES {
+        return Err(ExportError::Encode("too many layers at this size for one file; export at a smaller size or hide some layers".into()));
+    }
+    std::fs::create_dir_all(dir).map_err(|e| ExportError::Io(dir.display().to_string(), e))?;
+    let digits = o.digit_count();
+    let linear = srgb_to_linear_table();
+    let mut out = Vec::new();
+    for f in o.start..o.end {
+        let mut channels = exr_channels("", &o.render(p, f, o.paper), &linear);
+        for (i, name) in names.iter().enumerate() {
+            let Some(name) = name else { continue };
+            let img = tooncraft_doc::render_camera(p, f, RenderOptions { paper: false, only_layer: Some(i), ..Default::default() })
+                .reduced(o.scale.clamp(1, MAX_SCALE));
+            channels.extend(exr_channels(name, &img, &linear));
+        }
+        let bytes = craft_exr::decode::write(w, h, &channels, craft_exr::decode::Compression::Zip16).map_err(codec_err)?;
+        let path = dir.join(format!("{prefix}_{:0digits$}.exr", f + 1));
+        craft_atomic::atomic_write(&path, &bytes).map_err(|e| ExportError::Io(path.display().to_string(), e))?;
+        out.push(path);
+        progress(f);
+    }
+    Ok(out)
+}
+
+/// The OpenEXR layer name of each layer of `p` (`None` for hidden layers): dots become
+/// underscores (a dot separates layer and channel), an empty name becomes `Layer N`, and a name
+/// already taken gets ` 2`, ` 3`, …
+fn exr_layer_names(p: &Project) -> Vec<Option<String>> {
+    let mut taken = std::collections::HashSet::new();
+    p.layers
+        .iter()
+        .enumerate()
+        .map(|(i, l)| {
+            if !l.visible {
+                return None;
+            }
+            let base: String = l.name.trim().chars().filter(|c| !c.is_control()).map(|c| if c == '.' { '_' } else { c }).take(200).collect();
+            let base = if base.is_empty() { format!("Layer {}", i + 1) } else { base };
+            let mut name = base.clone();
+            let mut n = 2;
+            while !taken.insert(name.clone()) {
+                name = format!("{base} {n}");
+                n += 1;
+            }
+            Some(name)
+        })
+        .collect()
+}
+
+/// sRGB 8-bit to linear light.
+fn srgb_to_linear_table() -> [f32; 256] {
+    let mut t = [0.0f32; 256];
+    for (i, v) in t.iter_mut().enumerate() {
+        let c = i as f32 / 255.0;
+        *v = if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) };
+    }
+    t
+}
+
+/// Four half-float channels (`<layer>.R` … or `R` … for the main picture) from a premultiplied
+/// sRGB image: un-premultiplied, made linear, premultiplied again.
+fn exr_channels(layer: &str, img: &tooncraft_raster::RgbaImage, linear: &[f32; 256]) -> Vec<craft_exr::decode::Channel> {
+    use craft_exr::decode::{Channel, Samples, f16};
+    let straight = img.to_straight();
+    let n = straight.len() / 4;
+    let mut planes: [Vec<f16>; 4] = std::array::from_fn(|_| Vec::with_capacity(n));
+    for px in straight.as_chunks::<4>().0 {
+        let a = f32::from(px[3]) / 255.0;
+        for c in 0..3 {
+            planes[c].push(f16::from_f32(linear[px[c] as usize] * a));
+        }
+        planes[3].push(f16::from_f32(a));
+    }
+    let name = |c: &str| if layer.is_empty() { c.to_string() } else { format!("{layer}.{c}") };
+    let [r, g, b, a] = planes;
+    vec![
+        Channel { name: name("R"), samples: Samples::F16(r) },
+        Channel { name: name("G"), samples: Samples::F16(g) },
+        Channel { name: name("B"), samples: Samples::F16(b) },
+        Channel { name: name("A"), samples: Samples::F16(a) },
+    ]
 }
 
 pub fn tiff_sequence(p: &Project, dir: &Path, prefix: &str, o: ExportOptions, progress: impl FnMut(u32)) -> Result<Vec<PathBuf>> {

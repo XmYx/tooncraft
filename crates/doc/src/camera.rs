@@ -125,23 +125,43 @@ impl Camera {
     /// The camera at `frame` for a `w`×`h` canvas: the neutral camera without keys, the key's value
     /// outside the keyed range, eased in and out between keys.
     pub fn at(&self, frame: u32, w: u32, h: u32) -> CameraKey {
-        let neutral = CameraKey { frame, x: w as f32 / 2.0, y: h as f32 / 2.0, zoom: 1.0, angle: 0.0 };
-        let Some(first) = self.keys.first() else { return neutral };
-        if frame <= first.frame {
-            return CameraKey { frame, ..*first };
+        self.at_from(frame, w, h, 0).0
+    }
+
+    /// The camera at frames `0..count`, in one pass over the keys: what [`Camera::at`] gives for
+    /// each frame, without searching the keys again per frame (the camera path draws every
+    /// frame of the shot). `count` is the caller's to cap.
+    pub fn sweep(&self, count: u32, w: u32, h: u32) -> Vec<CameraKey> {
+        let mut out = Vec::with_capacity(count as usize);
+        let mut from = 0;
+        for f in 0..count {
+            let (k, i) = self.at_from(f, w, h, from);
+            // the keys are sorted, so a later frame never finds an earlier pair
+            from = i;
+            out.push(k);
         }
-        for pair in self.keys.windows(2) {
+        out
+    }
+
+    /// [`Camera::at`], searching the key pairs from `start` on; also returns the pair it used.
+    fn at_from(&self, frame: u32, w: u32, h: u32, start: usize) -> (CameraKey, usize) {
+        let neutral = CameraKey { frame, x: w as f32 / 2.0, y: h as f32 / 2.0, zoom: 1.0, angle: 0.0 };
+        let Some(first) = self.keys.first() else { return (neutral, 0) };
+        if frame <= first.frame {
+            return (CameraKey { frame, ..*first }, 0);
+        }
+        for (i, pair) in self.keys.windows(2).enumerate().skip(start) {
             let (a, b) = (pair[0], pair[1]);
             if frame >= a.frame && frame <= b.frame {
                 let t = ease((frame - a.frame) as f32 / (b.frame - a.frame).max(1) as f32);
                 let l = |x: f32, y: f32| x + (y - x) * t;
                 // zoom eases in log space so a zoom-in feels even
                 let z = (a.zoom.max(1e-3).ln() + (b.zoom.max(1e-3).ln() - a.zoom.max(1e-3).ln()) * t).exp();
-                return CameraKey { frame, x: l(a.x, b.x), y: l(a.y, b.y), zoom: z, angle: l(a.angle, b.angle) };
+                return (CameraKey { frame, x: l(a.x, b.x), y: l(a.y, b.y), zoom: z, angle: l(a.angle, b.angle) }, i);
             }
         }
         let last = self.keys.last().copied().unwrap_or(neutral);
-        CameraKey { frame, ..last }
+        (CameraKey { frame, ..last }, self.keys.len().saturating_sub(2).max(start))
     }
 
     /// Add or replace the key at its frame.
@@ -228,9 +248,112 @@ impl Camera {
     }
 }
 
+/// Most cameras a shot has besides its main camera.
+pub const MAX_CAMERAS: usize = 32;
+/// Most camera cuts in a shot.
+pub const MAX_CUTS: usize = 2_000;
+/// Longest camera name (characters).
+pub const MAX_CAMERA_NAME: usize = 100;
+
+/// A camera besides the shot's main one, with its own name.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ShotCamera {
+    pub name: String,
+    pub camera: Camera,
+}
+
+/// From `frame` on, the shot is filmed through `camera` (0 is the main camera, 1 the first of
+/// [`crate::Project::cameras`]), until the next cut.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CameraCut {
+    pub frame: u32,
+    pub camera: usize,
+}
+
+/// Hostile-input repair for the extra cameras and the cuts: at most [`MAX_CAMERAS`] cameras with
+/// bounded names; cuts sorted, one per frame, at most [`MAX_CUTS`], each to a camera that exists.
+pub fn sanitize_cameras(cameras: Vec<ShotCamera>, cuts: Vec<CameraCut>, w: u32, h: u32) -> (Vec<ShotCamera>, Vec<CameraCut>) {
+    let cameras: Vec<ShotCamera> = cameras
+        .into_iter()
+        .take(MAX_CAMERAS)
+        .map(|c| ShotCamera { name: c.name.trim().chars().take(MAX_CAMERA_NAME).collect(), camera: c.camera.sanitized(w, h) })
+        .collect();
+    let mut cuts: Vec<CameraCut> = cuts.into_iter().take(MAX_CUTS).filter(|c| c.camera <= cameras.len()).collect();
+    cuts.sort_by_key(|c| c.frame);
+    // the last cut given for a frame wins
+    cuts.reverse();
+    cuts.dedup_by_key(|c| c.frame);
+    cuts.reverse();
+    (cameras, cuts)
+}
+
+impl crate::Project {
+    /// How many cameras the shot has, the main one included.
+    pub fn camera_count(&self) -> usize {
+        1 + self.cameras.len()
+    }
+
+    /// The camera that films `frame`: the one the last cut at or before it chose (the main
+    /// camera before the first cut).
+    pub fn camera_index_at(&self, frame: u32) -> usize {
+        let i = self.camera_cuts.partition_point(|c| c.frame <= frame);
+        i.checked_sub(1).and_then(|i| self.camera_cuts.get(i)).map(|c| c.camera).filter(|c| *c < self.camera_count()).unwrap_or(0)
+    }
+
+    /// Camera `index` (0: the main camera).
+    pub fn camera_by_index(&self, index: usize) -> Option<&Camera> {
+        match index {
+            0 => Some(&self.camera),
+            i => self.cameras.get(i - 1).map(|c| &c.camera),
+        }
+    }
+
+    pub fn camera_by_index_mut(&mut self, index: usize) -> Option<&mut Camera> {
+        match index {
+            0 => Some(&mut self.camera),
+            i => self.cameras.get_mut(i - 1).map(|c| &mut c.camera),
+        }
+    }
+
+    /// The camera that films `frame`.
+    pub fn camera_at(&self, frame: u32) -> &Camera {
+        self.camera_by_index(self.camera_index_at(frame)).unwrap_or(&self.camera)
+    }
+
+    /// Camera `index`'s name; `main` names the main camera.
+    pub fn camera_name<'a>(&'a self, index: usize, main: &'a str) -> &'a str {
+        match index {
+            0 => main,
+            i => self.cameras.get(i - 1).map(|c| c.name.as_str()).unwrap_or(main),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cuts_choose_the_camera_that_films_each_frame() {
+        let mut p = crate::Project::new("Cuts", 100, 50, 24, 40).unwrap();
+        assert_eq!(p.camera_index_at(30), 0, "the main camera without cuts");
+        p.cameras.push(ShotCamera { name: "Close".into(), camera: Camera::default() });
+        p.camera_cuts = vec![CameraCut { frame: 10, camera: 1 }, CameraCut { frame: 20, camera: 0 }, CameraCut { frame: 30, camera: 7 }];
+        let at: Vec<usize> = [0, 9, 10, 19, 20, 29, 35].iter().map(|f| p.camera_index_at(*f)).collect();
+        assert_eq!(at, [0, 0, 1, 1, 0, 0, 0], "a cut to a missing camera films with the main one");
+        assert_eq!(p.camera_name(1, "Main"), "Close");
+        assert_eq!(p.camera_name(0, "Main"), "Main");
+        let (cams, cuts) = sanitize_cameras(
+            vec![ShotCamera { name: format!("  {}", "n".repeat(500)), camera: Camera::default() }; MAX_CAMERAS + 5],
+            vec![CameraCut { frame: 5, camera: 1 }, CameraCut { frame: 2, camera: 99 }, CameraCut { frame: 5, camera: 0 }, CameraCut { frame: 1, camera: 2 }],
+            100,
+            50,
+        );
+        assert_eq!(cams.len(), MAX_CAMERAS);
+        assert_eq!(cams[0].name.chars().count(), MAX_CAMERA_NAME);
+        assert_eq!(cuts, [CameraCut { frame: 1, camera: 2 }, CameraCut { frame: 5, camera: 0 }], "sorted, one per frame, to cameras that exist");
+    }
 
     #[test]
     fn interpolation() {
@@ -252,6 +375,22 @@ mod tests {
             Camera { enabled: true, keys: vec![CameraKey { frame: 1, x: f32::NAN, y: 0.0, zoom: 0.0, angle: 0.0 }; 3], shakes: Vec::new() }.sanitized(100, 50);
         assert_eq!(s.keys.len(), 1);
         assert_eq!((s.keys[0].x, s.keys[0].zoom), (50.0, 0.05));
+    }
+
+    #[test]
+    fn a_sweep_gives_what_at_gives_on_every_frame() {
+        let mut c = Camera::default();
+        assert_eq!(c.sweep(4, 100, 50), (0..4).map(|f| c.at(f, 100, 50)).collect::<Vec<_>>(), "no keys");
+        // keys on neighbouring frames, far apart, hostile values, one past the sweep
+        for (frame, x) in [(3, 10.0), (4, -50.0), (5, 1.0e6), (40, f32::NAN), (41, 0.0), (90, 7.0), (500, 3.0)] {
+            c.set(CameraKey { frame, x, y: x * 0.5, zoom: 1.0 + frame as f32 * 0.01, angle: frame as f32 });
+        }
+        let c = c.sanitized(100, 50);
+        let swept = c.sweep(120, 100, 50);
+        assert_eq!(swept.len(), 120);
+        for (f, k) in swept.iter().enumerate() {
+            assert_eq!(*k, c.at(f as u32, 100, 50), "frame {f}");
+        }
     }
 
     #[test]
