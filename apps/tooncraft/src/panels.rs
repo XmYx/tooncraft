@@ -105,7 +105,70 @@ pub fn colour(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
             ui.checkbox(&mut app.engine.project.paper.export, tl!("Export paper"));
         });
+        egui::CollapsingHeader::new(tl!("Paper texture")).id_salt("paper-texture").default_open(false).show(ui, |ui| paper_texture(app, ui));
     });
+}
+
+/// The visible paper texture: which grain, how strong, its size, rotation and contrast. Every
+/// change is one `SetPaperTexture`; the canvas and exports with the paper show it.
+fn paper_texture(app: &mut ToonApp, ui: &mut egui::Ui) {
+    use tooncraft_brush::GrainKind;
+    let old = app.engine.project.paper.texture;
+    let mut t = old;
+    let tips: Vec<(u64, String)> = app.engine.project.tips.iter().map(|(id, tip)| (*id, tip.name.clone())).collect();
+    // "Off" is strength 0; picking a texture while it is off turns it on at a visible strength
+    let current = if t.is_off() { tl!("Off").to_string() } else { crate::brush_editor::grain_label(t.kind) };
+    let l = ui.label(tl!("Texture"));
+    egui::ComboBox::from_id_salt("paper-texture-kind")
+        .selected_text(current)
+        .show_ui(ui, |ui| {
+            if ui.selectable_label(t.is_off(), tl!("Off")).clicked() {
+                t.strength = 0.0;
+            }
+            for k in GrainKind::ALL {
+                if k == GrainKind::Image && tips.is_empty() {
+                    continue;
+                }
+                if ui.selectable_label(!t.is_off() && t.kind == k, crate::brush_editor::grain_label(k)).clicked() {
+                    t.kind = k;
+                    if k == GrainKind::Image && t.image.is_none() {
+                        t.image = tips.first().map(|x| x.0);
+                    }
+                    if t.is_off() {
+                        t.strength = 0.5;
+                    }
+                }
+            }
+        })
+        .response
+        .labelled_by(l.id);
+    if !t.is_off() {
+        if t.kind == GrainKind::Image {
+            let name = |id: Option<u64>| id.and_then(|i| tips.iter().find(|x| x.0 == i)).map(|x| x.1.clone()).unwrap_or_else(|| tl!("None").to_string());
+            let l = ui.label(tl!("Grain image"));
+            egui::ComboBox::from_id_salt("paper-texture-image")
+                .selected_text(name(t.image))
+                .show_ui(ui, |ui| {
+                    for (id, n) in &tips {
+                        ui.selectable_value(&mut t.image, Some(*id), n);
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+        }
+        for (label, v, range) in [
+            (tl!("Texture strength"), &mut t.strength, 0.0..=1.0),
+            (tl!("Texture size"), &mut t.scale, 0.5..=32.0),
+            (tl!("Texture rotation"), &mut t.angle, -180.0..=180.0),
+            (tl!("Texture contrast"), &mut t.contrast, 0.1..=tooncraft_brush::MAX_GRAIN_CONTRAST),
+        ] {
+            let l = ui.label(label);
+            ui.add(egui::Slider::new(v, range).max_decimals(2)).labelled_by(l.id);
+        }
+    }
+    if t != old {
+        app.run(Command::SetPaperTexture { texture: t });
+    }
 }
 
 fn parse_hex(s: &str) -> Option<[u8; 4]> {

@@ -108,3 +108,42 @@ fn shot_palettes_files_and_recolour() {
     assert_eq!(h.state().engine.undo_label(), Some("Recolour"));
     assert_eq!(h.state().engine.pick_color(0, 5, 5)[..3], [20, 20, 200]);
 }
+
+#[test]
+fn paper_texture_is_chosen_from_the_keyboard_and_shows_on_the_canvas() {
+    let mut h = harness();
+    // open the section and the texture list with the keyboard only
+    let header = || By::new().label("Paper texture");
+    let list = || By::new().label("Texture").role(egui::Role::ComboBox);
+    for (by, key) in [(header(), Key::Enter), (list(), Key::Space)] {
+        h.get(by.clone()).scroll_to_me();
+        h.run();
+        h.get(by).focus();
+        h.run();
+        h.key_press(key);
+        h.run();
+    }
+    h.get_by_label("Canvas weave").click();
+    h.run();
+    h.run();
+    let t = h.state().engine.project.paper.texture;
+    assert_eq!(t.kind, tooncraft_brush::GrainKind::Canvas);
+    assert!(!t.is_off(), "picking a texture turns it on");
+    h.get(By::new().role(egui::Role::Slider).label("Texture strength"));
+    // the canvas has the repeating texture, made once, not per frame
+    let uploads_before = h.state().textures.uploads;
+    h.run();
+    assert!(h.state().textures.uploads <= uploads_before, "the paper texture is cached");
+    let (ctx, project) = (h.ctx.clone(), h.state().engine.project.clone());
+    assert!(h.state_mut().textures.paper(&ctx, &project).is_some());
+    // the picture with the paper (exports) shows it as well
+    let img = tooncraft_doc::render_frame(&h.state().engine.project, 0, tooncraft_doc::RenderOptions::default());
+    let px: std::collections::BTreeSet<[u8; 4]> = (0..60).map(|i| img.pixel(i * 7, i * 5)).collect();
+    assert!(px.len() > 3, "plain paper: {px:?}");
+    // and Off switches it back off
+    h.get(list()).click();
+    h.run();
+    h.get_by_label("Off").click();
+    h.run();
+    assert!(h.state().engine.project.paper.texture.is_off());
+}
