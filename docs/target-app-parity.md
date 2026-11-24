@@ -498,16 +498,16 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Panels that can be closed and added back | TB | D | S | Every panel but the canvas closes from its tab; the Window menu puts it back where it was (`panels_ui_tests`) |
 | Many tabs in one stack stay readable | TB | P | S | Names shorten when a stack holds many tabs |
 | Dark theme and a light theme | TB | D | S | Contrast tested |
-| Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Frame, layer, drawing, canvas pixel under the pointer, tool, colour, zoom |
+| Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Zoom and rotation, tool and layer, drawing, frame, colour, the canvas pixel under the pointer; notices on the right fade after a few seconds (a polite live region) |
 | Top menus for play, drawing, scene and windows | TB | D | M | File, Edit, Frame, Layer, Drawing, Play, Scene, View, Window, Help |
 | File menu with recent files | TB | D | S | File ▸ Open Recent: the last 12 shots opened or saved, newest first, missing ones marked, Clear Recent Shots |
 | Edit menu with selection and transform items | TB | D | S | Undo and redo with names, Preferences, select, invert, grow and shrink, transform submenu |
 | View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | |
-| Play commands with speed | TB | D | S | Frame menu and timeline: play, step, in and out, speed, Play Around |
+| Play commands with speed | TB | D | S | Frame menu and the Timeline header: play, step by frame and by drawing, in and out fields, speed, loop, Play Around with its reach |
 | A Windows menu listing every panel | TB | D | S | Window: every panel with a tick when open, and Reset Panels |
 | Tool bar with flyouts for related tools | TB | D | S | Grouped buttons with a corner mark; right-click or press and hold for the group |
-| Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | New, Open, Save, undo, redo, workspace, play, the frame typed to go there, play from and to, frame rate and length |
-| Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | The strip above the canvas, with onion settings on right-click |
+| Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | New, Open, Save, undo, redo, workspace in the top bar; the transport and the frame, in, out, frame rate and hold fields in the Timeline header (shot length in its ⋯ menu) |
+| Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | Icon toggles above the canvas (onion, light table, field guide, safe areas, mirror, symmetry, rulers) with zoom and rotation; right-click or Shift+F10 on a toggle opens its settings, for onion a slider per step from 5 before to 5 after |
 | Brush properties: preset list with previews | TB | D | S | Preset picker with sample strokes, Revert |
 | Brush editor | TB | D | S | The Brush panel, every control keyboard-reachable |
 | Pencil properties: caps and joins | TB | M | S | Size, opacity, smoothing, steady line; no caps or joins |
@@ -519,14 +519,14 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue, the colour's own opacity and the brush's opacity |
 | Picker with alpha and a gradient | TB | P | S | A floating Colour Picker window (`--open colour-picker`) as well as the docked one; the colour has its own opacity; no gradient swatches |
 | Timeline layer rows with toggles | TB | D | S | Show and lock toggles in each row (named check boxes, keyboard reachable); a mark on every cell where the layer's pegs are keyed, named "peg key" for screen readers; the rest in the Layers panel and the row's right-click menu |
-| Timeline buttons | TB | D | S | |
+| Timeline buttons | TB | D | S | One header row: icon transport, loop, Play Around, speed and inline fields; the rest in its ⋯ menu |
 | Selected range highlight | TB | D | S | |
 | Right-click menu on timeline cells | TB | D | S | Swap drawing, marks, hold for, fill empty frames, frame and clipboard commands |
 | Right-click menu on exposure-sheet cells | TB | D | S | The same menu in the vertical sheet |
 | Panel menus (a ☰ button per panel) | TB | M | S | |
 | Vertical exposure sheet | TB | D | M | Layers as columns, frames down the side, the same keys and menus (`--vertical`, `--layout sheet`) |
 | Onion skin on the canvas, tinted before and after | TB | D | S | |
-| Onion panel with a slider per step | TB | D | S | |
+| Onion panel with a slider per step | TB | D | S | Also in the onion toggle's popover above the canvas |
 | Light table on the canvas | TB | D | S | |
 | Camera frame and safe areas | TB | D | S | |
 | Separate drawing, reference and perspective views | TB | M | M | One canvas |

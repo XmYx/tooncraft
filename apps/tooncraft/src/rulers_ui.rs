@@ -80,9 +80,10 @@ fn set(app: &mut ToonApp, rulers: Rulers) {
 pub fn toggle(app: &mut ToonApp, ui: &mut egui::Ui) {
     let mut on = app.engine.project.rulers.on;
     let resp = ui
-        .toggle_value(&mut on, tl!("Rulers"))
+        .add(crate::icons::IconButton::new(crate::icons::Icon::Rulers, tl!("Rulers")).active(on))
         .on_hover_text(tl!("Strokes started near a ruler follow it; right-click to add rulers and choose grid snapping"));
-    if resp.changed() {
+    if resp.clicked() {
+        on = !on;
         let mut r = app.engine.project.rulers.clone();
         r.on = on;
         if on && r.list.is_empty() && !r.grid {

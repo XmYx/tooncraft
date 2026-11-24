@@ -5,7 +5,7 @@
 
 use egui::{Key, Modifiers, vec2};
 use egui_kittest::Harness;
-use egui_kittest::kittest::{By, Queryable};
+use egui_kittest::kittest::{By, NodeT, Queryable};
 use tooncraft_engine::Command;
 
 use crate::app::{Tool, ToonApp};
@@ -35,6 +35,25 @@ fn two_drawings(h: &mut Harness<'static, ToonApp>) {
     h.run();
 }
 
+/// Click an item in the Timeline header's ⋯ menu (opened fresh each time).
+fn timeline_option(h: &mut Harness<'static, ToonApp>, label: &str) {
+    h.get(By::new().role(egui::Role::Button).label("Timeline options")).click();
+    h.run();
+    // the item's name may carry its shortcut after it ("Zoom In Alt+=")
+    let item = h
+        .query_all(By::new().label_contains(label))
+        .find(|n| n.accesskit_node().label().is_some_and(|t| t == label || t.starts_with(&format!("{label} "))))
+        .map(|n| n.rect().center());
+    if let Some(at) = item {
+        h.event(egui::Event::PointerMoved(at));
+        h.run();
+        h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: true, modifiers: egui::Modifiers::NONE });
+        h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: false, modifiers: egui::Modifiers::NONE });
+    }
+    assert!(item.is_some(), "no item {label} in the Timeline options menu");
+    h.run();
+}
+
 fn click(h: &mut Harness<'static, ToonApp>, label: &str) {
     h.get_by_label(label).click();
     h.run();
@@ -46,8 +65,7 @@ fn the_vertical_sheet_runs_frames_down_and_layers_across() {
     two_drawings(&mut h);
     h.state_mut().run(Command::AddLayer { name: "Top".into(), index: Some(1) });
     h.state_mut().layer = 0;
-    h.get(By::new().role(egui::Role::Button).label("Vertical")).click();
-    h.run();
+    timeline_option(&mut h, "Vertical");
     assert!(h.state().tl.vertical);
     let name = h.state().engine.project.layers[0].name.clone();
     h.get(By::new().role(egui::Role::Cell).label_contains(&format!("{name}, frame 1:"))).click();
@@ -175,9 +193,9 @@ fn in_out_speed_play_around_and_key_steps() {
     let mut h = harness();
     two_drawings(&mut h);
     h.state_mut().frame = 1;
-    click(&mut h, "Set In");
+    timeline_option(&mut h, "Set In");
     h.state_mut().frame = 4;
-    click(&mut h, "Set Out");
+    timeline_option(&mut h, "Set Out");
     assert_eq!(h.state().tl.range, Some((1, 4)));
     assert_eq!(crate::timeline_extras::play_span(h.state()), (1, 5));
     h.get(By::new().role(egui::Role::ComboBox).label("Speed"));
@@ -441,12 +459,12 @@ fn type_number(h: &mut Harness<'static, ToonApp>, label: &str, text: &str) {
 }
 
 #[test]
-fn the_top_bar_goes_to_a_typed_frame_sets_the_play_range_and_picks_a_workspace() {
+fn the_timeline_header_goes_to_a_typed_frame_sets_the_play_range_and_the_top_bar_picks_a_workspace() {
     let mut h = harness();
     type_number(&mut h, "Frame", "12");
     assert_eq!(h.state().frame, 11);
-    type_number(&mut h, "Play from", "5");
-    type_number(&mut h, "Play to", "9");
+    type_number(&mut h, "In", "5");
+    type_number(&mut h, "Out", "9");
     assert_eq!(h.state().tl.range, Some((4, 8)));
     assert_eq!(crate::timeline_extras::play_span(h.state()), (4, 9));
     h.get(By::new().role(egui::Role::ComboBox).label("Workspace")).click();

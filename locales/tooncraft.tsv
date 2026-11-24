@@ -105,6 +105,8 @@ tooncraft	Brush {name} loaded
 tooncraft	Brushes	
 tooncraft	Burn in the shot, frame and timecode	
 tooncraft	By	
+tooncraft	By drawings	
+tooncraft	By frames	
 tooncraft	Camera	
 tooncraft	Cancel	
 tooncraft	Cancel Distort	
@@ -112,6 +114,7 @@ tooncraft	Canvas
 tooncraft	Canvas Size	
 tooncraft	Canvas Size…	
 tooncraft	Canvas weave	
+tooncraft	Canvas zoom	
 tooncraft	Canvas: {layer}, frame {frame}	
 tooncraft	Category	
 tooncraft	Centre	
@@ -139,7 +142,6 @@ tooncraft	Clear Frame
 tooncraft	Clear In and Out	
 tooncraft	Clear Recent Shots	
 tooncraft	Clear frame	
-tooncraft	Clear frame (Delete)	
 tooncraft	Clear {mouth}	
 tooncraft	Click an area to select the pixels like it	
 tooncraft	Click the canvas to pick a colour (Alt+click with any brush)	
@@ -164,6 +166,8 @@ tooncraft	Colour fringe
 tooncraft	Colour jitter	
 tooncraft	Colour key	
 tooncraft	Colour layer added: paint under the lines, it follows their timing	
+tooncraft	Colour of the drawings after this one	
+tooncraft	Colour of the drawings before this one	
 tooncraft	Colour of {layer}	
 tooncraft	Colour opacity	
 tooncraft	Colour picker	
@@ -215,7 +219,6 @@ tooncraft	Delete Layer
 tooncraft	Delete Palette	
 tooncraft	Delete Peg	
 tooncraft	Delete frame	
-tooncraft	Delete frame (Shift+Delete)	
 tooncraft	Delete {name}	
 tooncraft	Depth	
 tooncraft	Deselect	
@@ -264,7 +267,6 @@ tooncraft	Duplicate Drawing
 tooncraft	Duplicate Layer	
 tooncraft	Duplicate clip {n} here	
 tooncraft	Duplicate drawing	
-tooncraft	Duplicate drawing (Shift+D)	
 tooncraft	Duration	
 tooncraft	Dynamics	
 tooncraft	Dynamics for {target}	
@@ -343,7 +345,6 @@ tooncraft	Flip Horizontally
 tooncraft	Flip V	
 tooncraft	Flip Vertically	
 tooncraft	Flip horizontally	
-tooncraft	Flip the view to check the drawing (M); the drawing does not change	
 tooncraft	Flip to Next Chosen Frame	
 tooncraft	Flip vertically	
 tooncraft	Flow	
@@ -363,6 +364,7 @@ tooncraft	Folder {n}
 tooncraft	Font	
 tooncraft	For review copies: a bar along the bottom of every frame	
 tooncraft	Format	
+tooncraft	Four ways	
 tooncraft	Four-way	
 tooncraft	Frame	
 tooncraft	Frame rate	
@@ -377,6 +379,7 @@ tooncraft	Frame {n}: {text}
 tooncraft	Frames	
 tooncraft	Frames either side for Play Around	
 tooncraft	Frames per second	
+tooncraft	Frames per second of the shot	
 tooncraft	Frames {a}–{b}, {px} px	
 tooncraft	From	
 tooncraft	Full HD, 24 fps	
@@ -387,6 +390,7 @@ tooncraft	GIMP palette (.gpl) or Photoshop swatches (.aco)
 tooncraft	Gamma	
 tooncraft	Gaps	
 tooncraft	General	
+tooncraft	Ghosts	
 tooncraft	Give an area already painted on this layer a new colour	
 tooncraft	Give the preset a name	
 tooncraft	Give the workspace a name	
@@ -485,7 +489,6 @@ tooncraft	Insert Frame in All Layers
 tooncraft	Insert Item	
 tooncraft	Insert Item Linked	
 tooncraft	Insert frame	
-tooncraft	Insert frame (Insert)	
 tooncraft	Intensity	
 tooncraft	Into	
 tooncraft	Invert	
@@ -520,6 +523,7 @@ tooncraft	Keyboard Shortcuts
 tooncraft	Keyboard pen: move, put down / lift	
 tooncraft	Keyboard shortcuts	
 tooncraft	Keys and breakdowns stay put; the drawings between them follow the spacing	
+tooncraft	Keys only	
 tooncraft	Label Colour	
 tooncraft	Label colour	
 tooncraft	Label colour of {name}	
@@ -545,6 +549,7 @@ tooncraft	Layered images
 tooncraft	Layers	
 tooncraft	Layers from PSD or OpenRaster…	
 tooncraft	Layers merged	
+tooncraft	Left and right	
 tooncraft	Length	
 tooncraft	Length (0: to the end)	
 tooncraft	Letter spacing	
@@ -578,7 +583,6 @@ tooncraft	Lock {name}
 tooncraft	Look at	
 tooncraft	Look at all visible layers	
 tooncraft	Loop	
-tooncraft	Loop a few frames either side of this one, to check an inbetween	
 tooncraft	Loop in	
 tooncraft	Loop out	
 tooncraft	Loop playback	
@@ -595,7 +599,6 @@ tooncraft	Matte
 tooncraft	Matte: keep inside	
 tooncraft	Matte: keep outside	
 tooncraft	Medium	
-tooncraft	Memory: {pixels} MB drawings, {history} MB history	
 tooncraft	Merge Down	
 tooncraft	Merge Layer Down	
 tooncraft	Merge Visible	
@@ -607,7 +610,6 @@ tooncraft	Merge the layer into the one below it
 tooncraft	Mirror View	
 tooncraft	Mirror four ways	
 tooncraft	Mirror left and right	
-tooncraft	Mirror strokes as you draw; choose the kind in a brush's options	
 tooncraft	Mirror top and bottom	
 tooncraft	Mirror view	
 tooncraft	More	
@@ -650,7 +652,6 @@ tooncraft	New Layer
 tooncraft	New Palette	
 tooncraft	New Shot…	
 tooncraft	New drawing	
-tooncraft	New drawing (Shift+N)	
 tooncraft	New drawings between this drawing and the next, placed along the spacing	
 tooncraft	New grain every frame	
 tooncraft	New item	
@@ -674,12 +675,14 @@ tooncraft	No Mark
 tooncraft	No command matches	
 tooncraft	No drawing files yet: save an item here to use it in other shots.	
 tooncraft	No drawing here to swap	
+tooncraft	No drawing on this frame to hold	
 tooncraft	No drawings have names yet	
 tooncraft	No drawings yet: select frames on the timeline and add them.	
 tooncraft	No earlier drawing on this layer	
 tooncraft	No earlier marker	
 tooncraft	No effects on this layer.	
 tooncraft	No font is available	
+tooncraft	No in and out range is set	
 tooncraft	No later drawing on this layer	
 tooncraft	No later marker	
 tooncraft	No mark	
@@ -715,11 +718,11 @@ tooncraft	On twos
 tooncraft	Once per stroke	
 tooncraft	One colour change for the whole stroke instead of one per dab	
 tooncraft	One layer per file name	
-tooncraft	Onion	
 tooncraft	Onion Skin	
 tooncraft	Onion opacity	
+tooncraft	Onion opacity, {n} after	
+tooncraft	Onion opacity, {n} before	
 tooncraft	Onion skin	
-tooncraft	Onion skin (O)	
 tooncraft	Onion skin off	
 tooncraft	Onion skin on	
 tooncraft	Onion skin on / off	
@@ -749,11 +752,14 @@ tooncraft	Open…
 tooncraft	Opposite	
 tooncraft	Or hold Shift to add, Alt to subtract, both to intersect	
 tooncraft	Orange	
+tooncraft	Original colours	
 tooncraft	Other consonants	
 tooncraft	Other values	
+tooncraft	Out	
 tooncraft	Outline	
 tooncraft	Outline and fill	
 tooncraft	Outline colour	
+tooncraft	Outlines	
 tooncraft	Outlines only	
 tooncraft	Output	
 tooncraft	Output black	
@@ -804,7 +810,7 @@ tooncraft	Pin
 tooncraft	Pin This Frame	
 tooncraft	Pin frame to the light table	
 tooncraft	Pin light	
-tooncraft	Pin this frame to the light table (Shift+L)	
+tooncraft	Pin this frame to the light table	
 tooncraft	Pin to Light Table	
 tooncraft	Ping-pong	
 tooncraft	Pivot X	
@@ -818,11 +824,8 @@ tooncraft	Play Around
 tooncraft	Play Selection	
 tooncraft	Play around this frame	
 tooncraft	Play forward, then backward, then forward again	
-tooncraft	Play from	
-tooncraft	Play only the selected frames (select a range of frames in the exposure sheet first)	
-tooncraft	Play or stop (Enter)	
+tooncraft	Play only the selected frames	
 tooncraft	Play the soundtrack	
-tooncraft	Play to	
 tooncraft	Playback	
 tooncraft	Playback loops back after this frame	
 tooncraft	Playback speed; the sound plays only at 100 %	
@@ -990,6 +993,7 @@ tooncraft	Select
 tooncraft	Select All	
 tooncraft	Select Layer Above	
 tooncraft	Select Layer Below	
+tooncraft	Select a range of frames in the exposure sheet first	
 tooncraft	Select everything that is not selected (Ctrl+Shift+I)	
 tooncraft	Select frames	
 tooncraft	Select tool, select all	
@@ -1012,22 +1016,21 @@ tooncraft	Shift: 15° lines, squares, circles
 tooncraft	Shortcut changed	
 tooncraft	Shot	
 tooncraft	Shot colours	
+tooncraft	Shot length	
 tooncraft	Shots you open or save are listed here.	
 tooncraft	Show	
 tooncraft	Show Layer	
 tooncraft	Show a mouth drawing at the current frame, then press its “Use” button.	
 tooncraft	Show and edit this value	
 tooncraft	Show drawing thumbnails in the cells	
-tooncraft	Show fewer, wider frames (Alt+=)	
+tooncraft	Show fewer, wider frames	
 tooncraft	Show layers labelled	
-tooncraft	Show more frames (Alt+-, or Ctrl and the wheel)	
-tooncraft	Show one frame longer (+)	
-tooncraft	Show one frame shorter (−)	
+tooncraft	Show more frames (or Ctrl and the wheel)	
+tooncraft	Show one frame longer	
+tooncraft	Show one frame shorter	
 tooncraft	Show onion skin	
 tooncraft	Show pinned frames	
 tooncraft	Show the camera frame	
-tooncraft	Show the drawings before and after this one (O); right-click for its settings	
-tooncraft	Show the pinned drawings under this one	
 tooncraft	Show the position as HH:MM:SS:FF instead of a frame number	
 tooncraft	Show the sheet down the page: layers as columns, frames as rows	
 tooncraft	Show the start window when opening with no shot	
@@ -1098,6 +1101,7 @@ tooncraft	Step by
 tooncraft	Step {n}: {label}	
 tooncraft	Step {n}: {label} (now)	
 tooncraft	Stepping by drawings, show only drawings marked as keys	
+tooncraft	Steps	
 tooncraft	Steps after	
 tooncraft	Steps before	
 tooncraft	Stop	
@@ -1152,12 +1156,14 @@ tooncraft	Thumbnails
 tooncraft	Tilt	
 tooncraft	Timecode	
 tooncraft	Timeline	
+tooncraft	Timeline options	
 tooncraft	Timing	
 tooncraft	Timing preset	
 tooncraft	Tint	
 tooncraft	Tint after	
 tooncraft	Tint before	
 tooncraft	Tint colour	
+tooncraft	Tinted	
 tooncraft	Tinted before and after	
 tooncraft	Tip	
 tooncraft	Tip angle	
@@ -1173,6 +1179,7 @@ tooncraft	Tool
 tooncraft	ToonCraft found a recovery copy from {when} that is newer than the shot. Open it?	
 tooncraft	ToonCraft shot	
 tooncraft	Top	
+tooncraft	Top and bottom	
 tooncraft	Touching only	
 tooncraft	Track	
 tooncraft	Track {n}	
@@ -1209,6 +1216,7 @@ tooncraft	Vertical
 tooncraft	Video (MP4, H.264)	
 tooncraft	Video (MP4, H.264)…	
 tooncraft	View	
+tooncraft	View rotation; click to set it back to 0°	
 tooncraft	Vignette	
 tooncraft	Violet	
 tooncraft	Vivid light	

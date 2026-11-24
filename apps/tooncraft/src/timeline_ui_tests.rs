@@ -3,7 +3,7 @@
 
 use egui::Key;
 use egui_kittest::Harness;
-use egui_kittest::kittest::{By, Queryable};
+use egui_kittest::kittest::{By, NodeT, Queryable};
 use tooncraft_engine::Command;
 
 use crate::app::ToonApp;
@@ -25,6 +25,25 @@ fn harness() -> Harness<'static, ToonApp> {
     h.run();
     h.run();
     h
+}
+
+/// Click an item in the Timeline header's ⋯ menu (opened fresh each time).
+fn timeline_option(h: &mut Harness<'static, ToonApp>, label: &str) {
+    h.get(By::new().role(egui::Role::Button).label("Timeline options")).click();
+    h.run();
+    // the item's name may carry its shortcut after it ("Zoom In Alt+=")
+    let item = h
+        .query_all(By::new().label_contains(label))
+        .find(|n| n.accesskit_node().label().is_some_and(|t| t == label || t.starts_with(&format!("{label} "))))
+        .map(|n| n.rect().center());
+    if let Some(at) = item {
+        h.event(egui::Event::PointerMoved(at));
+        h.run();
+        h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: true, modifiers: egui::Modifiers::NONE });
+        h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: false, modifiers: egui::Modifiers::NONE });
+    }
+    assert!(item.is_some(), "no item {label} in the Timeline options menu");
+    h.run();
 }
 
 fn click(h: &mut Harness<'static, ToonApp>, label: &str) {
@@ -109,22 +128,22 @@ fn markers_are_flags_on_the_ruler_with_their_note_on_hover() {
 #[test]
 fn ping_pong_timecode_and_zoom_buttons_are_named_and_work() {
     let mut h = harness();
-    click(&mut h, "Ping-pong");
+    timeline_option(&mut h, "Ping-pong");
     assert!(h.state().playback.ping_pong);
-    click(&mut h, "Ping-pong");
+    timeline_option(&mut h, "Ping-pong");
     assert!(!h.state().playback.ping_pong);
     h.state_mut().frame = 30.min(h.state().engine.project.length() - 1);
     h.run();
     let fps = h.state().engine.project.fps();
-    click(&mut h, "Timecode");
+    timeline_option(&mut h, "Timecode");
     assert!(h.state().tl.timecode);
     let want = tooncraft_doc::timecode(h.state().frame, fps);
     h.get_by_label_contains(&want);
     let z0 = h.state().tl.zoom;
-    click(&mut h, "Zoom In");
+    timeline_option(&mut h, "Zoom In");
     assert!(h.state().tl.zoom > z0);
-    click(&mut h, "Zoom Out");
-    click(&mut h, "Zoom Out");
+    timeline_option(&mut h, "Zoom Out");
+    timeline_option(&mut h, "Zoom Out");
     assert!(h.state().tl.zoom < z0);
 }
 
@@ -156,12 +175,16 @@ fn the_frame_menu_has_the_marker_items() {
 fn play_selection_plays_only_the_selected_frames() {
     let mut h = harness();
     let layer = h.state().layer;
-    // nothing selected: the button is there but cannot be used
-    h.get(By::new().role(egui::Role::Button).label("Play Selection"));
+    // nothing selected: the item is there but cannot be used
+    h.get(By::new().role(egui::Role::Button).label("Timeline options")).click();
+    h.run();
+    assert!(h.get(By::new().role(egui::Role::Button).label("Play Selection")).accesskit_node().is_disabled(), "disabled with nothing selected");
+    h.key_press(Key::Escape);
+    h.run();
     h.state_mut().sel_anchor = Some((layer, 2));
     h.state_mut().frame = 6;
     h.run();
-    click(&mut h, "Play Selection");
+    timeline_option(&mut h, "Play Selection");
     let p = h.state().playback;
     assert!(p.playing);
     assert_eq!((p.start, p.end), (2, 7));
@@ -170,7 +193,7 @@ fn play_selection_plays_only_the_selected_frames() {
     h.state_mut().playback.ping_pong = true;
     h.state_mut().frame = 6;
     h.run();
-    click(&mut h, "Play Selection");
+    timeline_option(&mut h, "Play Selection");
     assert!(h.state().playback.playing && h.state().playback.ping_pong);
 }
 

@@ -53,6 +53,7 @@ mod layer_tree;
 mod lipsync_panel;
 #[cfg(test)]
 mod menus_ui_tests;
+mod onion_popover;
 mod panels;
 #[cfg(test)]
 mod panels_ui_tests;
@@ -78,6 +79,7 @@ mod shell_ui_tests;
 mod sound;
 mod sound_panel;
 mod start_screen;
+mod status_strip;
 #[cfg(test)]
 mod swatch_ui_tests;
 mod tablet;
@@ -90,6 +92,7 @@ mod textures;
 mod theme;
 mod timeline;
 mod timeline_extras;
+mod timeline_header;
 mod timeline_rows;
 #[cfg(test)]
 mod timeline_rows_ui_tests;
