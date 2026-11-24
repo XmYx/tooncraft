@@ -189,6 +189,14 @@ fn export_webp_tga_tiff_and_layered_frames() {
     assert_eq!(&psd[4..6], &[0, 1]);
     assert!(cli(&["export", s, "--psd-frames", &d("all.psb"), "--psb", "--range", "1..2"]).0);
     assert_eq!(&std::fs::read(dir.join("all.psb")).unwrap()[4..6], &[0, 2]);
+    // the exposure sheet and frames to print
+    let (ok, out) = cli(&["export", s, "--sheet-pdf", &d("sheet.pdf"), "--paper", "letter"]);
+    assert!(ok && out.contains("pages"), "{out}");
+    assert!(std::fs::read(dir.join("sheet.pdf")).unwrap().starts_with(b"%PDF-"));
+    let (ok, out) = cli(&["export", s, "--frames-pdf", &d("frames.pdf"), "--per-page", "6", "--range", "1..7"]);
+    assert!(ok && out.contains("7 frames, 6 to a page"), "{out}");
+    assert!(!cli(&["export", s, "--frames-pdf", &d("bad.pdf"), "--per-page", "5"]).0, "5 to a page is not a grid");
+    assert!(!cli(&["export", s, "--sheet-pdf", &d("bad.pdf"), "--paper", "a3"]).0);
     // bad input is an error
     assert!(!cli(&["export", s, "--webp", &d("c.webp"), "--quality", "300", "--lossy"]).0);
     assert!(!cli(&["export", s, "--tga", &d("tga2"), "--range", "9..2"]).0);
