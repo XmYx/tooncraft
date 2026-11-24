@@ -232,6 +232,7 @@ mod tests {
             mouth_chart: Default::default(),
             mask: None,
             adjustment: false,
+            reference: false,
             cells,
         }
     }

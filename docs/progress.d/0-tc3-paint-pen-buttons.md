@@ -1,0 +1,1 @@
+- 2026-11-24: Pen side buttons run any command over the canvas while the pen is near (Preferences ▸ Pen); on Windows the pointer hooks add the barrel button and the eraser end, and a WinTab mode reads pressure, tilt and rotation through the shared tablet crate.

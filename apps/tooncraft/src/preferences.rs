@@ -50,6 +50,11 @@ pub struct Prefs {
     // pen
     /// How the pen's (and touch) pressure maps to the pressure brushes see, for every brush.
     pub pressure_curve: tooncraft_brush::Curve,
+    /// The command each pen side button runs over the canvas (lower, upper; empty: pan and the
+    /// canvas menu as usual).
+    pub pen_buttons: [String; 2],
+    /// Windows: read the pen through WinTab instead of Windows Ink (takes effect on restart).
+    pub wintab: bool,
     // the tool rail: the variant each group showed last (group id → variant id)
     pub tool_rail: std::collections::BTreeMap<String, String>,
     /// The custom tool palettes and the radial menu's palette.
@@ -81,6 +86,8 @@ impl Default for Prefs {
             export_scale: 1,
             export_paper: true,
             pressure_curve: tooncraft_brush::Curve::linear(),
+            pen_buttons: [String::new(), String::new()],
+            wintab: false,
             tool_rail: Default::default(),
             palettes: Default::default(),
         }
@@ -108,6 +115,8 @@ impl Prefs {
             export_scale: if [1, 2, 4].contains(&self.export_scale) { self.export_scale } else { 1 },
             tool_rail: crate::tool_rail::sanitized_memory(self.tool_rail.clone()),
             pressure_curve: tooncraft_brush::Curve::from_points(self.pressure_curve.points()),
+            // a command that no longer exists (or never did) is dropped
+            pen_buttons: self.pen_buttons.clone().map(|id| if crate::commands::get(&id).is_some() { id } else { String::new() }),
             palettes: self.palettes.clone().sanitized(),
             language: sanitized_language(&self.language),
             ..self
@@ -156,6 +165,8 @@ impl Prefs {
             }
             Tab::Pen => {
                 self.pressure_curve = d.pressure_curve;
+                self.pen_buttons = d.pen_buttons;
+                self.wintab = d.wintab;
             }
             Tab::Onion => {
                 self.onion_before = d.onion_before;
@@ -453,6 +464,49 @@ fn pen_tab(app: &mut ToonApp, ui: &mut egui::Ui) {
         }
     });
     ui.separator();
+    side_buttons(app, ui);
+    ui.separator();
+    let t = &app.tablet;
+    let status =
+        if t.status.is_empty() { tlf!("Pen input: {backend}", backend = if t.backend.is_empty() { "—" } else { t.backend }) } else { t.status.clone() };
+    ui.label(egui::RichText::new(status).weak());
+    if cfg!(target_os = "windows") {
+        ui.checkbox(&mut app.preferences.prefs.wintab, tl!("Read the pen through WinTab (turn Windows Ink off in the tablet driver; on restart)"));
+    }
+}
+
+/// The command each pen side button runs over the canvas.
+fn side_buttons(app: &mut ToonApp, ui: &mut egui::Ui) {
+    use crate::tablet::SideButton;
+    ui.label(tl!("Pen side buttons over the canvas (while the pen is near)"));
+    let choices: Vec<(&'static str, String)> = crate::commands::ALL.iter().map(|c| (c.id, c.label())).collect();
+    egui::Grid::new("prefs-pen-buttons").num_columns(2).show(ui, |ui| {
+        for b in SideButton::ALL {
+            let (label, default) = match b {
+                SideButton::Lower => (tl!("Lower button (middle click)"), tl!("Pan the view")),
+                SideButton::Upper => (tl!("Upper button (right click)"), tl!("Canvas menu")),
+            };
+            let current = app.preferences.prefs.pen_buttons[b.index()].clone();
+            let shown = choices.iter().find(|c| c.0 == current).map(|c| c.1.clone()).unwrap_or_else(|| default.to_string());
+            let l = ui.label(label);
+            let mut pick = current.clone();
+            egui::ComboBox::from_id_salt(("prefs-pen-button", b.index()))
+                .selected_text(shown)
+                .height(320.0)
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut pick, String::new(), default);
+                    for (id, name) in &choices {
+                        ui.selectable_value(&mut pick, id.to_string(), name);
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+            if pick != current {
+                app.preferences.prefs.pen_buttons[b.index()] = pick;
+            }
+            ui.end_row();
+        }
+    });
 }
 
 /// Write the preferences now (nothing in tests and screenshots); a failure is a status message.
@@ -525,6 +579,19 @@ mod tests {
         let mut r = Prefs { pressure_curve: soft, ..Prefs::default() };
         r.restore(Tab::Pen);
         assert!(r.pressure_curve.is_linear());
+    }
+
+    #[test]
+    fn pen_button_mappings_keep_only_known_commands() {
+        let p: Prefs = serde_json::from_str(r#"{"pen_buttons": ["edit.undo", "rm -rf"], "wintab": true}"#).map(Prefs::sanitized).unwrap_or_default();
+        assert_eq!(p.pen_buttons, ["edit.undo".to_string(), String::new()]);
+        assert!(p.wintab);
+        let mut r = p.clone();
+        r.restore(Tab::Pen);
+        assert_eq!((r.pen_buttons, r.wintab), ([String::new(), String::new()], false));
+        // a file from before the mapping existed reads as no mapping
+        let old: Prefs = serde_json::from_str(r#"{"autosave_seconds": 60}"#).map(Prefs::sanitized).unwrap_or_default();
+        assert_eq!(old.pen_buttons, [String::new(), String::new()]);
     }
 
     #[test]

@@ -15,11 +15,15 @@ pub struct PegUi {
     pub show_path: bool,
     /// Name being typed for the selected peg.
     pub renaming: Option<String>,
+    /// The name typed for a pose (Save Pose, Rename Pose).
+    pub pose_name: String,
+    /// The pose picked in the list.
+    pub pose: Option<usize>,
 }
 
 impl Default for PegUi {
     fn default() -> Self {
-        Self { selected: None, show_path: true, renaming: None }
+        Self { selected: None, show_path: true, renaming: None, pose_name: String::new(), pose: None }
     }
 }
 
@@ -106,6 +110,7 @@ pub fn panel(app: &mut ToonApp, ui: &mut egui::Ui) {
             });
         }
     });
+    poses(app, ui);
     let Some(id) = app.peg_ui.selected else { return };
     let Some(peg) = app.engine.project.peg(id).cloned() else { return };
     ui.separator();
@@ -220,13 +225,90 @@ pub fn panel(app: &mut ToonApp, ui: &mut egui::Ui) {
         }
     });
     let keys: Vec<u32> = peg.keys.iter().map(|k| k.frame).collect();
-    egui::ScrollArea::vertical().id_salt("peg-keys").show(ui, |ui| {
+    egui::ScrollArea::vertical().id_salt("peg-keys").max_height(160.0).show(ui, |ui| {
         for f in keys {
             if ui.selectable_label(f == frame, tlf!("Key at frame {n}", n = f + 1)).clicked() {
                 app.frame = f;
             }
         }
     });
+}
+
+/// The pose library: save the selected peg and the pegs below it as they are on this frame, and
+/// put a saved pose back on the current frame (each one undo step).
+fn poses(app: &mut ToonApp, ui: &mut egui::Ui) {
+    ui.separator();
+    ui.label(egui::RichText::new(tl!("Poses")).strong());
+    let count = app.engine.project.poses.len();
+    if app.peg_ui.pose.is_some_and(|i| i >= count) {
+        app.peg_ui.pose = count.checked_sub(1);
+    }
+    ui.horizontal(|ui| {
+        let l = ui.label(tl!("Pose name"));
+        ui.add(egui::TextEdit::singleline(&mut app.peg_ui.pose_name).desired_width(140.0)).labelled_by(l.id);
+    });
+    let selected = app.peg_ui.selected;
+    ui.horizontal(|ui| {
+        let save = ui
+            .add_enabled(selected.is_some(), egui::Button::new(tl!("Save Pose")))
+            .on_hover_text(tl!("Keep the selected peg and every peg below it as they are on this frame"));
+        if save.clicked()
+            && let Some(peg) = selected
+        {
+            let typed = app.peg_ui.pose_name.trim().to_owned();
+            let name = if typed.is_empty() { tlf!("Pose {n}", n = count + 1) } else { typed };
+            if app.run(Command::SavePose { peg, frame: app.frame, name: name.clone() }) {
+                app.peg_ui.pose = Some(app.engine.project.poses.len().saturating_sub(1));
+                app.peg_ui.pose_name.clear();
+                app.set_status(tlf!("Pose “{name}” saved", name = name));
+            }
+        }
+    });
+    if count == 0 {
+        ui.weak(tl!("No poses yet: pose the pegs, then Save Pose"));
+        return;
+    }
+    let rows: Vec<(usize, String, usize)> = app.engine.project.poses.iter().enumerate().map(|(i, p)| (i, p.name.clone(), p.keys.len())).collect();
+    let mut apply = None;
+    egui::ScrollArea::vertical().id_salt("poses").max_height(100.0).show(ui, |ui| {
+        for (i, name, n) in rows {
+            let r = ui.selectable_label(app.peg_ui.pose == Some(i), tlf!("{name} · {n} pegs", name = name, n = n));
+            if r.clicked() {
+                app.peg_ui.pose = Some(i);
+            }
+            if r.double_clicked() {
+                apply = Some(i);
+            }
+        }
+    });
+    let picked = app.peg_ui.pose;
+    ui.horizontal(|ui| {
+        if ui.add_enabled(picked.is_some(), egui::Button::new(tl!("Apply Pose"))).on_hover_text(tl!("Key the pose's pegs on the current frame")).clicked() {
+            apply = picked;
+        }
+        let typed = app.peg_ui.pose_name.trim().to_owned();
+        if ui
+            .add_enabled(picked.is_some() && !typed.is_empty(), egui::Button::new(tl!("Rename Pose")))
+            .on_hover_text(tl!("Give the picked pose the name typed above"))
+            .clicked()
+            && let Some(index) = picked
+            && app.run(Command::RenamePose { index, name: typed })
+        {
+            app.peg_ui.pose_name.clear();
+        }
+        if ui.add_enabled(picked.is_some(), egui::Button::new(tl!("Delete Pose"))).clicked()
+            && let Some(index) = picked
+        {
+            app.run(Command::RemovePose { index });
+        }
+    });
+    if let Some(index) = apply {
+        let frame = app.frame;
+        if app.run(Command::ApplyPose { index, frame }) {
+            let name = app.engine.project.poses.get(index).map(|p| p.name.clone()).unwrap_or_default();
+            app.set_status(tlf!("Pose “{name}” on frame {frame}", name = name, frame = frame + 1));
+        }
+    }
 }
 
 /// The current layer's peg and multiplane depth.
@@ -286,7 +368,8 @@ pub fn shakes(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.separator();
     ui.label(tl!("Shakes"));
     let frame = app.frame;
-    let list = app.engine.project.camera.shakes.clone();
+    let camera = crate::camera_path::edited_index(app);
+    let list = crate::camera_path::edited(app).shakes.clone();
     let mut remove = None;
     for (i, s) in list.iter().enumerate() {
         ui.horizontal(|ui| {
@@ -297,12 +380,12 @@ pub fn shakes(app: &mut ToonApp, ui: &mut egui::Ui) {
         });
     }
     if let Some(index) = remove {
-        app.run(Command::RemoveCameraShake { index });
+        app.run(Command::RemoveCameraShake { index, camera });
     }
     if ui.button(tl!("Add Shake Here")).on_hover_text(tl!("Shake the camera for 12 frames from the current frame")).clicked() {
         let last = app.engine.project.length().saturating_sub(1);
         let shake = Shake { from: frame, to: (frame + 11).min(last), amplitude: 12.0, rotation: 1.0, frequency: 0.4, fade: 3, seed: frame };
-        app.run(Command::AddCameraShake { shake });
+        app.run(Command::AddCameraShake { shake, camera });
     }
 }
 

@@ -164,7 +164,10 @@ thread: 18.5 ms per frame; all threads under load ≈ 50: 74–81 ms).
 
 App playback, `tooncraft shot.toon --bench-playback S` with the window visible. While effects are
 on, the canvas shows CPU-composited frames: they are cached per project version (1.5 GB budget)
-and a worker thread renders the frames after the playhead, so playback shows finished frames.
+and worker threads render the frames after the playhead, so playback shows finished frames. Since
+2026-11-24 there are up to four workers (a quarter of the cores), sharing one claim list so no
+frame is rendered twice, and each worker also turns its frame into tiles, so the UI thread only
+stores finished frames.
 
 | Run (240 frames, 24 fps, 4-effect stack) | Load / I/O wait | Frames shown per second | Dropped | Rendered by the worker / in the UI thread | UI frame CPU time, median / 99th percentile |
 |---|---|---|---|---|---|
@@ -172,6 +175,9 @@ and a worker thread renders the frames after the playhead, so playback shows fin
 | 1920×1080, 15 s from a cold start | 21 / — | 24.1 | 0 | 239 / 1 | 0.73 / 4.7 ms |
 | 1920×1080, 30 s (the first loop cold, then cached) | 16 / 1 % | 23.8 | 5 | 423 / 10 | 0.67 / 9.2 ms |
 | 3840×2160, 30 s | 13 / 15 % | 23.3 | 21 | 211 / 29 | 0.82 / 60 ms |
+| 3840×2160, 30 s, 4 workers, tiles made by the workers (2026-11-24) | 52–64 / — | 23.8 | 3 | 238 / 2 | 1.37 / 33 ms |
+| 3840×2160, 30 s, the same, a second run | 45–52 / — | 23.9 | 2 | 238 / 2 | 1.27 / 22 ms |
+| 1920×1080, 30 s, 4 workers, tiles made by the workers (2026-11-24) | 43–45 / — | 24.0 | 0 | 239 / 1 | 1.20 / 6.0 ms |
 
 Runs on this shared machine are not always this clean: while other builds filled the swap and
 the disk (I/O wait near 30 %), the same 1080p shot played at 5–8 frames per second with a few
@@ -179,7 +185,10 @@ redraws a second. The plain demo shot (no effects, so no frames to upload) still
 per second then; we have not separated swapping from texture uploads as the cause. In the 30 s
 1080p run the worker rendered 423 frames for 240: the cache was refilled once during the run, and
 we have not found why yet. At 4K the stack costs 42 ms a frame on one thread,
-more than a 24 fps frame lasts, so a cold first loop drops frames until the worker is ahead. Turning a
+more than a 24 fps frame lasts, so with one worker a cold first loop dropped frames until the worker was ahead;
+with four workers the 4K stack plays at 24 fps on the first loop even with the machine loaded twice
+over, and the frames still dropped are the first one or two, rendered in the UI thread before the
+workers start. Turning a
 composited frame into tiles for the GPU takes 2.2–2.6 ms at 1080p and about 8 ms at 4K.
 
 ## Memory bounds

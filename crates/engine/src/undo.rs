@@ -23,7 +23,8 @@ pub(crate) enum Part {
     },
     Fps(u32),
     Sounds(Vec<tooncraft_doc::Soundtrack>, Vec<tooncraft_doc::AudioTrack>),
-    Camera(tooncraft_doc::Camera),
+    /// Every camera of the shot and its cuts.
+    Cameras(tooncraft_doc::Camera, Vec<tooncraft_doc::ShotCamera>, Vec<tooncraft_doc::CameraCut>),
     Folders(Vec<tooncraft_doc::Folder>),
     Pegs(Vec<tooncraft_doc::Peg>),
     /// The whole project (canvas size changes; tiles are shared, so this is cheap).
@@ -44,6 +45,8 @@ pub(crate) enum Part {
     },
     /// The shot's colour palettes.
     Palettes(Vec<tooncraft_doc::palette::Palette>),
+    /// The shot's named peg poses.
+    Poses(Vec<tooncraft_doc::pose::Pose>),
     /// The shot's drawing library (its items, not their drawings).
     Library(Vec<tooncraft_doc::library::Item>),
 }
@@ -103,13 +106,16 @@ impl Entry {
                 }
                 Part::Folders(f) => Part::Folders(std::mem::replace(&mut p.folders, f)),
                 Part::Palettes(v) => Part::Palettes(std::mem::replace(&mut p.palettes, v)),
+                Part::Poses(v) => Part::Poses(std::mem::replace(&mut p.poses, v)),
                 Part::Library(l) => Part::Library(std::mem::replace(&mut p.library, l)),
                 Part::Pegs(g) => Part::Pegs(std::mem::replace(&mut p.pegs, g)),
                 Part::Whole(w) => Part::Whole(Box::new(std::mem::replace(p, *w))),
                 Part::Marks(m) => Part::Marks(std::mem::replace(&mut p.marks, m)),
                 Part::Markers(m) => Part::Markers(std::mem::replace(&mut p.markers, m)),
                 Part::Names(m) => Part::Names(std::mem::replace(&mut p.drawing_names, m)),
-                Part::Camera(c) => Part::Camera(std::mem::replace(&mut p.camera, c)),
+                Part::Cameras(c, more, cuts) => {
+                    Part::Cameras(std::mem::replace(&mut p.camera, c), std::mem::replace(&mut p.cameras, more), std::mem::replace(&mut p.camera_cuts, cuts))
+                }
                 Part::Sounds(s, t) => Part::Sounds(std::mem::replace(&mut p.sounds, s), std::mem::replace(&mut p.audio_tracks, t)),
                 Part::Fps(fps) => {
                     let old = Part::Fps(p.fps());
