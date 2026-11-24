@@ -173,9 +173,9 @@ Weight: 3
 |---|---|---|---|---|
 | Paper colour | all | D | S | Exported or left out per shot |
 | Paper grain that shapes pencil and chalk dabs | TV CS PD | D | S | Hashed grain, so a replay gives the same pixels |
-| Visible paper texture under the drawing | TV CS PD | M | S | |
+| Visible paper texture under the drawing | TV CS PD | D | S | Any grain (also a grain image) shades the paper colour with its own strength, size, rotation and contrast: one repeating tile on the canvas, the same pixels in exports with the paper; `SetPaperTexture`, saved with the shot |
 | Paper and grain library, grain images from files | TV CS PD | D | M | Four built-in grains and tileable grain images saved in the shot |
-| Grain scale, rotation and contrast | TV CS | P | S | Scale only |
+| Grain scale, rotation and contrast | TV CS | D | S | Per brush in the brush editor (`grain_scale`, `grain_angle`, `grain_contrast` in `.toonbrush` files), and for the paper texture |
 | Texture overlay on a layer or a fill | CS PD | M | S | |
 | Canvas size presets | all | D | S | Eleven video, cinema, square and portrait presets with their frame rates in New Shot and Canvas Size, the aspect ratio shown, and the user's own saved presets |
 | Canvas resize and crop with anchors | all | D | S | Drawings move whole pixels, never resampled; one undo step |
@@ -216,7 +216,7 @@ Weight: 5
 | Ellipse selection | all | D | S | The select tool's Ellipse mode |
 | Select by colour with tolerance (magic wand) | all | D | S | Magic Wand mode: tolerance, this drawing or all visible layers, the touching area or that colour everywhere |
 | Add, subtract and intersect selections | all | D | S | A mode option, or Shift (add), Alt (subtract) and both (intersect) while dragging; holes and separate parts stay one selection |
-| Invert, grow, shrink and feather a selection | all | P | S | Invert (Ctrl+Shift+I), grow and shrink by up to 64 px; no feather (selections are hard-edged) |
+| Invert, grow, shrink and feather a selection | all | D | S | Invert (Ctrl+Shift+I), grow and shrink by up to 64 px; Feather in the Select tool's options (up to 64 px) softens the edge, and moving, distorting, erasing, copying and filling the selection blend over it (one undo step each; `feather` in command files) |
 | Painted selection masks (quick mask) | TV CS PD | M | M | |
 | Move, scale and rotate a selection with a live preview | all | D | S | One undo step |
 | Flips and 90° turns | all | D | S | |
@@ -267,8 +267,8 @@ Weight: 6
 | Nested folders with show, lock, fold and opacity | all | D | S | |
 | Clipping layers | TV CS PD | D | S | Several clipping layers on one base |
 | Colour labels with a layer filter | TV TB | D | S | |
-| Painted layer masks | TV TB CS PD | M | M | |
-| Adjustment layers acting on everything below | CS PD | M | M | Effects act on their own layer only |
+| Painted layer masks | TV TB CS PD | D | M | Add Layer Mask (layer menu or Effects panel): every tool paints into the mask while Paint on Layer Mask is on (paint hides, the eraser brings back, or inverted); the mask follows the layer's transform, can be switched off or removed, one undo step each |
+| Adjustment layers acting on everything below | CS PD | D | M | Adjustment Layer: its effect stack acts on everything composited below it, where its drawing has paint (everywhere without one), cut by its mask, with its blend mode and opacity |
 | Reference layers chosen per tool | TB CS | M | S | The fill reference is current or all visible |
 | Layer properties copied between layers | TV CS | D | S | Opacity and keys, blend, colour, folder, peg, depth, effects |
 
@@ -373,12 +373,12 @@ Weight: 7
 | Film grain and light wrap | TV TB | D | S | |
 | Matte layers (keep inside or outside) | TV TB | D | S | |
 | Colour key | TV TB | D | S | Tolerance and soft edge |
-| Soft masks from shapes | TV TB PD | P | S | Rectangle and ellipse, keyframable; no drawn mask shapes |
+| Soft masks from shapes | TV TB PD | D | S | Rectangle, ellipse or a drawn shape (a selection's outline, resampled so keys blend point by point), feathered and keyframable |
 | Line thickening and smoothing | TV | D | S | Thicken and thin, and Smooth lines (jagged edges rebuilt smooth) |
 | Gradient map, posterise and threshold | TV TB PD | D | S | Gradient map (dark to light colour), posterise (2 to 64 levels), black and white by brightness, and the alpha threshold |
 | Motion blur from movement | TV TB | M | M | |
-| Distortions: ripple, wave, turbulence, displacement | TV TB | P | M | Ripple, wave and turbulence, animated over frames; no displacement by another layer |
-| Lens looks: vignette, chromatic aberration, flares | TV TB PD | P | S | Vignette and colour fringe; no flares |
+| Distortions: ripple, wave, turbulence, displacement | TV TB | D | M | Ripple, wave and turbulence, animated over frames; Displace by layer moves the picture by another layer's colour or brightness |
+| Lens looks: vignette, chromatic aberration, flares | TV TB PD | D | S | Vignette, colour fringe and a keyframable lens flare (core, ring, rays, ghosts) that lights a layer even without a drawing |
 | Tone and highlight from mattes, lighting from normals | TV TB | M | L | |
 | Particles (rain, snow, sparks) | TV TB | M | L | |
 | Time effects: trails, frame blending, time remap | TV TB PD | M | M | |
@@ -432,7 +432,7 @@ Weight: 7
 | Image sequence import | all | D | S | PNG, JPEG, WebP, TIFF, BMP, GIF |
 | Animated GIF import | TV PD | D | S | |
 | Layers from PSD or OpenRaster | TV CS | D | S | |
-| Video file import | TV CS PD | M | M | |
+| Video file import | TV CS PD | D | M | File ▸ Import Video (`import_video`, `tooncraft-cli import-video`): MP4 / QuickTime, H.264 and H.265 (8-bit) through craft-media and craft-video; a picture per drawing, timed by the movie at the shot's rate; start, every n-th, a cap; under the drawing locked and faded to trace over, the shot grown to fit; one undo step |
 | XDTS exposure sheet exchange with drawing folders | TB CS | D | M | |
 | Storyboard or animatic as the starting layout | TB | D | S | BoardCraft panels with timings and camera moves ([interop.md](interop.md)) |
 | Scanned paper: peg-hole registration and clean-up | TV TB | M | L | |

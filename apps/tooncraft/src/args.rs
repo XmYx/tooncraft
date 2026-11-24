@@ -12,7 +12,7 @@ Options:
                              pegs, library, effects, sound, lipsync, timing, history, drawings,
                              curves, palette)
   --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size,
-                             start, scene, colour-picker, icons, radial, pen
+                             start, scene, colour-picker, icons, radial, import-video, pen
   --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet
   --vertical                 show the exposure sheet down the page
   --tool <NAME>              start with a tool (pencil, ink, fill, gradient, select, shape …)
@@ -24,6 +24,8 @@ Options:
   --rulers                   start with a straight ruler and two-point perspective rulers on
   --thumbnails               start with drawing thumbnails in the timeline
   --light                    light theme
+  --fx <IDS>                 add effects to the current layer (comma-separated ids such as lens_flare,
+                             drawn_mask, displace; see Effects ▸ Add effect)
   --context-menu <TARGET>    open a right-click menu (for screenshots): canvas, selection, cell, ruler,
                              layer, tool, tab, swatch, brush, library, onion
   -h, --help                 print this help
@@ -49,6 +51,8 @@ pub struct Cli {
     pub vertical: bool,
     pub tool: Option<String>,
     pub rulers: bool,
+    /// Effect ids added to the current layer at launch (screenshots).
+    pub fx: Vec<String>,
     /// A right-click menu to open at start (for screenshots of the menus).
     pub context_menu: Option<String>,
     /// The loop (in and out) range, 0-based, for screenshots of the ruler.
@@ -56,8 +60,8 @@ pub struct Cli {
 }
 
 /// The windows `--open` knows.
-pub const OPEN_NAMES: [&str; 12] =
-    ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size", "start", "scene", "colour-picker", "icons", "radial", "pen"];
+pub const OPEN_NAMES: [&str; 13] =
+    ["preferences", "export", "shortcuts", "find", "new-shot", "canvas-size", "start", "scene", "colour-picker", "icons", "radial", "import-video", "pen"];
 /// The right-click menus `--context-menu` knows.
 pub const CONTEXT_MENU_NAMES: [&str; 11] = ["canvas", "selection", "cell", "ruler", "layer", "tool", "tab", "swatch", "brush", "library", "onion"];
 /// The layouts `--layout` knows.
@@ -65,7 +69,8 @@ pub const LAYOUT_NAMES: [&str; 4] = ["drawing", "timing", "ink-paint", "sheet"];
 
 #[derive(Debug, PartialEq)]
 pub enum Launch {
-    Run(Cli),
+    /// Boxed: the options are large next to the text of `Print`.
+    Run(Box<Cli>),
     Print(String),
 }
 
@@ -131,6 +136,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
                 cli.layout = Some(v);
             }
             "--vertical" => cli.vertical = true,
+            "--fx" => cli.fx.extend(it.next().ok_or("--fx needs effect ids")?.split(',').map(|v| v.trim().to_string()).filter(|v| !v.is_empty())),
             "--context-menu" => {
                 let v = it.next().ok_or("--context-menu needs a target")?;
                 if !CONTEXT_MENU_NAMES.contains(&v.as_str()) {
@@ -153,7 +159,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             }
         }
     }
-    Ok(Launch::Run(cli))
+    Ok(Launch::Run(Box::new(cli)))
 }
 
 #[cfg(test)]
@@ -163,21 +169,26 @@ mod tests {
     #[test]
     fn parses() {
         let s = |v: &[&str]| parse(v.iter().map(|s| s.to_string()));
-        assert_eq!(s(&["--demo", "--frame", "3"]), Ok(Launch::Run(Cli { demo: true, frame: Some(2), ..Default::default() })));
+        assert_eq!(s(&["--demo", "--frame", "3"]), Ok(Launch::Run(Box::new(Cli { demo: true, frame: Some(2), ..Default::default() }))));
         assert!(s(&["--nope"]).is_err());
         assert!(s(&["a.toon", "b.toon"]).is_err());
         assert!(matches!(s(&["--help"]), Ok(Launch::Print(_))));
         assert_eq!(
             s(&["--open", "preferences", "--layout", "sheet", "--vertical"]),
-            Ok(Launch::Run(Cli { open: Some("preferences".into()), layout: Some("sheet".into()), vertical: true, ..Default::default() }))
+            Ok(Launch::Run(Box::new(Cli { open: Some("preferences".into()), layout: Some("sheet".into()), vertical: true, ..Default::default() })))
         );
         assert!(s(&["--open", "nope"]).is_err());
-        assert_eq!(s(&["--loop", "3..9"]), Ok(Launch::Run(Cli { loop_range: Some((2, 8)), ..Default::default() })));
+        assert_eq!(s(&["--loop", "3..9"]), Ok(Launch::Run(Box::new(Cli { loop_range: Some((2, 8)), ..Default::default() }))));
         assert!(s(&["--loop", "x"]).is_err());
         assert!(s(&["--layout", "nope"]).is_err());
         assert!(s(&["--open"]).is_err());
-        assert_eq!(s(&["--context-menu", "cell"]), Ok(Launch::Run(Cli { context_menu: Some("cell".into()), ..Default::default() })));
+        assert_eq!(s(&["--context-menu", "cell"]), Ok(Launch::Run(Box::new(Cli { context_menu: Some("cell".into()), ..Default::default() }))));
         assert!(s(&["--context-menu", "nope"]).is_err());
         assert!(s(&["--context-menu"]).is_err());
+        assert_eq!(
+            s(&["--fx", "lens_flare, drawn_mask"]),
+            Ok(Launch::Run(Box::new(Cli { fx: vec!["lens_flare".into(), "drawn_mask".into()], ..Default::default() })))
+        );
+        assert!(s(&["--fx"]).is_err());
     }
 }

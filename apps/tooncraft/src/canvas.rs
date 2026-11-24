@@ -580,6 +580,7 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
                 skew_x: 0.0,
                 skew_y: 0.0,
                 resample,
+                feather: app.sel.feather,
             };
             x.applied = app.run(cmd);
             x.now = (dx, dy, sc, ang);
@@ -862,6 +863,17 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let pc = app.engine.project.paper.color;
     painter.add(Shape::convex_polygon(corners.to_vec(), Color32::from_rgb(pc[0], pc[1], pc[2]), Stroke::NONE));
     let ctx = ui.ctx().clone();
+    // the paper's texture, one repeating tile stretched over the paper with wrapping UVs
+    if let Some(tex) = app.textures.paper(&ctx, &app.engine.project) {
+        let n = tooncraft_doc::PAPER_TILE as f32;
+        let uv = [pos2(0.0, 0.0), pos2(size.x / n, 0.0), pos2(size.x / n, size.y / n), pos2(0.0, size.y / n)];
+        let mut mesh = egui::Mesh::with_texture(tex);
+        for (p, uv) in corners.iter().zip(uv) {
+            mesh.vertices.push(egui::epaint::Vertex { pos: *p, uv, color: Color32::WHITE });
+        }
+        mesh.indices.extend_from_slice(&[0, 1, 2, 0, 2, 3]);
+        painter.add(Shape::mesh(mesh));
+    }
     let p = &app.engine.project;
     // the layers' transforms, with a Transform drag's key in place while one is in progress
     let transforms = crate::peg_transform::layer_transforms(app);
@@ -903,10 +915,15 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
     }
-    let blended = p
-        .layers
-        .iter()
-        .any(|l| (l.blend != tooncraft_doc::BlendMode::Normal || l.clip || tooncraft_fx::is_active(&l.effects) || l.matte.is_some()) && p.effective(l).0);
+    let blended = p.layers.iter().any(|l| {
+        (l.blend != tooncraft_doc::BlendMode::Normal
+            || l.clip
+            || tooncraft_fx::is_active(&l.effects)
+            || l.matte.is_some()
+            || l.mask.is_some_and(|m| m.enabled)
+            || l.adjustment)
+            && p.effective(l).0
+    });
     if blended {
         // A blend mode needs what is below it, and effects reach past their tiles: composite the
         // layers on the CPU and show that as tiles. Frames are cached per project version, and
