@@ -49,13 +49,13 @@ mod fx_ui_tests;
 mod gaps_ui_tests;
 #[cfg(test)]
 mod guidance_ui_tests;
-#[cfg(test)]
-mod keyboard_reach_ui_tests;
 mod history_panel;
 #[cfg(test)]
 mod history_ui_tests;
 mod icons;
 mod import_dialog;
+#[cfg(test)]
+mod keyboard_reach_ui_tests;
 mod keys;
 mod layer_fx;
 mod layer_ops;
