@@ -18,6 +18,7 @@ Options:
   --tool <NAME>              start with a tool (pencil, ink, fill, gradient, select, shape …)
   --bench-playback <SECONDS> play the shot for SECONDS, print frame timing and quit
   --select <A..B>            start with frames A to B (1-based) of the top layer selected
+  --loop <A..B>              start with the loop range on frames A to B (1-based)
   --light-table              pin frame 1 of the top layer to the light table and show it
   --rulers                   start with a straight ruler and two-point perspective rulers on
   --thumbnails               start with drawing thumbnails in the timeline
@@ -48,6 +49,8 @@ pub struct Cli {
     pub rulers: bool,
     /// A right-click menu to open at start (for screenshots of the menus).
     pub context_menu: Option<String>,
+    /// The loop (in and out) range, 0-based, for screenshots of the ruler.
+    pub loop_range: Option<(u32, u32)>,
 }
 
 /// The windows `--open` knows.
@@ -94,6 +97,13 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
                 let a: u32 = a.parse().map_err(|_| "--select: bad start")?;
                 let b: u32 = b.parse().map_err(|_| "--select: bad end")?;
                 cli.select = Some((a.max(1) - 1, b.max(1) - 1));
+            }
+            "--loop" => {
+                let v = it.next().ok_or("--loop needs A..B")?;
+                let (a, b) = v.split_once("..").ok_or("--loop needs A..B")?;
+                let a: u32 = a.parse().map_err(|_| "--loop: bad start")?;
+                let b: u32 = b.parse().map_err(|_| "--loop: bad end")?;
+                cli.loop_range = Some((a.max(1) - 1, b.max(1) - 1));
             }
             "--frame" => {
                 let v = it.next().ok_or("--frame needs a number")?;
@@ -158,6 +168,8 @@ mod tests {
             Ok(Launch::Run(Cli { open: Some("preferences".into()), layout: Some("sheet".into()), vertical: true, ..Default::default() }))
         );
         assert!(s(&["--open", "nope"]).is_err());
+        assert_eq!(s(&["--loop", "3..9"]), Ok(Launch::Run(Cli { loop_range: Some((2, 8)), ..Default::default() })));
+        assert!(s(&["--loop", "x"]).is_err());
         assert!(s(&["--layout", "nope"]).is_err());
         assert!(s(&["--open"]).is_err());
         assert_eq!(s(&["--context-menu", "cell"]), Ok(Launch::Run(Cli { context_menu: Some("cell".into()), ..Default::default() })));

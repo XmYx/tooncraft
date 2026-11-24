@@ -16,7 +16,7 @@ pub fn grid_id() -> egui::Id {
     egui::Id::unique("tooncraft-exposure-sheet")
 }
 
-const NAME_W: f32 = 132.0;
+const NAME_W: f32 = 152.0;
 const CELL_W0: f32 = 17.0;
 const ROW_H0: f32 = 22.0;
 const RULER_H: f32 = 20.0;
@@ -305,14 +305,26 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             painter.circle_filled(pos2(x, ruler.top() + 5.0), 2.5, pal.accent);
         }
     }
-    // the in and out range: a band along the top of the ruler
-    if let Some((a, b)) = app.tl.range {
-        let x0 = (frames_area.left() + (a as f32 - first as f32) * CELL_W).max(frames_area.left());
-        let x1 = (frames_area.left() + (b as f32 + 1.0 - first as f32) * CELL_W).min(frames_area.right());
-        if x1 > x0 {
-            painter.rect_filled(Rect::from_min_max(pos2(x0, ruler.top()), pos2(x1, ruler.top() + 3.0)), 0.0, pal.playhead);
-        }
+    // scrub on the ruler (click or drag); the loop handles and onion brackets are added after it, so they
+    // sit on top and take the drag
+    let ruler_resp = ui.interact(ruler, grid_id().with("ruler"), Sense::click_and_drag());
+    ruler_resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Slider, true, tl!("Frame ruler")));
+    let ruler_resp = match ruler_resp.hover_pos().map(|p| first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64) {
+        Some(f) if f >= 0 => match crate::timeline_extras::note_at(app, f as u32) {
+            Some(text) => ruler_resp.on_hover_text(tlf!("Frame {n}: {text}", n = f + 1, text = text)),
+            None => ruler_resp,
+        },
+        _ => ruler_resp,
+    };
+    if (ruler_resp.dragged() || ruler_resp.clicked())
+        && let Some(p) = ruler_resp.interact_pointer_pos()
+    {
+        let f = first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64;
+        app.frame = f.clamp(0, len as i64 - 1) as u32;
+        app.playback.stop();
     }
+    // the in and out range: a band along the top of the ruler, with a draggable handle at each end
+    crate::timeline_ruler::show(app, ui, &painter, ruler, frames_area.left(), first, visible_cols, CELL_W, pal.playhead);
     // the onion skin's reach, under the ruler: before in its tint, after in its tint
     if let Some((lo, hi)) = onion_span(app) {
         let o = &app.engine.project.onion;
@@ -354,23 +366,6 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
     }
-    // scrub on the ruler (click or drag)
-    let ruler_resp = ui.interact(ruler, grid_id().with("ruler"), Sense::click_and_drag());
-    ruler_resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Slider, true, tl!("Frame ruler")));
-    let ruler_resp = match ruler_resp.hover_pos().map(|p| first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64) {
-        Some(f) if f >= 0 => match crate::timeline_extras::note_at(app, f as u32) {
-            Some(text) => ruler_resp.on_hover_text(tlf!("Frame {n}: {text}", n = f + 1, text = text)),
-            None => ruler_resp,
-        },
-        _ => ruler_resp,
-    };
-    if (ruler_resp.dragged() || ruler_resp.clicked())
-        && let Some(p) = ruler_resp.interact_pointer_pos()
-    {
-        let f = first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64;
-        app.frame = f.clamp(0, len as i64 - 1) as u32;
-        app.playback.stop();
-    }
     if app.thumbnails {
         refresh_thumbnails(app, ui.ctx(), first, first + visible_cols);
     }
@@ -379,6 +374,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let mut clicked: Option<(usize, u32)> = None;
     let mut toggles: Vec<(usize, bool)> = Vec::new();
     let mut locks: Vec<(usize, bool)> = Vec::new();
+    let mut onion_toggles: Vec<usize> = Vec::new();
     let mut drag: Option<(usize, u32, u32)> = None;
     // right-click menus, shown after the rows (the rows borrow the project)
     let mut cell_menus: Vec<(usize, u32, egui::Response)> = Vec::new();
@@ -416,7 +412,18 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             locks.push((li, !layer.locked));
         }
         crate::timeline_rows::paint_lock(&painter, lock, layer.locked, if layer.locked { pal.accent } else { pal.weak });
-        let name_rect = Rect::from_min_max(pos2(lock.right() + 4.0, y), pos2(area.left() + NAME_W - 4.0, y + ROW_H));
+        // include in onion skin, beside the lock
+        let onion = Rect::from_min_size(pos2(lock.right() + 3.0, y + 3.0), vec2(16.0, 16.0));
+        let onion_resp = ui.interact(onion, grid_id().with(("onion", layer.id)), Sense::click());
+        let included = crate::timeline_rows::onion_included(layer.onion);
+        let onion_label = tlf!("Include {layer} in onion skin", layer = layer.name);
+        onion_resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, true, included, onion_label.clone()));
+        let onion_resp = onion_resp.on_hover_text(tl!("Show this layer's onion skin (when it is the current layer, or with onion skin on every layer)"));
+        if onion_resp.clicked() {
+            onion_toggles.push(li);
+        }
+        crate::timeline_rows::paint_onion(&painter, onion, included, if included { pal.text } else { pal.weak });
+        let name_rect = Rect::from_min_max(pos2(onion.right() + 4.0, y), pos2(area.left() + NAME_W - 4.0, y + ROW_H));
         let name_resp = ui.interact(name_rect, grid_id().with(("name", layer.id)), Sense::click());
         let name_label = tlf!("Layer {name}", name = layer.name);
         name_resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, li == app.layer, name_label.clone()));
@@ -626,6 +633,12 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     for (li, v) in locks {
         app.run(Command::SetLayer { layer: li, visible: None, locked: Some(v), opacity: None });
+    }
+    for li in onion_toggles {
+        if let Some(l) = app.engine.project.layers.get(li) {
+            let onion = crate::timeline_rows::onion_include_toggled(l.onion, app.engine.project.onion);
+            app.run(Command::SetLayerOnion { layer: li, onion });
+        }
     }
     if let Some((li, f)) = clicked {
         if ui.input(|i| i.modifiers.shift) {

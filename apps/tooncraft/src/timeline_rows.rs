@@ -3,7 +3,7 @@
 //! against the drawings; the cell's name says "peg key" for screen readers.
 
 use egui::{Color32, Painter, Pos2, Rect, Stroke, pos2, vec2};
-use tooncraft_doc::PegId;
+use tooncraft_doc::{OnionSkin, PegId};
 
 use crate::app::ToonApp;
 
@@ -48,4 +48,59 @@ pub fn key_frames(app: &ToonApp, peg: PegId, from: u32, to: u32) -> Vec<u32> {
 pub fn paint_key(p: &Painter, at: Pos2, c: Color32, edge: Color32) {
     let r = 3.5;
     p.add(egui::Shape::convex_polygon(vec![at + vec2(0.0, -r), at + vec2(r, 0.0), at + vec2(0.0, r), at + vec2(-r, 0.0)], c, Stroke::new(1.0, edge)));
+}
+
+/// Whether the layer's drawings show onion skin (its own settings, or the shot's).
+pub fn onion_included(own: Option<OnionSkin>) -> bool {
+    own.is_none_or(|o| o.enabled)
+}
+
+/// The layer's own onion settings after flipping "Include in Onion": leaving out keeps the
+/// layer's settings (or copies the shot's) with onion off; including again goes back to the
+/// shot's settings when the layer's own were only a copy of them.
+pub fn onion_include_toggled(own: Option<OnionSkin>, shot: OnionSkin) -> Option<OnionSkin> {
+    match own {
+        Some(o) if !o.enabled => {
+            let on = OnionSkin { enabled: true, ..o };
+            (on != OnionSkin { enabled: true, ..shot }).then_some(on)
+        }
+        Some(o) => Some(OnionSkin { enabled: false, ..o }),
+        None => Some(OnionSkin { enabled: false, ..shot }),
+    }
+}
+
+/// Two overlapping rings, the onion glyph: both drawn when included, one dashed-faint when not.
+pub fn paint_onion(p: &Painter, r: Rect, on: bool, c: Color32) {
+    let st = Stroke::new(1.3, c);
+    let rad = r.height() * 0.28;
+    p.circle_stroke(r.center() - vec2(rad * 0.6, 0.0), rad, st);
+    p.circle_stroke(r.center() + vec2(rad * 0.6, 0.0), rad, if on { st } else { Stroke::new(1.0, c.gamma_multiply(0.5)) });
+    if !on {
+        p.line_segment([r.left_bottom() + vec2(2.0, -2.0), r.right_top() + vec2(-2.0, 2.0)], st);
+    }
+}
+
+#[cfg(test)]
+mod onion_include_tests {
+    use super::*;
+
+    #[test]
+    fn leaving_a_layer_out_and_back_in_restores_the_shot_settings() {
+        let shot = OnionSkin { enabled: true, before: 3, ..OnionSkin::default() };
+        assert!(onion_included(None));
+        let out = onion_include_toggled(None, shot);
+        assert!(!onion_included(out));
+        assert_eq!(out.map(|o| o.before), Some(3));
+        // back in: the copy is dropped, the layer follows the shot again
+        assert_eq!(onion_include_toggled(out, shot), None);
+    }
+
+    #[test]
+    fn a_layer_with_its_own_settings_keeps_them_through_the_toggle() {
+        let shot = OnionSkin::default();
+        let own = OnionSkin { enabled: true, before: 7, outline: true, ..shot };
+        let out = onion_include_toggled(Some(own), shot);
+        assert_eq!(out, Some(OnionSkin { enabled: false, ..own }));
+        assert_eq!(onion_include_toggled(out, shot), Some(own));
+    }
 }

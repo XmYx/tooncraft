@@ -291,7 +291,7 @@ Weight: 9
 | Drawing substitution: expose any existing drawing by name | TV TB CS | D | S | Name a drawing, then show it at any frame of any layer by name; only that frame changes. Also a thumbnail grid of the layer's drawings (a cell's right-click menu, Frame ▸ Swap Drawing) that swaps the whole exposure; Ctrl+Alt+Up and Down swap to the previous or next drawing from the keyboard |
 | Vertical exposure sheet view | TV TB | D | L | The timeline's Vertical switch, or the Exposure Sheet layout: layers as columns, frames down the side, the same keys, cell names and right-click menus |
 | Frame markers and notes | TV TB | D | S | A note per frame: ruler flags, a list with timecodes, next / previous by keyboard, saved in the shot |
-| Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames |
+| Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames; the in and out range shows on the ruler with a handle at each end to drag (arrow keys with a handle focused) |
 | Frame rate change and timecode display | all | D | S | Frame rate per shot; the position and the marker list show HH:MM:SS:FF (non-drop-frame) |
 | Timeline zoom and scroll | all | D | S | Zoom buttons, Alt+= and Alt+-, Ctrl and the wheel or a pinch; scroll as before |
 | Graph editor for keyed values | TB CS PD | P | L | The Curves panel plots each peg value against frames: drag keys in time and value (one undo step, Escape cancels), move them from the keyboard, ease many keys at once, drag the two ease handles. Camera, opacity and effect keys still edit in their own panels |
@@ -312,7 +312,7 @@ Weight: 4
 | Onion by drawings or by frames | TV TB | D | S | The reach shows in the before and after tints on the timeline ruler; right-click the Onion Skin toggle above the canvas for quick settings |
 | Onion on the current layer or on all layers | TV CS | P | S | Both work; only the current-layer path is tested |
 | Onion skin as outlines | TV | D | S | Also: hide only the step before |
-| Onion settings per layer | TV TB | D | S | Own settings for a layer in the Onion Skin panel (steps, opacity, colours, outlines); the shot's switch still turns all off |
+| Onion settings per layer | TV TB | D | S | Own settings for a layer in the Onion Skin panel (steps, opacity, colours, outlines); an onion toggle in each timeline row leaves a layer out or takes it back; the shot's switch still turns all off |
 | Pick the exact relative frames shown | TB CS | P | S | An opacity per step on each side (0 hides that step), and key drawings only; no free list of offsets |
 | Light table: pin any frame of any layer, with opacity | TB CS | D | S | |
 | Shift and trace: move or turn a pinned frame without changing it | TB TV | M | M | |

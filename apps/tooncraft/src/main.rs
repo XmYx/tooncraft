@@ -84,6 +84,8 @@ mod start_screen;
 #[cfg(test)]
 mod swatch_ui_tests;
 mod tablet;
+#[cfg(test)]
+mod tcui_time_ui_tests;
 mod text_tool;
 #[cfg(test)]
 mod text_ui_tests;
@@ -94,6 +96,7 @@ mod timeline_extras;
 mod timeline_rows;
 #[cfg(test)]
 mod timeline_rows_ui_tests;
+mod timeline_ruler;
 #[cfg(test)]
 mod timeline_ui_tests;
 mod timing_panel;
