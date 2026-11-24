@@ -399,6 +399,10 @@ fn shapes_layer_properties_and_thumbnails() {
     h.state_mut().run(tooncraft_engine::Command::SetLayerBlend { layer: 0, blend: tooncraft_doc::BlendMode::Multiply });
     h.run();
     assert!(!h.state().blend_cache.is_empty(), "a blend mode switches the canvas to the CPU composite");
+    h.get(By::new().role(egui::Role::Button).label("Timeline options")).click();
+    h.run();
+    h.get_by_label("Display").click();
+    h.run();
     h.get_by_label("Thumbnails").click();
     h.run();
     h.run();

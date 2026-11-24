@@ -179,7 +179,7 @@ fn the_onion_toggle_has_quick_settings_and_its_reach_is_on_the_ruler() {
     assert_eq!(crate::timeline::onion_span(h.state()), Some((0, 3)), "from drawing A's start to the end of drawing B");
     h.get(By::new().role(egui::Role::Button).label("Onion Skin")).click_secondary();
     h.run();
-    h.get(By::new().role(egui::Role::CheckBox).label("Outlines only")).click();
+    h.get_by_label("Outlines").click();
     h.run();
     assert!(h.state().engine.project.onion.outline);
     h.state_mut().engine.project.onion.enabled = false;

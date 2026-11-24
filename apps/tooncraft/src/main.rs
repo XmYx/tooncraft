@@ -55,6 +55,7 @@ mod lipsync_panel;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+mod onion_popover;
 mod panel_chrome;
 mod panels;
 #[cfg(test)]
@@ -83,6 +84,7 @@ mod shell_ui_tests;
 mod sound;
 mod sound_panel;
 mod start_screen;
+mod status_strip;
 #[cfg(test)]
 mod swatch_ui_tests;
 mod tablet;
@@ -95,6 +97,7 @@ mod textures;
 mod theme;
 mod timeline;
 mod timeline_extras;
+mod timeline_header;
 mod timeline_rows;
 #[cfg(test)]
 mod timeline_rows_ui_tests;

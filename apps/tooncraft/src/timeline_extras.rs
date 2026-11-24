@@ -9,7 +9,6 @@ use crate::app::ToonApp;
 
 /// Smallest and largest timeline zoom (1 is the normal cell width).
 pub const ZOOM_RANGE: (f32, f32) = (0.4, 4.0);
-const ZOOM_STEP: f32 = 1.25;
 
 /// Timeline state that is not part of the project.
 pub struct State {
@@ -50,70 +49,6 @@ pub fn position_text(app: &ToonApp) -> String {
         format!("{}  {}", timecode(app.frame, fps), tlf!("of {total}", total = timecode(len.saturating_sub(1), fps)))
     } else {
         format!("{:>4} / {}", app.frame + 1, len)
-    }
-}
-
-/// Buttons after the loop button: ping-pong, the timecode switch, zoom.
-pub fn transport(app: &mut ToonApp, ui: &mut Ui) {
-    let pp = app.playback.ping_pong;
-    if ui.selectable_label(pp, tl!("Ping-pong")).on_hover_text(tl!("Play forward, then backward, then forward again")).clicked() {
-        app.playback.ping_pong = !pp;
-    }
-    let selected = app.has_range();
-    if ui
-        .add_enabled(selected, egui::Button::new(tl!("Play Selection")))
-        .on_hover_text(tl!("Play only the selected frames (select a range of frames in the exposure sheet first)"))
-        .clicked()
-    {
-        play_selection(app);
-    }
-    if ui.button(tl!("Set In")).on_hover_text(tl!("Playback starts here")).clicked() {
-        set_in_out(app, true);
-    }
-    if ui.button(tl!("Set Out")).on_hover_text(tl!("Playback loops back after this frame")).clicked() {
-        set_in_out(app, false);
-    }
-    if ui.add_enabled(app.tl.range.is_some(), egui::Button::new(tl!("Clear In and Out"))).clicked() {
-        app.tl.range = None;
-    }
-    if ui.button(tl!("Play Around")).on_hover_text(tl!("Loop a few frames either side of this one, to check an inbetween")).clicked() {
-        play_around(app);
-    }
-    let l = ui.label(tl!("Around"));
-    ui.add(egui::DragValue::new(&mut app.tl.around).range(1..=MAX_AROUND).suffix(tl!(" fr")))
-        .labelled_by(l.id)
-        .on_hover_text(tl!("Frames either side for Play Around"));
-    let l = ui.label(tl!("Speed"));
-    let speed = app.playback.speed();
-    let pct = |v: f64| format!("{:.0} %", v * 100.0);
-    egui::ComboBox::from_id_salt("play-speed")
-        .selected_text(pct(speed))
-        .width(64.0)
-        .show_ui(ui, |ui| {
-            for v in SPEEDS {
-                if ui.selectable_label((speed - v).abs() < 1e-6, pct(v)).clicked() {
-                    let (now, fps) = (app.now(), app.engine.project.fps());
-                    app.playback.set_speed(now, fps, v);
-                    if (v - 1.0).abs() > 1e-6 {
-                        // the soundtrack plays only in real time
-                        app.sound.stop();
-                    }
-                }
-            }
-        })
-        .response
-        .labelled_by(l.id)
-        .on_hover_text(tl!("Playback speed; the sound plays only at 100 %"));
-    ui.toggle_value(&mut app.tl.vertical, tl!("Vertical")).on_hover_text(tl!("Show the sheet down the page: layers as columns, frames as rows"));
-    let tc = app.tl.timecode;
-    if ui.selectable_label(tc, tl!("Timecode")).on_hover_text(tl!("Show the position as HH:MM:SS:FF instead of a frame number")).clicked() {
-        app.tl.timecode = !tc;
-    }
-    if ui.button(tl!("Zoom Out")).on_hover_text(tl!("Show more frames (Alt+-, or Ctrl and the wheel)")).clicked() {
-        app.tl.zoom_by(1.0 / ZOOM_STEP);
-    }
-    if ui.button(tl!("Zoom In")).on_hover_text(tl!("Show fewer, wider frames (Alt+=)")).clicked() {
-        app.tl.zoom_by(ZOOM_STEP);
     }
 }
 

@@ -3,19 +3,16 @@
 //! a name for assistive technology and a tooltip with its key; the same commands stay in the
 //! menus and on their keys.
 //!
-//! Until the Timeline header carries them, the current frame, the play range, the frame rate and
-//! the shot length stay here as typed fields, after the menus.
+//! The current frame, the in and out points and the frame rate are typed in the Timeline header;
+//! the shot length is in its ⋯ menu.
 
 use egui::{Color32, Sense, Stroke, vec2};
-use tooncraft_engine::Command;
 
 use crate::app::ToonApp;
 use crate::workspaces::Kind;
 
 /// The bar's height.
 pub const HEIGHT: f32 = 32.0;
-/// Room for the frame fields.
-const FIELDS_WIDTH: f32 = 380.0;
 
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let full = ui.max_rect();
@@ -26,12 +23,6 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             undo_redo(app, ui);
             search(app, ui);
             segments(app, ui);
-            ui.separator();
-            // laid out left to right in a box of its own (the group around it runs right to left)
-            ui.allocate_ui_with_layout(vec2(FIELDS_WIDTH, HEIGHT - 4.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                ui.spacing_mut().item_spacing.x = 4.0;
-                frame_fields(app, ui);
-            });
             ui.separator();
             ui.min_rect()
         })
@@ -162,41 +153,5 @@ fn undo_redo(app: &mut ToonApp, ui: &mut egui::Ui) {
     let why = (!app.engine.can_undo()).then(|| tl!("Nothing to undo").to_string());
     if ui.add(undo.disabled(why)).clicked() {
         app.undo();
-    }
-}
-
-/// The current frame typed to go there, the playback in and out frames, the frame rate and the
-/// shot length. They move to the Timeline header when it carries them.
-fn frame_fields(app: &mut ToonApp, ui: &mut egui::Ui) {
-    let len = app.engine.project.length();
-    // the current frame, 1-based: typing a number goes there
-    let mut frame = app.frame + 1;
-    let l = ui.label(tl!("Frame"));
-    if ui.add(egui::DragValue::new(&mut frame).range(1..=len.max(1))).labelled_by(l.id).on_hover_text(tl!("Type a frame number to go there")).changed() {
-        app.playback.stop();
-        app.frame = frame.clamp(1, len.max(1)) - 1;
-    }
-    // playback start and end (the in and out points; the whole shot when not set)
-    let (s0, e0) = app.tl.range.unwrap_or((0, len.saturating_sub(1)));
-    let (mut s, mut e) = (s0 + 1, e0 + 1);
-    let l = ui.label(tl!("In"));
-    let rs = ui.add(egui::DragValue::new(&mut s).range(1..=len.max(1))).labelled_by(l.id).on_hover_text(tl!("Playback starts here"));
-    let l = ui.label(tl!("Out"));
-    let re = ui.add(egui::DragValue::new(&mut e).range(1..=len.max(1))).labelled_by(l.id).on_hover_text(tl!("Playback loops back after this frame"));
-    if rs.changed() || re.changed() {
-        let (a, b) = (s.clamp(1, len.max(1)) - 1, e.clamp(1, len.max(1)) - 1);
-        app.tl.range = Some(if rs.changed() { (a, b.max(a)) } else { (a.min(b), b) });
-    }
-    let mut fps = app.engine.project.fps();
-    let l = ui.label(tl!("fps"));
-    if ui.add(egui::DragValue::new(&mut fps).range(tooncraft_doc::MIN_FPS..=tooncraft_doc::MAX_FPS)).labelled_by(l.id).changed() {
-        app.run(Command::SetFps { fps });
-    }
-    let mut frames = len;
-    let l = ui.label(tl!("Length"));
-    let r = ui.add(egui::DragValue::new(&mut frames).range(1..=tooncraft_doc::MAX_FRAMES)).labelled_by(l.id).on_hover_text(tl!("The shot's length in frames"));
-    if r.changed() && frames != len {
-        app.run(Command::SetLength { frames });
-        app.clamp_selection();
     }
 }
