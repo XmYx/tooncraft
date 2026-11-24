@@ -215,9 +215,12 @@ const ALLOWED: &[&str] = &[
     "MPL-2.0",
 ];
 
-/// Is an SPDX expression satisfiable from the allowlist? `OR` needs one side, `AND` both.
+/// Is an SPDX expression satisfiable from the allowlist? `OR` needs one side, `AND` both. A
+/// trailing `+` ("or later") is read as the version itself: the house rules count `MPL-2.0+` as
+/// `MPL-2.0`.
 fn spdx_ok(expr: &str) -> bool {
-    let e = expr.replace(['(', ')'], " ").replace('/', " OR ");
+    let e = expr.replace(['(', ')'], " ").replace('/', " OR ").replace("+ ", " ");
+    let e = e.strip_suffix('+').unwrap_or(&e);
     e.split(" OR ").any(|alt| {
         let alt = alt.trim();
         if ALLOWED.contains(&alt) {
@@ -568,6 +571,15 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::parity_ci_check;
+
+    #[test]
+    fn or_later_counts_as_the_version_itself() {
+        use super::spdx_ok;
+        assert!(spdx_ok("MPL-2.0+"), "the house rules count MPL-2.0+ as MPL-2.0");
+        assert!(spdx_ok("(MPL-2.0+ OR GPL-3.0)") && spdx_ok("MIT AND MPL-2.0+"));
+        assert!(!spdx_ok("GPL-2.0+") && !spdx_ok("LGPL-2.1+ AND MIT"), "a version outside the list stays outside");
+        assert!(spdx_ok("MIT OR Apache-2.0") && !spdx_ok("GPL-3.0"));
+    }
 
     const ROWS: &str = "## One\n\nWeight: 2\n\n| Feature | Refs | Status | Size | Notes |\n|---|---|---|---|---|\n| a | all | D | S | |\n| b | TV | P | M | |\n| c | TV | M | L | |\n";
 
