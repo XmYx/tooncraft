@@ -91,6 +91,9 @@ mod top_bar;
 mod touch_ui_tests;
 #[cfg(test)]
 mod ui_tests;
+mod unsaved;
+#[cfg(test)]
+mod unsaved_ui_tests;
 mod view;
 
 use args::{Cli, Launch};
