@@ -35,6 +35,10 @@ pub enum Tool {
     /// Move, scale and turn the current layer's peg on the canvas.
     Transform,
     Text,
+    /// Click to zoom the view in (Alt+click out), drag left and right to zoom smoothly.
+    Zoom,
+    /// Drag around the view's centre to turn the view (not the drawing).
+    RotateView,
 }
 
 /// How the select tool draws a new selection.
@@ -68,7 +72,7 @@ pub enum XformKind {
 }
 
 impl Tool {
-    pub const ALL: [Tool; 15] = [
+    pub const ALL: [Tool; 17] = [
         Tool::Pencil,
         Tool::Ink,
         Tool::Airbrush,
@@ -84,6 +88,8 @@ impl Tool {
         Tool::Hand,
         Tool::Transform,
         Tool::Text,
+        Tool::Zoom,
+        Tool::RotateView,
     ];
 
     pub fn brush(self) -> Option<BrushKind> {
@@ -116,6 +122,8 @@ impl Tool {
             Tool::Hand => tl!("Hand"),
             Tool::Transform => tl!("Transform layer"),
             Tool::Text => tl!("Text"),
+            Tool::Zoom => tl!("Zoom view"),
+            Tool::RotateView => tl!("Rotate view"),
         }
         .to_string()
     }
@@ -138,6 +146,8 @@ impl Tool {
             Tool::Hand => "hand",
             Tool::Transform => "transform",
             Tool::Text => "text",
+            Tool::Zoom => "zoom",
+            Tool::RotateView => "rotate_view",
         }
     }
 }
@@ -227,6 +237,8 @@ pub struct ToonApp {
     pub stroke_start: Option<Instant>,
     pub light_theme: bool,
     pub renaming: Option<(usize, String)>,
+    /// What the open right-click menu acts on, and a rename typed from a menu.
+    pub menus: crate::menu_commands::State,
     pub new_shot: Option<NewShot>,
     /// Preferences and their window.
     pub preferences: crate::preferences::State,
@@ -250,6 +262,8 @@ pub struct ToonApp {
     pub flip: Vec<u32>,
     pub show_shortcuts: bool,
     pub show_about: bool,
+    /// Help ▸ Icon Reference: every glyph, off and on.
+    pub show_icons: bool,
     pub confirm_close: bool,
     /// New, Open or Open Recent waiting for an answer about unsaved changes.
     pub pending_replace: Option<crate::unsaved::Replace>,
@@ -299,6 +313,10 @@ pub struct ToonApp {
     pub layer_ui: crate::layer_tree::LayerUi,
     pub timing_ui: crate::timing_panel::TimingUi,
     pub canvas_ui: crate::canvas_tools::CanvasUi,
+    /// The built-in workspaces and their kept edits.
+    pub workspaces: crate::workspaces::Workspaces,
+    /// The tool rail's own state (the transform-selection variant).
+    pub rail: crate::tool_rail::State,
     pub shape: tooncraft_engine::shapes::ShapeKind,
     /// A shape being dragged: (from, to) in canvas pixels.
     pub shape_drag: Option<((f32, f32), (f32, f32))>,
@@ -402,6 +420,7 @@ impl ToonApp {
             stroke_start: None,
             light_theme: cli.light,
             renaming: None,
+            menus: Default::default(),
             new_shot: None,
             scene_form: None,
             preferences: crate::preferences::State::new(!cfg!(test) && cli.screenshot.is_none()),
@@ -416,6 +435,7 @@ impl ToonApp {
             pointer: None,
             show_shortcuts: false,
             show_about: false,
+            show_icons: false,
             confirm_close: false,
             pending_replace: None,
             replace_focus: false,
@@ -445,6 +465,8 @@ impl ToonApp {
             layer_ui: Default::default(),
             timing_ui: Default::default(),
             canvas_ui: crate::canvas_tools::CanvasUi::new(!cfg!(test) && cli.screenshot.is_none()),
+            workspaces: crate::workspaces::Workspaces::new(!cfg!(test) && cli.screenshot.is_none()),
+            rail: crate::tool_rail::State::default(),
             shape: tooncraft_engine::shapes::ShapeKind::Line,
             shape_drag: None,
             aids: crate::draw_aids::DrawAids::default(),
@@ -478,6 +500,7 @@ impl ToonApp {
             Some("scene") => crate::scene_menus::open_settings(&mut app),
             Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
             Some("colour-picker") => app.colour.window = true,
+            Some("icons") => app.show_icons = true,
             _ => {}
         }
         if cli.demo && cli.screenshot.is_some() {
@@ -489,13 +512,20 @@ impl ToonApp {
             app.sel_anchor = Some((app.layer, a.min(last)));
             app.frame = b.min(last);
         }
+        if let Some((a, b)) = cli.loop_range {
+            let len = app.engine.project.length();
+            app.tl.range = crate::timeline_ruler::moved(Some((a, b)), crate::timeline_ruler::End::In, a.min(b) as i64, len);
+        }
         crate::preferences::apply_live(&mut app);
         crate::preferences::apply_tool_defaults(&mut app);
         app.thumbnails = cli.thumbnails || app.preferences.prefs.thumbnails;
         // launch options win over the preferences
-        if let Some(l) = cli.layout.as_deref().and_then(crate::canvas_tools::layout_by_name) {
-            app.workspace.layout = l;
-            app.tl.vertical = cli.layout.as_deref() == Some("sheet");
+        if let Some(kind) = cli.layout.as_deref().and_then(crate::workspaces::Kind::from_name) {
+            crate::workspaces::show_preset(&mut app, kind);
+        } else if let Some(edit) = app.workspaces.edit(crate::workspaces::Kind::Draw).cloned() {
+            // Draw as the user left it last time
+            app.workspace.layout = edit.layout;
+            app.tl.vertical = edit.vertical;
         }
         if cli.vertical {
             app.tl.vertical = true;
@@ -512,6 +542,9 @@ impl ToonApp {
         }
         if cli.rulers {
             crate::rulers_ui::demo(&mut app);
+        }
+        if let Some(target) = cli.context_menu.as_deref() {
+            crate::context_menus::prepare_launch(&mut app, target);
         }
         if let Some(p) = app.path.clone() {
             crate::start_screen::note(&mut app, &p);
@@ -1249,11 +1282,11 @@ impl ToonApp {
         let ctx = ui.ctx().clone();
         self.textures.begin_frame();
         self.shortcuts(&ctx);
-        egui::Panel::top("menu").show(ui, |ui| self.menu_bar(ui));
-        egui::Panel::top("top-bar").show(ui, |ui| crate::top_bar::show(self, ui));
-        egui::Panel::top("tool-options").show(ui, |ui| crate::panels::tool_options(self, ui));
-        egui::Panel::bottom("status").show(ui, |ui| self.status_bar(ui));
-        egui::Panel::left("tools").exact_size(46.0).resizable(false).show(ui, |ui| crate::panels::toolbar(self, ui));
+        crate::context_menus::frame(self, &ctx);
+        egui::Panel::top("top-bar").exact_size(crate::top_bar::HEIGHT).show(ui, |ui| crate::top_bar::show(self, ui));
+        egui::Panel::top("tool-options").min_size(crate::tool_options::HEIGHT).show(ui, |ui| crate::tool_options::show(self, ui));
+        egui::Panel::bottom("status").show(ui, |ui| crate::status_strip::show(self, ui));
+        egui::Panel::left("tools").exact_size(crate::tool_rail::WIDTH).resizable(false).show(ui, |ui| crate::tool_rail::show(self, ui));
         egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| crate::dock::show(self, ui));
         self.dialogs(&ctx);
         self.textures.end_frame();
@@ -1268,82 +1301,13 @@ impl ToonApp {
         }
     }
 
-    fn status_bar(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            let p = &self.engine.project;
-            let layer = p.layers.get(self.layer).map(|l| l.name.clone()).unwrap_or_default();
-            ui.label(tlf!("Frame {frame} / {total}", frame = self.frame + 1, total = p.length()));
-            ui.separator();
-            ui.label(layer);
-            let drawing = match p.drawing_at(self.layer, self.frame) {
-                Some(d) => match p.drawing_names.get(&d) {
-                    Some(name) => tlf!("drawing {id}, {name}", id = d.0, name = name),
-                    None => tlf!("drawing {id}", id = d.0),
-                },
-                None => tl!("no drawing").to_string(),
-            };
-            ui.label(drawing);
-            ui.separator();
-            if let Some((x, y)) = self.pointer {
-                ui.label(tlf!("x {x}  y {y}", x = x, y = y));
-                ui.separator();
-            }
-            ui.label(self.tool.label());
-            let c = self.color;
-            let (r, swatch) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
-            ui.painter().rect(
-                r,
-                2.0,
-                egui::Color32::from_rgb(c[0], c[1], c[2]),
-                egui::Stroke::new(1.0, egui::Color32::from_gray(140)),
-                egui::StrokeKind::Inside,
-            );
-            let colour = tlf!("Colour #{hex}", hex = format!("{:02X}{:02X}{:02X}", c[0], c[1], c[2]));
-            swatch.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, colour.clone()));
-            ui.separator();
-            ui.label(format!("{:.0} %  {:.0}°", self.view.zoom * 100.0, self.view.rotation_degrees()));
-            ui.separator();
-            ui.label(tlf!("{w}×{h} · {fps} fps", w = p.width(), h = p.height(), fps = p.fps()));
-            ui.separator();
-            ui.label(tlf!("Memory: {pixels} MB drawings, {history} MB history", pixels = p.memory_bytes() >> 20, history = self.engine.history_bytes() >> 20));
-            ui.separator();
-            let perf = if self.playback.playing {
-                tlf!("{fps} fps playback · {ms} ms/frame", fps = format!("{:.0}", self.stats.playback_fps), ms = format!("{:.1}", self.stats.frame_ms))
-            } else {
-                tlf!("stroke {ms} ms", ms = format!("{:.2}", self.stats.stroke_ms))
-            };
-            ui.label(perf);
-            ui.separator();
-            // The status line is a polite live region: results of actions are announced.
-            let status = ui.label(&self.status);
-            ui.ctx().accesskit_node_builder(status.id, |n| n.set_live(egui::accesskit::Live::Polite));
-        });
-    }
-
-    fn menu_bar(&mut self, ui: &mut egui::Ui) {
+    pub(crate) fn menu_bar(&mut self, ui: &mut egui::Ui) {
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button(tl!("File"), |ui| {
-                if ui.button(tl!("New Shot…")).clicked() {
-                    crate::unsaved::request(self, crate::unsaved::Replace::NewShot);
-                }
-                if ui.button(tl!("Open…")).clicked() {
-                    crate::unsaved::request(self, crate::unsaved::Replace::Browse);
-                }
+                crate::menus::context(ui, self, &["file.new", "file.open"]);
                 crate::start_screen::menu(self, ui);
                 ui.separator();
-                if ui.button(tl!("Save")).clicked() {
-                    self.save();
-                }
-                if ui.button(tl!("Save As…")).clicked() {
-                    self.save_as();
-                }
-                if ui.button(tl!("Save New Version")).on_hover_text(tl!("Save as shot_v002, shot_v003 … next to the current file (Ctrl+Alt+S)")).clicked() {
-                    self.save_new_version();
-                }
-                ui.separator();
-                if ui.button(tl!("Import Image Sequence…")).clicked() {
-                    self.import_images();
-                }
+                crate::menus::context(ui, self, &["file.save", "file.save_as", "file.save_version", crate::menus::SEP, "file.import_images"]);
                 ui.menu_button(tl!("Import from Other Apps"), |ui| {
                     if ui.button(tl!("Layers from PSD or OpenRaster…")).clicked()
                         && let Some(f) = rfd::FileDialog::new().add_filter(tl!("Layered images"), &["psd", "psb", "ora"]).pick_file()
@@ -1366,16 +1330,7 @@ impl ToonApp {
                     }
                     crate::pipeline::import_items(self, ui);
                 });
-                if ui.button(tl!("Import Sound…")).clicked() {
-                    self.import_sound();
-                }
-                if ui.add_enabled(!self.engine.project.sounds.is_empty(), egui::Button::new(tl!("Remove Sound"))).clicked() {
-                    self.run(Command::SetSound { path: None, offset: 0 });
-                }
-                if ui.button(tl!("Export…")).clicked() {
-                    let kind = self.export_memory.get(&self.engine.project.name).map(|d| d.kind).unwrap_or("mp4");
-                    crate::export_dialog::open(self, kind);
-                }
+                crate::menus::context(ui, self, &["file.import_sound", "file.remove_sound", "file.export"]);
                 ui.menu_button(tl!("Export"), |ui| {
                     if ui.button(tl!("Video (MP4, H.264)…")).clicked() {
                         crate::export_dialog::open(self, "mp4");
@@ -1445,79 +1400,38 @@ impl ToonApp {
                     }
                 });
                 ui.separator();
-                if ui.button(tl!("Quit")).clicked() {
-                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-                }
+                crate::menus::item(ui, self, "file.quit");
             });
             ui.menu_button(tl!("Edit"), |ui| {
-                if ui.button(tl!("Preferences…")).clicked() {
-                    self.preferences.open = true;
-                }
-                ui.separator();
-                let u = self.engine.undo_label().map(|l| tlf!("Undo {action}", action = l)).unwrap_or_else(|| tl!("Undo").to_string());
-                if ui.add_enabled(self.engine.can_undo(), egui::Button::new(u)).clicked() {
-                    self.undo();
-                }
-                let r = self.engine.redo_label().map(|l| tlf!("Redo {action}", action = l)).unwrap_or_else(|| tl!("Redo").to_string());
-                if ui.add_enabled(self.engine.can_redo(), egui::Button::new(r)).clicked() {
-                    self.redo();
-                }
-                if ui.button(tl!("Undo History")).clicked() {
-                    self.workspace.raise(Pane::History);
-                }
-                ui.separator();
-                if ui.button(tl!("Select All")).clicked() {
-                    self.select_all();
-                }
-                let has = self.selection.is_some();
-                if ui.add_enabled(has, egui::Button::new(tl!("Deselect"))).clicked() {
-                    self.selection = None;
-                }
-                if ui.button(tl!("Invert Selection")).clicked() {
-                    crate::selection_tools::invert(self);
-                }
-                if ui.add_enabled(has, egui::Button::new(tl!("Grow Selection"))).clicked() {
-                    let n = self.sel.grow_by;
-                    crate::selection_tools::grow(self, n);
-                }
-                if ui.add_enabled(has, egui::Button::new(tl!("Shrink Selection"))).clicked() {
-                    let n = self.sel.grow_by;
-                    crate::selection_tools::grow(self, -n);
-                }
+                crate::menus::context(
+                    ui,
+                    self,
+                    &[
+                        "edit.preferences",
+                        crate::menus::SEP,
+                        "edit.undo",
+                        "edit.redo",
+                        "edit.history",
+                        crate::menus::SEP,
+                        "edit.cut",
+                        "edit.copy",
+                        "edit.paste",
+                        crate::menus::SEP,
+                        "edit.select_all",
+                        "edit.deselect",
+                        "select.invert",
+                        "select.grow",
+                        "select.shrink",
+                    ],
+                );
                 ui.menu_button(tl!("Transform Selection"), |ui| {
-                    if ui.add_enabled(has, egui::Button::new(tl!("Flip Horizontally"))).clicked() {
-                        self.transform_selection(0.0, 0.0, (-1.0, 1.0), 0.0);
-                    }
-                    if ui.add_enabled(has, egui::Button::new(tl!("Flip Vertically"))).clicked() {
-                        self.transform_selection(0.0, 0.0, (1.0, -1.0), 0.0);
-                    }
-                    if ui.add_enabled(has, egui::Button::new(tl!("Rotate 90° Clockwise"))).clicked() {
-                        self.transform_selection(0.0, 0.0, (1.0, 1.0), std::f32::consts::FRAC_PI_2);
-                    }
-                    if ui.add_enabled(has, egui::Button::new(tl!("Rotate 90° Counter-clockwise"))).clicked() {
-                        self.transform_selection(0.0, 0.0, (1.0, 1.0), -std::f32::consts::FRAC_PI_2);
-                    }
-                    if ui.add_enabled(has, egui::Button::new(tl!("Scale 50 %"))).clicked() {
-                        self.transform_selection(0.0, 0.0, (0.5, 0.5), 0.0);
-                    }
-                    if ui.add_enabled(has, egui::Button::new(tl!("Scale 200 %"))).clicked() {
-                        self.transform_selection(0.0, 0.0, (2.0, 2.0), 0.0);
-                    }
+                    crate::menus::context(
+                        ui,
+                        self,
+                        &["select.flip_h", "select.flip_v", "select.rotate_cw", "select.rotate_ccw", "select.scale_half", "select.scale_double"],
+                    );
                 });
-                if ui.add_enabled(has, egui::Button::new(tl!("Erase Selection"))).clicked() {
-                    self.delete_selected_pixels();
-                }
-                ui.separator();
-                if ui.button(tl!("Clear Drawing")).clicked() {
-                    let (layer, frame) = (self.layer, self.frame);
-                    self.run(Command::ClearDrawing { layer, frame });
-                }
-                if ui.button(tl!("Purge Unused Drawings")).clicked() {
-                    let n = self.engine.project.unused_drawings().len();
-                    if self.run(Command::PurgeUnused) {
-                        self.set_status(tlf!("Removed {count} unused drawings", count = n));
-                    }
-                }
+                crate::menus::context(ui, self, &["select.erase", crate::menus::SEP, "edit.clear_drawing", "edit.purge_unused"]);
             });
             ui.menu_button(tl!("Frame"), |ui| crate::timeline::frame_menu(self, ui));
             ui.menu_button(tl!("Layer"), |ui| crate::panels::layer_menu(self, ui));
@@ -1525,72 +1439,48 @@ impl ToonApp {
             ui.menu_button(tl!("Play"), |ui| crate::scene_menus::play_menu(self, ui));
             ui.menu_button(tl!("Scene"), |ui| crate::scene_menus::scene_menu(self, ui));
             ui.menu_button(tl!("View"), |ui| {
-                let vp = self.workspace.canvas_rect;
-                let canvas = egui::vec2(self.engine.project.width() as f32, self.engine.project.height() as f32);
-                if ui.button(tl!("Zoom In")).clicked() {
-                    self.view.zoom_at(vp, canvas, vp.center(), 1.25);
-                }
-                if ui.button(tl!("Zoom Out")).clicked() {
-                    self.view.zoom_at(vp, canvas, vp.center(), 0.8);
-                }
-                if ui.button(tl!("Fit to Window")).clicked() {
-                    self.view = View::fit(vp, canvas);
-                }
-                if ui.button(tl!("Actual Size")).clicked() {
-                    self.view.zoom = 1.0;
-                }
-                ui.separator();
-                if ui.button(tl!("Rotate Left")).clicked() {
-                    self.view.rotate(-15f32.to_radians());
-                }
-                if ui.button(tl!("Rotate Right")).clicked() {
-                    self.view.rotate(15f32.to_radians());
-                }
-                if ui.button(tl!("Reset Rotation")).clicked() {
-                    self.view.rotation = 0.0;
-                }
-                ui.checkbox(&mut self.view.flip, tl!("Mirror View"));
-                ui.separator();
-                let mut onion = self.engine.project.onion.enabled;
-                if ui.checkbox(&mut onion, tl!("Onion Skin")).changed() {
-                    self.engine.project.onion.enabled = onion;
-                }
-                let mut lt = self.engine.project.light_table.enabled;
-                if ui.checkbox(&mut lt, tl!("Light Table")).changed() {
-                    self.engine.project.light_table.enabled = lt;
-                }
-                ui.separator();
-                if ui.checkbox(&mut self.light_theme, tl!("Light Theme")).changed() {
-                    crate::theme::apply(ui.ctx(), self.light_theme);
-                }
+                crate::menus::context(
+                    ui,
+                    self,
+                    &[
+                        "view.zoom_in",
+                        "view.zoom_out",
+                        "view.fit",
+                        "view.actual_size",
+                        crate::menus::SEP,
+                        "view.rotate_left",
+                        "view.rotate_right",
+                        "view.reset_rotation",
+                        "view.mirror",
+                        crate::menus::SEP,
+                        "view.onion",
+                        "view.light_table",
+                        crate::menus::SEP,
+                        "view.light_theme",
+                    ],
+                );
                 crate::canvas_tools::view_menu(self, ui);
-                if ui.button(tl!("Reset Panels")).clicked() {
-                    self.workspace = Workspace::default();
-                }
+                crate::menus::item(ui, self, "view.reset_panels");
             });
             ui.menu_button(tl!("Window"), |ui| crate::dock::window_menu(self, ui));
             ui.menu_button(tl!("Help"), |ui| {
-                if ui.button(tl!("Find Command…")).clicked() {
-                    self.find.open = true;
-                }
-                if ui.button(tl!("Keyboard Shortcuts")).clicked() {
-                    self.show_shortcuts = true;
-                }
-                if ui.button(tl!("About ToonCraft")).clicked() {
-                    self.show_about = true;
-                }
+                crate::menus::context(ui, self, &["app.find_command", "help.shortcuts", "help.icons", "help.about"]);
             });
         });
     }
 
     fn shortcuts(&mut self, ctx: &egui::Context) {
         use egui::{Key, KeyboardShortcut, Modifiers};
+        // commands picked in Find Command run through the registry, like their menu items
+        for id in std::mem::take(&mut self.find.pending) {
+            crate::commands::run(self, ctx, &id);
+        }
         let cmd = |k| KeyboardShortcut::new(Modifiers::COMMAND, k);
         let cmd_shift = |k| KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, k);
         // Shift variants first: egui matches Ctrl+S logically, so it would also eat Ctrl+Shift+S.
         let save_version = ctx.input_mut(|i| i.consume_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::ALT, Key::S)));
         if save_version {
-            self.save_new_version();
+            crate::commands::try_run(self, ctx, "file.save_version");
         }
         let (save_as, save, open, redo, undo, new) = ctx.input_mut(|i| {
             let save_as = i.consume_shortcut(&cmd_shift(Key::S));
@@ -1600,25 +1490,17 @@ impl ToonApp {
             let undo = i.consume_shortcut(&cmd(Key::Z));
             (save_as, save, open, redo, undo, i.consume_shortcut(&cmd(Key::N)))
         });
-        if save_as {
-            self.save_as();
-        } else if save {
-            self.save();
-        }
-        if open {
-            crate::unsaved::request(self, crate::unsaved::Replace::Browse);
-        }
-        if new {
-            crate::unsaved::request(self, crate::unsaved::Replace::NewShot);
-        }
-        if undo && !self.engine.is_stroking() {
-            self.undo();
-        }
-        if redo && !self.engine.is_stroking() {
-            self.redo();
-        }
-        let vp = self.workspace.canvas_rect;
-        let canvas = egui::vec2(self.engine.project.width() as f32, self.engine.project.height() as f32);
+        let run = |app: &mut Self, on: bool, id: &str| {
+            if on {
+                crate::commands::try_run(app, ctx, id);
+            }
+        };
+        run(self, save_as, "file.save_as");
+        run(self, save && !save_as, "file.save");
+        run(self, open, "file.open");
+        run(self, new, "file.new");
+        run(self, undo, "edit.undo");
+        run(self, redo, "edit.redo");
         let (zoom_in, zoom_out, fit, actual, rot_l, rot_r) = ctx.input_mut(|i| {
             (
                 i.consume_shortcut(&cmd(Key::Equals)) || i.consume_shortcut(&cmd(Key::Plus)),
@@ -1629,24 +1511,12 @@ impl ToonApp {
                 i.consume_shortcut(&cmd(Key::CloseBracket)),
             )
         });
-        if zoom_in {
-            self.view.zoom_at(vp, canvas, vp.center(), 1.25);
-        }
-        if zoom_out {
-            self.view.zoom_at(vp, canvas, vp.center(), 0.8);
-        }
-        if fit {
-            self.view = View::fit(vp, canvas);
-        }
-        if actual {
-            self.view.zoom = 1.0;
-        }
-        if rot_l {
-            self.view.rotate(-15f32.to_radians());
-        }
-        if rot_r {
-            self.view.rotate(15f32.to_radians());
-        }
+        run(self, zoom_in, "view.zoom_in");
+        run(self, zoom_out, "view.zoom_out");
+        run(self, fit, "view.fit");
+        run(self, actual, "view.actual_size");
+        run(self, rot_l, "view.rotate_left");
+        run(self, rot_r, "view.rotate_right");
         // F6 moves focus between the canvas and the exposure sheet.
         if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::F6)) {
             let to = if ctx.memory(|m| m.focused()) == Some(crate::canvas::canvas_id()) {
@@ -1719,7 +1589,7 @@ impl ToonApp {
         }
         // the Curves graph uses Ctrl+A to choose every key
         if focus != Some(crate::curves::graph_id()) && ctx.input_mut(|i| i.consume_shortcut(&cmd(Key::A))) && !ctx.egui_wants_keyboard_input() {
-            self.select_all();
+            crate::commands::try_run(self, ctx, "edit.select_all");
         }
         // Alt+arrows pan the canvas from the keyboard.
         if focus.is_none() || focus == Some(crate::canvas::canvas_id()) {
@@ -1767,76 +1637,6 @@ impl ToonApp {
                     && !(canvas_focused && self.tool == Tool::Transform && (id == "brush.smaller" || id == "brush.bigger"))
             })
         };
-        // commands picked in Find Command run like their shortcuts
-        let mut hits = hits;
-        hits.append(&mut self.find.pending);
-        if hits.iter().any(|h| h == "app.find_command") {
-            self.find.open = true;
-        }
-        let hit = |id: &str| hits.iter().any(|h| h == id);
-        let picked = Tool::ALL.into_iter().find(|t| hit(&format!("tool.{}", t.id())));
-        if let Some(t) = picked
-            && !self.engine.is_stroking()
-        {
-            self.tool = t;
-            self.set_status(tlf!("{tool} selected", tool = t.label()));
-        }
-        if hit("select.invert") {
-            crate::selection_tools::invert(self);
-        }
-        if hit("frame.swap_next") {
-            self.swap_step(true);
-        }
-        if hit("frame.swap_prev") {
-            self.swap_step(false);
-        }
-        if hit("flip.toggle") {
-            self.toggle_flip();
-        }
-        if hit("flip.next") {
-            self.flip_step(true);
-        }
-        if hit("flip.prev") {
-            self.flip_step(false);
-        }
-        if hit("frame.prev_key") {
-            self.step_key(false);
-        }
-        if hit("frame.next_key") {
-            self.step_key(true);
-        }
-        if hit("layer.prev") {
-            self.step_layer(false);
-        }
-        if hit("layer.next") {
-            self.step_layer(true);
-        }
-        if hit("frame.prev_drawing") {
-            self.step_drawing(false);
-        }
-        if hit("frame.next_drawing") {
-            self.step_drawing(true);
-        }
-        if hit("marker.toggle") {
-            crate::timeline_extras::toggle_here(self);
-        }
-        if hit("marker.next") {
-            crate::timeline_extras::jump(self, true);
-        }
-        if hit("marker.prev") {
-            crate::timeline_extras::jump(self, false);
-        }
-        if hit("timeline.zoom_in") {
-            self.tl.zoom_by(1.25);
-        }
-        if hit("timeline.zoom_out") {
-            self.tl.zoom_by(0.8);
-        }
-        if hit("library.find") {
-            self.workspace.raise(Pane::Library);
-            self.library.focus_search = true;
-        }
-        let (layer, frame) = (self.layer, self.frame);
         let arrows = ctx.input(|i| {
             [
                 plain(i, Key::ArrowLeft) && !own_focus,
@@ -1847,108 +1647,42 @@ impl ToonApp {
                 plain(i, Key::Plus),
             ]
         });
-        let keys = [
-            hit("frame.play"),
-            hit("frame.prev") || arrows[0],
-            hit("frame.next") || arrows[1],
-            hit("frame.first"),
-            hit("frame.last"),
-            hit("view.onion"),
-            hit("frame.new_drawing"),
-            hit("frame.duplicate"),
-            hit("frame.insert"),
-            hit("frame.delete"),
-            hit("frame.hold_more") || arrows[5],
-            hit("frame.hold_less"),
-            hit("frame.clear") || (arrows[4] && !placing),
-            hit("brush.smaller"),
-            hit("brush.bigger"),
-            hit("view.mirror"),
-            hit("view.pin"),
-            arrows[2],
-            arrows[3],
-        ];
-        let [play, prev, next, first, last, onion, new_d, dup, ins, del, plus, minus, clear, smaller, bigger, mirror, pin, up, down] = keys;
-        if play {
-            self.toggle_play();
-        }
-        if prev {
-            self.go_to(self.frame as i64 - 1);
-        }
-        if next {
-            self.go_to(self.frame as i64 + 1);
-        }
-        if first {
-            self.frame = 0;
-        }
-        if last {
-            self.frame = self.engine.project.length().saturating_sub(1);
-        }
-        if onion {
-            self.engine.project.onion.enabled = !self.engine.project.onion.enabled;
-            let s = if self.engine.project.onion.enabled { tl!("Onion skin on") } else { tl!("Onion skin off") };
-            self.set_status(s);
-        }
-        if new_d && self.run(Command::NewDrawing { layer, frame }) {
-            self.set_status(tl!("New drawing"));
-        }
-        if dup && self.run(Command::DuplicateDrawing { layer, frame }) {
-            if let Some((_, end)) = self.engine.project.layers.get(layer).and_then(|l| l.exposure_range(frame)) {
-                self.frame = end.saturating_sub(1).max(frame + 1).min(self.engine.project.length().saturating_sub(1));
+        // plain arrows, Backspace and + are fixed second keys of registry commands
+        let mut ids = hits;
+        for (on, id) in [(arrows[0], "frame.prev"), (arrows[1], "frame.next"), (arrows[5], "frame.hold_more"), (arrows[4] && !placing, "frame.clear")] {
+            if on && !ids.iter().any(|h| h == id) {
+                ids.push(id.to_string());
             }
-            self.set_status(tl!("Drawing duplicated"));
         }
-        if ins {
-            self.run(Command::InsertFrame { layer: Some(layer), frame });
-        }
-        if del {
-            if self.has_range() {
-                self.delete_selection(true);
+        for id in &ids {
+            if id == "frame.clear" {
+                // With the sheet focused, Delete clears cells even under a pixel selection; while the
+                // keyboard pen is down on the canvas, Delete belongs to the pen.
+                let (layer, frame) = (self.layer, self.frame);
+                if self.selection.is_some() && focus != Some(crate::timeline::grid_id()) {
+                    self.delete_selected_pixels();
+                } else if !own_focus_is_canvas_pen(self) {
+                    if self.has_range() {
+                        self.delete_selection(false);
+                    } else {
+                        self.run(Command::ClearCell { layer, frame });
+                    }
+                }
             } else {
-                self.run(Command::DeleteFrame { layer: Some(layer), frame });
+                crate::commands::try_run(self, ctx, id);
             }
         }
-        if plus {
-            self.run(Command::ExtendHold { layer, frame });
-        }
-        if minus {
-            self.run(Command::ShortenHold { layer, frame });
-        }
-        if clear && self.selection.is_some() && focus != Some(crate::timeline::grid_id()) {
-            self.delete_selected_pixels();
-        } else if clear && !own_focus_is_canvas_pen(self) {
-            if self.has_range() {
-                self.delete_selection(false);
-            } else {
-                self.run(Command::ClearCell { layer, frame });
-            }
-        }
-        if let Some(kind) = self.tool.brush() {
-            let b = self.brush_mut(kind);
-            if smaller {
-                b.size = (b.size / 1.2).max(0.5);
-            }
-            if bigger {
-                b.size = (b.size * 1.2).min(tooncraft_brush::MAX_SIZE);
-            }
-        }
-        if mirror {
-            self.view.flip = !self.view.flip;
-        }
-        if pin {
-            self.run(Command::TogglePin { layer, frame });
-            self.set_status(tl!("Light table pins changed"));
-        }
-        if up {
+        if arrows[2] {
             self.layer = (self.layer + 1).min(self.engine.project.layers.len().saturating_sub(1));
         }
-        if down {
+        if arrows[3] {
             self.layer = self.layer.saturating_sub(1);
         }
     }
 
     fn dialogs(&mut self, ctx: &egui::Context) {
         crate::command_search::window(self, ctx);
+        crate::icons::reference_window(ctx, &mut self.show_icons);
         crate::import_dialog::window(self, ctx);
         crate::export_dialog::window(self, ctx);
         crate::colour_tools::picker_window(self, ctx);
@@ -2034,7 +1768,7 @@ impl ToonApp {
                 }
                 egui::ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
                     egui::Grid::new("keys").num_columns(4).striped(true).show(ui, |ui| {
-                        let shown: Vec<&str> = crate::keys::COMMANDS.iter().map(|c| c.0).filter(|id| self.keys.matches(id)).collect();
+                        let shown: Vec<&str> = crate::keys::ids().filter(|id| self.keys.matches(id)).collect();
                         for id in shown {
                             let id = &id;
                             ui.label(crate::keys::label(id));
@@ -2217,5 +1951,12 @@ impl eframe::App for ToonApp {
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.draw(ui);
+    }
+
+    fn on_exit(&mut self) {
+        // the active workspace keeps the panel changes made since the last switch
+        if let Err(e) = crate::workspaces::keep_current(self) {
+            log::warn!("workspace not kept: {e}");
+        }
     }
 }

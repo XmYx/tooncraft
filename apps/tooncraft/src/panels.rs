@@ -1,240 +1,16 @@
-//! Side panels and bars: tool bar, tool options, colour, brush, layers, onion skin and light
-//! table. Every value set by dragging (sliders, the colour field) also has a typed or keyboard
+//! Side panels and bars: tool options, colour, brush, layers, onion skin and light table (the
+//! tool rail is `tool_rail.rs`). Every value set by dragging (sliders, the colour field) also has a typed or keyboard
 //! alternative: sliders and drag values take arrow keys and typing, colours take hex and RGB.
 
 use egui::{Color32, Sense, Stroke, vec2};
 use tooncraft_brush::{BrushKind, Smoothing};
 use tooncraft_doc::{OnionMode, Pin};
-use tooncraft_engine::{Command, FillReference};
+use tooncraft_engine::Command;
 
 use crate::app::{Tool, ToonApp};
 
-/// The tool bar's groups: variants of one kind of tool share a button, which shows the variant
-/// used last and a corner mark; right-click (or press and hold) opens the group to pick another.
-pub const TOOL_GROUPS: [&[Tool]; 9] = [
-    &[Tool::Pencil, Tool::Ink, Tool::Airbrush, Tool::Chalk, Tool::Watercolour],
-    &[Tool::Eraser],
-    &[Tool::Smudge],
-    &[Tool::Fill, Tool::Gradient],
-    &[Tool::Picker],
-    &[Tool::Select, Tool::Transform],
-    &[Tool::Shape],
-    &[Tool::Text],
-    &[Tool::Hand],
-];
-
-/// The variant a group's button shows: the current tool when it is in the group, or the one used
-/// last there.
-pub fn group_tool(app: &ToonApp, ctx: &egui::Context, group: usize) -> Tool {
-    let tools = TOOL_GROUPS[group];
-    if tools.contains(&app.tool) {
-        return app.tool;
-    }
-    let id = egui::Id::unique("tooncraft-tool-group-last").with(group);
-    ctx.data(|d| d.get_temp::<usize>(id)).and_then(|i| tools.get(i).copied()).unwrap_or(tools[0])
-}
-
-fn tool_button(app: &mut ToonApp, ui: &mut egui::Ui, t: Tool, grouped: bool) -> egui::Response {
-    let selected = app.tool == t;
-    let (rect, resp) = ui.allocate_exact_size(vec2(34.0, 32.0), Sense::click());
-    let v = ui.style().interact_selectable(&resp, selected);
-    let pal = crate::theme::palette(app.light_theme);
-    let bg = if selected {
-        pal.accent.gamma_multiply(0.35)
-    } else if resp.hovered() {
-        v.bg_fill
-    } else {
-        Color32::TRANSPARENT
-    };
-    ui.painter().rect(rect, 4.0, bg, if selected { Stroke::new(1.0, pal.accent) } else { Stroke::NONE }, egui::StrokeKind::Inside);
-    let fg = if selected { pal.text } else { pal.weak };
-    crate::icons::tool(ui.painter(), rect, t, fg);
-    if grouped {
-        // the corner mark: this button holds more tools
-        let c = rect.right_bottom() - vec2(3.0, 3.0);
-        ui.painter().add(egui::Shape::convex_polygon(vec![c, c - vec2(6.0, 0.0), c - vec2(0.0, 6.0)], fg, Stroke::NONE));
-    }
-    if resp.has_focus() {
-        ui.painter().rect_stroke(rect, 4.0, ui.visuals().selection.stroke, egui::StrokeKind::Outside);
-    }
-    let label = format!("{} ({})", t.label(), app.keys.text(&format!("tool.{}", t.id())));
-    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, selected, label.clone()));
-    let tip = if grouped { tlf!("{tool}; right-click or hold for the other tools of the group", tool = label) } else { label };
-    resp.on_hover_text(tip)
-}
-
-/// The vertical tool bar.
-pub fn toolbar(app: &mut ToonApp, ui: &mut egui::Ui) {
-    ui.add_space(4.0);
-    ui.vertical_centered(|ui| {
-        let ctx = ui.ctx().clone();
-        for (g, tools) in TOOL_GROUPS.iter().enumerate() {
-            let t = group_tool(app, &ctx, g);
-            let grouped = tools.len() > 1;
-            let resp = tool_button(app, ui, t, grouped);
-            if resp.clicked() {
-                app.tool = t;
-            }
-            if grouped {
-                let held = resp.is_pointer_button_down_on() && ui.input(|i| i.pointer.press_start_time().is_some_and(|s| i.time - s > 0.45));
-                let open = (resp.secondary_clicked() || held).then_some(egui::SetOpenCommand::Bool(true));
-                egui::Popup::from_response(&resp)
-                    .kind(egui::PopupKind::Menu)
-                    .layout(egui::Layout::top_down_justified(egui::Align::Min))
-                    .open_memory(open)
-                    .align(egui::RectAlign::RIGHT_START)
-                    .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
-                    .show(|ui| {
-                        for (i, v) in tools.iter().enumerate() {
-                            let key = app.keys.text(&format!("tool.{}", v.id()));
-                            if ui.selectable_label(app.tool == *v, format!("{}   {key}", v.label())).clicked() {
-                                app.tool = *v;
-                                ctx.data_mut(|d| d.insert_temp(egui::Id::unique("tooncraft-tool-group-last").with(g), i));
-                            }
-                        }
-                    });
-            }
-            if let Some(i) = tools.iter().position(|v| *v == app.tool) {
-                ctx.data_mut(|d| d.insert_temp(egui::Id::unique("tooncraft-tool-group-last").with(g), i));
-            }
-            if matches!(g, 2 | 5) {
-                ui.add_space(6.0);
-            }
-        }
-        ui.add_space(10.0);
-        // current colour
-        let c = app.color;
-        let (rect, resp) = ui.allocate_exact_size(vec2(30.0, 30.0), Sense::click());
-        ui.painter().rect(rect, 4.0, Color32::from_rgb(c[0], c[1], c[2]), Stroke::new(1.0, Color32::from_gray(140)), egui::StrokeKind::Inside);
-        let label = tlf!("Colour #{hex}", hex = hex(c));
-        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label.clone()));
-        if resp.on_hover_text(tl!("Current colour: open the Colour panel")).clicked() {
-            app.workspace.raise(crate::dock::Pane::Colour);
-        }
-    });
-}
-
 fn hex(c: [u8; 4]) -> String {
     format!("{:02X}{:02X}{:02X}", c[0], c[1], c[2])
-}
-
-fn slider(ui: &mut egui::Ui, label: &str, v: &mut f32, range: std::ops::RangeInclusive<f32>) -> bool {
-    let l = ui.label(label);
-    ui.add(egui::Slider::new(v, range).max_decimals(2)).labelled_by(l.id).changed()
-}
-
-/// The tool options bar under the menu.
-pub fn tool_options(app: &mut ToonApp, ui: &mut egui::Ui) {
-    // wraps onto a second row when a tool has more options than fit
-    ui.horizontal_wrapped(|ui| {
-        ui.strong(app.tool.label());
-        ui.separator();
-        if let Some(kind) = app.tool.brush() {
-            let b = app.brush_mut(kind);
-            let l = ui.label(tl!("Size"));
-            ui.add(egui::Slider::new(&mut b.size, 0.5..=tooncraft_brush::MAX_SIZE).logarithmic(true).max_decimals(1).suffix(" px")).labelled_by(l.id);
-            slider(ui, tl!("Opacity"), &mut b.opacity, 0.0..=1.0);
-            slider(ui, tl!("Smoothing"), &mut b.smoothing.average, 0.0..=1.0);
-            let l = ui.label(tl!("Steady line"));
-            ui.add(egui::Slider::new(&mut b.smoothing.string, 0.0..=120.0).max_decimals(0).suffix(" px"))
-                .labelled_by(l.id)
-                .on_hover_text(tl!("The brush follows the pen only when it is further than this: very steady lines"));
-            ui.separator();
-            crate::brush_presets::picker(app, ui, kind);
-            ui.separator();
-            crate::draw_aids::brush_options(app, ui);
-        }
-        match app.tool {
-            Tool::Fill => {
-                use tooncraft_raster::fill::{FillMode, GAP_PRESETS};
-                for (m, name, tip) in [
-                    (FillMode::Any, tl!("Fill"), tl!("Fill the area under the click")),
-                    (FillMode::EmptyOnly, tl!("Empty Only"), tl!("Fill only empty areas; a click on paint does nothing")),
-                    (FillMode::Repaint, tl!("Repaint"), tl!("Give an area already painted on this layer a new colour")),
-                ] {
-                    ui.selectable_value(&mut app.fill.mode, m, name).on_hover_text(tip);
-                }
-                ui.separator();
-                ui.label(tl!("Gaps"));
-                for (g, name) in GAP_PRESETS.iter().zip([tl!("Off"), tl!("Small"), tl!("Medium"), tl!("Large")]) {
-                    let resp = ui.selectable_label(app.fill.gap == *g, name).on_hover_text(tlf!("Close gaps up to about {n} px", n = *g as u32 * 2));
-                    if resp.clicked() {
-                        app.fill.gap = *g;
-                    }
-                }
-                let l = ui.label(tl!("Tolerance"));
-                ui.add(egui::Slider::new(&mut app.fill.tolerance, 0..=255)).labelled_by(l.id);
-                let l = ui.label(tl!("Close gaps"));
-                ui.add(egui::Slider::new(&mut app.fill.gap, 0..=tooncraft_raster::fill::MAX_GAP).suffix(" px")).labelled_by(l.id);
-                let l = ui.label(tl!("Spread under lines"));
-                ui.add(egui::Slider::new(&mut app.fill.spread, 0..=tooncraft_raster::fill::MAX_SPREAD).suffix(" px")).labelled_by(l.id);
-                let l = ui.label(tl!("Look at"));
-                let text = |r: FillReference| match r {
-                    FillReference::Layer => tl!("This layer"),
-                    FillReference::AllLayers => tl!("All visible layers"),
-                };
-                egui::ComboBox::from_id_salt("fill-ref")
-                    .selected_text(text(app.fill_reference))
-                    .show_ui(ui, |ui| {
-                        for r in [FillReference::AllLayers, FillReference::Layer] {
-                            ui.selectable_value(&mut app.fill_reference, r, text(r));
-                        }
-                    })
-                    .response
-                    .labelled_by(l.id);
-                ui.checkbox(&mut app.fill_every_frame, tl!("Every drawing of the layer"));
-                ui.checkbox(&mut app.aids.lasso_fill, tl!("Lasso fill")).on_hover_text(tl!("Drag around an area to fill it"));
-            }
-            Tool::Gradient => crate::draw_aids::gradient_options(app, ui),
-            Tool::Text => crate::text_tool::options(app, ui),
-            Tool::Picker => {
-                ui.label(tl!("Click the canvas to pick a colour (Alt+click with any brush)"));
-            }
-            Tool::Shape => {
-                crate::draw_aids::shape_options(app, ui);
-                ui.separator();
-                let b = app.brush_mut(BrushKind::Ink);
-                let l = ui.label(tl!("Size"));
-                ui.add(egui::Slider::new(&mut b.size, 0.5..=200.0).logarithmic(true).suffix(" px")).labelled_by(l.id);
-                ui.label(tl!("Shift: 15° lines, squares, circles"));
-            }
-            Tool::Select => {
-                ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Lasso, tl!("Lasso"));
-                ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Rectangle, tl!("Rectangle"));
-                ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Ellipse, tl!("Ellipse"));
-                ui.selectable_value(&mut app.select_mode, crate::app::SelectMode::Wand, tl!("Magic Wand"))
-                    .on_hover_text(tl!("Click an area to select the pixels like it"));
-                ui.separator();
-                crate::selection_tools::options(app, ui);
-                ui.separator();
-                let has = app.selection.is_some();
-                if ui.add_enabled(has, egui::Button::new(tl!("Flip H"))).on_hover_text(tl!("Flip horizontally")).clicked() {
-                    app.transform_selection(0.0, 0.0, (-1.0, 1.0), 0.0);
-                }
-                if ui.add_enabled(has, egui::Button::new(tl!("Flip V"))).on_hover_text(tl!("Flip vertically")).clicked() {
-                    app.transform_selection(0.0, 0.0, (1.0, -1.0), 0.0);
-                }
-                if ui.add_enabled(has, egui::Button::new(tl!("Rotate 90°"))).clicked() {
-                    app.transform_selection(0.0, 0.0, (1.0, 1.0), std::f32::consts::FRAC_PI_2);
-                }
-                if ui.add_enabled(has, egui::Button::new(tl!("Deselect"))).clicked() {
-                    app.selection = None;
-                }
-                ui.label(tl!("Drag inside to move, corners to scale, the top knob to rotate"));
-            }
-            Tool::Hand => {
-                ui.label(tl!("Drag to pan; wheel zooms, Alt+wheel rotates"));
-            }
-            Tool::Transform => crate::peg_transform::options(app, ui),
-            _ => {
-                ui.separator();
-                let l = ui.label(tl!("Mouse pressure"));
-                ui.add(egui::Slider::new(&mut app.mouse_pressure, 0.05..=1.0).max_decimals(2))
-                    .labelled_by(l.id)
-                    .on_hover_text(tl!("Pressure used when drawing with a mouse"));
-            }
-        }
-    });
 }
 
 /// The Colour panel.
@@ -387,6 +163,12 @@ pub fn brush(app: &mut ToonApp, ui: &mut egui::Ui) {
         if ui.button(tl!("Reset Brush")).clicked() {
             *app.brush_mut(kind) = tooncraft_brush::Brush::preset(kind);
         }
+        ui.horizontal(|ui| {
+            let l = ui.label(tl!("Mouse pressure"));
+            ui.add(egui::Slider::new(&mut app.mouse_pressure, 0.05..=1.0).max_decimals(2))
+                .labelled_by(l.id)
+                .on_hover_text(tl!("Pressure used when drawing with a mouse"));
+        });
         ui.separator();
         crate::brush_editor::sections(app, ui, kind);
         ui.separator();
@@ -520,107 +302,9 @@ fn tips_and_presets(app: &mut ToonApp, ui: &mut egui::Ui, kind: BrushKind) {
 
 /// The Layers panel (top layer first).
 pub fn layers(app: &mut ToonApp, ui: &mut egui::Ui) {
-    let n = app.engine.project.layers.len();
-    ui.horizontal(|ui| {
-        if ui.button(tl!("Add")).on_hover_text(tl!("New layer above the current one")).clicked() {
-            let name = tlf!("Layer {n}", n = n + 1);
-            if app.run(Command::AddLayer { name, index: Some(app.layer + 1) }) {
-                app.layer += 1;
-            }
-        }
-        // the kinds of layer: a drawing layer (Add), or a reference image or a sound
-        ui.menu_button(tl!("Add Other"), |ui| {
-            if ui.button(tl!("Drawing Layer")).clicked() {
-                let name = tlf!("Layer {n}", n = n + 1);
-                if app.run(Command::AddLayer { name, index: Some(app.layer + 1) }) {
-                    app.layer += 1;
-                }
-                ui.close();
-            }
-            if ui.button(tl!("Reference Image…")).on_hover_text(tl!("An image under the drawing, locked and faded, shown for the whole shot")).clicked() {
-                app.import_reference();
-                ui.close();
-            }
-            if ui.button(tl!("Sound…")).clicked() {
-                app.import_sound();
-                ui.close();
-            }
-        });
-        if ui.button(tl!("Delete")).clicked() {
-            let layer = app.layer;
-            app.run(Command::DeleteLayer { layer });
-            app.clamp_selection();
-        }
-        if ui.button(tl!("Up")).on_hover_text(tl!("Move the layer up")).clicked() && app.layer + 1 < n {
-            let from = app.layer;
-            if app.run(Command::MoveLayer { from, to: from + 1 }) {
-                app.layer += 1;
-            }
-        }
-        if ui.button(tl!("Down")).on_hover_text(tl!("Move the layer down")).clicked() && app.layer > 0 {
-            let from = app.layer;
-            if app.run(Command::MoveLayer { from, to: from - 1 }) {
-                app.layer -= 1;
-            }
-        }
-        if ui.button(tl!("Rename")).clicked() {
-            let name = app.engine.project.layers.get(app.layer).map(|l| l.name.clone()).unwrap_or_default();
-            app.renaming = Some((app.layer, name));
-        }
-    });
-    crate::layer_ops::buttons(app, ui);
+    crate::layers_list::toolbar(app, ui);
     ui.separator();
-    let mut cmds = Vec::new();
-    let mut select = None;
-    let mut menus: Vec<(usize, egui::Response)> = Vec::new();
-    egui::ScrollArea::vertical().id_salt("layers-scroll").show(ui, |ui| {
-        for li in (0..n).rev() {
-            let Some(layer) = app.engine.project.layers.get(li) else { continue };
-            if !crate::layer_tree::listed(app, li) {
-                continue;
-            }
-            let (mut visible, mut locked, mut opacity) = (layer.visible, layer.locked, layer.opacity);
-            ui.horizontal(|ui| {
-                if ui.checkbox(&mut visible, tl!("Show")).changed() {
-                    cmds.push(Command::SetLayer { layer: li, visible: Some(visible), locked: None, opacity: None });
-                }
-                if ui.checkbox(&mut locked, tl!("Lock")).changed() {
-                    cmds.push(Command::SetLayer { layer: li, visible: None, locked: Some(locked), opacity: None });
-                }
-                if let Some((r, name)) = &mut app.renaming
-                    && *r == li
-                {
-                    let resp = ui.add(egui::TextEdit::singleline(name).desired_width(110.0));
-                    resp.request_focus();
-                    if resp.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                        cmds.push(Command::RenameLayer { layer: li, name: name.clone() });
-                        app.renaming = None;
-                    }
-                } else {
-                    let resp = ui.selectable_label(li == app.layer, crate::layer_tree::path_name(&app.engine.project, layer));
-                    if resp.clicked() {
-                        select = Some(li);
-                    }
-                    if resp.secondary_clicked() || resp.context_menu_opened() {
-                        menus.push((li, resp));
-                    }
-                }
-                let l = ui.label(tl!("Opacity"));
-                if ui.add(egui::DragValue::new(&mut opacity).range(0.0..=1.0).speed(0.01).max_decimals(2)).labelled_by(l.id).changed() {
-                    cmds.push(Command::SetLayer { layer: li, visible: None, locked: None, opacity: Some(opacity) });
-                }
-            });
-        }
-    });
-    if let Some(li) = select {
-        app.layer = li;
-    }
-    for c in cmds {
-        app.run(c);
-    }
-    for (li, resp) in menus {
-        resp.context_menu(|ui| crate::context_menus::layer(app, ui, li));
-    }
+    crate::layers_list::rows(app, ui);
     ui.separator();
     layer_properties(app, ui);
     ui.separator();

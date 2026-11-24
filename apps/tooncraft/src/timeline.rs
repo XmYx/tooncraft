@@ -16,144 +16,10 @@ pub fn grid_id() -> egui::Id {
     egui::Id::unique("tooncraft-exposure-sheet")
 }
 
-const NAME_W: f32 = 132.0;
+const NAME_W: f32 = 152.0;
 const CELL_W0: f32 = 17.0;
 const ROW_H0: f32 = 22.0;
 const RULER_H: f32 = 20.0;
-
-/// A small button with a painted icon and an accessible name.
-pub fn icon_button(ui: &mut egui::Ui, label: &str, selected: bool, paint: impl FnOnce(&egui::Painter, Rect, Color32)) -> egui::Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(26.0, 22.0), Sense::click());
-    let v = ui.style().interact_selectable(&resp, selected);
-    ui.painter().rect(rect, 3.0, if selected || resp.hovered() { v.bg_fill } else { Color32::TRANSPARENT }, v.bg_stroke, egui::StrokeKind::Inside);
-    paint(ui.painter(), rect.shrink(5.0), v.fg_stroke.color);
-    if resp.has_focus() {
-        ui.painter().rect_stroke(rect, 3.0, ui.visuals().selection.stroke, egui::StrokeKind::Outside);
-    }
-    let l = label.to_string();
-    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, selected, l.clone()));
-    resp.on_hover_text(label)
-}
-
-fn tri(p: &egui::Painter, r: Rect, right: bool, c: Color32) {
-    let pts = if right { vec![r.left_top(), r.right_center(), r.left_bottom()] } else { vec![r.right_top(), r.left_center(), r.right_bottom()] };
-    p.add(egui::Shape::convex_polygon(pts, c, Stroke::NONE));
-}
-
-fn bar(p: &egui::Painter, r: Rect, x: f32, c: Color32) {
-    p.rect_filled(Rect::from_min_max(pos2(x - 1.2, r.top()), pos2(x + 1.2, r.bottom())), 0.0, c);
-}
-
-fn transport(app: &mut ToonApp, ui: &mut egui::Ui) {
-    // wraps onto a second row in a narrow timeline instead of clipping the last controls
-    ui.horizontal_wrapped(|ui| {
-        let len = app.engine.project.length();
-        if icon_button(ui, tl!("First frame"), false, |p, r, c| {
-            bar(p, r, r.left(), c);
-            tri(p, Rect::from_min_max(pos2(r.left() + 3.0, r.top()), r.max), false, c);
-        })
-        .clicked()
-        {
-            app.frame = 0;
-        }
-        if icon_button(ui, tl!("Previous frame"), false, |p, r, c| tri(p, r.shrink2(vec2(2.0, 0.0)), false, c)).clicked() {
-            app.go_to(app.frame as i64 - 1);
-        }
-        let playing = app.playback.playing;
-        let label = if playing { tl!("Stop") } else { tl!("Play") };
-        if icon_button(ui, label, playing, |p, r, c| {
-            if playing {
-                p.rect_filled(r.shrink(1.5), 1.0, c);
-            } else {
-                tri(p, r.shrink2(vec2(1.5, 0.0)), true, c);
-            }
-        })
-        .clicked()
-        {
-            app.toggle_play();
-        }
-        if icon_button(ui, tl!("Next frame"), false, |p, r, c| tri(p, r.shrink2(vec2(2.0, 0.0)), true, c)).clicked() {
-            app.go_to(app.frame as i64 + 1);
-        }
-        if icon_button(ui, tl!("Last frame"), false, |p, r, c| {
-            tri(p, Rect::from_min_max(r.min, pos2(r.right() - 3.0, r.bottom())), true, c);
-            bar(p, r, r.right(), c);
-        })
-        .clicked()
-        {
-            app.frame = len.saturating_sub(1);
-        }
-        let looping = app.playback.looping;
-        if icon_button(ui, tl!("Loop playback"), looping, |p, r, c| {
-            p.circle_stroke(r.center(), r.height() * 0.42, Stroke::new(1.6, c));
-            tri(p, Rect::from_center_size(r.center_top() + vec2(2.0, 1.0), vec2(5.0, 5.0)), true, c);
-        })
-        .clicked()
-        {
-            app.playback.looping = !app.playback.looping;
-        }
-        ui.separator();
-        ui.label(egui::RichText::new(crate::timeline_extras::position_text(app)).monospace());
-        ui.separator();
-        // the frame rate and the shot length are in the top bar
-        let (layer, frame) = (app.layer, app.frame);
-        if ui.button(tl!("New")).on_hover_text(tl!("New drawing (Shift+N)")).clicked() {
-            app.run(Command::NewDrawing { layer, frame });
-        }
-        if ui.button(tl!("Duplicate")).on_hover_text(tl!("Duplicate drawing (Shift+D)")).clicked() {
-            app.run(Command::DuplicateDrawing { layer, frame });
-        }
-        if ui.button(tl!("Insert")).on_hover_text(tl!("Insert frame (Insert)")).clicked() {
-            app.run(Command::InsertFrame { layer: Some(layer), frame });
-        }
-        if ui.button(tl!("Delete")).on_hover_text(tl!("Delete frame (Shift+Delete)")).clicked() {
-            app.run(Command::DeleteFrame { layer: Some(layer), frame });
-        }
-        if ui.button(tl!("Hold +")).on_hover_text(tl!("Show one frame longer (+)")).clicked() {
-            app.run(Command::ExtendHold { layer, frame });
-        }
-        if ui.button(tl!("Hold −")).on_hover_text(tl!("Show one frame shorter (−)")).clicked() {
-            app.run(Command::ShortenHold { layer, frame });
-        }
-        // the exposure length of the current drawing, editable (keys 1 to 9 in the sheet)
-        if let Some((start, end)) = app.engine.project.layers.get(layer).and_then(|l| l.exposure_range(frame)) {
-            let mut length = end - start;
-            let l = ui.label(tl!("Hold"));
-            let resp = ui
-                .add(egui::DragValue::new(&mut length).range(1..=999).speed(0.1).suffix(tl!(" fr")))
-                .labelled_by(l.id)
-                .on_hover_text(tl!("How many frames this drawing is shown (1 to 9 in the sheet)"));
-            if resp.changed() && length != end - start {
-                app.run(Command::SetExposure { layer, frame, length });
-            }
-        }
-        if ui.button(tl!("Clear")).on_hover_text(tl!("Clear frame (Delete)")).clicked() {
-            app.run(Command::ClearCell { layer, frame });
-        }
-        ui.separator();
-        let onion = app.engine.project.onion.enabled;
-        if ui.selectable_label(onion, tl!("Onion")).on_hover_text(tl!("Onion skin (O)")).clicked() {
-            app.engine.project.onion.enabled = !onion;
-        }
-        if !app.engine.project.sounds.is_empty() {
-            let on = !app.sound.muted;
-            if ui.selectable_label(on, tl!("Sound")).on_hover_text(tl!("Play the soundtrack")).clicked() {
-                app.sound.muted = on;
-            }
-        }
-        let lt = app.engine.project.light_table.enabled;
-        if ui.selectable_label(lt, tl!("Light table")).clicked() {
-            app.engine.project.light_table.enabled = !lt;
-        }
-        if ui.selectable_label(app.thumbnails, tl!("Thumbnails")).on_hover_text(tl!("Show drawing thumbnails in the cells")).clicked() {
-            app.thumbnails = !app.thumbnails;
-        }
-        if ui.button(tl!("Pin")).on_hover_text(tl!("Pin this frame to the light table (Shift+L)")).clicked() {
-            app.run(Command::TogglePin { layer, frame });
-        }
-    });
-    ui.horizontal_wrapped(|ui| crate::timeline_extras::transport(app, ui));
-}
 
 pub fn cell_text(cell: Cell) -> String {
     match cell {
@@ -213,7 +79,7 @@ pub fn grid_keys(app: &mut ToonApp, ui: &egui::Ui) {
 
 #[allow(non_snake_case)]
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
-    transport(app, ui);
+    crate::timeline_header::show(app, ui);
     if app.tl.vertical {
         let (from, to) = (app.timeline_scroll.x.max(0.0) as u32, app.timeline_scroll.x.max(0.0) as u32 + 80);
         refresh_thumbnails(app, ui.ctx(), from, to);
@@ -305,14 +171,36 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             painter.circle_filled(pos2(x, ruler.top() + 5.0), 2.5, pal.accent);
         }
     }
-    // the in and out range: a band along the top of the ruler
-    if let Some((a, b)) = app.tl.range {
-        let x0 = (frames_area.left() + (a as f32 - first as f32) * CELL_W).max(frames_area.left());
-        let x1 = (frames_area.left() + (b as f32 + 1.0 - first as f32) * CELL_W).min(frames_area.right());
-        if x1 > x0 {
-            painter.rect_filled(Rect::from_min_max(pos2(x0, ruler.top()), pos2(x1, ruler.top() + 3.0)), 0.0, pal.playhead);
-        }
+    // scrub on the ruler (click or drag); the loop handles and onion brackets are added after it, so they
+    // sit on top and take the drag
+    let ruler_resp = ui.interact(ruler, grid_id().with("ruler"), Sense::click_and_drag());
+    ruler_resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Slider, true, tl!("Frame ruler")));
+    let ruler_resp = match ruler_resp.hover_pos().map(|p| first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64) {
+        Some(f) if f >= 0 => match crate::timeline_extras::note_at(app, f as u32) {
+            Some(text) => ruler_resp.on_hover_text(tlf!("Frame {n}: {text}", n = f + 1, text = text)),
+            None => ruler_resp,
+        },
+        _ => ruler_resp,
+    };
+    if (ruler_resp.dragged() || ruler_resp.clicked())
+        && let Some(p) = ruler_resp.interact_pointer_pos()
+    {
+        let f = first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64;
+        app.frame = f.clamp(0, len as i64 - 1) as u32;
+        app.playback.stop();
     }
+    // right-click (or the Menu key on the focused ruler): loop, onion range and Go To Frame
+    let ruler_at = grid_id().with("ruler-menu-at");
+    if ruler_resp.secondary_clicked()
+        && let Some(p) = ruler_resp.interact_pointer_pos()
+    {
+        let f = (first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64).clamp(0, i64::from(app.engine.project.length().saturating_sub(1)));
+        ui.data_mut(|d| d.insert_temp(ruler_at, f as u32));
+    }
+    let menu_frame: u32 = ui.data(|d| d.get_temp(ruler_at)).unwrap_or(app.frame);
+    crate::context_menus::attach(ui, &ruler_resp, "ruler", |ui| crate::context_menus::ruler(app, ui, menu_frame));
+    // the in and out range: a band along the top of the ruler, with a draggable handle at each end
+    crate::timeline_ruler::show(app, ui, &painter, ruler, frames_area.left(), first, visible_cols, CELL_W, pal.playhead);
     // the onion skin's reach, under the ruler: before in its tint, after in its tint
     if let Some((lo, hi)) = onion_span(app) {
         let o = &app.engine.project.onion;
@@ -354,23 +242,6 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
     }
-    // scrub on the ruler (click or drag)
-    let ruler_resp = ui.interact(ruler, grid_id().with("ruler"), Sense::click_and_drag());
-    ruler_resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Slider, true, tl!("Frame ruler")));
-    let ruler_resp = match ruler_resp.hover_pos().map(|p| first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64) {
-        Some(f) if f >= 0 => match crate::timeline_extras::note_at(app, f as u32) {
-            Some(text) => ruler_resp.on_hover_text(tlf!("Frame {n}: {text}", n = f + 1, text = text)),
-            None => ruler_resp,
-        },
-        _ => ruler_resp,
-    };
-    if (ruler_resp.dragged() || ruler_resp.clicked())
-        && let Some(p) = ruler_resp.interact_pointer_pos()
-    {
-        let f = first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64;
-        app.frame = f.clamp(0, len as i64 - 1) as u32;
-        app.playback.stop();
-    }
     if app.thumbnails {
         refresh_thumbnails(app, ui.ctx(), first, first + visible_cols);
     }
@@ -379,6 +250,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let mut clicked: Option<(usize, u32)> = None;
     let mut toggles: Vec<(usize, bool)> = Vec::new();
     let mut locks: Vec<(usize, bool)> = Vec::new();
+    let mut onion_toggles: Vec<usize> = Vec::new();
     let mut drag: Option<(usize, u32, u32)> = None;
     // right-click menus, shown after the rows (the rows borrow the project)
     let mut cell_menus: Vec<(usize, u32, egui::Response)> = Vec::new();
@@ -392,21 +264,23 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         if li == app.layer {
             painter.rect_filled(row_rect, 0.0, pal.raised);
         }
+        // the layer's label colour as a bar at the row's left edge
+        if let Some(c) = layer.color {
+            painter.rect_filled(
+                Rect::from_min_max(pos2(area.left(), y + 1.0), pos2(area.left() + 3.0, y + ROW_H - 1.0)),
+                1.0,
+                Color32::from_rgb(c[0], c[1], c[2]),
+            );
+        }
         // name column: visibility toggle + name
-        let eye = Rect::from_min_size(pos2(area.left() + 4.0, y + 3.0), vec2(16.0, 16.0));
+        let eye = Rect::from_min_size(pos2(area.left() + 6.0, y + 3.0), vec2(16.0, 16.0));
         let eye_resp = ui.interact(eye, grid_id().with(("eye", layer.id)), Sense::click());
         let vis_label = tlf!("Show {layer}", layer = layer.name);
         eye_resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, true, layer.visible, vis_label.clone()));
         if eye_resp.clicked() {
             toggles.push((li, !layer.visible));
         }
-        let ec = if layer.visible { pal.text } else { pal.weak };
-        painter.circle_stroke(eye.center(), 5.5, Stroke::new(1.3, ec));
-        if layer.visible {
-            painter.circle_filled(eye.center(), 2.4, ec);
-        } else {
-            painter.line_segment([eye.left_bottom(), eye.right_top()], Stroke::new(1.3, ec));
-        }
+        crate::timeline_rows::paint_toggle(&painter, eye, crate::icons::Icon::Eye, layer.visible, pal.text, pal.weak);
         // lock toggle beside the eye
         let lock = Rect::from_min_size(pos2(eye.right() + 3.0, y + 3.0), vec2(16.0, 16.0));
         let lock_resp = ui.interact(lock, grid_id().with(("lock", layer.id)), Sense::click());
@@ -415,15 +289,26 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         if lock_resp.clicked() {
             locks.push((li, !layer.locked));
         }
-        crate::timeline_rows::paint_lock(&painter, lock, layer.locked, if layer.locked { pal.accent } else { pal.weak });
-        let name_rect = Rect::from_min_max(pos2(lock.right() + 4.0, y), pos2(area.left() + NAME_W - 4.0, y + ROW_H));
+        crate::timeline_rows::paint_toggle(&painter, lock, crate::icons::Icon::Lock, layer.locked, pal.accent, pal.weak);
+        // include in onion skin, beside the lock
+        let onion = Rect::from_min_size(pos2(lock.right() + 3.0, y + 3.0), vec2(16.0, 16.0));
+        let onion_resp = ui.interact(onion, grid_id().with(("onion", layer.id)), Sense::click());
+        let included = crate::timeline_rows::onion_included(layer.onion);
+        let onion_label = tlf!("Include {layer} in onion skin", layer = layer.name);
+        onion_resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, true, included, onion_label.clone()));
+        let onion_resp = onion_resp.on_hover_text(tl!("Show this layer's onion skin (when it is the current layer, or with onion skin on every layer)"));
+        if onion_resp.clicked() {
+            onion_toggles.push(li);
+        }
+        crate::timeline_rows::paint_toggle(&painter, onion, crate::icons::Icon::OnionInclude, included, pal.text, pal.weak);
+        let name_rect = Rect::from_min_max(pos2(onion.right() + 4.0, y), pos2(area.left() + NAME_W - 4.0, y + ROW_H));
         let name_resp = ui.interact(name_rect, grid_id().with(("name", layer.id)), Sense::click());
         let name_label = tlf!("Layer {name}", name = layer.name);
         name_resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, li == app.layer, name_label.clone()));
         if name_resp.clicked() {
             clicked = Some((li, app.frame));
         }
-        if name_resp.secondary_clicked() || name_resp.context_menu_opened() {
+        if crate::context_menus::wants_menu(ui, &name_resp, if li == app.layer { "layer" } else { "" }) {
             layer_menus.push((li, name_resp.clone()));
         }
         // folders: a label-coloured stripe per level, and the folder path before the name
@@ -461,7 +346,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
                         painter.circle_filled(pos2(r.left() + 6.0, r.center().y), 2.6, pal.bg);
                     }
                     if let Some(m) = app.engine.project.marks.get(&d) {
-                        painter.text(r.right_top() + vec2(-2.0, 1.0), Align2::RIGHT_TOP, m.letter(), FontId::proportional(9.5), pal.bg);
+                        crate::timeline_rows::paint_mark(&painter, r, *m, pal);
                     }
                 }
                 Cell::Hold => {
@@ -627,6 +512,12 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     for (li, v) in locks {
         app.run(Command::SetLayer { layer: li, visible: None, locked: Some(v), opacity: None });
     }
+    for li in onion_toggles {
+        if let Some(l) = app.engine.project.layers.get(li) {
+            let onion = crate::timeline_rows::onion_include_toggled(l.onion, app.engine.project.onion);
+            app.run(Command::SetLayerOnion { layer: li, onion });
+        }
+    }
     if let Some((li, f)) = clicked {
         if ui.input(|i| i.modifiers.shift) {
             if app.sel_anchor.is_none() {
@@ -642,7 +533,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     // Shift+F10 or the Menu key: the menu of the current cell, from the keyboard
     if let Some((li, f, resp)) = current_cell.take() {
-        let now = menu_key(ui) && ui.memory(|m| m.has_focus(grid_id()));
+        let now = crate::context_menus::launch_now(ui.ctx(), "cell") || menu_key(ui) && ui.memory(|m| m.has_focus(grid_id()));
         keyboard_menu(ui, &resp, now, |ui| crate::context_menus::cell(app, ui, li, f));
     }
     for (li, f, resp) in cell_menus {
@@ -656,7 +547,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         resp.context_menu(|ui| crate::context_menus::cell(app, ui, li, f));
     }
     for (li, resp) in layer_menus {
-        resp.context_menu(|ui| crate::context_menus::layer(app, ui, li));
+        let launch = if li == app.layer { "layer" } else { "" };
+        crate::context_menus::attach(ui, &resp, launch, |ui| crate::context_menus::layer(app, ui, li));
     }
     ui.allocate_rect(area, Sense::hover());
 }
@@ -778,7 +670,6 @@ pub fn onion_span(app: &ToonApp) -> Option<(u32, u32)> {
 /// Thumbnails of the drawings keyed in the visible frames, a few new ones per UI frame, each
 /// cached until its drawing changes.
 fn refresh_thumbnails(app: &mut ToonApp, ctx: &egui::Context, from: u32, to: u32) {
-    let mut budget = 6;
     let mut ids = Vec::new();
     for l in &app.engine.project.layers {
         for f in from..to.min(app.engine.project.length()) {
@@ -787,6 +678,12 @@ fn refresh_thumbnails(app: &mut ToonApp, ctx: &egui::Context, from: u32, to: u32
             }
         }
     }
+    refresh_drawings(app, ctx, ids);
+}
+
+/// Make or refresh the thumbnails of `ids` (cached by the drawing's revision), a few a frame.
+pub fn refresh_drawings(app: &mut ToonApp, ctx: &egui::Context, ids: Vec<tooncraft_doc::DrawingId>) {
+    let mut budget = 6;
     for d in ids {
         let Some(s) = app.engine.project.drawing(d) else { continue };
         let rev = s.tiles().map(|(_, t)| t.revision()).max().unwrap_or(0) ^ (s.tile_count() as u64).rotate_left(40);

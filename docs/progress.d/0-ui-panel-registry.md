@@ -1,0 +1,1 @@
+- 2026-11-24: A panel registry (`panel_views.rs`): each dockable panel's launch name, glyph, title, `⋯` commands and body in one place; the dock, the tab chrome, the Window menu and `--panel` read it, so a new panel is one module plus one registry arm.

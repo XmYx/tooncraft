@@ -70,7 +70,7 @@ fn the_cell_menu_swaps_marks_and_holds() {
     // mark it as a key
     h.get(By::new().role(egui::Role::Cell).label_contains(&cell_label(&h, 1))).click_secondary();
     h.run();
-    click(&mut h, "Mark Drawing");
+    click(&mut h, "Mark As");
     click(&mut h, "Key");
     assert_eq!(h.state().engine.project.marks.get(&a), Some(&Mark::Key));
     // hold it for five frames
@@ -99,12 +99,13 @@ fn the_layer_menus_in_the_timeline_and_the_layers_panel() {
     h.run();
     assert_eq!(h.state().layer, 0, "the menu acts on the row it was opened on");
     click(&mut h, "Label Colour");
-    h.get(By::new().role(egui::Role::Button).label("Green")).click();
+    h.get(By::new().role(egui::Role::CheckBox).label("Green")).click();
     h.run();
     assert_eq!(h.state().engine.project.layers[0].color, Some([92, 170, 92]));
     h.get(By::new().role(egui::Role::Button).label(&first)).click_secondary();
     h.run();
-    click(&mut h, "Hide Layer");
+    // a tick: Show Layer is on, and turning it off hides the layer
+    click(&mut h, "Show Layer");
     assert!(!h.state().engine.project.layers[0].visible);
 }
 
@@ -179,7 +180,7 @@ fn the_onion_toggle_has_quick_settings_and_its_reach_is_on_the_ruler() {
     assert_eq!(crate::timeline::onion_span(h.state()), Some((0, 3)), "from drawing A's start to the end of drawing B");
     h.get(By::new().role(egui::Role::Button).label("Onion Skin")).click_secondary();
     h.run();
-    h.get(By::new().role(egui::Role::CheckBox).label("Outlines only")).click();
+    h.get_by_label("Outlines").click();
     h.run();
     assert!(h.state().engine.project.onion.outline);
     h.state_mut().engine.project.onion.enabled = false;

@@ -51,50 +51,17 @@ impl Pane {
         Pane::Curves,
     ];
 
+    /// The panel's title (from the panel registry).
     pub fn label(self) -> String {
-        match self {
-            Pane::Canvas => tl!("Canvas"),
-            Pane::Timeline => tl!("Timeline"),
-            Pane::Colour => tl!("Colour"),
-            Pane::Brush => tl!("Brush"),
-            Pane::Layers => tl!("Layers"),
-            Pane::Onion => tl!("Onion Skin"),
-            Pane::Camera => tl!("Camera"),
-            Pane::Pegs => tl!("Pegs"),
-            Pane::Library => tl!("Brushes"),
-            Pane::Effects => tl!("Effects"),
-            Pane::Sound => tl!("Sound"),
-            Pane::LipSync => tl!("Lip Sync"),
-            Pane::Timing => tl!("Timing"),
-            Pane::History => tl!("Undo History"),
-            Pane::Drawings => tl!("Drawing Library"),
-            Pane::Curves => tl!("Curves"),
-        }
-        .to_string()
+        crate::panel_views::view(self).title()
     }
 
+    /// The panel a `--panel` name means (the canvas for an unknown name).
     pub fn from_name(name: &str) -> Pane {
-        match name.to_ascii_lowercase().as_str() {
-            "timeline" => Pane::Timeline,
-            "colour" | "color" => Pane::Colour,
-            "brush" => Pane::Brush,
-            "onion" => Pane::Onion,
-            "layers" => Pane::Layers,
-            "camera" => Pane::Camera,
-            "pegs" => Pane::Pegs,
-            "library" | "brushes" => Pane::Library,
-            "effects" => Pane::Effects,
-            "sound" => Pane::Sound,
-            "lipsync" | "lip-sync" => Pane::LipSync,
-            "timing" => Pane::Timing,
-            "history" => Pane::History,
-            "drawings" | "drawing-library" => Pane::Drawings,
-            "curves" | "curve" => Pane::Curves,
-            _ => Pane::Canvas,
-        }
+        crate::panel_views::by_name(name).unwrap_or(Pane::Canvas)
     }
 
-    fn permissions(self) -> Permissions {
+    pub fn permissions(self) -> Permissions {
         // the canvas is the one panel that cannot be closed
         let closable = self != Pane::Canvas;
         match self {
@@ -184,6 +151,21 @@ impl Workspace {
         true
     }
 
+    /// Put a panel back in its place in the default layout (a closed one opens there) and bring
+    /// it to the front. False when the panel cannot move (the canvas) or its place is gone.
+    pub fn reset_panel(&mut self, pane: Pane) -> bool {
+        let Ok(home) = Workspace::default().layout.location(&pane) else { return self.open(pane) };
+        if self.layout.location(&pane).is_ok_and(|at| at == home) {
+            self.raise(pane);
+            return true;
+        }
+        if self.is_open(pane) && !self.close(pane) {
+            return false;
+        }
+        self.closed.insert(pane, home);
+        self.open(pane)
+    }
+
     /// Bring a panel's tab to the front next frame (opening it first when it was closed).
     pub fn raise(&mut self, pane: Pane) {
         if !self.is_open(pane) {
@@ -214,38 +196,18 @@ fn activate(node: &mut Node<Pane>, pane: Pane) -> bool {
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let layout = app.workspace.layout.clone();
     let style = DockStyle::from_ui(ui);
-    let mut area = DockArea::new(egui::Id::unique("tooncraft-dock"));
+    let mut area = DockArea::new(crate::panel_chrome::dock_id());
     if let Some(p) = app.workspace.raise.take() {
         area = area.raise_panel(p);
     }
-    let out = area.show(
-        ui,
-        &layout,
-        &style,
-        |p| p.label(),
-        |p| p.permissions(),
-        |ui, pane| match pane {
-            Pane::Canvas => {
-                crate::canvas_header::strip(app, ui);
-                crate::canvas::show(app, ui)
-            }
-            Pane::Timeline => crate::timeline::show(app, ui),
-            Pane::Colour => crate::panels::colour(app, ui),
-            Pane::Brush => crate::panels::brush(app, ui),
-            Pane::Layers => crate::panels::layers(app, ui),
-            Pane::Onion => crate::panels::onion(app, ui),
-            Pane::Camera => crate::panels::camera(app, ui),
-            Pane::Pegs => crate::pegs::panel(app, ui),
-            Pane::Library => crate::brush_library::panel(app, ui),
-            Pane::Effects => crate::effects_panel::show(app, ui),
-            Pane::Sound => crate::sound_panel::show(app, ui),
-            Pane::LipSync => crate::lipsync_panel::show(app, ui),
-            Pane::Timing => crate::timing_panel::panel(app, ui),
-            Pane::History => crate::history_panel::panel(app, ui),
-            Pane::Drawings => crate::drawing_library::panel(app, ui),
-            Pane::Curves => crate::curves::panel(app, ui),
-        },
-    );
+    let ctx = ui.ctx().clone();
+    let (mut out, queued, glyphs_only) = {
+        let mut chrome = crate::panel_chrome::Chrome::new(app);
+        let out = area.show_content(ui, &layout, &style, &mut chrome);
+        (out, std::mem::take(&mut chrome.queued), chrome.glyphs_only())
+    };
+    out.actions.extend(queued);
+    crate::panel_chrome::paint_tab_glyphs(app, &ctx, &glyphs_only);
     if let Some(e) = out.error {
         log::warn!("panel layout: {e:?}; restoring the default layout");
         app.workspace.layout = Workspace::default().layout;
@@ -268,8 +230,11 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
 }
 
-/// The Window menu: every panel with a tick when it is open; picking one opens or closes it.
+/// The Window menu: the workspaces, then every panel with a tick when it is open; picking one
+/// opens or closes it.
 pub fn window_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
+    ui.menu_button(tl!("Workspace"), |ui| crate::workspaces::menu(app, ui));
+    ui.separator();
     for pane in Pane::ALL {
         if pane == Pane::Canvas {
             continue;

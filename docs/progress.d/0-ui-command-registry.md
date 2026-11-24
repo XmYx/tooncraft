@@ -1,0 +1,1 @@
+- 2026-11-24: One command registry (`commands.rs`): every command's id, label, icon, group, key, availability with a reason, and action in one table; the File, Edit, View and Help menus, Find Command (now every command, with its group), the shortcut editor and the keyboard dispatch read it, and `menus::context` builds a menu from a list of ids. Saved shortcut ids are unchanged.

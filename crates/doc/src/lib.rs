@@ -26,7 +26,7 @@ pub mod symmetry;
 pub mod timing;
 
 pub use camera::{Camera, CameraKey, Shake};
-pub use exposure::{Cell, ExposureError};
+pub use exposure::{Cell, ExposureError, reverse_cells};
 pub use markers::{MAX_MARKER_TEXT, MAX_MARKERS, MAX_NAME, parse_timecode, timecode};
 pub use onion::{LightTable, MAX_STEPS as ONION_MAX_STEPS, OnionMode, OnionSkin, Pin};
 pub use peg::{Channel, Ease, Peg, PegId, PegKey};

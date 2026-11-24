@@ -24,7 +24,10 @@ mod colour_tools;
 #[cfg(test)]
 mod colour_ui_tests;
 mod command_search;
+mod commands;
 mod context_menus;
+#[cfg(test)]
+mod context_menus_ui_tests;
 mod curves;
 #[cfg(test)]
 mod curves_ui_tests;
@@ -50,9 +53,18 @@ mod import_dialog;
 mod keys;
 mod layer_ops;
 mod layer_tree;
+mod layers_list;
 mod lipsync_panel;
+mod menu_actions;
+#[cfg(test)]
+mod menu_actions_tests;
+mod menu_commands;
+mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+mod onion_popover;
+mod panel_chrome;
+mod panel_views;
 mod panels;
 #[cfg(test)]
 mod panels_ui_tests;
@@ -74,13 +86,18 @@ mod selection_tools;
 mod selection_ui_tests;
 mod sheet;
 #[cfg(test)]
+mod shell_chrome_ui_tests;
+#[cfg(test)]
 mod shell_ui_tests;
 mod sound;
 mod sound_panel;
 mod start_screen;
+mod status_strip;
 #[cfg(test)]
 mod swatch_ui_tests;
 mod tablet;
+#[cfg(test)]
+mod tcui_time_ui_tests;
 mod text_tool;
 #[cfg(test)]
 mod text_ui_tests;
@@ -88,12 +105,16 @@ mod textures;
 mod theme;
 mod timeline;
 mod timeline_extras;
+mod timeline_header;
 mod timeline_rows;
 #[cfg(test)]
 mod timeline_rows_ui_tests;
+mod timeline_ruler;
 #[cfg(test)]
 mod timeline_ui_tests;
 mod timing_panel;
+mod tool_options;
+mod tool_rail;
 mod top_bar;
 #[cfg(test)]
 mod touch_ui_tests;
@@ -105,6 +126,7 @@ mod unsaved_ui_tests;
 #[cfg(test)]
 mod vector_ui_tests;
 mod view;
+mod workspaces;
 
 use args::{Cli, Launch};
 

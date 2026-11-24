@@ -24,12 +24,12 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 | | Value | Kind |
 |---|---|---|
 | In-scope feature rows | 314 | counted |
-| Done / exceeds / partial / missing | 211 / 3 / 31 / 69 | counted |
+| Done / exceeds / partial / missing | 213 / 3 / 30 / 68 | counted |
 | Out of scope (not in any denominator) | 4 | counted |
-| **Row parity**, (D + X + ½·P) / rows | **73.1 %** | counted |
+| **Row parity**, (D + X + ½·P) / rows | **73.6 %** | counted |
 | **Weighted parity**, area weights × size-weighted rows | **56.1 %** | counted |
-| Size-weighted parity over all rows, no area weights | 56.9 % | counted |
-| **UI parity**, rows of the reference-layout area | **85.1 %** | counted |
+| Size-weighted parity over all rows, no area weights | 57.2 % | counted |
+| **UI parity**, rows of the reference-layout area | **88.3 %** | counted |
 
 | Area | Weight | Rows | D | X | P | M | Out | Row parity | Effort parity |
 |---|---|---|---|---|---|---|---|---|---|
@@ -48,7 +48,7 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 | Import, export and pipeline | 7 (7 %) | 28 | 20 | 0 | 2 | 6 | 1 | 75 % | 62 % |
 | Scripting and automation | 4 (4 %) | 7 | 1 | 0 | 2 | 4 | 0 | 29 % | 22 % |
 | UI and workspace | 5 (5 %) | 14 | 8 | 1 | 3 | 2 | 0 | 75 % | 67 % |
-| UI parity with the reference layout | 5 (5 %) | 47 | 38 | 0 | 4 | 5 | 0 | 85 % | 72 % |
+| UI parity with the reference layout | 5 (5 %) | 47 | 40 | 0 | 3 | 4 | 0 | 88 % | 74 % |
 | Tablet and input | 4 (4 %) | 9 | 3 | 0 | 3 | 3 | 1 | 50 % | 45 % |
 | Collaboration and review | 2 (2 %) | 5 | 2 | 0 | 0 | 3 | 1 | 40 % | 22 % |
 | Stability and performance | 4 (4 %) | 10 | 7 | 1 | 1 | 1 | 0 | 85 % | 69 % |
@@ -240,7 +240,7 @@ Weight: 7
 | Fill every drawing of a layer at once | TV TB | D | S | One undo step. Also: fill, empty areas only, or repaint, and gap presets with the reach shown around the pointer |
 | Linked line and paint layers | TB TV CS | D | M | Add Colour Layer (a layer's menu): a layer below that follows the line layer's exposures, so new drawings, holds, re-timing and deleted frames act on both; painting there makes the colour drawing paired with the line drawing, and the bucket sees the lines through the all-visible reference; saved with the shot. No line-only onion and no automatic copy of line regions |
 | Paint the same regions across drawings automatically | TV TB | M | L | |
-| Colour swatches | all | D | S | Named palettes kept with the shot, plus the built-in Basic one; swatch names on hover; remove from a palette with a right-click |
+| Colour swatches | all | D | S | Named palettes kept with the shot, plus the built-in Basic one; swatch names on hover; a swatch's right-click menu (also Shift+F10) uses, edits, renames, duplicates or deletes it, or selects the pixels of its colour |
 | Palette files: save, load, import common formats | all | D | S | GIMP .gpl open and save (read through craft-palette), Photoshop .aco open (RGB, HSB, grey) |
 | Linked colour styles (change a swatch, every fill using it updates) | TB CS | P | L | Edit Swatch: the swatch's paint on every unlocked layer takes the new colour (matched by colour at each pixel's opacity, so soft edges follow), one undo step; paint is not linked to the swatch, so unrelated paint in exactly that colour changes too |
 | HSV picker with keyboard fields | all | D | S | Hue, saturation and brightness typed from the keyboard, kittest-tested |
@@ -291,7 +291,7 @@ Weight: 9
 | Drawing substitution: expose any existing drawing by name | TV TB CS | D | S | Name a drawing, then show it at any frame of any layer by name; only that frame changes. Also a thumbnail grid of the layer's drawings (a cell's right-click menu, Frame ▸ Swap Drawing) that swaps the whole exposure; Ctrl+Alt+Up and Down swap to the previous or next drawing from the keyboard |
 | Vertical exposure sheet view | TV TB | D | L | The timeline's Vertical switch, or the Exposure Sheet layout: layers as columns, frames down the side, the same keys, cell names and right-click menus |
 | Frame markers and notes | TV TB | D | S | A note per frame: ruler flags, a list with timecodes, next / previous by keyboard, saved in the shot |
-| Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames |
+| Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames; the in and out range shows on the ruler with a handle at each end to drag (arrow keys with a handle focused) |
 | Frame rate change and timecode display | all | D | S | Frame rate per shot; the position and the marker list show HH:MM:SS:FF (non-drop-frame) |
 | Timeline zoom and scroll | all | D | S | Zoom buttons, Alt+= and Alt+-, Ctrl and the wheel or a pinch; scroll as before |
 | Graph editor for keyed values | TB CS PD | P | L | The Curves panel plots each peg value against frames: drag keys in time and value (one undo step, Escape cancels), move them from the keyboard, ease many keys at once, drag the two ease handles. Camera, opacity and effect keys still edit in their own panels |
@@ -312,7 +312,7 @@ Weight: 4
 | Onion by drawings or by frames | TV TB | D | S | The reach shows in the before and after tints on the timeline ruler; right-click the Onion Skin toggle above the canvas for quick settings |
 | Onion on the current layer or on all layers | TV CS | P | S | Both work; only the current-layer path is tested |
 | Onion skin as outlines | TV | D | S | Also: hide only the step before |
-| Onion settings per layer | TV TB | D | S | Own settings for a layer in the Onion Skin panel (steps, opacity, colours, outlines); the shot's switch still turns all off |
+| Onion settings per layer | TV TB | D | S | Own settings for a layer in the Onion Skin panel (steps, opacity, colours, outlines); an onion toggle in each timeline row leaves a layer out or takes it back; the shot's switch still turns all off |
 | Pick the exact relative frames shown | TB CS | P | S | An opacity per step on each side (0 hides that step), and key drawings only; no free list of offsets |
 | Light table: pin any frame of any layer, with opacity | TB CS | D | S | |
 | Shift and trace: move or turn a pinned frame without changing it | TB TV | M | M | |
@@ -323,7 +323,7 @@ Weight: 9
 
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
-| Key, breakdown and inbetween marks with a spacing chart | TV TB | D | S | |
+| Key, breakdown and inbetween marks with a spacing chart | TV TB | D | S | A dot in the mark's colour on the drawing's cell, named in the cell for screen readers |
 | Flip and scrub through drawings | all | D | S | |
 | Rolling and flipping between chosen drawings from the keyboard | TV TB | D | S | Choose frames with Ctrl+Alt+Enter, flip round them with Ctrl+Alt+Left and Right (hold to roll); dots on the ruler |
 | Re-time a range, with presets and re-timing between keys | TV TB | D | S | **Ours:** non-destructive, one undo step |
@@ -466,7 +466,7 @@ Weight: 5
 | Dense dark theme and a light theme | all | D | S | |
 | Standard panels: tools, tool options, brush, colour, layers, timeline | all | D | S | |
 | Dockable panels: move, tab, float | TV TB CS | P | M | Through craft-ui docking; moving panels is not tested here |
-| Saved workspaces | TV TB CS | D | S | Named layouts per user, plus Drawing and Timing |
+| Saved workspaces | TV TB CS | D | S | Draw, Time, Ink & Paint and Sheet keep their own edits per user (Reset Workspace puts one back); Save Workspace As… keeps named layouts |
 | Keyboard shortcuts for every tool | all | D | S | |
 | Customisable shortcuts | all | D | S | Through craft-keymap, saved per user |
 | Command search | TB CS | D | S | Find Command (Ctrl+Shift+P): by name or by key, keyboard or click, runs like the shortcut |
@@ -492,23 +492,23 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 |---|---|---|---|---|
 | Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | P | M | Same family of layout; tool settings sit in a bar above the canvas, not in a properties panel |
 | Start screen with recent shots and a new-shot form | TB | D | S | With no shot to open: a new-shot form with size presets, the recent shots (missing ones marked), Open… and the demo shot; waits for a recovery offer to be answered; turn it off in Preferences (`--open start` shows it) |
-| Named workspaces picked from a bar | TB | D | S | The Workspace picker in the top bar (Drawing, Timing, Ink and Paint, Exposure Sheet); saved ones in View ▸ Workspaces (`--layout`) |
+| Named workspaces picked from a bar | TB | D | S | Segments in the top bar (Draw, Time, Ink & Paint, Sheet; right-click one to reset it or save it as a named workspace); the same and the saved ones in Window ▸ Workspace (`--layout`) |
 | Compositing workspace with a node view | TB | M | XL | No node view |
 | Scripting workspace with a script editor and log | TB | M | L | No scripting panels |
 | Panels that can be closed and added back | TB | D | S | Every panel but the canvas closes from its tab; the Window menu puts it back where it was (`panels_ui_tests`) |
-| Many tabs in one stack stay readable | TB | P | S | Names shorten when a stack holds many tabs |
+| Many tabs in one stack stay readable | TB | D | S | Every tab shows its panel's glyph and name; a stack narrower than 220 px, or too crowded for whole names, shows glyphs only, each naming its panel on hover and to screen readers |
 | Dark theme and a light theme | TB | D | S | Contrast tested |
-| Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Frame, layer, drawing, canvas pixel under the pointer, tool, colour, zoom |
+| Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Zoom and rotation, tool and layer, drawing, frame, colour, the canvas pixel under the pointer; notices on the right fade after a few seconds (a polite live region) |
 | Top menus for play, drawing, scene and windows | TB | D | M | File, Edit, Frame, Layer, Drawing, Play, Scene, View, Window, Help |
 | File menu with recent files | TB | D | S | File ▸ Open Recent: the last 12 shots opened or saved, newest first, missing ones marked, Clear Recent Shots |
 | Edit menu with selection and transform items | TB | D | S | Undo and redo with names, Preferences, select, invert, grow and shrink, transform submenu |
-| View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | |
-| Play commands with speed | TB | D | S | Frame menu and timeline: play, step, in and out, speed, Play Around |
-| A Windows menu listing every panel | TB | D | S | Window: every panel with a tick when open, and Reset Panels |
-| Tool bar with flyouts for related tools | TB | D | S | Grouped buttons with a corner mark; right-click or press and hold for the group |
-| Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | New, Open, Save, undo, redo, workspace, play, the frame typed to go there, play from and to, frame rate and length |
-| Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | The strip above the canvas, with onion settings on right-click |
-| Brush properties: preset list with previews | TB | D | S | Preset picker with sample strokes, Revert |
+| View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | Workspaces are in Window ▸ Workspace |
+| Play commands with speed | TB | D | S | Frame menu and the Timeline header: play, step by frame and by drawing, in and out fields, speed, loop, Play Around with its reach |
+| A Windows menu listing every panel | TB | D | S | Window: Workspace, every panel with a tick when open, and Reset Panels |
+| Tool bar with flyouts for related tools | TB | D | S | The tool rail: select (lasso, rectangle, ellipse, wand), transform (selection, layer peg), draw, smudge, erase, fill, shapes, text, picker and, at the bottom, view (hand, zoom, rotate view); a corner mark on groups; hold, right-click, Menu or Shift+F10 opens the flyout with icon, name and key; the last-used variant is remembered in the preferences; colour chips swap back to the previous colour |
+| Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | One 32 px bar: the menus, the workspace segments, command search and undo/redo; New, Open and Save are in the File menu and on their keys; the transport and the frame, in, out, frame rate and hold fields are in the Timeline header (shot length in its ⋯ menu) |
+| Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | Icon toggles above the canvas (onion, light table, field guide, safe areas, mirror, symmetry, rulers) with zoom and rotation; right-click or Shift+F10 on a toggle opens its settings, for onion a slider per step from 5 before to 5 after |
+| Brush properties: preset list with previews | TB | D | S | The tool options bar: the tool's glyph and name (its group's tools), a preset dropdown showing the current brush as a stroke and every preset as a stroke, Revert; size, opacity and smoothing as scrub fields (drag the name or bar, or type) |
 | Brush editor | TB | D | S | The Brush panel, every control keyboard-reachable |
 | Pencil properties: caps and joins | TB | M | S | Size, opacity, smoothing, steady line; no caps or joins |
 | Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
@@ -518,15 +518,15 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
 | Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue, the colour's own opacity and the brush's opacity |
 | Picker with alpha and a gradient | TB | P | S | A floating Colour Picker window (`--open colour-picker`) as well as the docked one; the colour has its own opacity; no gradient swatches |
-| Timeline layer rows with toggles | TB | D | S | Show and lock toggles in each row (named check boxes, keyboard reachable); a mark on every cell where the layer's pegs are keyed, named "peg key" for screen readers; the rest in the Layers panel and the row's right-click menu |
-| Timeline buttons | TB | D | S | |
+| Timeline layer rows with toggles | TB | D | S | Show, lock and onion toggles in each row on the shared icons (named check boxes, keyboard reachable) and a bar in the label colour; a mark on every cell where the layer's pegs are keyed, named "peg key" for screen readers; the Layers panel rows have a thumbnail of the drawing on this frame and a split add button; the rest in the row's right-click menu |
+| Timeline buttons | TB | D | S | One header row: icon transport, loop, Play Around, speed and inline fields; the rest in its ⋯ menu |
 | Selected range highlight | TB | D | S | |
-| Right-click menu on timeline cells | TB | D | S | Swap drawing, marks, hold for, fill empty frames, frame and clipboard commands |
+| Right-click menu on timeline cells | TB | D | S | Swap drawing, hold for 1 to 8, marks, new and duplicate drawing, insert and remove frames, fill empty frames, cut, copy, paste and paste reversed, go to; every item with its icon and key, disabled ones saying why; Shift+F10 or the Menu key opens it |
 | Right-click menu on exposure-sheet cells | TB | D | S | The same menu in the vertical sheet |
-| Panel menus (a ☰ button per panel) | TB | M | S | |
+| Panel menus (a ☰ button per panel) | TB | D | S | A `⋯` button at the end of every tab strip: the shown panel's own commands (timeline orientation, colour wheel and picker window, onion on/off), then Float, Move To and Close (`shell_chrome_ui_tests`) |
 | Vertical exposure sheet | TB | D | M | Layers as columns, frames down the side, the same keys and menus (`--vertical`, `--layout sheet`) |
 | Onion skin on the canvas, tinted before and after | TB | D | S | |
-| Onion panel with a slider per step | TB | D | S | |
+| Onion panel with a slider per step | TB | D | S | Also in the onion toggle's popover above the canvas |
 | Light table on the canvas | TB | D | S | |
 | Camera frame and safe areas | TB | D | S | |
 | Separate drawing, reference and perspective views | TB | M | M | One canvas |
