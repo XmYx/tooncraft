@@ -1243,3 +1243,31 @@ fn layered_exr_holds_the_composite_and_each_visible_layer() {
     assert!(exr_layered_sequence(&big, &dir.join("big"), "b", many, |_| {}).is_err());
     assert!(!dir.join("big").exists());
 }
+
+#[test]
+fn a_texture_overlay_shows_on_a_filled_layer_in_the_picture() {
+    let mut e = engine();
+    // a closed shape, filled: a flat colour until the layer has a texture
+    e.apply(Command::Stroke {
+        layer: 0,
+        frame: 0,
+        brush: tooncraft_brush::Brush { size: 4.0, ..tooncraft_brush::Brush::preset(BrushKind::Ink) },
+        samples: circle(160.0, 120.0, 80.0),
+    })
+    .unwrap();
+    e.apply(Command::Fill { layer: 0, frame: 0, x: 160, y: 120, color: [200, 60, 60, 255], options: Default::default(), reference: Default::default() })
+        .unwrap();
+    let flat = tooncraft_doc::render_frame(&e.project, 0, tooncraft_doc::RenderOptions::default());
+    let cmd: Command = serde_json::from_str(
+        r#"{"cmd":"add_effect","layer":0,"effect":{"kind":{"type":"texture","kind":"canvas","scale":3,"angle":10,"contrast":1.5,"amount":0.8}}}"#,
+    )
+    .unwrap();
+    e.apply(cmd).unwrap();
+    let textured = tooncraft_doc::render_frame(&e.project, 0, tooncraft_doc::RenderOptions::default());
+    let inside = |img: &tooncraft_raster::RgbaImage| (140..180).map(|x| img.pixel(x, 120)).collect::<std::collections::BTreeSet<_>>();
+    assert!(inside(&flat).len() <= 2, "the fill is flat: {:?}", inside(&flat));
+    assert!(inside(&textured).len() > 8, "the weave shows in the fill");
+    // one undo step takes it off again
+    e.undo().unwrap();
+    assert_eq!(tooncraft_doc::render_frame(&e.project, 0, tooncraft_doc::RenderOptions::default()), flat);
+}

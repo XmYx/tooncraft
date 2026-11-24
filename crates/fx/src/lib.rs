@@ -86,6 +86,9 @@ pub enum EffectKind {
     /// Film grain on the drawn pixels: `amount`, grain `size` 1…16 px, new grain every frame
     /// when `animated`.
     Grain { amount: f32, size: f32, seed: u32, animated: bool },
+    /// A surface texture (one of the brush grains, fixed to the canvas) thinning the paint in its
+    /// valleys: paper, canvas weave, speckle or clouds over everything on the layer.
+    Texture { kind: tooncraft_brush::GrainKind, scale: f32, angle: f32, contrast: f32, amount: f32 },
     /// Let the light of the layers below bleed into the drawing's edges.
     LightWrap { radius: f32, intensity: f32 },
     /// Hard edges: alpha at or above `threshold` becomes opaque, the rest transparent.
@@ -155,6 +158,7 @@ impl EffectKind {
             EffectKind::HueSaturation { hue: 0.0, saturation: 0.0, lightness: 0.0 },
             EffectKind::Tint { colour: [40, 60, 140], amount: 0.3 },
             EffectKind::Grain { amount: 0.15, size: 1.0, seed: 1, animated: true },
+            EffectKind::Texture { kind: tooncraft_brush::GrainKind::Paper, scale: 3.0, angle: 0.0, contrast: 1.0, amount: 0.6 },
             EffectKind::LightWrap { radius: 10.0, intensity: 0.6 },
             EffectKind::AlphaThreshold { threshold: 0.5 },
             EffectKind::Mask {
@@ -207,6 +211,7 @@ impl EffectKind {
             EffectKind::HueSaturation { .. } => "hue_saturation",
             EffectKind::Tint { .. } => "tint",
             EffectKind::Grain { .. } => "grain",
+            EffectKind::Texture { .. } => "texture",
             EffectKind::LightWrap { .. } => "light_wrap",
             EffectKind::AlphaThreshold { .. } => "alpha_threshold",
             EffectKind::Mask { .. } => "mask",
@@ -287,6 +292,14 @@ impl EffectKind {
             }
             Tint { colour, amount } => Tint { colour, amount: c(amount, 0.0, 1.0, 0.0) },
             Grain { amount, size, seed, animated } => Grain { amount: c(amount, 0.0, 1.0, 0.0), size: c(size, 1.0, 16.0, 1.0), seed, animated },
+            Texture { kind, scale, angle, contrast, amount } => Texture {
+                // an image grain needs the shot's tip table, which effects cannot see
+                kind: if kind == tooncraft_brush::GrainKind::Image { tooncraft_brush::GrainKind::Paper } else { kind },
+                scale: c(scale, 0.5, 64.0, 3.0),
+                angle: if angle.is_finite() { (angle + 180.0).rem_euclid(360.0) - 180.0 } else { 0.0 },
+                contrast: c(contrast, 0.1, tooncraft_brush::MAX_GRAIN_CONTRAST, 1.0),
+                amount: c(amount, 0.0, 1.0, 0.0),
+            },
             LightWrap { radius, intensity } => LightWrap { radius: c(radius, 0.0, MAX_RADIUS, 0.0), intensity: c(intensity, 0.0, 2.0, 0.0) },
             AlphaThreshold { threshold } => AlphaThreshold { threshold: c(threshold, 0.0, 1.0, 0.5) },
             Mask { shape, x, y, width, height, feather, invert, points } => Mask {
@@ -387,6 +400,9 @@ impl EffectKind {
             (Tint { colour: ac, amount: a }, Tint { colour: bc, amount: b }) => Tint { colour: lc(*ac, *bc), amount: l(*a, *b) },
             (Grain { amount: a, size: asz, seed, animated }, Grain { amount: b, size: bsz, .. }) => {
                 Grain { amount: l(*a, *b), size: l(*asz, *bsz), seed: *seed, animated: *animated }
+            }
+            (Texture { kind, scale: a1, angle: a2, contrast: a3, amount: a4 }, Texture { scale: b1, angle: b2, contrast: b3, amount: b4, .. }) => {
+                Texture { kind: *kind, scale: l(*a1, *b1), angle: l(*a2, *b2), contrast: l(*a3, *b3), amount: l(*a4, *b4) }
             }
             (LightWrap { radius: ar, intensity: ai }, LightWrap { radius: br, intensity: bi }) => LightWrap { radius: l(*ar, *br), intensity: l(*ai, *bi) },
             (AlphaThreshold { threshold: a }, AlphaThreshold { threshold: b }) => AlphaThreshold { threshold: l(*a, *b) },
@@ -618,6 +634,7 @@ pub fn reach(kind: &EffectKind) -> Option<u32> {
         | EffectKind::HueSaturation { .. }
         | EffectKind::Tint { .. }
         | EffectKind::Grain { .. }
+        | EffectKind::Texture { .. }
         | EffectKind::AlphaThreshold { .. }
         | EffectKind::Mask { .. }
         | EffectKind::ColourKey { .. }
@@ -704,6 +721,9 @@ fn apply_at(img: &mut RgbaImage, origin: (u32, u32), kind: &EffectKind, frame: u
         EffectKind::HueSaturation { hue, saturation, lightness } => colour::hue_saturation(img, *hue, *saturation, *lightness),
         EffectKind::Tint { colour, amount } => colour::tint(img, *colour, *amount),
         EffectKind::Grain { amount, size, seed, animated } => colour::grain(img, origin, *amount, *size, *seed, if *animated { frame } else { 0 }),
+        EffectKind::Texture { kind, scale, angle, contrast, amount } => {
+            colour::texture(img, origin, &tooncraft_brush::Grain::new(*kind, *scale, *angle, *contrast, None), *amount)
+        }
         EffectKind::LightWrap { radius, intensity } => {
             if let Some(b) = below {
                 blur::light_wrap(img, b, *radius, *intensity)

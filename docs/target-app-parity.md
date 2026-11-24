@@ -176,7 +176,7 @@ Weight: 3
 | Visible paper texture under the drawing | TV CS PD | D | S | Any grain (also a grain image) shades the paper colour with its own strength, size, rotation and contrast: one repeating tile on the canvas, the same pixels in exports with the paper; `SetPaperTexture`, saved with the shot |
 | Paper and grain library, grain images from files | TV CS PD | D | M | Four built-in grains and tileable grain images saved in the shot |
 | Grain scale, rotation and contrast | TV CS | D | S | Per brush in the brush editor (`grain_scale`, `grain_angle`, `grain_contrast` in `.toonbrush` files), and for the paper texture |
-| Texture overlay on a layer or a fill | CS PD | M | S | |
+| Texture overlay on a layer or a fill | CS PD | D | S | The Texture overlay effect (Effects panel): a built-in grain (paper, canvas weave, speckle, clouds) fixed to the canvas thins the layer's paint in its valleys, so drawings and fills on the layer show it; size, rotation, contrast and amount, keyframable like the other effects |
 | Canvas size presets | all | D | S | Eleven video, cinema, square and portrait presets with their frame rates in New Shot and Canvas Size, the aspect ratio shown, and the user's own saved presets |
 | Canvas resize and crop with anchors | all | D | S | Drawings move whole pixels, never resampled; one undo step |
 | Large canvases (up to 16384 px a side) | TV | D | S | Sparse tiles: empty space costs nothing |

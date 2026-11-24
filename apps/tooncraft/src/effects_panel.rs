@@ -23,6 +23,7 @@ pub fn effect_name(k: &EffectKind) -> String {
         EffectKind::HueSaturation { .. } => tl!("Hue and saturation"),
         EffectKind::Tint { .. } => tl!("Tint"),
         EffectKind::Grain { .. } => tl!("Grain"),
+        EffectKind::Texture { .. } => tl!("Texture overlay"),
         EffectKind::LightWrap { .. } => tl!("Light wrap"),
         EffectKind::AlphaThreshold { .. } => tl!("Hard edges"),
         EffectKind::Mask { .. } => tl!("Soft mask"),
@@ -143,6 +144,24 @@ fn params(ui: &mut egui::Ui, id: usize, k: &mut EffectKind, cx: &ParamContext) -
             ch |= num(ui, tl!("Amount"), amount, 0.0..=1.0, 0.005);
             ch |= num(ui, tl!("Grain size"), size, 1.0..=16.0, 0.05);
             ch |= check(ui, tl!("New grain every frame"), animated);
+        }
+        EffectKind::Texture { kind, scale, angle, contrast, amount } => {
+            let l = ui.label(tl!("Texture"));
+            let before = *kind;
+            egui::ComboBox::from_id_salt(format!("{cid}-texture-kind"))
+                .selected_text(crate::brush_editor::grain_label(*kind))
+                .show_ui(ui, |ui| {
+                    for k in tooncraft_brush::GrainKind::ALL.into_iter().filter(|k| *k != tooncraft_brush::GrainKind::Image) {
+                        ui.selectable_value(kind, k, crate::brush_editor::grain_label(k));
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+            ch |= *kind != before;
+            ch |= num(ui, tl!("Amount"), amount, 0.0..=1.0, 0.005);
+            ch |= num(ui, tl!("Texture size"), scale, 0.5..=64.0, 0.05);
+            ch |= num(ui, tl!("Texture rotation"), angle, -180.0..=180.0, 0.5);
+            ch |= num(ui, tl!("Texture contrast"), contrast, 0.1..=tooncraft_brush::MAX_GRAIN_CONTRAST, 0.01);
         }
         EffectKind::LightWrap { radius, intensity } => {
             ch |= num(ui, tl!("Radius"), radius, 0.0..=200.0, 0.1);
