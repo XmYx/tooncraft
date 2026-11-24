@@ -511,10 +511,7 @@ impl Engine {
         let space = self.project.layer_transform(layer, frame).inverse().filter(|t| !t.is_identity(1e-6));
         // repainting looks at this layer's own paint only
         let reference = if options.mode == fill::FillMode::Repaint { FillReference::Layer } else { reference };
-        let opts = match reference {
-            FillReference::Layer => RenderOptions { paper: false, only_layer: Some(layer), space, effects: false, ..Default::default() },
-            FillReference::AllLayers => RenderOptions { paper: false, space, effects: false, ..Default::default() },
-        };
+        let opts = RenderOptions { space, ..reference.render_options(layer) };
         let reference_img = tooncraft_doc::render_region(&self.project, frame, rect, opts);
         let seed_alpha = reference_img.pixel(x - rect.0, y - rect.1)[3];
         match options.mode {

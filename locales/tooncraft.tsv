@@ -710,7 +710,6 @@ tooncraft	Lock transparency
 tooncraft	Lock {layer}	
 tooncraft	Lock {name}	
 tooncraft	Look at	
-tooncraft	Look at all visible layers	
 tooncraft	Loop	
 tooncraft	Loop in	
 tooncraft	Loop out	
@@ -1084,7 +1083,10 @@ tooncraft	Redo up to here
 tooncraft	Redo {action}	
 tooncraft	Reference	
 tooncraft	Reference Image…	
+tooncraft	Reference Layer	
 tooncraft	Reference image added under the drawing, locked	
+tooncraft	Reference layer	
+tooncraft	Reference layers	
 tooncraft	Reload	
 tooncraft	Reload Library	
 tooncraft	Remove	
@@ -1367,6 +1369,7 @@ tooncraft	The current layer's drawing alone; draw here too
 tooncraft	The current layer, from this frame	
 tooncraft	The current tool is not a brush of this kind	
 tooncraft	The drawings' own colours	
+tooncraft	The fill bucket and the magic wand look at this layer when set to look at reference layers	
 tooncraft	The flip set holds at most {n} frames	
 tooncraft	The frame as the camera films it	
 tooncraft	The last palette stays	
@@ -1378,6 +1381,7 @@ tooncraft	The layer has no mask
 tooncraft	The layer has no other drawing	
 tooncraft	The layer is locked	
 tooncraft	The layers from the side, at their depth; drag one to move it nearer or farther	
+tooncraft	The layers marked Reference layer, and this one	
 tooncraft	The other tools of this group	
 tooncraft	The picker in a window of its own	
 tooncraft	The radial menu's palette is empty: add commands to it in the Tool Palette panel	

@@ -374,6 +374,7 @@ mod tests {
             mouth_chart: Default::default(),
             mask: None,
             adjustment: false,
+            reference: false,
             clip: false,
             lock_alpha: false,
             vector: false,

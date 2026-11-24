@@ -17,6 +17,20 @@ pub enum FillReference {
     /// Every visible layer (paint under ink on its own layer).
     #[default]
     AllLayers,
+    /// The layers marked as references, and the layer itself.
+    ReferenceLayers,
+}
+
+impl FillReference {
+    /// How to render the picture this reference looks at, for `layer`.
+    pub fn render_options(self, layer: usize) -> tooncraft_doc::RenderOptions {
+        let base = tooncraft_doc::RenderOptions { paper: false, effects: false, ..Default::default() };
+        match self {
+            FillReference::Layer => tooncraft_doc::RenderOptions { only_layer: Some(layer), ..base },
+            FillReference::AllLayers => base,
+            FillReference::ReferenceLayers => tooncraft_doc::RenderOptions { references_with: Some(layer), ..base },
+        }
+    }
 }
 
 /// One change to a project. `layer` is a layer index (0 = bottom), `frame` is 0-based.
@@ -984,6 +998,12 @@ pub enum Command {
         layer: usize,
         #[serde(default)]
         matte: Option<tooncraft_doc::Matte>,
+    },
+    /// Mark the layer as a reference for the fill bucket and the magic wand (when they look at
+    /// reference layers), or not.
+    SetLayerReference {
+        layer: usize,
+        reference: bool,
     },
     /// Make the layer an adjustment layer (its effects act on everything below it) or a normal
     /// layer again.
@@ -1958,6 +1978,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }),
         Command::SetLayerMatte { layer, matte } => edit_layers(e, "Matte", |e| {
             e.project.layer_mut(layer)?.matte = matte;
+            Ok(())
+        }),
+        Command::SetLayerReference { layer, reference } => edit_layers(e, "Reference layer", |e| {
+            e.project.layer_mut(layer)?.reference = reference;
             Ok(())
         }),
         Command::SetLayerAdjustment { layer, adjustment } => edit_layers(e, "Adjustment layer", |e| {

@@ -8,7 +8,7 @@ hand a script can do.
 | `cmd` | Fields |
 |---|---|
 | `stroke` | `layer`, `frame`, `brush` (`kind`: pencil / ink / airbrush / chalk / eraser, `size`, `opacity`, `flow`, `hardness`, `spacing`, `grain`, `dynamics`, `smoothing`, `color`), `samples` (`x`, `y`, `pressure`, `tilt_x`, `tilt_y`, `time`, `rotation` in turns, optional) |
-| `fill` | `layer`, `frame`, `x`, `y`, `color`, `options` (`tolerance`, `gap`, `spread`), `reference` (`layer` / `all_layers`) |
+| `fill` | `layer`, `frame`, `x`, `y`, `color`, `options` (`tolerance`, `gap`, `spread`), `reference` (`layer` / `all_layers` / `reference_layers`) |
 | `new_drawing`, `duplicate_drawing`, `extend_hold`, `shorten_hold`, `clear_cell`, `clear_drawing` | `layer`, `frame` |
 | `insert_frame`, `delete_frame` | `frame`, optional `layer` (all layers when absent) |
 | `retime` | `layer`, `from`, `to`, `step` |
@@ -59,6 +59,7 @@ hand a script can do.
 | `enable_effect`, `remove_effect`, `move_effect` | `layer`, `index` (+ `enabled`; `from` / `to` for `move_effect`) |
 | `set_opacity_key`, `remove_opacity_key` | `layer`, `frame` (+ `opacity` 0…1) |
 | `set_layer_matte` | `layer`, `matte` (`inside` / `outside`; absent: a normal layer) |
+| `set_layer_reference` | `layer`, `reference` (the fill and the wand look at it with `reference: reference_layers`) |
 | `set_layer_adjustment` | `layer`, `adjustment` (its effects act on everything below it) |
 | `add_layer_mask` | `layer`, `invert` (optional): an empty painted mask; painting goes into it |
 | `set_layer_mask` | `layer`, `enabled`, `invert`, `editing` (each optional) |
