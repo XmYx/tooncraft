@@ -43,7 +43,9 @@ hand a script can do.
 | `set_layer_clip` | `layer`, `clip` (show only where the layer below has paint) |
 | `add_peg`, `delete_peg`, `rename_peg`, `set_peg_parent`, `set_peg_pivot` | `name`, optional `parent`; `peg` (+ `name`, `parent`, `x`/`y`) |
 | `set_peg_key`, `remove_peg_key` | `peg`, `frame`, `x`, `y`, `angle` (degrees), `scale_x`, `scale_y`, `skew` (degrees), `ease` (`{"kind":"linear"}`, `in`, `out`, `in_out`, `hold`, or `{"kind":"curve","x1","y1","x2","y2"}`) |
+| `set_layer_vector`, `vector_stroke`, `edit_vector` | `layer`, `vector`; `layer`, `frame`, `color`, `points` (`{x, y, width}`), `tolerance` (px, default 0.6); `layer`, `frame`, `edit` (`{"edit":"move_point","stroke","point","x","y"}`, `set_width` with `stroke`, optional `point`, `width`; `smooth` with `stroke`, `strength`, `passes`; `erase_to_crossings` with `stroke`, `x`, `y`; `delete_stroke`; `set_color`). Each is one undo step |
 | `move_peg_keys`, `set_peg_eases`, `remove_peg_keys` | `peg`, `frames` (the keys); `by_frames`, optional `channel` (`x`, `y`, `angle`, `scale_x`, `scale_y`, `skew`) and `by_value`; `ease`. Each is one undo step; a move that would leave the shot or land on a key that is not moving is refused whole |
+| `add_peg_for_layer` | `layer`, `name`: a new peg with the layer hung from it, one undo step |
 | `set_layer_peg`, `set_layer_depth` | `layer`, `peg` (absent: off the peg); `depth` (0 the drawing plane, above 0 further away) |
 | `add_camera_shake`, `remove_camera_shake` | `shake` (`from`, `to`, `amplitude` px, `rotation` degrees, `frequency` per frame, `fade` frames, `seed`); `index` |
 | `set_layer_blend`, `set_layer_color`, `set_layer_folder`, `set_folder` | blend mode (24: `normal`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `add`, `color_dodge`, `color_burn`, `hard_light`, `soft_light`, `difference`, `exclusion`, `linear_burn`, `linear_light`, `vivid_light`, `pin_light`, `hard_mix`, `subtract`, `divide`, `hue`, `saturation`, `colour`, `luminosity`); colour; folder name; folder `visible`, `opacity`, `collapsed` |
@@ -64,6 +66,7 @@ hand a script can do.
 | `save_to_library` | `layer`, `from`, `to` (0-based frames, either order), `name`: the drawings and timing of those frames become a drawing-library item with its own copies of the drawings |
 | `insert_from_library` | `item`, `layer`, `frame`, `linked` (default false: new copies; true: the layer shows the item's drawings, so editing one changes every linked use); cut at the end of the shot |
 | `rename_library_item`, `move_library_item`, `remove_library_item` | `item` (+ `name`; `to`) |
+| `save_library_file`, `open_library_file` | `item`, `path` (write a `.toondrawings` file; not an undo step); `path`, `placement` (`fit` default, `actual`, `fill`: drawings from another canvas size are centred) |
 
 Example:
 

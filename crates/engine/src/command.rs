@@ -151,6 +151,19 @@ pub enum Command {
         item: usize,
         to: usize,
     },
+    /// Write library item `item` to `path` as a drawing file (`.toondrawings`) to use in other
+    /// shots. Not an undo step.
+    SaveLibraryFile {
+        item: usize,
+        path: String,
+    },
+    /// Add the drawing file at `path` to the library; drawings made for another canvas size are
+    /// centred as `placement` says (default: fit). One undo step.
+    OpenLibraryFile {
+        path: String,
+        #[serde(default)]
+        placement: crate::import::Placement,
+    },
     /// In every drawing of the layer, give the pixels close to `from` (within `tolerance` per
     /// channel) the colour `to`, keeping their opacity (antialiased edges stay soft). One undo
     /// step.
@@ -317,6 +330,11 @@ pub enum Command {
         #[serde(default)]
         parent: Option<PegId>,
     },
+    /// Add a peg and hang `layer` from it, as one undo step.
+    AddPegForLayer {
+        layer: usize,
+        name: String,
+    },
     /// Remove a peg: its layers come off it and its child pegs hang from its parent.
     DeletePeg {
         peg: PegId,
@@ -390,6 +408,29 @@ pub enum Command {
         layer: usize,
         #[serde(default)]
         peg: Option<PegId>,
+    },
+    /// Keep the strokes drawn on a layer as editable vector lines (or not, for new drawings).
+    SetLayerVector {
+        layer: usize,
+        vector: bool,
+    },
+    /// Add a vector stroke through `points` (x, y, width) to the drawing at a vector layer's
+    /// frame (a new drawing on a blank cell); points closer than `tolerance` px to the line are
+    /// dropped.
+    VectorStroke {
+        layer: usize,
+        frame: u32,
+        color: [u8; 4],
+        points: Vec<tooncraft_vector::VPoint>,
+        #[serde(default = "vector_tolerance")]
+        tolerance: f32,
+    },
+    /// Change one stroke of a vector drawing: move a point, its width, smooth, erase to the
+    /// crossings, delete, recolour.
+    EditVector {
+        layer: usize,
+        frame: u32,
+        edit: crate::vector::VectorEdit,
     },
     /// The layer's distance from the drawing plane for the multiplane camera (negative: nearer).
     SetLayerDepth {
@@ -969,6 +1010,10 @@ fn pegs(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Proje
     }
 }
 
+fn vector_tolerance() -> f32 {
+    0.6
+}
+
 fn recolour_tolerance() -> u8 {
     24
 }
@@ -1032,6 +1077,8 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::RenameLibraryItem { item, name } => crate::drawing_library::rename(e, item, &name),
         Command::RemoveLibraryItem { item } => crate::drawing_library::remove(e, item),
         Command::MoveLibraryItem { item, to } => crate::drawing_library::move_item(e, item, to),
+        Command::SaveLibraryFile { item, path } => crate::drawing_library::save_file(e, item, &path),
+        Command::OpenLibraryFile { path, placement } => crate::drawing_library::open_file(e, &path, placement),
         Command::RecolourLayer { layer, from, to, tolerance } => crate::drawing::recolour(e, layer, from, to, tolerance),
         Command::SetSymmetry { symmetry } => {
             e.project.symmetry = symmetry.sanitized();
@@ -1070,7 +1117,13 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             } else {
                 l.set_key(frame, id);
             }
-            e.push(Entry { label: "Duplicate drawing".into(), parts: vec![Part::Drawing { id, surface: None }, before] });
+            let mut parts = vec![Part::Drawing { id, surface: None }, before];
+            // a vector drawing's copy keeps its lines
+            if let Some(v) = e.project.vectors.get(&src).cloned() {
+                e.project.vectors.insert(id, v);
+                parts.push(Part::Vector { id, strokes: None });
+            }
+            e.push(Entry { label: "Duplicate drawing".into(), parts });
             Ok(())
         }
         Command::InsertFrame { layer, frame } => edit_layers(e, "Insert frame", |e| {
@@ -1228,6 +1281,14 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }
         Command::AddPeg { name, parent } => pegs(e, "Add peg", |p| p.add_peg(&name, parent).map(|_| ())),
+        Command::AddPegForLayer { layer, name } => {
+            e.project.layer(layer)?;
+            let parts = vec![Part::Layers(e.project.layers.clone()), Part::Pegs(e.project.pegs.clone())];
+            let id = e.project.add_peg(&name, None)?;
+            e.project.layer_mut(layer)?.peg = Some(id);
+            e.push(Entry { label: "Add peg for layer".into(), parts });
+            Ok(())
+        }
         Command::DeletePeg { peg } => {
             let parts = vec![Part::Layers(e.project.layers.clone()), Part::Pegs(e.project.pegs.clone())];
             e.project.delete_peg(peg)?;
@@ -1283,6 +1344,12 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.peg = peg;
             Ok(())
         }),
+        Command::SetLayerVector { layer, vector } => edit_layers(e, "Vector layer", |e| {
+            e.project.layer_mut(layer)?.vector = vector;
+            Ok(())
+        }),
+        Command::VectorStroke { layer, frame, color, points, tolerance } => crate::vector::add_stroke(e, layer, frame, color, &points, tolerance),
+        Command::EditVector { layer, frame, edit } => crate::vector::edit(e, layer, frame, edit),
         Command::SetLayerDepth { layer, depth } => edit_layers(e, "Layer depth", |e| {
             let d = if depth.is_finite() { depth.clamp(tooncraft_doc::camera::MIN_DEPTH, tooncraft_doc::camera::MAX_DEPTH) } else { 0.0 };
             e.project.layer_mut(layer)?.depth = d;
@@ -1685,6 +1752,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             for id in e.project.unused_drawings() {
                 let s = e.project.swap_drawing(id, None);
                 parts.push(Part::Drawing { id, surface: s });
+                // its vector lines go with it
+                if let Some(v) = e.project.vectors.remove(&id) {
+                    parts.push(Part::Vector { id, strokes: Some(v) });
+                }
             }
             e.push(Entry { label: "Purge unused drawings".into(), parts });
             Ok(())

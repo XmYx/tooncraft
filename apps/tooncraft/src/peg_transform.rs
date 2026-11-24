@@ -229,12 +229,9 @@ pub fn options(app: &mut ToonApp, ui: &mut Ui) {
         ui.label(tlf!("“{layer}” hangs from no peg", layer = layer));
         if ui.button(tl!("Add a Peg for This Layer")).on_hover_text(tl!("Make a new peg and hang the current layer from it")).clicked() {
             let n = app.engine.project.pegs.len() + 1;
-            if app.run(Command::AddPeg { name: tlf!("Peg {n}", n = n), parent: None })
-                && let Some(peg) = app.engine.project.pegs.last().map(|p| p.id)
-            {
-                let layer = app.layer;
-                app.run(Command::SetLayerPeg { layer, peg: Some(peg) });
-                app.peg_ui.selected = Some(peg);
+            let layer = app.layer;
+            if app.run(Command::AddPegForLayer { layer, name: tlf!("Peg {n}", n = n) }) {
+                app.peg_ui.selected = app.engine.project.pegs.last().map(|p| p.id);
             }
         }
         return;

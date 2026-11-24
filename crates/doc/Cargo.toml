@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 tooncraft-raster = { workspace = true }
+tooncraft-vector = { workspace = true }
 tooncraft-brush = { workspace = true }
 tooncraft-fx = { workspace = true }
 tooncraft-lipsync = { workspace = true }
