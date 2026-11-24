@@ -4,7 +4,7 @@
 
 use egui::{Color32, Sense, Stroke, vec2};
 use tooncraft_brush::{BrushKind, Smoothing};
-use tooncraft_doc::{OnionMode, Pin};
+use tooncraft_doc::{MAX_PIN_SHIFT, OnionMode, PinShift};
 use tooncraft_engine::Command;
 
 use crate::app::{Tool, ToonApp};
@@ -572,6 +572,7 @@ pub fn onion(app: &mut ToonApp, ui: &mut egui::Ui) {
             ui.end_row();
         });
         ui.checkbox(&mut o.keys_only, tl!("Key drawings only")).on_hover_text(tl!("Stepping by drawings, show only drawings marked as keys"));
+        picked_frames(app, ui, &mut o);
         ui.checkbox(&mut o.all_layers, tl!("Onion skin on every visible layer"));
         ui.checkbox(&mut o.per_step, tl!("Opacity per step"));
         if o.per_step {
@@ -602,28 +603,107 @@ pub fn onion(app: &mut ToonApp, ui: &mut egui::Ui) {
         let l = ui.label(tl!("Opacity"));
         ui.add(egui::Slider::new(&mut lt.opacity, 0.0..=1.0)).labelled_by(l.id);
         let (layer, frame) = (app.layer, app.frame);
-        let pinned = app.engine.project.layers.get(layer).is_some_and(|l| lt.pins.contains(&Pin { layer: l.id, frame }));
+        let pinned = app.engine.project.layers.get(layer).is_some_and(|l| lt.pins.iter().any(|p| p.is(l.id, frame)));
         if ui.button(if pinned { tl!("Unpin This Frame") } else { tl!("Pin This Frame") }).clicked() {
             app.run(Command::TogglePin { layer, frame });
             lt.pins = app.engine.project.light_table.pins.clone();
         }
         let mut remove = None;
+        let mut shift = None;
         for (i, pin) in lt.pins.iter().enumerate() {
             let name = app.engine.project.layer_index(pin.layer).and_then(|li| app.engine.project.layers.get(li)).map(|l| l.name.clone()).unwrap_or_default();
+            let label = tlf!("{layer}, frame {frame}", layer = name, frame = pin.frame + 1);
             ui.horizontal(|ui| {
-                ui.label(tlf!("{layer}, frame {frame}", layer = name, frame = pin.frame + 1));
-                if ui.small_button(tl!("Remove")).clicked() {
+                ui.label(&label);
+                if ui.small_button(tl!("Remove")).on_hover_text(tlf!("Unpin {pin}", pin = label)).clicked() {
                     remove = Some(i);
                 }
             });
+            // shift and trace: move or turn the pinned frame to trace over it; the drawing is
+            // not changed
+            if let Some(s) = shift_row(ui, i, pin.shift, &label) {
+                shift = Some((i, s));
+            }
         }
         if let Some(i) = remove {
             lt.pins.remove(i);
+        }
+        if let Some((index, s)) = shift {
+            app.run(Command::ShiftPin { index, x: s.x, y: s.y, turn: s.turn });
+            lt.pins = app.engine.project.light_table.pins.clone();
         }
         if lt != app.engine.project.light_table {
             app.engine.project.light_table = lt.sanitized();
         }
     });
+}
+
+/// The "Exact frames" switch and the typed list of offsets it shows (`-4 -2 +2`). A list that
+/// does not read stays in the field with the reason in the status bar.
+fn picked_frames(app: &mut ToonApp, ui: &mut egui::Ui, o: &mut tooncraft_doc::OnionSkin) {
+    ui.checkbox(&mut o.pick, tl!("Exact frames"))
+        .on_hover_text(tl!("Show the frames at these offsets from the current one instead of stepping, such as -4 -2 +2"));
+    if !o.pick {
+        return;
+    }
+    let id = ui.make_persistent_id("onion-picked-text");
+    let mut text: String = ui.data_mut(|d| d.get_temp::<String>(id)).unwrap_or_else(|| o.picked_text());
+    ui.horizontal(|ui| {
+        ui.add_space(12.0);
+        let l = ui.label(tl!("Offsets"));
+        let r = ui.add(egui::TextEdit::singleline(&mut text).desired_width(140.0).hint_text("-4 -2 +2")).labelled_by(l.id);
+        if r.changed() {
+            match tooncraft_doc::OnionSkin::parse_picked(&text) {
+                Ok(a) => o.picked = a,
+                Err(e) => app.set_status(pick_error(&e)),
+            }
+        }
+        if r.lost_focus() {
+            text = o.picked_text();
+        }
+    });
+    ui.data_mut(|d| d.insert_temp(id, text));
+}
+
+/// A refused offset list, in words.
+pub fn pick_error(e: &tooncraft_doc::PickError) -> String {
+    match e {
+        tooncraft_doc::PickError::NotANumber(w) => tlf!("“{word}” is not a frame offset", word = w),
+        tooncraft_doc::PickError::OutOfRange(n) => {
+            tlf!("Offset {n} is out of range: use −{max} to +{max}, not 0", n = n, max = tooncraft_doc::ONION_MAX_PICK_OFFSET)
+        }
+        tooncraft_doc::PickError::TooMany => tlf!("At most {n} offsets", n = tooncraft_doc::ONION_MAX_PICKED),
+    }
+}
+
+/// Shift-and-trace fields for one light-table pin: across, down and a turn, plus a reset.
+/// Returns the new shift when it changed.
+fn shift_row(ui: &mut egui::Ui, i: usize, cur: PinShift, pin: &str) -> Option<PinShift> {
+    let mut s = cur;
+    let mut deg = s.turn as f32 / 10.0;
+    ui.push_id(("pin-shift", i), |ui| {
+        ui.horizontal(|ui| {
+            ui.add_space(12.0);
+            let l = ui.label(tl!("Across"));
+            ui.add(egui::DragValue::new(&mut s.x).range(-MAX_PIN_SHIFT..=MAX_PIN_SHIFT).suffix(" px"))
+                .labelled_by(l.id)
+                .on_hover_text(tlf!("Shift and trace: move {pin} across; the drawing does not change", pin = pin));
+            let l = ui.label(tl!("Down"));
+            ui.add(egui::DragValue::new(&mut s.y).range(-MAX_PIN_SHIFT..=MAX_PIN_SHIFT).suffix(" px"))
+                .labelled_by(l.id)
+                .on_hover_text(tlf!("Shift and trace: move {pin} down; the drawing does not change", pin = pin));
+            let l = ui.label(tl!("Turn"));
+            ui.add(egui::DragValue::new(&mut deg).range(-360.0..=360.0).speed(0.5).suffix("°"))
+                .labelled_by(l.id)
+                .on_hover_text(tlf!("Shift and trace: turn {pin}; the drawing does not change", pin = pin));
+            if !cur.is_none() && ui.small_button(tl!("Reset Shift")).on_hover_text(tlf!("Put {pin} back where it was drawn", pin = pin)).clicked() {
+                s = PinShift::default();
+                deg = 0.0;
+            }
+        });
+    });
+    s.turn = (deg * 10.0).round() as i32;
+    (s.sanitized() != cur).then_some(s)
 }
 
 /// The Camera panel: keys for pan, zoom and rotation, typed (keyboard) rather than dragged.

@@ -28,7 +28,7 @@ pub use curve::{Curve, MAX_POINTS, MIN_GAP};
 pub use dab::Dab;
 #[cfg(test)]
 mod paint_tests;
-pub use grain::{GrainKind, Grain, builtin_grain, paper_grain};
+pub use grain::{Grain, GrainKind, builtin_grain, paper_grain};
 pub use response::{Dynamics, Inputs, Mapping, Response, Source, Target, hash01};
 pub use stabilizer::Stabilizer;
 pub use stroke::{Images, Stroke, StrokeEngine, paint, paint_with};
@@ -462,11 +462,13 @@ pub struct Sample {
     pub tilt_y: f32,
     /// Seconds since the stroke began.
     pub time: f64,
+    /// Barrel rotation of the pen in turns, 0 … 1 clockwise (0 without such a pen).
+    pub rotation: f32,
 }
 
 impl Default for Sample {
     fn default() -> Self {
-        Self { x: 0.0, y: 0.0, pressure: 0.5, tilt_x: 0.0, tilt_y: 0.0, time: 0.0 }
+        Self { x: 0.0, y: 0.0, pressure: 0.5, tilt_x: 0.0, tilt_y: 0.0, time: 0.0, rotation: 0.0 }
     }
 }
 
@@ -488,13 +490,38 @@ impl Sample {
             tilt_x: c(self.tilt_x, -1.0, 1.0, 0.0),
             tilt_y: c(self.tilt_y, -1.0, 1.0, 0.0),
             time: if self.time.is_finite() { self.time.max(0.0) } else { 0.0 },
+            rotation: turns(self.rotation),
         })
     }
+}
+
+/// An angle in turns wrapped into 0 … 1 (NaN and infinities become 0).
+fn turns(v: f32) -> f32 {
+    if !v.is_finite() {
+        return 0.0;
+    }
+    let t = v.rem_euclid(1.0);
+    // `rem_euclid` can round up to exactly 1 for tiny negative values
+    if t >= 1.0 { 0.0 } else { t }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn barrel_rotation_wraps_into_one_turn() {
+        let r = |v: f32| Sample { rotation: v, ..Default::default() }.sanitized().map(|s| s.rotation);
+        assert_eq!(r(0.25), Some(0.25));
+        assert_eq!(r(1.75), Some(0.75));
+        assert_eq!(r(-0.25), Some(0.75));
+        assert_eq!(r(-1e-9), Some(0.0));
+        assert_eq!(r(f32::NAN), Some(0.0));
+        assert_eq!(r(f32::INFINITY), Some(0.0));
+        // old command files have no rotation: it reads as 0
+        let s: Sample = serde_json::from_str(r#"{"x":1,"y":2}"#).unwrap_or_default();
+        assert_eq!((s.x, s.rotation), (1.0, 0.0));
+    }
 
     #[test]
     fn sanitize_brush_and_samples() {
