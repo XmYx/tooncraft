@@ -289,10 +289,34 @@ fn pen_eraser_end_erases() {
     let inked = count(&h);
     assert!(inked > 100);
     // flip the pen: the eraser end is reported by the tablet reader
-    h.state().tablet.set(Some(crate::tablet::Pen { pressure: 1.0, tilt_x: 0.0, tilt_y: 0.0, eraser: true }));
+    h.state().tablet.set(Some(crate::tablet::Pen { pressure: 1.0, tilt_x: 0.0, tilt_y: 0.0, rotation: 0.0, eraser: true }));
     h.state_mut().brushes[4].size = 120.0;
     drag_line(&mut h, a, b);
     assert!(count(&h) < inked / 4, "the eraser end removed the line ({} → {})", inked, count(&h));
+}
+
+#[test]
+fn pen_barrel_rotation_reaches_the_stroke_in_canvas_space() {
+    let mut h = harness(false);
+    h.run();
+    let rect = h.get(By::new().role(egui::Role::Canvas).label_contains("Canvas")).rect();
+    h.state().tablet.set(Some(crate::tablet::Pen { pressure: 0.8, tilt_x: 0.0, tilt_y: 0.0, rotation: 0.3, eraser: false }));
+    // a drag that is still down: the live stroke's last sample carries the pen's rotation
+    h.drag_at(rect.center());
+    h.run();
+    for i in 1..6 {
+        h.hover_at(rect.center() + egui::vec2(i as f32 * 12.0, 0.0));
+        h.run();
+    }
+    let r = h.state().engine.live_last_sample().map(|s| s.rotation);
+    h.drop_at(rect.center() + egui::vec2(72.0, 0.0));
+    h.run();
+    assert!(r.is_some_and(|r| (r - 0.3).abs() < 1e-4), "{r:?}");
+    // a rotated, mirrored view turns the reading into canvas space
+    let (_, _, t) = crate::canvas::to_canvas_pen(std::f32::consts::FRAC_PI_2, false, 0.0, 0.0, 0.3);
+    assert!((t - 0.05).abs() < 1e-4, "{t}");
+    let (tx, _, t) = crate::canvas::to_canvas_pen(0.0, true, 0.5, 0.0, 0.3);
+    assert!((t - 0.7).abs() < 1e-4 && tx < 0.0, "{t} {tx}");
 }
 
 #[test]

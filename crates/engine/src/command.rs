@@ -488,6 +488,17 @@ pub enum Command {
         path: String,
         frame: u32,
     },
+    /// The pictures of a video file (MP4 or QuickTime, H.264 or H.265) as a new layer from
+    /// `frame`: each picture a drawing at the shot frame its time falls on, held until the next,
+    /// scaled to fit the canvas; `options` choose the start, a step and a cap, and whether the
+    /// layer goes to the bottom locked and faded, as a reference for rotoscoping.
+    ImportVideo {
+        path: String,
+        #[serde(default)]
+        frame: u32,
+        #[serde(default)]
+        options: crate::interchange::VideoImport,
+    },
     /// An XDTS exposure sheet and its drawing folders, one new layer per track.
     ImportSheet {
         path: String,
@@ -871,6 +882,17 @@ pub enum Command {
         layer: usize,
         frame: u32,
     },
+    /// Shift and trace: show light-table pin `index` moved by `(x, y)` canvas pixels and turned
+    /// by `turn` tenths of a degree, without changing its drawing.
+    ShiftPin {
+        index: usize,
+        #[serde(default)]
+        x: i32,
+        #[serde(default)]
+        y: i32,
+        #[serde(default)]
+        turn: i32,
+    },
     SetLightTable {
         #[serde(default)]
         enabled: Option<bool>,
@@ -951,6 +973,34 @@ pub enum Command {
         layer: usize,
         #[serde(default)]
         matte: Option<tooncraft_doc::Matte>,
+    },
+    /// Make the layer an adjustment layer (its effects act on everything below it) or a normal
+    /// layer again.
+    SetLayerAdjustment {
+        layer: usize,
+        adjustment: bool,
+    },
+    /// Give the layer an empty painted mask (paint in it hides the layer; `invert`: paint shows
+    /// it) and start painting into it.
+    AddLayerMask {
+        layer: usize,
+        #[serde(default)]
+        invert: bool,
+    },
+    /// Change the layer's mask: on or off, inverted, and whether painting goes into it.
+    SetLayerMask {
+        layer: usize,
+        #[serde(default)]
+        enabled: Option<bool>,
+        #[serde(default)]
+        invert: Option<bool>,
+        #[serde(default)]
+        editing: Option<bool>,
+    },
+    /// Remove the layer's mask (its drawing stays until unused drawings are purged; undo brings
+    /// the mask back).
+    RemoveLayerMask {
+        layer: usize,
     },
     /// Several commands as one undo step called `label` (at most [`MAX_BATCH`], none of them a
     /// batch). When one fails, the ones before it are undone and the error is returned, so the
@@ -1430,6 +1480,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }
         Command::ImportLayers { path, frame } => crate::interchange::layers(e, &path, frame),
         Command::ImportGif { path, frame } => crate::interchange::gif(e, &path, frame),
+        Command::ImportVideo { path, frame, options } => crate::interchange::video(e, &path, frame, &options),
         Command::ImportSheet { path } => crate::interchange::sheet(e, &path),
         Command::ImportBoards { path, frame, camera } => crate::boards::import(e, &path, frame, camera),
         Command::MoveSound { offset, index } => crate::audio::edit(e, index, "Move sound", |c| {
@@ -1810,7 +1861,13 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::TogglePin { layer, frame } => {
             frame_ok(e, frame)?;
             let id = e.project.layer(layer)?.id;
-            e.project.light_table.toggle(Pin { layer: id, frame });
+            e.project.light_table.toggle(Pin::new(id, frame));
+            e.touch();
+            Ok(())
+        }
+        Command::ShiftPin { index, x, y, turn } => {
+            let pin = e.project.light_table.pins.get_mut(index).ok_or(DocError::NoSuchPin(index))?;
+            pin.shift = tooncraft_doc::PinShift { x, y, turn }.sanitized();
             e.touch();
             Ok(())
         }
@@ -1859,6 +1916,22 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }),
         Command::SetLayerMatte { layer, matte } => edit_layers(e, "Matte", |e| {
             e.project.layer_mut(layer)?.matte = matte;
+            Ok(())
+        }),
+        Command::SetLayerAdjustment { layer, adjustment } => edit_layers(e, "Adjustment layer", |e| {
+            e.project.layer_mut(layer)?.adjustment = adjustment;
+            Ok(())
+        }),
+        Command::AddLayerMask { layer, invert } => crate::layerops::add_mask(e, layer, invert),
+        Command::SetLayerMask { layer, enabled, invert, editing } => edit_layers(e, "Layer mask", |e| {
+            let m = e.project.layer_mut(layer)?.mask.as_mut().ok_or(EngineError::NoMask)?;
+            m.enabled = enabled.unwrap_or(m.enabled);
+            m.invert = invert.unwrap_or(m.invert);
+            m.editing = editing.unwrap_or(m.editing);
+            Ok(())
+        }),
+        Command::RemoveLayerMask { layer } => edit_layers(e, "Remove layer mask", |e| {
+            e.project.layer_mut(layer)?.mask.take().ok_or(EngineError::NoMask)?;
             Ok(())
         }),
         Command::Batch { label, commands } => batch(e, &label, commands),

@@ -137,7 +137,7 @@ Weight: 9
 | Pressure to size and opacity | all | D | S | |
 | Tilt to dab angle and flattening | TV CS PD | D | S | |
 | Speed to size (thin when fast, or thick) | TV CS | D | S | |
-| Pen barrel rotation as an input | TV CS | M | S | The pen sample has no rotation field yet |
+| Pen barrel rotation as an input | TV CS | D | S | The Pen rotation input drives any dab property through its curve; read from the tablet on X11 (also Xwayland) and macOS, turned into canvas space under a rotated or mirrored view |
 | Response curves for every input and dab property | TV CS PD | D | M | A curve for each of five inputs (pressure, tilt, speed, direction, chance) on size, opacity, flow, scatter and angle |
 | Random jitter of size, opacity, angle and scatter | TV CS PD | D | S | The chance input on each property, with quick sliders |
 | Colour jitter per dab and per stroke (hue, saturation, value) | TV CS PD | D | S | Hue, saturation and brightness jitter, per dab or once per stroke; replays exactly |
@@ -267,8 +267,8 @@ Weight: 6
 | Nested folders with show, lock, fold and opacity | all | D | S | |
 | Clipping layers | TV CS PD | D | S | Several clipping layers on one base |
 | Colour labels with a layer filter | TV TB | D | S | |
-| Painted layer masks | TV TB CS PD | M | M | |
-| Adjustment layers acting on everything below | CS PD | M | M | Effects act on their own layer only |
+| Painted layer masks | TV TB CS PD | D | M | Add Layer Mask (layer menu or Effects panel): every tool paints into the mask while Paint on Layer Mask is on (paint hides, the eraser brings back, or inverted); the mask follows the layer's transform, can be switched off or removed, one undo step each |
+| Adjustment layers acting on everything below | CS PD | D | M | Adjustment Layer: its effect stack acts on everything composited below it, where its drawing has paint (everywhere without one), cut by its mask, with its blend mode and opacity |
 | Reference layers chosen per tool | TB CS | M | S | The fill reference is current or all visible |
 | Layer properties copied between layers | TV CS | D | S | Opacity and keys, blend, colour, folder, peg, depth, effects |
 
@@ -310,12 +310,12 @@ Weight: 4
 | Opacity with falloff | all | D | S | |
 | Tint colours for before and after | all | D | S | |
 | Onion by drawings or by frames | TV TB | D | S | The reach shows in the before and after tints on the timeline ruler; right-click the Onion Skin toggle above the canvas for quick settings |
-| Onion on the current layer or on all layers | TV CS | P | S | Both work; only the current-layer path is tested |
+| Onion on the current layer or on all layers | TV CS | D | S | "Onion skin on every visible layer" in the Onion Skin panel and popover; hidden layers and layers left out of the onion skin stay out (tested on the CPU render) |
 | Onion skin as outlines | TV | D | S | Also: hide only the step before |
 | Onion settings per layer | TV TB | D | S | Own settings for a layer in the Onion Skin panel (steps, opacity, colours, outlines); an onion toggle in each timeline row leaves a layer out or takes it back; the shot's switch still turns all off |
-| Pick the exact relative frames shown | TB CS | P | S | An opacity per step on each side (0 hides that step), and key drawings only; no free list of offsets |
+| Pick the exact relative frames shown | TB CS | D | S | "Exact frames" in the Onion Skin panel: type the offsets (`-4 -2 +2`, up to 16, ±99 frames); also an opacity per step on each side and key drawings only; the ruler shows the picked reach |
 | Light table: pin any frame of any layer, with opacity | TB CS | D | S | |
-| Shift and trace: move or turn a pinned frame without changing it | TB TV | M | M | |
+| Shift and trace: move or turn a pinned frame without changing it | TB TV | D | M | Each light-table pin in the Onion Skin panel has Across, Down and Turn fields and Reset Shift; the drawing is untouched (`shift_pin` command, saved in the shot, `--shift-trace`) |
 
 ## Animation tools
 
@@ -373,12 +373,12 @@ Weight: 7
 | Film grain and light wrap | TV TB | D | S | |
 | Matte layers (keep inside or outside) | TV TB | D | S | |
 | Colour key | TV TB | D | S | Tolerance and soft edge |
-| Soft masks from shapes | TV TB PD | P | S | Rectangle and ellipse, keyframable; no drawn mask shapes |
+| Soft masks from shapes | TV TB PD | D | S | Rectangle, ellipse or a drawn shape (a selection's outline, resampled so keys blend point by point), feathered and keyframable |
 | Line thickening and smoothing | TV | D | S | Thicken and thin, and Smooth lines (jagged edges rebuilt smooth) |
 | Gradient map, posterise and threshold | TV TB PD | D | S | Gradient map (dark to light colour), posterise (2 to 64 levels), black and white by brightness, and the alpha threshold |
 | Motion blur from movement | TV TB | M | M | |
-| Distortions: ripple, wave, turbulence, displacement | TV TB | P | M | Ripple, wave and turbulence, animated over frames; no displacement by another layer |
-| Lens looks: vignette, chromatic aberration, flares | TV TB PD | P | S | Vignette and colour fringe; no flares |
+| Distortions: ripple, wave, turbulence, displacement | TV TB | D | M | Ripple, wave and turbulence, animated over frames; Displace by layer moves the picture by another layer's colour or brightness |
+| Lens looks: vignette, chromatic aberration, flares | TV TB PD | D | S | Vignette, colour fringe and a keyframable lens flare (core, ring, rays, ghosts) that lights a layer even without a drawing |
 | Tone and highlight from mattes, lighting from normals | TV TB | M | L | |
 | Particles (rain, snow, sparks) | TV TB | M | L | |
 | Time effects: trails, frame blending, time remap | TV TB PD | M | M | |
@@ -432,7 +432,7 @@ Weight: 7
 | Image sequence import | all | D | S | PNG, JPEG, WebP, TIFF, BMP, GIF |
 | Animated GIF import | TV PD | D | S | |
 | Layers from PSD or OpenRaster | TV CS | D | S | |
-| Video file import | TV CS PD | M | M | |
+| Video file import | TV CS PD | D | M | File ▸ Import Video (`import_video`, `tooncraft-cli import-video`): MP4 / QuickTime, H.264 and H.265 (8-bit) through craft-media and craft-video; a picture per drawing, timed by the movie at the shot's rate; start, every n-th, a cap; under the drawing locked and faded to trace over, the shot grown to fit; one undo step |
 | XDTS exposure sheet exchange with drawing folders | TB CS | D | M | |
 | Storyboard or animatic as the starting layout | TB | D | S | BoardCraft panels with timings and camera moves ([interop.md](interop.md)) |
 | Scanned paper: peg-hole registration and clean-up | TV TB | M | L | |
@@ -465,12 +465,12 @@ Weight: 5
 |---|---|---|---|---|
 | Dense dark theme and a light theme | all | D | S | |
 | Standard panels: tools, tool options, brush, colour, layers, timeline | all | D | S | |
-| Dockable panels: move, tab, float | TV TB CS | P | M | Through craft-ui docking; moving panels is not tested here |
+| Dockable panels: move, tab, float | TV TB CS | D | M | Through craft-ui docking: drag a tab onto another stack to tab it or to a panel's side to split, float from the stack menu and move the window by its title, Move To and Reset Panel from the keyboard; the canvas stays docked and a panel dropped on it floats there (`dock_ui_tests`) |
 | Saved workspaces | TV TB CS | D | S | Draw, Time, Ink & Paint and Sheet keep their own edits per user (Reset Workspace puts one back); Save Workspace As… keeps named layouts |
 | Keyboard shortcuts for every tool | all | D | S | |
 | Customisable shortcuts | all | D | S | Through craft-keymap, saved per user |
 | Command search | TB CS | D | S | Find Command (Ctrl+Shift+P): by name or by key, keyboard or click, runs like the shortcut |
-| Custom tool palettes and radial menus | TV CS PD | M | S | |
+| Custom tool palettes and radial menus | TV CS PD | D | S | The Tool Palette panel (`--panel palette`): named palettes of any registry commands as buttons, put together from the keyboard (add by search, reorder, remove, rename, delete), kept in the preferences; the radial menu (V, `--open radial`) rings a chosen palette's first 12 commands round the pointer, picked by pointer or arrows and Enter (`tool_palettes_ui_tests`) |
 | Second view of the same shot and a navigator | TV TB CS | M | M | |
 | Undo history panel | TV CS | D | S | A panel listing every step; click one to go there (undo or redo as needed) |
 | Preferences dialog | all | D | S | Edit ▸ Preferences: general, drawing, onion skin, sheet and export tabs, each with Restore Defaults; a damaged settings file gives the defaults |

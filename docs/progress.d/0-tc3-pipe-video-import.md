@@ -1,0 +1,1 @@
+- 2026-11-24: Video import: File ▸ Import Video brings the pictures of an MP4 or QuickTime movie (H.264, H.265) in as a layer of drawings timed by the movie, by default under the drawing, locked and faded, to trace over; also `import_video` and `tooncraft-cli import-video`.

@@ -7,7 +7,7 @@ hand a script can do.
 
 | `cmd` | Fields |
 |---|---|
-| `stroke` | `layer`, `frame`, `brush` (`kind`: pencil / ink / airbrush / chalk / eraser, `size`, `opacity`, `flow`, `hardness`, `spacing`, `grain`, `dynamics`, `smoothing`, `color`), `samples` (`x`, `y`, `pressure`, `tilt_x`, `tilt_y`, `time`) |
+| `stroke` | `layer`, `frame`, `brush` (`kind`: pencil / ink / airbrush / chalk / eraser, `size`, `opacity`, `flow`, `hardness`, `spacing`, `grain`, `dynamics`, `smoothing`, `color`), `samples` (`x`, `y`, `pressure`, `tilt_x`, `tilt_y`, `time`, `rotation` in turns, optional) |
 | `fill` | `layer`, `frame`, `x`, `y`, `color`, `options` (`tolerance`, `gap`, `spread`), `reference` (`layer` / `all_layers`) |
 | `new_drawing`, `duplicate_drawing`, `extend_hold`, `shorten_hold`, `clear_cell`, `clear_drawing` | `layer`, `frame` |
 | `insert_frame`, `delete_frame` | `frame`, optional `layer` (all layers when absent) |
@@ -18,6 +18,7 @@ hand a script can do.
 | `reverse`, `cycle` | `layer`, `from`, `to` (+ `times` for `cycle`) |
 | `import_images` | `paths`, `frame`, `hold`, `name` |
 | `import_layers`, `import_gif` | `path` (PSD / PSB / OpenRaster, or GIF), `frame` |
+| `import_video` | `path` (MP4 or QuickTime, H.264 or H.265), `frame` (default 0), `options` (`from_seconds`, `every`, `max_frames` (0 = as many as fit), `reference` (default true: bottom, locked, half opacity), `grow` (default true: lengthen the shot to fit)) |
 | `import_sheet` | `path` (an XDTS sheet; drawings are read from the folders beside it) |
 | `set_sound` | `path` (replaces every clip with this file; absent removes all sound), `offset` frames |
 | `add_sound`, `remove_sound`, `move_sound` | `path`, `offset`, `track`; `index`; `offset` and `index` (default 0) |
@@ -57,6 +58,10 @@ hand a script can do.
 | `enable_effect`, `remove_effect`, `move_effect` | `layer`, `index` (+ `enabled`; `from` / `to` for `move_effect`) |
 | `set_opacity_key`, `remove_opacity_key` | `layer`, `frame` (+ `opacity` 0…1) |
 | `set_layer_matte` | `layer`, `matte` (`inside` / `outside`; absent: a normal layer) |
+| `set_layer_adjustment` | `layer`, `adjustment` (its effects act on everything below it) |
+| `add_layer_mask` | `layer`, `invert` (optional): an empty painted mask; painting goes into it |
+| `set_layer_mask` | `layer`, `enabled`, `invert`, `editing` (each optional) |
+| `remove_layer_mask` | `layer` |
 | `batch` | `label`, `commands` (at most 256, no batch inside): one undo step; if one fails, the ones before it are undone |
 | `add_layer` | `name`, optional `index` |
 | `delete_layer` / `rename_layer` / `move_layer` / `set_layer` | `layer` (+ `name`, `from`/`to`, `visible`/`locked`/`opacity`) |
@@ -64,6 +69,7 @@ hand a script can do.
 | `set_drawing_name`, `expose_named` | `layer`, `frame`, `name` (names the drawing shown there; names are unique ignoring case); `layer`, `frame`, `name` (show that drawing at the frame, only that frame changes) |
 | `edit_swatch` | `palette`, `swatch` (0-based, a shot palette), `rgb`, optional `name`, `update_paint` (default true: paint in the old colour on every unlocked layer takes the new one) |
 | `set_length`, `set_fps`, `set_paper`, `set_onion`, `toggle_pin`, `set_light_table`, `purge_unused` | as named |
+| `shift_pin` | `index`, `x`, `y` (canvas pixels), `turn` (tenths of a degree): shift and trace a light-table pin; a setting, not an undo step |
 | `save_to_library` | `layer`, `from`, `to` (0-based frames, either order), `name`: the drawings and timing of those frames become a drawing-library item with its own copies of the drawings |
 | `insert_from_library` | `item`, `layer`, `frame`, `linked` (default false: new copies; true: the layer shows the item's drawings, so editing one changes every linked use); cut at the end of the shot |
 | `rename_library_item`, `move_library_item`, `remove_library_item` | `item` (+ `name`; `to`) |
@@ -81,6 +87,6 @@ Example:
 `--prores <file.mov> [--alpha]`, `--prores-layers <dir>` (ProRes 4444 with alpha per layer), `--wav <file>` (the sound mix), `--mouth-sheet <file> [--layer N]` (a mouth sheet; `.dat` writes switch data), `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
 `--layers <dir>` (PNG sequence per layer) or `--levels <dir>` (XDTS sheet and drawing folders).
 `tooncraft-cli bench --effects [shot.toon] [--size WxH] [--frames N] [--threads N]` prints the effect
-costs recorded in [performance.md](performance.md). `tooncraft-cli import`, `import-layers`, `import-gif`, `import-sheet` and `set-sound` bring work in.
+costs recorded in [performance.md](performance.md). `tooncraft-cli import`, `import-layers`, `import-gif`, `import-video`, `import-sheet` and `set-sound` bring work in.
 
 An MCP server on craft-control is planned (see [roadmap.md](roadmap.md)).
