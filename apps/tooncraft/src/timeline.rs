@@ -21,140 +21,6 @@ const CELL_W0: f32 = 17.0;
 const ROW_H0: f32 = 22.0;
 const RULER_H: f32 = 20.0;
 
-/// A small button with a painted icon and an accessible name.
-pub fn icon_button(ui: &mut egui::Ui, label: &str, selected: bool, paint: impl FnOnce(&egui::Painter, Rect, Color32)) -> egui::Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(26.0, 22.0), Sense::click());
-    let v = ui.style().interact_selectable(&resp, selected);
-    ui.painter().rect(rect, 3.0, if selected || resp.hovered() { v.bg_fill } else { Color32::TRANSPARENT }, v.bg_stroke, egui::StrokeKind::Inside);
-    paint(ui.painter(), rect.shrink(5.0), v.fg_stroke.color);
-    if resp.has_focus() {
-        ui.painter().rect_stroke(rect, 3.0, ui.visuals().selection.stroke, egui::StrokeKind::Outside);
-    }
-    let l = label.to_string();
-    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, selected, l.clone()));
-    resp.on_hover_text(label)
-}
-
-fn tri(p: &egui::Painter, r: Rect, right: bool, c: Color32) {
-    let pts = if right { vec![r.left_top(), r.right_center(), r.left_bottom()] } else { vec![r.right_top(), r.left_center(), r.right_bottom()] };
-    p.add(egui::Shape::convex_polygon(pts, c, Stroke::NONE));
-}
-
-fn bar(p: &egui::Painter, r: Rect, x: f32, c: Color32) {
-    p.rect_filled(Rect::from_min_max(pos2(x - 1.2, r.top()), pos2(x + 1.2, r.bottom())), 0.0, c);
-}
-
-fn transport(app: &mut ToonApp, ui: &mut egui::Ui) {
-    // wraps onto a second row in a narrow timeline instead of clipping the last controls
-    ui.horizontal_wrapped(|ui| {
-        let len = app.engine.project.length();
-        if icon_button(ui, tl!("First frame"), false, |p, r, c| {
-            bar(p, r, r.left(), c);
-            tri(p, Rect::from_min_max(pos2(r.left() + 3.0, r.top()), r.max), false, c);
-        })
-        .clicked()
-        {
-            app.frame = 0;
-        }
-        if icon_button(ui, tl!("Previous frame"), false, |p, r, c| tri(p, r.shrink2(vec2(2.0, 0.0)), false, c)).clicked() {
-            app.go_to(app.frame as i64 - 1);
-        }
-        let playing = app.playback.playing;
-        let label = if playing { tl!("Stop") } else { tl!("Play") };
-        if icon_button(ui, label, playing, |p, r, c| {
-            if playing {
-                p.rect_filled(r.shrink(1.5), 1.0, c);
-            } else {
-                tri(p, r.shrink2(vec2(1.5, 0.0)), true, c);
-            }
-        })
-        .clicked()
-        {
-            app.toggle_play();
-        }
-        if icon_button(ui, tl!("Next frame"), false, |p, r, c| tri(p, r.shrink2(vec2(2.0, 0.0)), true, c)).clicked() {
-            app.go_to(app.frame as i64 + 1);
-        }
-        if icon_button(ui, tl!("Last frame"), false, |p, r, c| {
-            tri(p, Rect::from_min_max(r.min, pos2(r.right() - 3.0, r.bottom())), true, c);
-            bar(p, r, r.right(), c);
-        })
-        .clicked()
-        {
-            app.frame = len.saturating_sub(1);
-        }
-        let looping = app.playback.looping;
-        if icon_button(ui, tl!("Loop playback"), looping, |p, r, c| {
-            p.circle_stroke(r.center(), r.height() * 0.42, Stroke::new(1.6, c));
-            tri(p, Rect::from_center_size(r.center_top() + vec2(2.0, 1.0), vec2(5.0, 5.0)), true, c);
-        })
-        .clicked()
-        {
-            app.playback.looping = !app.playback.looping;
-        }
-        ui.separator();
-        ui.label(egui::RichText::new(crate::timeline_extras::position_text(app)).monospace());
-        ui.separator();
-        // the frame rate and the shot length are in the top bar
-        let (layer, frame) = (app.layer, app.frame);
-        if ui.button(tl!("New")).on_hover_text(tl!("New drawing (Shift+N)")).clicked() {
-            app.run(Command::NewDrawing { layer, frame });
-        }
-        if ui.button(tl!("Duplicate")).on_hover_text(tl!("Duplicate drawing (Shift+D)")).clicked() {
-            app.run(Command::DuplicateDrawing { layer, frame });
-        }
-        if ui.button(tl!("Insert")).on_hover_text(tl!("Insert frame (Insert)")).clicked() {
-            app.run(Command::InsertFrame { layer: Some(layer), frame });
-        }
-        if ui.button(tl!("Delete")).on_hover_text(tl!("Delete frame (Shift+Delete)")).clicked() {
-            app.run(Command::DeleteFrame { layer: Some(layer), frame });
-        }
-        if ui.button(tl!("Hold +")).on_hover_text(tl!("Show one frame longer (+)")).clicked() {
-            app.run(Command::ExtendHold { layer, frame });
-        }
-        if ui.button(tl!("Hold −")).on_hover_text(tl!("Show one frame shorter (−)")).clicked() {
-            app.run(Command::ShortenHold { layer, frame });
-        }
-        // the exposure length of the current drawing, editable (keys 1 to 9 in the sheet)
-        if let Some((start, end)) = app.engine.project.layers.get(layer).and_then(|l| l.exposure_range(frame)) {
-            let mut length = end - start;
-            let l = ui.label(tl!("Hold"));
-            let resp = ui
-                .add(egui::DragValue::new(&mut length).range(1..=999).speed(0.1).suffix(tl!(" fr")))
-                .labelled_by(l.id)
-                .on_hover_text(tl!("How many frames this drawing is shown (1 to 9 in the sheet)"));
-            if resp.changed() && length != end - start {
-                app.run(Command::SetExposure { layer, frame, length });
-            }
-        }
-        if ui.button(tl!("Clear")).on_hover_text(tl!("Clear frame (Delete)")).clicked() {
-            app.run(Command::ClearCell { layer, frame });
-        }
-        ui.separator();
-        let onion = app.engine.project.onion.enabled;
-        if ui.selectable_label(onion, tl!("Onion")).on_hover_text(tl!("Onion skin (O)")).clicked() {
-            app.engine.project.onion.enabled = !onion;
-        }
-        if !app.engine.project.sounds.is_empty() {
-            let on = !app.sound.muted;
-            if ui.selectable_label(on, tl!("Sound")).on_hover_text(tl!("Play the soundtrack")).clicked() {
-                app.sound.muted = on;
-            }
-        }
-        let lt = app.engine.project.light_table.enabled;
-        if ui.selectable_label(lt, tl!("Light table")).clicked() {
-            app.engine.project.light_table.enabled = !lt;
-        }
-        if ui.selectable_label(app.thumbnails, tl!("Thumbnails")).on_hover_text(tl!("Show drawing thumbnails in the cells")).clicked() {
-            app.thumbnails = !app.thumbnails;
-        }
-        if ui.button(tl!("Pin")).on_hover_text(tl!("Pin this frame to the light table (Shift+L)")).clicked() {
-            app.run(Command::TogglePin { layer, frame });
-        }
-    });
-    ui.horizontal_wrapped(|ui| crate::timeline_extras::transport(app, ui));
-}
-
 pub fn cell_text(cell: Cell) -> String {
     match cell {
         Cell::Key(d) => tlf!("drawing {id}", id = d.0),
@@ -213,7 +79,7 @@ pub fn grid_keys(app: &mut ToonApp, ui: &egui::Ui) {
 
 #[allow(non_snake_case)]
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
-    transport(app, ui);
+    crate::timeline_header::show(app, ui);
     if app.tl.vertical {
         let (from, to) = (app.timeline_scroll.x.max(0.0) as u32, app.timeline_scroll.x.max(0.0) as u32 + 80);
         refresh_thumbnails(app, ui.ctx(), from, to);

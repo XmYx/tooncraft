@@ -150,6 +150,14 @@ fn has_sound(a: &ToonApp) -> Result<(), Reason> {
     if a.engine.project.sounds.is_empty() { Err(tl!("The shot has no sound").to_string()) } else { Ok(()) }
 }
 
+fn has_frames_selected(a: &ToonApp) -> Result<(), Reason> {
+    if a.has_range() { Ok(()) } else { Err(tl!("Select a range of frames in the exposure sheet first").to_string()) }
+}
+
+fn has_in_out(a: &ToonApp) -> Result<(), Reason> {
+    if a.tl.range.is_some() { Ok(()) } else { Err(tl!("No in and out range is set").to_string()) }
+}
+
 fn has_brush(a: &ToonApp) -> Result<(), Reason> {
     if a.tool.brush().is_some() { Ok(()) } else { Err(tl!("The tool has no brush").to_string()) }
 }
@@ -527,6 +535,42 @@ pub static ALL: &[Cmd] = &[
     when(cmd("item.rename", tlm!("Rename Item…"), Some(Icon::Rename), G::Frame, NoKey, mc::run_item), mc::can_use_item),
     when(cmd("item.delete", tlm!("Delete Item"), Some(Icon::Delete), G::Frame, NoKey, mc::run_item), mc::can_use_item),
     when(cmd("item.show_folder", tlm!("Show in Folder"), Some(Icon::Folder), G::Frame, NoKey, mc::run_item), mc::can_show_item_in_folder),
+    // ── timeline header and canvas header (UI pass S3) ──
+    toggle(cmd("timeline.loop", tlm!("Loop playback"), Some(Icon::Loop), G::Timeline, NoKey, |a, _, _| a.playback.looping = !a.playback.looping), |a| {
+        a.playback.looping
+    }),
+    cmd("timeline.play_around", tlm!("Play Around"), Some(Icon::PlayAround), G::Timeline, NoKey, |a, _, _| crate::timeline_extras::play_around(a)),
+    toggle(cmd("timeline.ping_pong", tlm!("Ping-pong"), None, G::Timeline, NoKey, |a, _, _| a.playback.ping_pong = !a.playback.ping_pong), |a| {
+        a.playback.ping_pong
+    }),
+    when(
+        cmd("timeline.play_selection", tlm!("Play Selection"), Some(Icon::Play), G::Timeline, NoKey, |a, _, _| crate::timeline_extras::play_selection(a)),
+        has_frames_selected,
+    ),
+    cmd("timeline.set_in", tlm!("Set In"), None, G::Timeline, NoKey, |a, _, _| crate::timeline_extras::set_in_out(a, true)),
+    cmd("timeline.set_out", tlm!("Set Out"), None, G::Timeline, NoKey, |a, _, _| crate::timeline_extras::set_in_out(a, false)),
+    when(cmd("timeline.clear_in_out", tlm!("Clear In and Out"), None, G::Timeline, NoKey, |a, _, _| a.tl.range = None), has_in_out),
+    toggle(cmd("timeline.vertical", tlm!("Vertical"), None, G::Timeline, NoKey, |a, _, _| a.tl.vertical = !a.tl.vertical), |a| a.tl.vertical),
+    toggle(cmd("timeline.timecode", tlm!("Timecode"), None, G::Timeline, NoKey, |a, _, _| a.tl.timecode = !a.tl.timecode), |a| a.tl.timecode),
+    toggle(cmd("timeline.thumbnails", tlm!("Thumbnails"), Some(Icon::Drawings), G::Timeline, NoKey, |a, _, _| a.thumbnails = !a.thumbnails), |a| a.thumbnails),
+    when(
+        toggle(cmd("timeline.sound", tlm!("Play Sound"), Some(Icon::Sound), G::Timeline, NoKey, |a, _, _| a.sound.muted = !a.sound.muted), |a| !a.sound.muted),
+        has_sound,
+    ),
+    toggle(cmd("view.field_guide", tlm!("Field Guide"), Some(Icon::Grid), G::View, NoKey, |a, _, _| a.canvas_ui.field_guide = !a.canvas_ui.field_guide), |a| {
+        a.canvas_ui.field_guide
+    }),
+    toggle(cmd("view.safe_areas", tlm!("Safe Areas"), Some(Icon::SafeArea), G::View, NoKey, |a, _, _| a.canvas_ui.safe_areas = !a.canvas_ui.safe_areas), |a| {
+        a.canvas_ui.safe_areas
+    }),
+    toggle(
+        cmd("view.symmetry", tlm!("Symmetry"), Some(Icon::FlipH), G::View, NoKey, |a, _, _| {
+            let mut s = a.engine.project.symmetry;
+            s.mode = if s.is_on() { tooncraft_doc::symmetry::SymmetryMode::Off } else { tooncraft_doc::symmetry::SymmetryMode::Vertical };
+            a.run(Command::SetSymmetry { symmetry: s });
+        }),
+        |a| a.engine.project.symmetry.is_on(),
+    ),
 ];
 
 /// The command with this id.

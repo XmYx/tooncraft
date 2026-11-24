@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use craft_ui::docking::{Action, DockArea, DockContent, DockStyle, Layout, Location, Node, Permissions};
+use craft_ui::docking::{Action, DockArea, DockStyle, Layout, Location, Node, Permissions};
 use craft_ui::layout::{SplitAxis, SplitSize};
 
 use crate::app::ToonApp;
@@ -94,7 +94,7 @@ impl Pane {
         }
     }
 
-    fn permissions(self) -> Permissions {
+    pub fn permissions(self) -> Permissions {
         // the canvas is the one panel that cannot be closed
         let closable = self != Pane::Canvas;
         match self {
@@ -229,11 +229,18 @@ fn activate(node: &mut Node<Pane>, pane: Pane) -> bool {
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     let layout = app.workspace.layout.clone();
     let style = DockStyle::from_ui(ui);
-    let mut area = DockArea::new(egui::Id::unique("tooncraft-dock"));
+    let mut area = DockArea::new(crate::panel_chrome::dock_id());
     if let Some(p) = app.workspace.raise.take() {
         area = area.raise_panel(p);
     }
-    let out = area.show_customized(ui, &layout, &style, |p| p.label(), |p| p.permissions(), |_| Default::default(), &mut Content { app });
+    let ctx = ui.ctx().clone();
+    let (mut out, queued, glyphs_only) = {
+        let mut chrome = crate::panel_chrome::Chrome::new(app);
+        let out = area.show_content(ui, &layout, &style, &mut chrome);
+        (out, std::mem::take(&mut chrome.queued), chrome.glyphs_only())
+    };
+    out.actions.extend(queued);
+    crate::panel_chrome::paint_tab_glyphs(app, &ctx, &glyphs_only);
     if let Some(e) = out.error {
         log::warn!("panel layout: {e:?}; restoring the default layout");
         app.workspace.layout = Workspace::default().layout;
@@ -253,43 +260,6 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             Ok(_) => app.workspace.closed.extend(closing),
             Err(e) => log::warn!("panel move refused: {e:?}"),
         }
-    }
-}
-
-/// The panels' bodies, and their tab menu's own items (the docking library adds Float, Move To
-/// and Close).
-struct Content<'a> {
-    app: &'a mut ToonApp,
-}
-
-impl DockContent<Pane> for Content<'_> {
-    fn body(&mut self, ui: &mut egui::Ui, pane: &Pane) {
-        let app = &mut *self.app;
-        match pane {
-            Pane::Canvas => {
-                crate::canvas_header::strip(app, ui);
-                crate::canvas::show(app, ui)
-            }
-            Pane::Timeline => crate::timeline::show(app, ui),
-            Pane::Colour => crate::panels::colour(app, ui),
-            Pane::Brush => crate::panels::brush(app, ui),
-            Pane::Layers => crate::panels::layers(app, ui),
-            Pane::Onion => crate::panels::onion(app, ui),
-            Pane::Camera => crate::panels::camera(app, ui),
-            Pane::Pegs => crate::pegs::panel(app, ui),
-            Pane::Library => crate::brush_library::panel(app, ui),
-            Pane::Effects => crate::effects_panel::show(app, ui),
-            Pane::Sound => crate::sound_panel::show(app, ui),
-            Pane::LipSync => crate::lipsync_panel::show(app, ui),
-            Pane::Timing => crate::timing_panel::panel(app, ui),
-            Pane::History => crate::history_panel::panel(app, ui),
-            Pane::Drawings => crate::drawing_library::panel(app, ui),
-            Pane::Curves => crate::curves::panel(app, ui),
-        }
-    }
-
-    fn panel_menu(&mut self, ui: &mut egui::Ui, pane: &Pane) {
-        crate::context_menus::panel_tab(self.app, ui, *pane);
     }
 }
 
