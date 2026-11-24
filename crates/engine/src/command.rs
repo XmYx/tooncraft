@@ -485,6 +485,17 @@ pub enum Command {
         path: String,
         frame: u32,
     },
+    /// The pictures of a video file (MP4 or QuickTime, H.264 or H.265) as a new layer from
+    /// `frame`: each picture a drawing at the shot frame its time falls on, held until the next,
+    /// scaled to fit the canvas; `options` choose the start, a step and a cap, and whether the
+    /// layer goes to the bottom locked and faded, as a reference for rotoscoping.
+    ImportVideo {
+        path: String,
+        #[serde(default)]
+        frame: u32,
+        #[serde(default)]
+        options: crate::interchange::VideoImport,
+    },
     /// An XDTS exposure sheet and its drawing folders, one new layer per track.
     ImportSheet {
         path: String,
@@ -1452,6 +1463,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }
         Command::ImportLayers { path, frame } => crate::interchange::layers(e, &path, frame),
         Command::ImportGif { path, frame } => crate::interchange::gif(e, &path, frame),
+        Command::ImportVideo { path, frame, options } => crate::interchange::video(e, &path, frame, &options),
         Command::ImportSheet { path } => crate::interchange::sheet(e, &path),
         Command::ImportBoards { path, frame, camera } => crate::boards::import(e, &path, frame, camera),
         Command::MoveSound { offset, index } => crate::audio::edit(e, index, "Move sound", |c| {
