@@ -250,6 +250,8 @@ pub struct ToonApp {
     pub flip: Vec<u32>,
     pub show_shortcuts: bool,
     pub show_about: bool,
+    /// Help ▸ Icon Reference: every glyph, off and on.
+    pub show_icons: bool,
     pub confirm_close: bool,
     /// New, Open or Open Recent waiting for an answer about unsaved changes.
     pub pending_replace: Option<crate::unsaved::Replace>,
@@ -416,6 +418,7 @@ impl ToonApp {
             pointer: None,
             show_shortcuts: false,
             show_about: false,
+            show_icons: false,
             confirm_close: false,
             pending_replace: None,
             replace_focus: false,
@@ -478,6 +481,7 @@ impl ToonApp {
             Some("scene") => crate::scene_menus::open_settings(&mut app),
             Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
             Some("colour-picker") => app.colour.window = true,
+            Some("icons") => app.show_icons = true,
             _ => {}
         }
         if cli.demo && cli.screenshot.is_some() {
@@ -1576,6 +1580,9 @@ impl ToonApp {
                 if ui.button(tl!("Keyboard Shortcuts")).clicked() {
                     self.show_shortcuts = true;
                 }
+                if ui.button(tl!("Icon Reference")).clicked() {
+                    self.show_icons = true;
+                }
                 if ui.button(tl!("About ToonCraft")).clicked() {
                     self.show_about = true;
                 }
@@ -1949,6 +1956,7 @@ impl ToonApp {
 
     fn dialogs(&mut self, ctx: &egui::Context) {
         crate::command_search::window(self, ctx);
+        crate::icons::reference_window(ctx, &mut self.show_icons);
         crate::import_dialog::window(self, ctx);
         crate::export_dialog::window(self, ctx);
         crate::colour_tools::picker_window(self, ctx);
