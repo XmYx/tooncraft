@@ -69,12 +69,56 @@ pub struct Swatch {
     /// A gradient swatch's stops (empty: a plain colour).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub gradient: Vec<Stop>,
+    /// The paint filled from this swatch: when the swatch changes, only this paint follows.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<FillLink>,
+}
+
+/// Most fills one swatch remembers (the oldest are forgotten first).
+pub const MAX_LINKS: usize = 1024;
+/// Most runs of pixels one fill link keeps.
+pub const MAX_LINK_RUNS: usize = 200_000;
+
+/// The pixels one fill painted in one drawing, as runs along rows: (y, first x, length).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FillLink {
+    pub drawing: crate::DrawingId,
+    pub runs: Vec<(u32, u32, u32)>,
+}
+
+impl FillLink {
+    /// The link from a pixel test over a box (x0, y0, width, height); `None` when nothing is in.
+    pub fn from_pixels(drawing: crate::DrawingId, (x0, y0, w, h): (u32, u32, u32, u32), inside: impl Fn(u32, u32) -> bool) -> Option<Self> {
+        let mut runs = Vec::new();
+        for y in y0..y0.saturating_add(h) {
+            let mut start: Option<u32> = None;
+            for x in x0..=x0.saturating_add(w) {
+                let on = x < x0.saturating_add(w) && inside(x, y);
+                match (on, start) {
+                    (true, None) => start = Some(x),
+                    (false, Some(s)) => {
+                        if runs.len() < MAX_LINK_RUNS {
+                            runs.push((y, s, x - s));
+                        }
+                        start = None;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        (!runs.is_empty()).then_some(Self { drawing, runs })
+    }
+
+    /// Every linked pixel.
+    pub fn pixels(&self) -> impl Iterator<Item = (u32, u32)> + '_ {
+        self.runs.iter().flat_map(|&(y, x, n)| (x..x.saturating_add(n.min(1 << 20))).map(move |px| (px, y)))
+    }
 }
 
 impl Swatch {
     /// A plain, opaque colour.
     pub fn colour(name: &str, rgb: [u8; 3]) -> Self {
-        Self { name: cut(name), rgb, alpha: 255, gradient: Vec::new() }
+        Self { name: cut(name), rgb, alpha: 255, gradient: Vec::new(), links: Vec::new() }
     }
 
     /// The colour as straight RGBA.
@@ -112,6 +156,12 @@ impl Palette {
         for s in &mut self.swatches {
             s.name = cut(&s.name);
             s.gradient = sanitize_stops(std::mem::take(&mut s.gradient));
+            // keep the newest links within the cap
+            let extra = s.links.len().saturating_sub(MAX_LINKS);
+            s.links = s.links.split_off(extra);
+            for l in &mut s.links {
+                l.runs.truncate(MAX_LINK_RUNS);
+            }
             if let Some(f) = s.gradient.first() {
                 s.rgb = [f.rgba[0], f.rgba[1], f.rgba[2]];
                 s.alpha = f.rgba[3];
@@ -146,7 +196,7 @@ impl Palette {
             return false;
         }
         let rgb = [first.rgba[0], first.rgba[1], first.rgba[2]];
-        self.swatches.push(Swatch { name: cut(name), rgb, alpha: first.rgba[3], gradient: stops });
+        self.swatches.push(Swatch { name: cut(name), rgb, alpha: first.rgba[3], gradient: stops, links: Vec::new() });
         true
     }
 }
