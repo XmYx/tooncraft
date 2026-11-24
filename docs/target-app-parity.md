@@ -373,12 +373,12 @@ Weight: 7
 | Film grain and light wrap | TV TB | D | S | |
 | Matte layers (keep inside or outside) | TV TB | D | S | |
 | Colour key | TV TB | D | S | Tolerance and soft edge |
-| Soft masks from shapes | TV TB PD | P | S | Rectangle and ellipse, keyframable; no drawn mask shapes |
+| Soft masks from shapes | TV TB PD | D | S | Rectangle, ellipse or a drawn shape (a selection's outline, resampled so keys blend point by point), feathered and keyframable |
 | Line thickening and smoothing | TV | D | S | Thicken and thin, and Smooth lines (jagged edges rebuilt smooth) |
 | Gradient map, posterise and threshold | TV TB PD | D | S | Gradient map (dark to light colour), posterise (2 to 64 levels), black and white by brightness, and the alpha threshold |
 | Motion blur from movement | TV TB | M | M | |
-| Distortions: ripple, wave, turbulence, displacement | TV TB | P | M | Ripple, wave and turbulence, animated over frames; no displacement by another layer |
-| Lens looks: vignette, chromatic aberration, flares | TV TB PD | P | S | Vignette and colour fringe; no flares |
+| Distortions: ripple, wave, turbulence, displacement | TV TB | D | M | Ripple, wave and turbulence, animated over frames; Displace by layer moves the picture by another layer's colour or brightness |
+| Lens looks: vignette, chromatic aberration, flares | TV TB PD | D | S | Vignette, colour fringe and a keyframable lens flare (core, ring, rays, ghosts) that lights a layer even without a drawing |
 | Tone and highlight from mattes, lighting from normals | TV TB | M | L | |
 | Particles (rain, snow, sparks) | TV TB | M | L | |
 | Time effects: trails, frame blending, time remap | TV TB PD | M | M | |

@@ -44,6 +44,8 @@ mod effects_panel;
 mod export_dialog;
 mod frame_cache;
 #[cfg(test)]
+mod fx_ui_tests;
+#[cfg(test)]
 mod gaps_ui_tests;
 #[cfg(test)]
 mod guidance_ui_tests;

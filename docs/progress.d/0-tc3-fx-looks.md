@@ -1,0 +1,1 @@
+- 2026-11-24: Soft masks take a drawn shape (a selection's outline, resampled so keys blend), a lens flare effect lights a layer even where it has no drawing, and Displace by layer moves a layer's picture by another layer's colour or brightness. Three effects rows reach done.

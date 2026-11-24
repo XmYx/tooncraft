@@ -25,6 +25,8 @@ Options:
   --rulers                   start with a straight ruler and two-point perspective rulers on
   --thumbnails               start with drawing thumbnails in the timeline
   --light                    light theme
+  --fx <IDS>                 add effects to the current layer (comma-separated ids such as lens_flare,
+                             drawn_mask, displace; see Effects ▸ Add effect)
   --context-menu <TARGET>    open a right-click menu (for screenshots): canvas, selection, cell, ruler,
                              layer, tool, tab, swatch, brush, library, onion
   -h, --help                 print this help
@@ -52,6 +54,8 @@ pub struct Cli {
     pub vertical: bool,
     pub tool: Option<String>,
     pub rulers: bool,
+    /// Effect ids added to the current layer at launch (screenshots).
+    pub fx: Vec<String>,
     /// A right-click menu to open at start (for screenshots of the menus).
     pub context_menu: Option<String>,
     /// The loop (in and out) range, 0-based, for screenshots of the ruler.
@@ -68,6 +72,7 @@ pub const LAYOUT_NAMES: [&str; 4] = ["drawing", "timing", "ink-paint", "sheet"];
 
 #[derive(Debug, PartialEq)]
 pub enum Launch {
+    /// Boxed: the options are large next to the text of `Print`.
     Run(Box<Cli>),
     Print(String),
 }
@@ -141,6 +146,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
                 cli.layout = Some(v);
             }
             "--vertical" => cli.vertical = true,
+            "--fx" => cli.fx.extend(it.next().ok_or("--fx needs effect ids")?.split(',').map(|v| v.trim().to_string()).filter(|v| !v.is_empty())),
             "--context-menu" => {
                 let v = it.next().ok_or("--context-menu needs a target")?;
                 if !CONTEXT_MENU_NAMES.contains(&v.as_str()) {
@@ -189,5 +195,10 @@ mod tests {
         assert_eq!(s(&["--context-menu", "cell"]), Ok(Launch::Run(Box::new(Cli { context_menu: Some("cell".into()), ..Default::default() }))));
         assert!(s(&["--context-menu", "nope"]).is_err());
         assert!(s(&["--context-menu"]).is_err());
+        assert_eq!(
+            s(&["--fx", "lens_flare, drawn_mask"]),
+            Ok(Launch::Run(Box::new(Cli { fx: vec!["lens_flare".into(), "drawn_mask".into()], ..Default::default() })))
+        );
+        assert!(s(&["--fx"]).is_err());
     }
 }
