@@ -49,6 +49,8 @@ mod fx_ui_tests;
 mod gaps_ui_tests;
 #[cfg(test)]
 mod guidance_ui_tests;
+#[cfg(test)]
+mod keyboard_reach_ui_tests;
 mod history_panel;
 #[cfg(test)]
 mod history_ui_tests;

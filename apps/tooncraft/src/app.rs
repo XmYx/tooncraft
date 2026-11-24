@@ -1481,7 +1481,7 @@ impl ToonApp {
         use egui::{Key, KeyboardShortcut, Modifiers};
         // commands picked in Find Command run through the registry, like their menu items
         for id in std::mem::take(&mut self.find.pending) {
-            crate::commands::run(self, ctx, &id);
+            crate::command_search::run(self, ctx, &id);
         }
         let cmd = |k| KeyboardShortcut::new(Modifiers::COMMAND, k);
         let cmd_shift = |k| KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, k);
