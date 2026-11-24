@@ -3,7 +3,7 @@
 //! and save) and Photoshop `.aco` (open), through `tooncraft-interop`.
 
 use egui::{Color32, Mesh, Sense, Stroke, Ui, ecolor::Hsva, pos2, vec2};
-use tooncraft_doc::palette::Palette;
+use tooncraft_doc::palette::{Palette, Stop, Swatch, stop_colour};
 use tooncraft_engine::Command;
 
 use crate::app::ToonApp;
@@ -109,27 +109,141 @@ fn edit(app: &mut ToonApp, f: impl FnOnce(&mut Vec<Palette>)) {
 
 /// Add a colour to the palette shown; on Basic, a new shot palette is made for it first.
 pub fn add_colour(app: &mut ToonApp, rgb: [u8; 3]) {
+    add_rgba(app, [rgb[0], rgb[1], rgb[2], 255]);
+}
+
+/// Add a colour with its opacity to the palette shown (on Basic, a new shot palette first).
+pub fn add_rgba(app: &mut ToonApp, rgba: [u8; 4]) {
+    add_to_shown(app, |p| p.push_rgba("", rgba));
+}
+
+/// Add a gradient swatch to the palette shown (on Basic, a new shot palette first).
+pub fn add_gradient(app: &mut ToonApp, stops: Vec<Stop>) {
+    if add_to_shown(app, |p| p.push_gradient("", stops)) {
+        app.set_status(tl!("Gradient added to the palette"));
+    }
+}
+
+/// Run `f` on the palette shown and keep the change when it says it made one; Basic gets a new
+/// shot palette first. False when nothing was added.
+fn add_to_shown(app: &mut ToonApp, f: impl FnOnce(&mut Palette) -> bool) -> bool {
     if app.colour.current == 0 {
+        if app.engine.project.palettes.len() >= tooncraft_doc::palette::MAX_PALETTES {
+            app.set_status(tl!("The shot has as many palettes as it can hold"));
+            return false;
+        }
         let name = tl!("Shot colours").to_string();
         edit(app, |v| v.push(Palette::new(&name)));
         app.colour.current = app.engine.project.palettes.len();
     }
     let i = app.colour.current - 1;
-    edit(app, |v| {
-        if let Some(p) = v.get_mut(i) {
-            p.push("", rgb);
-        }
-    });
+    let mut v = app.engine.project.palettes.clone();
+    let added = v.get_mut(i).is_some_and(f);
+    if added {
+        app.run(Command::SetPalettes { palettes: v });
+    } else {
+        app.set_status(tl!("Could not add to the palette: it is full"));
+    }
+    added
 }
 
-fn swatch_button(ui: &mut Ui, rgb: [u8; 3], label: String) -> egui::Response {
+fn swatch_button(ui: &mut Ui, swatch: &Swatch, label: String) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(vec2(22.0, 22.0), Sense::click());
-    ui.painter().rect(rect, 3.0, Color32::from_rgb(rgb[0], rgb[1], rgb[2]), Stroke::new(1.0, Color32::from_gray(120)), egui::StrokeKind::Inside);
+    if swatch.is_gradient() {
+        paint_stops(ui.painter(), rect, &swatch.gradient);
+    } else {
+        checker(ui.painter(), rect);
+        let [r, g, b, a] = swatch.rgba();
+        ui.painter().rect_filled(rect, 3.0, Color32::from_rgba_unmultiplied(r, g, b, a));
+    }
+    ui.painter().rect_stroke(rect, 3.0, Stroke::new(1.0, Color32::from_gray(120)), egui::StrokeKind::Inside);
     if resp.has_focus() {
         ui.painter().rect_stroke(rect, 3.0, ui.visuals().selection.stroke, egui::StrokeKind::Outside);
     }
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label.clone()));
     resp
+}
+
+/// A light and dark checkerboard, so see-through colours show as such.
+fn checker(painter: &egui::Painter, rect: egui::Rect) {
+    painter.rect_filled(rect, 3.0, Color32::from_gray(230));
+    // square cells, a quarter of the short side, clipped to the rectangle
+    let s = (rect.width().min(rect.height()) / 4.0).max(2.0);
+    let (cols, rows) = ((rect.width() / s).ceil() as u32, (rect.height() / s).ceil() as u32);
+    for y in 0..rows.min(64) {
+        for x in 0..cols.min(256) {
+            if (x + y) % 2 == 1 {
+                let cell = egui::Rect::from_min_size(rect.min + vec2(x as f32 * s, y as f32 * s), vec2(s, s)).intersect(rect);
+                painter.rect_filled(cell, 0.0, Color32::from_gray(160));
+            }
+        }
+    }
+}
+
+/// `stops` left to right across `rect`, over a checkerboard.
+fn paint_stops(painter: &egui::Painter, rect: egui::Rect, stops: &[Stop]) {
+    checker(painter, rect);
+    let mut mesh = Mesh::default();
+    let colour = |t: f32| {
+        let [r, g, b, a] = stop_colour(stops, t);
+        Color32::from_rgba_unmultiplied(r, g, b, a)
+    };
+    // the stops plus both ends, in order
+    let mut at: Vec<f32> = std::iter::once(0.0).chain(stops.iter().map(|s| s.at)).chain(std::iter::once(1.0)).collect();
+    at.sort_by(f32::total_cmp);
+    for t in at {
+        let x = rect.left() + rect.width() * t;
+        let base = mesh.vertices.len() as u32;
+        mesh.colored_vertex(pos2(x, rect.top()), colour(t));
+        mesh.colored_vertex(pos2(x, rect.bottom()), colour(t));
+        if base >= 2 {
+            mesh.add_triangle(base - 2, base - 1, base);
+            mesh.add_triangle(base - 1, base, base + 1);
+        }
+    }
+    painter.add(mesh);
+}
+
+/// A gradient preview strip with an accessible name.
+pub fn gradient_strip(ui: &mut Ui, stops: &[Stop], size: egui::Vec2, label: String) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(size, Sense::hover());
+    paint_stops(ui.painter(), rect, stops);
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, label.clone()));
+    resp
+}
+
+/// What a swatch is called for screen readers.
+fn swatch_label(s: &Swatch) -> String {
+    if s.is_gradient() {
+        return if s.name.is_empty() {
+            tlf!("Gradient swatch, {n} stops", n = s.gradient.len())
+        } else {
+            tlf!("Gradient swatch {name}, {n} stops", name = s.name, n = s.gradient.len())
+        }
+        .to_string();
+    }
+    let hex = hex3(s.rgb);
+    let base = if s.name.is_empty() { tlf!("Swatch #{hex}", hex = hex) } else { tlf!("Swatch {name}, #{hex}", name = s.name, hex = hex) }.to_string();
+    if s.alpha == 255 {
+        base
+    } else {
+        let pct = (s.alpha as f32 / 255.0 * 100.0).round() as u32;
+        tlf!("{swatch}, {pct} % opaque", swatch = base, pct = pct).to_string()
+    }
+}
+
+/// Use a swatch: a gradient becomes the gradient tool's stops and the tool is chosen; a
+/// see-through colour brings its opacity; an opaque one keeps the current opacity.
+pub fn use_swatch(app: &mut ToonApp, s: &Swatch) {
+    if s.is_gradient() {
+        app.aids.gradient_stops = s.gradient.clone();
+        app.tool = crate::app::Tool::Gradient;
+        app.set_status(tl!("Gradient tool: drag to paint the swatch's gradient"));
+    } else if s.alpha < 255 {
+        app.color = s.rgba();
+    } else {
+        set_rgb(app, s.rgb);
+    }
 }
 
 fn hex3(c: [u8; 3]) -> String {
@@ -209,12 +323,10 @@ pub fn palettes(app: &mut ToonApp, ui: &mut Ui) {
     let mut chosen = None;
     ui.horizontal_wrapped(|ui| {
         for (i, s) in p.swatches.iter().enumerate() {
-            let label =
-                if s.name.is_empty() { tlf!("Swatch #{hex}", hex = hex3(s.rgb)) } else { tlf!("Swatch {name}, #{hex}", name = s.name, hex = hex3(s.rgb)) };
-            let resp = swatch_button(ui, s.rgb, label);
+            let resp = swatch_button(ui, s, swatch_label(s));
             let resp = if s.name.is_empty() { resp } else { resp.on_hover_text(&s.name) };
             if resp.clicked() {
-                chosen = Some(s.rgb);
+                chosen = Some(s.clone());
             }
             // right-click, or the Menu key / Shift+F10 on the focused swatch
             let (index, rgb) = (i, s.rgb);
@@ -222,12 +334,12 @@ pub fn palettes(app: &mut ToonApp, ui: &mut Ui) {
             crate::context_menus::attach(ui, &resp, launch, |ui| crate::context_menus::swatch(app, ui, index, rgb));
         }
     });
-    if let Some(c) = chosen {
-        set_rgb(app, [c[0], c[1], c[2]]);
+    if let Some(s) = chosen {
+        use_swatch(app, &s);
     }
-    if ui.button(tl!("Add Current Colour")).on_hover_text(tl!("To the palette shown (on Basic, a new shot palette)")).clicked() {
-        let c = [app.color[0], app.color[1], app.color[2]];
-        add_colour(app, c);
+    if ui.button(tl!("Add Current Colour")).on_hover_text(tl!("With its opacity, to the palette shown (on Basic, a new shot palette)")).clicked() {
+        let c = app.color;
+        add_rgba(app, c);
     }
     swatch_editor(app, ui);
 }
@@ -301,18 +413,13 @@ pub fn picker_window(app: &mut ToonApp, ctx: &egui::Context) {
             let mut chosen = None;
             ui.horizontal_wrapped(|ui| {
                 for s in &p.swatches {
-                    let label = if s.name.is_empty() {
-                        tlf!("Swatch #{hex}", hex = hex3(s.rgb))
-                    } else {
-                        tlf!("Swatch {name}, #{hex}", name = s.name, hex = hex3(s.rgb))
-                    };
-                    if swatch_button(ui, s.rgb, label).clicked() {
-                        chosen = Some(s.rgb);
+                    if swatch_button(ui, s, swatch_label(s)).clicked() {
+                        chosen = Some(s.clone());
                     }
                 }
             });
-            if let Some(c) = chosen {
-                set_rgb(app, c);
+            if let Some(s) = chosen {
+                use_swatch(app, &s);
             }
         },
     );
@@ -411,7 +518,7 @@ pub fn harmonies(app: &mut ToonApp, ui: &mut Ui) {
         let colours = harmony(base, app.colour.harmony);
         let mut chosen = None;
         for c in &colours {
-            if swatch_button(ui, *c, tlf!("Harmony colour #{hex}", hex = hex3(*c))).clicked() {
+            if swatch_button(ui, &Swatch::colour("", *c), tlf!("Harmony colour #{hex}", hex = hex3(*c)).to_string()).clicked() {
                 chosen = Some(*c);
             }
         }

@@ -707,19 +707,23 @@ fn shift_row(ui: &mut egui::Ui, i: usize, cur: PinShift, pin: &str) -> Option<Pi
     (s.sanitized() != cur).then_some(s)
 }
 
-/// The Camera panel: keys for pan, zoom and rotation, typed (keyboard) rather than dragged.
+/// The Camera panel: which camera to edit (the main one or another), cuts between cameras, and
+/// keys for pan, zoom and rotation, typed (keyboard) rather than dragged.
 pub fn camera(app: &mut ToonApp, ui: &mut egui::Ui) {
     let (w, h) = (app.engine.project.width(), app.engine.project.height());
     let frame = app.frame;
-    let mut enabled = app.engine.project.camera.enabled;
+    cameras(app, ui);
+    let index = crate::camera_path::edited_index(app);
+    let mut enabled = crate::camera_path::edited(app).enabled;
     if ui.checkbox(&mut enabled, tl!("Export through the camera")).changed() {
-        app.run(Command::SetCamera { enabled });
+        app.run(Command::SetCamera { enabled, camera: index });
     }
     ui.checkbox(&mut app.show_camera, tl!("Show the camera frame"));
     ui.separator();
-    let key_here = app.engine.project.camera.keys.iter().any(|k| k.frame == frame);
+    let cam = crate::camera_path::edited(app);
+    let key_here = cam.keys.iter().any(|k| k.frame == frame);
     ui.label(if key_here { tlf!("Key at frame {n}", n = frame + 1) } else { tlf!("Frame {n} (between keys)", n = frame + 1) });
-    let mut k = app.engine.project.camera.at(frame, w, h);
+    let mut k = cam.at(frame, w, h);
     let mut changed = false;
     egui::Grid::new("camera-grid").num_columns(2).spacing(vec2(8.0, 5.0)).show(ui, |ui| {
         let l = ui.label(tl!("Centre X"));
@@ -736,19 +740,19 @@ pub fn camera(app: &mut ToonApp, ui: &mut egui::Ui) {
         ui.end_row();
     });
     if changed {
-        app.run(Command::SetCameraKey { frame, x: k.x, y: k.y, zoom: k.zoom, angle: k.angle });
+        app.run(Command::SetCameraKey { frame, x: k.x, y: k.y, zoom: k.zoom, angle: k.angle, camera: index });
     }
     ui.horizontal(|ui| {
         if ui.button(tl!("Set Key")).clicked() {
-            app.run(Command::SetCameraKey { frame, x: k.x, y: k.y, zoom: k.zoom, angle: k.angle });
+            app.run(Command::SetCameraKey { frame, x: k.x, y: k.y, zoom: k.zoom, angle: k.angle, camera: index });
         }
         if ui.add_enabled(key_here, egui::Button::new(tl!("Remove Key"))).clicked() {
-            app.run(Command::RemoveCameraKey { frame });
+            app.run(Command::RemoveCameraKey { frame, camera: index });
         }
     });
     crate::pegs::shakes(app, ui);
     ui.separator();
-    let keys: Vec<u32> = app.engine.project.camera.keys.iter().map(|k| k.frame).collect();
+    let keys: Vec<u32> = crate::camera_path::edited(app).keys.iter().map(|k| k.frame).collect();
     egui::ScrollArea::vertical().id_salt("camera-keys").show(ui, |ui| {
         for f in keys {
             if ui.selectable_label(f == frame, tlf!("Key at frame {n}", n = f + 1)).clicked() {
@@ -756,4 +760,88 @@ pub fn camera(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
     });
+}
+
+/// The shot's cameras and the cuts between them, at the top of the Camera panel.
+fn cameras(app: &mut ToonApp, ui: &mut egui::Ui) {
+    let main = tl!("Main camera");
+    let p = &app.engine.project;
+    let count = p.camera_count();
+    let names: Vec<String> = (0..count).map(|i| p.camera_name(i, main).to_owned()).collect();
+    let mut index = crate::camera_path::edited_index(app);
+    ui.horizontal(|ui| {
+        let l = ui.label(tl!("Editing"));
+        egui::ComboBox::from_id_salt("camera-pick")
+            .selected_text(names.get(index).cloned().unwrap_or_default())
+            .show_ui(ui, |ui| {
+                for (i, n) in names.iter().enumerate() {
+                    ui.selectable_value(&mut index, i, n);
+                }
+            })
+            .response
+            .labelled_by(l.id);
+    });
+    if index != app.camera_edit {
+        app.camera_edit = index;
+        app.camera_drag = None;
+    }
+    let renaming_id = ui.scope_id().with("camera-renaming");
+    ui.horizontal(|ui| {
+        if ui.button(tl!("Add Camera")).on_hover_text(tl!("A new camera, starting as a copy of the one being edited")).clicked() {
+            let n = count + 1;
+            if app.run(Command::AddCamera { name: tlf!("Camera {n}", n = n), from: Some(index) }) {
+                app.camera_edit = app.engine.project.camera_count() - 1;
+            }
+        }
+        if ui.add_enabled(index > 0, egui::Button::new(tl!("Remove Camera"))).on_hover_text(tl!("Its cuts go with it")).clicked() {
+            app.run(Command::RemoveCamera { camera: index });
+            app.camera_edit = index - 1;
+        }
+    });
+    if index > 0 {
+        let mut name = ui.data_mut(|d| d.get_temp::<String>(renaming_id)).unwrap_or_else(|| names.get(index).cloned().unwrap_or_default());
+        ui.horizontal(|ui| {
+            let l = ui.label(tl!("Camera name"));
+            let r = ui.add(egui::TextEdit::singleline(&mut name).desired_width(140.0)).labelled_by(l.id);
+            if r.changed() {
+                ui.data_mut(|d| d.insert_temp(renaming_id, name.clone()));
+            }
+            if r.lost_focus() {
+                ui.data_mut(|d| d.remove::<String>(renaming_id));
+                if names.get(index) != Some(&name) {
+                    app.run(Command::RenameCamera { camera: index, name });
+                }
+            }
+        });
+    }
+    // cuts
+    let frame = app.frame;
+    let cut_here = app.engine.project.camera_cuts.iter().find(|c| c.frame == frame).copied();
+    ui.horizontal(|ui| {
+        let edited_name = names.get(index).cloned().unwrap_or_default();
+        if ui.button(tl!("Cut Here")).on_hover_text(tlf!("From this frame on, film through “{name}”", name = edited_name)).clicked()
+            && app.run(Command::SetCameraCut { frame, camera: index })
+        {
+            app.set_status(tlf!("Cut to “{name}” at frame {n}", name = edited_name, n = frame + 1));
+        }
+        if ui.add_enabled(cut_here.is_some(), egui::Button::new(tl!("Remove Cut"))).clicked() {
+            app.run(Command::RemoveCameraCut { frame });
+        }
+    });
+    let cuts: Vec<(u32, usize)> = app.engine.project.camera_cuts.iter().map(|c| (c.frame, c.camera)).collect();
+    if cuts.is_empty() {
+        if count > 1 {
+            ui.weak(tl!("No cuts: the main camera films the whole shot"));
+        }
+    } else {
+        egui::ScrollArea::vertical().id_salt("camera-cuts").max_height(100.0).show(ui, |ui| {
+            for (f, c) in cuts {
+                let label = tlf!("Frame {n}: {name}", n = f + 1, name = names.get(c).cloned().unwrap_or_default());
+                if ui.selectable_label(f == frame, label).clicked() {
+                    app.frame = f;
+                }
+            }
+        });
+    }
+    ui.separator();
 }

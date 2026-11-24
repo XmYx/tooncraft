@@ -30,8 +30,10 @@ craft-gif = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa1
 craft-ora = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 craft-i18n = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 craft-fonts-build = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
-craft-video = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["h264-encode", "h264-decode", "hevc-decode", "prores", "vp8-encode"] }
+craft-video = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["h264-encode", "h264-decode", "hevc-encode", "hevc-decode", "av1-encode", "prores", "vp8-encode"] }
 craft-webp = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", features = ["vp8"] }
+craft-pdf = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false, features = ["write", "write-simple-text"] }
+craft-exr = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", features = ["decode"] }
 craft-tga = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 craft-media = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 craft-psd = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
@@ -83,6 +85,8 @@ codegen-units = 1
 
 # The Craft apps build against the suite's egui and winit forks (same revisions as craft-libs).
 [patch.crates-io]
+# Required by craft-pdf: the backend rejects writers that failed during unwinding.
+krilla = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22" }
 ecolor = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
 emath = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
 epaint = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }

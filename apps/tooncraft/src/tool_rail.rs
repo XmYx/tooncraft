@@ -148,7 +148,7 @@ pub const GROUPS: [Group; 10] = [
             Variant::Tool(Tool::Watercolour),
         ],
     },
-    Group { id: "smudge", variants: &[Variant::Tool(Tool::Smudge)] },
+    Group { id: "smudge", variants: &[Variant::Tool(Tool::Smudge), Variant::Tool(Tool::Clone)] },
     Group { id: "erase", variants: &[Variant::Tool(Tool::Eraser)] },
     Group { id: "fill", variants: &[Variant::Tool(Tool::Fill), Variant::Tool(Tool::Gradient)] },
     Group { id: "shapes", variants: &[Variant::Tool(Tool::Shape)] },

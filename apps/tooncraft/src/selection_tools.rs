@@ -20,7 +20,8 @@ pub struct State {
     pub combine: Combine,
     pub resample: Resample,
     pub wand_tolerance: u8,
-    pub wand_all_layers: bool,
+    /// What the magic wand looks at.
+    pub wand_reference: tooncraft_engine::FillReference,
     /// Pixels for Grow and Shrink.
     pub grow_by: i32,
     /// Skew, degrees, for Apply Skew.
@@ -43,7 +44,14 @@ pub struct State {
 
 impl State {
     pub fn new() -> Self {
-        Self { wand_tolerance: 32, grow_by: 4, contiguous: true, keep_proportions: true, ..Self::default() }
+        Self {
+            wand_tolerance: 32,
+            grow_by: 4,
+            contiguous: true,
+            keep_proportions: true,
+            wand_reference: tooncraft_engine::FillReference::Layer,
+            ..Self::default()
+        }
     }
 }
 
@@ -165,9 +173,9 @@ pub fn wand(app: &mut ToonApp, x: f32, y: f32, op: Combine) {
     if x < 0.0 || y < 0.0 {
         return;
     }
-    let (tol, all) = (app.sel.wand_tolerance, app.sel.wand_all_layers);
+    let (tol, reference) = (app.sel.wand_tolerance, app.sel.wand_reference);
     let contiguous = app.sel.contiguous;
-    match tooncraft_engine::select::wand_with(&app.engine, app.layer, app.frame, x as u32, y as u32, tol, all, contiguous) {
+    match tooncraft_engine::select::wand_looking_at(&app.engine, app.layer, app.frame, (x as u32, y as u32), tol, reference, contiguous) {
         Some(m) => {
             apply_mask(app, &m, op);
             let n = m.count();
@@ -323,7 +331,7 @@ pub fn options(app: &mut ToonApp, ui: &mut egui::Ui) {
     if app.select_mode == crate::app::SelectMode::Wand {
         let l = ui.label(tl!("Tolerance"));
         ui.add(egui::Slider::new(&mut app.sel.wand_tolerance, 0..=255)).labelled_by(l.id);
-        ui.checkbox(&mut app.sel.wand_all_layers, tl!("Look at all visible layers"));
+        crate::layer_fx::reference_picker(ui, "wand-ref", &mut app.sel.wand_reference);
         ui.checkbox(&mut app.sel.contiguous, tl!("Touching only")).on_hover_text(tl!("Off: that colour everywhere in the picture"));
         ui.separator();
     }
