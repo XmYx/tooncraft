@@ -921,6 +921,11 @@ pub enum Command {
     SetPaper {
         color: [u8; 3],
     },
+    /// The visible paper texture under the drawing (strength 0 switches it off). A setting like
+    /// the paper colour: saved with the shot, outside the undo history.
+    SetPaperTexture {
+        texture: tooncraft_doc::PaperTexture,
+    },
     /// Add an effect to the layer's stack at `index` (default: last, so it runs after the others).
     /// Append several effects (a preset or a saved stack) as one undo step.
     AddEffects {
@@ -1934,6 +1939,15 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }
         Command::SetPaper { color } => {
             e.project.paper.color = color;
+            e.touch();
+            Ok(())
+        }
+        Command::SetPaperTexture { texture } => {
+            let texture = texture.sanitized();
+            if let Some(i) = texture.image.filter(|i| !e.project.tips.contains_key(i)) {
+                return Err(EngineError::NoGrainImage(i));
+            }
+            e.project.paper.texture = texture;
             e.touch();
             Ok(())
         }

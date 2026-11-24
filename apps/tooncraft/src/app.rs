@@ -309,6 +309,8 @@ pub struct ToonApp {
     pub keys: crate::keys::Keys,
     /// Show the camera frame on the canvas.
     pub show_camera: bool,
+    /// A camera key being dragged on the canvas (see `camera_path`).
+    pub camera_drag: Option<crate::camera_path::CameraDrag>,
     pub peg_ui: crate::pegs::PegUi,
     pub transform_ui: crate::peg_transform::TransformUi,
     pub curve_ui: crate::curves::CurveUi,
@@ -462,6 +464,7 @@ impl ToonApp {
             sound: crate::sound::Sound::default(),
             keys: crate::keys::Keys::new(!cfg!(test) && cli.screenshot.is_none()),
             show_camera: true,
+            camera_drag: None,
             peg_ui: Default::default(),
             transform_ui: Default::default(),
             curve_ui: Default::default(),
@@ -496,6 +499,10 @@ impl ToonApp {
         }
         match cli.open.as_deref() {
             Some("preferences") => app.preferences.open = true,
+            Some("pen") => {
+                app.preferences.open = true;
+                app.preferences.tab = crate::preferences::Tab::Pen;
+            }
             Some("export") => crate::export_dialog::open(&mut app, "mp4"),
             Some("shortcuts") => app.show_shortcuts = true,
             Some("find") => app.find.open = true,
@@ -573,6 +580,14 @@ impl ToonApp {
                 app.run(Command::ShiftPin { index: 0, x: 60, y: 24, turn: 120 });
                 app.workspace.raise(Pane::Onion);
             }
+        }
+        if cli.camera_path {
+            let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+            let last = app.engine.project.length().saturating_sub(1);
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.35, y: h * 0.45, zoom: 1.6, angle: 0.0 });
+            app.run(Command::SetCameraKey { frame: last / 2, x: w * 0.5, y: h * 0.35, zoom: 1.4, angle: 0.0 });
+            app.run(Command::SetCameraKey { frame: last, x: w * 0.65, y: h * 0.55, zoom: 1.2, angle: -6.0 });
+            app.tool = Tool::Transform;
         }
         if cli.rulers {
             crate::rulers_ui::demo(&mut app);
@@ -1023,6 +1038,7 @@ impl ToonApp {
 
     pub fn replace_engine(&mut self, engine: Engine, path: Option<PathBuf>) {
         self.engine = engine;
+        self.camera_drag = None;
         self.path = path;
         self.frame = 0;
         self.layer = self.engine.project.layers.len().saturating_sub(1);
@@ -1251,6 +1267,7 @@ impl ToonApp {
         } else {
             self.stats.last_shown = None;
         }
+        crate::camera_path::settle(self);
         self.autosave_tick();
         // Sound: decode when the soundtrack changed, follow playback, scrub on frame changes.
         self.sound.sync(&self.engine.project);

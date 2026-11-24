@@ -51,6 +51,8 @@ or non-numbers fall back to the default).
 | `spacing` | 0.02 … 2 | Distance between dabs as a fraction of the dab's diameter |
 | `grain` | 0 … 1 | How strongly the grain shapes the dabs |
 | `grain_scale` | 0.5 … 64 | Grain feature size in canvas pixels (for an image: canvas pixels per image pixel) |
+| `grain_angle` | -180 … 180 | Grain rotation in degrees (turns the texture, not the dab; values wrap); left out when 0 |
+| `grain_contrast` | 0.1 … 4 | Grain contrast: above 1 sharpens peaks and valleys, below 1 flattens them; left out when 1 |
 | `grain_kind` | `paper`, `canvas`, `speckle`, `clouds`, `image` | Which texture; `image` uses `grain.png` (and falls back to `paper` when the file has none) |
 | `color` | `[r, g, b, a]` | Straight (not premultiplied) 8-bit RGBA |
 | `smoothing` | `average` 0 … 1, `string` 0 … 500, `catch_up` bool | Moving-average strength, pulled-string length in canvas pixels, and whether the line finishes where the pen lifts |

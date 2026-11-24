@@ -125,23 +125,43 @@ impl Camera {
     /// The camera at `frame` for a `w`×`h` canvas: the neutral camera without keys, the key's value
     /// outside the keyed range, eased in and out between keys.
     pub fn at(&self, frame: u32, w: u32, h: u32) -> CameraKey {
-        let neutral = CameraKey { frame, x: w as f32 / 2.0, y: h as f32 / 2.0, zoom: 1.0, angle: 0.0 };
-        let Some(first) = self.keys.first() else { return neutral };
-        if frame <= first.frame {
-            return CameraKey { frame, ..*first };
+        self.at_from(frame, w, h, 0).0
+    }
+
+    /// The camera at frames `0..count`, in one pass over the keys: what [`Camera::at`] gives for
+    /// each frame, without searching the keys again per frame (the camera path draws every
+    /// frame of the shot). `count` is the caller's to cap.
+    pub fn sweep(&self, count: u32, w: u32, h: u32) -> Vec<CameraKey> {
+        let mut out = Vec::with_capacity(count as usize);
+        let mut from = 0;
+        for f in 0..count {
+            let (k, i) = self.at_from(f, w, h, from);
+            // the keys are sorted, so a later frame never finds an earlier pair
+            from = i;
+            out.push(k);
         }
-        for pair in self.keys.windows(2) {
+        out
+    }
+
+    /// [`Camera::at`], searching the key pairs from `start` on; also returns the pair it used.
+    fn at_from(&self, frame: u32, w: u32, h: u32, start: usize) -> (CameraKey, usize) {
+        let neutral = CameraKey { frame, x: w as f32 / 2.0, y: h as f32 / 2.0, zoom: 1.0, angle: 0.0 };
+        let Some(first) = self.keys.first() else { return (neutral, 0) };
+        if frame <= first.frame {
+            return (CameraKey { frame, ..*first }, 0);
+        }
+        for (i, pair) in self.keys.windows(2).enumerate().skip(start) {
             let (a, b) = (pair[0], pair[1]);
             if frame >= a.frame && frame <= b.frame {
                 let t = ease((frame - a.frame) as f32 / (b.frame - a.frame).max(1) as f32);
                 let l = |x: f32, y: f32| x + (y - x) * t;
                 // zoom eases in log space so a zoom-in feels even
                 let z = (a.zoom.max(1e-3).ln() + (b.zoom.max(1e-3).ln() - a.zoom.max(1e-3).ln()) * t).exp();
-                return CameraKey { frame, x: l(a.x, b.x), y: l(a.y, b.y), zoom: z, angle: l(a.angle, b.angle) };
+                return (CameraKey { frame, x: l(a.x, b.x), y: l(a.y, b.y), zoom: z, angle: l(a.angle, b.angle) }, i);
             }
         }
         let last = self.keys.last().copied().unwrap_or(neutral);
-        CameraKey { frame, ..last }
+        (CameraKey { frame, ..last }, self.keys.len().saturating_sub(2).max(start))
     }
 
     /// Add or replace the key at its frame.
@@ -252,6 +272,22 @@ mod tests {
             Camera { enabled: true, keys: vec![CameraKey { frame: 1, x: f32::NAN, y: 0.0, zoom: 0.0, angle: 0.0 }; 3], shakes: Vec::new() }.sanitized(100, 50);
         assert_eq!(s.keys.len(), 1);
         assert_eq!((s.keys[0].x, s.keys[0].zoom), (50.0, 0.05));
+    }
+
+    #[test]
+    fn a_sweep_gives_what_at_gives_on_every_frame() {
+        let mut c = Camera::default();
+        assert_eq!(c.sweep(4, 100, 50), (0..4).map(|f| c.at(f, 100, 50)).collect::<Vec<_>>(), "no keys");
+        // keys on neighbouring frames, far apart, hostile values, one past the sweep
+        for (frame, x) in [(3, 10.0), (4, -50.0), (5, 1.0e6), (40, f32::NAN), (41, 0.0), (90, 7.0), (500, 3.0)] {
+            c.set(CameraKey { frame, x, y: x * 0.5, zoom: 1.0 + frame as f32 * 0.01, angle: frame as f32 });
+        }
+        let c = c.sanitized(100, 50);
+        let swept = c.sweep(120, 100, 50);
+        assert_eq!(swept.len(), 120);
+        for (f, k) in swept.iter().enumerate() {
+            assert_eq!(*k, c.at(f as u32, 100, 50), "frame {f}");
+        }
     }
 
     #[test]
