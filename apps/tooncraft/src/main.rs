@@ -55,6 +55,7 @@ mod lipsync_panel;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+mod panel_chrome;
 mod panels;
 #[cfg(test)]
 mod panels_ui_tests;

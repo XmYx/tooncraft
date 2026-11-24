@@ -328,3 +328,49 @@ fn workspace_changes_made_before_quitting_are_kept() {
     assert_eq!(next.edit(Kind::Draw).map(|e| &e.layout), Some(&layout), "the next launch has the change");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn every_shown_tab_has_room_for_its_glyph() {
+    let h = harness();
+    // the glyph is painted over the tab craft-ui laid out; its id has to match
+    // (the canvas stands alone, with no tab strip)
+    for pane in [Pane::Timeline, Pane::Colour, Pane::Layers] {
+        let r = crate::panel_chrome::tab_rect(&h.ctx, pane).unwrap_or_else(|| panic!("{pane:?} has a tab"));
+        assert!(r.width() > 20.0 + crate::theme::metrics::ICON, "{pane:?}: {r:?}");
+    }
+    // the tab's accessible name is still the panel's name
+    h.get(By::new().role(egui::Role::Tab).label("Layers"));
+}
+
+#[test]
+fn the_stack_menu_has_the_panels_own_commands_then_float_move_and_close() {
+    let mut h = harness();
+    h.get(By::new().role(egui::Role::Button).label("Timeline panel menu")).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    for name in ["Float", "Move To", "Close"] {
+        h.get_by_label(name);
+    }
+    h.get(By::new().role(egui::Role::CheckBox).label("Vertical Exposure Sheet")).focus();
+    h.run();
+    h.key_press(Key::Space);
+    h.run();
+    assert!(h.state().tl.vertical, "the timeline's own command ran");
+    // close the layers stack's panel from its menu, by keyboard
+    h.key_press(Key::Escape);
+    h.run();
+    h.get(By::new().role(egui::Role::Button).label("Layers panel menu")).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    h.get(By::new().role(egui::Role::Button).label("Close")).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    assert!(!h.state().workspace.is_open(Pane::Layers), "closed from the menu");
+    // the Window menu puts it back
+    h.state_mut().workspace.open(Pane::Layers);
+    h.run();
+    assert!(h.state().workspace.is_open(Pane::Layers));
+}

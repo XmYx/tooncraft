@@ -12,6 +12,7 @@ tooncraft	A new layer
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
 tooncraft	A short bouncing-ball shot to try things on	
 tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
+tooncraft	A window of its own	
 tooncraft	About ToonCraft	
 tooncraft	Actual Size	
 tooncraft	Actual size	
@@ -86,6 +87,7 @@ tooncraft	Basics
 tooncraft	Before	
 tooncraft	Before, step {n}	
 tooncraft	Behind	
+tooncraft	Beside {panel}	
 tooncraft	Bicubic (sharp)	
 tooncraft	Bigger brush	
 tooncraft	Bilinear (smooth)	
@@ -363,6 +365,7 @@ tooncraft	Flip to Next Chosen Frame
 tooncraft	Flip to the next chosen frame	
 tooncraft	Flip to the previous chosen frame	
 tooncraft	Flip vertically	
+tooncraft	Float	
 tooncraft	Flow	
 tooncraft	Flow jitter	
 tooncraft	Focus Exposure Sheet	
@@ -392,6 +395,7 @@ tooncraft	Frame {n} taken out of the flip set
 tooncraft	Frame {n}, {tc}: {text}	
 tooncraft	Frame {n}: {text}	
 tooncraft	Frames	
+tooncraft	Frames down the page, layers as columns	
 tooncraft	Frames either side for Play Around	
 tooncraft	Frames per second	
 tooncraft	Frames {a}–{b}, {px} px	
@@ -468,6 +472,7 @@ tooncraft	How many frames this drawing is shown (1 to 9 in the sheet)
 tooncraft	How much the colour already on the layer mixes into the paint; 0 keeps the paint pure	
 tooncraft	How quickly the smear lets go of the colour it carries: low values drag long smears, 1 only softens (a blur)	
 tooncraft	Hue	
+tooncraft	Hue Wheel	
 tooncraft	Hue and saturation	
 tooncraft	Hue jitter	
 tooncraft	Hue wheel	
@@ -648,6 +653,7 @@ tooncraft	Move Item Down
 tooncraft	Move Item Up	
 tooncraft	Move Layer Down	
 tooncraft	Move Layer Up	
+tooncraft	Move To	
 tooncraft	Move X	
 tooncraft	Move Y	
 tooncraft	Move the layer down	
@@ -1251,6 +1257,7 @@ tooncraft	Use for This Shot
 tooncraft	Use for {mouth}	
 tooncraft	Vector lines	
 tooncraft	Vertical	
+tooncraft	Vertical Exposure Sheet	
 tooncraft	Video (MP4, H.264)	
 tooncraft	Video (MP4, H.264)…	
 tooncraft	View	
@@ -1273,6 +1280,7 @@ tooncraft	Wide chalk
 tooncraft	Width	
 tooncraft	Width and height must be more than zero	
 tooncraft	Window	
+tooncraft	Window puts it back	
 tooncraft	Workspace	
 tooncraft	Wrote {file}	
 tooncraft	X	
@@ -1336,6 +1344,7 @@ tooncraft	{n} frames
 tooncraft	{n} frames at {w}×{h}	
 tooncraft	{n} images, from frame {frame}	
 tooncraft	{n} keys	
+tooncraft	{panel} panel menu	
 tooncraft	{seconds} s	
 tooncraft	{tool} selected	
 tooncraft	{tool} settings reset	

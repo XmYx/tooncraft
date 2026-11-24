@@ -496,7 +496,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Compositing workspace with a node view | TB | M | XL | No node view |
 | Scripting workspace with a script editor and log | TB | M | L | No scripting panels |
 | Panels that can be closed and added back | TB | D | S | Every panel but the canvas closes from its tab; the Window menu puts it back where it was (`panels_ui_tests`) |
-| Many tabs in one stack stay readable | TB | P | S | Names shorten when a stack holds many tabs |
+| Many tabs in one stack stay readable | TB | D | S | Every tab shows its panel's glyph and name; a stack narrower than 220 px, or too crowded for whole names, shows glyphs only, each naming its panel on hover and to screen readers |
 | Dark theme and a light theme | TB | D | S | Contrast tested |
 | Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Frame, layer, drawing, canvas pixel under the pointer, tool, colour, zoom |
 | Top menus for play, drawing, scene and windows | TB | D | M | File, Edit, Frame, Layer, Drawing, Play, Scene, View, Window, Help |
@@ -523,7 +523,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Selected range highlight | TB | D | S | |
 | Right-click menu on timeline cells | TB | D | S | Swap drawing, marks, hold for, fill empty frames, frame and clipboard commands |
 | Right-click menu on exposure-sheet cells | TB | D | S | The same menu in the vertical sheet |
-| Panel menus (a ☰ button per panel) | TB | M | S | |
+| Panel menus (a ☰ button per panel) | TB | D | S | A `⋯` button at the end of every tab strip: the shown panel's own commands (timeline orientation, colour wheel and picker window, onion on/off), then Float, Move To and Close (`shell_chrome_ui_tests`) |
 | Vertical exposure sheet | TB | D | M | Layers as columns, frames down the side, the same keys and menus (`--vertical`, `--layout sheet`) |
 | Onion skin on the canvas, tinted before and after | TB | D | S | |
 | Onion panel with a slider per step | TB | D | S | |
