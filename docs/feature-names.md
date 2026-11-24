@@ -44,6 +44,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Depth, Shake, Add Shake Here | Generic film words | Use |
 | Fill every drawing of the layer | Our wording | Use |
 | Tip, Tip from Image, Brush preset, My brushes | Generic | Use (common) |
+| Colour opacity, Picker Window, Colour Picker, Edit Swatch, Update paint in this colour | Generic colour words and our wording | Use (common) |
 | Brushes (panel), Favourites, Recent, Basics, Add Current Brush, Import Brush, Reload Library | Generic library words | Use (common) |
 | My Drawings, Save Item to My Drawings, Add File to Shot Library, Open Drawing File, Save Drawing File | Generic library words and our wording | Use (common) |
 | Drawing Library (panel), Add Frames to Library, Insert Item, Insert Item Linked, Remove from Library | Generic library words and our wording | Use (common) |
