@@ -563,6 +563,29 @@ impl ToonApp {
             app.tool = Tool::Transform;
             crate::motion_record::set_armed(&mut app, true);
         }
+        if cli.ik {
+            let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+            let mut parent = None;
+            for (name, x) in [(tl!("Shoulder"), 0.3), (tl!("Elbow"), 0.45), (tl!("Hand"), 0.6)] {
+                app.run(Command::AddPeg { name: name.to_owned(), parent });
+                if let Some(id) = app.engine.project.pegs.last().map(|p| p.id) {
+                    app.run(Command::SetPegPivot { peg: id, x: w * x, y: h * 0.4 });
+                    parent = Some(id);
+                }
+            }
+            if let Some(hand) = parent {
+                let layer = app.layer;
+                app.run(Command::SetLayerPeg { layer, peg: Some(hand) });
+                if let Some(at) = tooncraft_doc::peg::pivot_on_canvas(&app.engine.project.pegs, hand, 0) {
+                    let keys = tooncraft_doc::ik::solve(&app.engine.project.pegs, hand, 0, (at.0 - w * 0.05, at.1 + h * 0.2), 2);
+                    let commands = keys.into_iter().map(|(peg, k)| crate::peg_transform::key_command(peg, k)).collect();
+                    app.run(Command::Batch { label: "Move with IK".into(), commands });
+                }
+                app.peg_ui.selected = Some(hand);
+            }
+            app.tool = Tool::Transform;
+            app.transform_ui.ik = true;
+        }
         if cli.light_table {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });

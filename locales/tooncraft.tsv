@@ -364,6 +364,7 @@ tooncraft	Edit the curve of {source}
 tooncraft	Effect stack	
 tooncraft	Effects	
 tooncraft	Effects on {layer}, frame {frame}	
+tooncraft	Elbow	
 tooncraft	Ellipse	
 tooncraft	Ellipse ruler	
 tooncraft	Ellipse select	
@@ -603,6 +604,7 @@ tooncraft	Insert Item Linked
 tooncraft	Insert frame	
 tooncraft	Intensity	
 tooncraft	Into	
+tooncraft	Inverse Kinematics	
 tooncraft	Invert	
 tooncraft	Invert Layer Mask	
 tooncraft	Invert selection	
@@ -610,6 +612,7 @@ tooncraft	Its first {n} commands, on the radial menu's key
 tooncraft	JPEG Sequence	
 tooncraft	JPEG Sequence…	
 tooncraft	Jitter	
+tooncraft	Joints	
 tooncraft	Keep Overlap	
 tooncraft	Keep in place	
 tooncraft	Keep proportions	
@@ -770,6 +773,7 @@ tooncraft	Move {command} later
 tooncraft	Move {name} down	
 tooncraft	Move {name} up	
 tooncraft	Move, scale and turn the selection to these numbers	
+tooncraft	Moving the peg turns the pegs it hangs from, so a hand pulls its arm along	
 tooncraft	Moving the {kind}	
 tooncraft	Multiply	
 tooncraft	Mute clip {n}	
@@ -1236,6 +1240,7 @@ tooncraft	Shot
 tooncraft	Shot colours	
 tooncraft	Shot length	
 tooncraft	Shots you open or save are listed here.	
+tooncraft	Shoulder	
 tooncraft	Show	
 tooncraft	Show Layer	
 tooncraft	Show a mouth drawing at the current frame, then press its “Use” button.	
@@ -1401,6 +1406,7 @@ tooncraft	This layer gets its own steps, opacity and colours; the others keep th
 tooncraft	This layer hangs from no peg: add one from the tool options	
 tooncraft	This layer's effects change everything below it, where its drawing has paint (everywhere when it has none)	
 tooncraft	This palette is empty: Edit adds commands to it.	
+tooncraft	This peg hangs from no other peg: IK has nothing to turn	
 tooncraft	This tool has no brush settings	
 tooncraft	Three-way	
 tooncraft	Threshold	

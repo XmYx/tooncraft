@@ -13,6 +13,7 @@ pub mod camera;
 pub mod colour_art;
 mod exposure;
 pub mod guides;
+pub mod ik;
 pub mod library;
 pub mod markers;
 mod onion;
