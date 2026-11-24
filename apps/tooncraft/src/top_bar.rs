@@ -21,10 +21,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
         if ui.button(tl!("New")).on_hover_text(tl!("A new shot (Ctrl+N)")).clicked() {
-            app.new_shot = Some(app.new_shot_defaults());
+            crate::unsaved::request(app, crate::unsaved::Replace::NewShot);
         }
         if ui.button(tl!("Open")).on_hover_text(tl!("Open a shot (Ctrl+O)")).clicked() {
-            app.open_dialog();
+            crate::unsaved::request(app, crate::unsaved::Replace::Browse);
         }
         if ui.button(tl!("Save")).on_hover_text(tl!("Save the shot (Ctrl+S)")).clicked() {
             app.save();

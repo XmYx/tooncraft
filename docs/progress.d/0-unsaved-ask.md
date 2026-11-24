@@ -1,0 +1,1 @@
+- 2026-11-24: New, Open and Open Recent ask "Save the shot first?" (Save, Don’t Save, Cancel) when the shot has unsaved changes; F6 brings a closed Timeline back before moving the focus there.
