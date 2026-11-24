@@ -24,6 +24,7 @@ mod colour_tools;
 #[cfg(test)]
 mod colour_ui_tests;
 mod command_search;
+mod commands;
 mod context_menus;
 mod curves;
 #[cfg(test)]
@@ -51,6 +52,7 @@ mod keys;
 mod layer_ops;
 mod layer_tree;
 mod lipsync_panel;
+mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
 mod panels;
