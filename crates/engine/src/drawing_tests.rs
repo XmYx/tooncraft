@@ -87,6 +87,7 @@ fn gradients() {
         end: [255, 255, 255, 255],
         area: None,
         area_rings: Vec::new(),
+        stops: Vec::new(),
         feather: 0.0,
     })
     .unwrap();
@@ -102,6 +103,7 @@ fn gradients() {
         end: [0, 0, 255, 255],
         area: Some(vec![(80.0, 30.0), (120.0, 30.0), (120.0, 70.0), (80.0, 70.0)]),
         area_rings: Vec::new(),
+        stops: Vec::new(),
         feather: 0.0,
     })
     .unwrap();
@@ -331,6 +333,7 @@ fn feathered_selection_commands_blend_their_edge_and_read_old_files() {
             end: c,
             area: area.clone(),
             area_rings: Vec::new(),
+            stops: Vec::new(),
             feather,
         })
         .unwrap();
@@ -346,10 +349,57 @@ fn feathered_selection_commands_blend_their_edge_and_read_old_files() {
         end: c,
         area,
         area_rings: Vec::new(),
+        stops: Vec::new(),
         feather: 4.0,
     })
     .unwrap();
     assert_eq!(alpha(&e, 60, 40), 255);
     let f = alpha(&e, 40, 40);
     assert!(f > 60 && f < 200, "the fill fades at the edge, got {f}");
+}
+
+#[test]
+fn a_gradient_with_stops_paints_each_stop_and_old_commands_still_read() {
+    use tooncraft_doc::palette::Stop;
+    let mut e = engine();
+    let stops = vec![Stop { at: 0.0, rgba: [255, 0, 0, 255] }, Stop { at: 0.5, rgba: [0, 255, 0, 255] }, Stop { at: 1.0, rgba: [0, 0, 255, 255] }];
+    e.apply(Command::Gradient {
+        layer: 0,
+        frame: 0,
+        kind: GradientKind::Linear,
+        from: (0.0, 0.0),
+        to: (200.0, 0.0),
+        start: [0; 4],
+        end: [0; 4],
+        area: None,
+        area_rings: Vec::new(),
+        stops,
+        feather: 0.0,
+    })
+    .unwrap();
+    let (l, m, r) = (e.pick_color(0, 1, 50), e.pick_color(0, 100, 50), e.pick_color(0, 198, 50));
+    assert!(l[0] > 245 && m[1] > 245 && r[2] > 245, "{l:?} {m:?} {r:?}");
+    // hostile stops (NaN, out of range, one stop) fall back to start and end, never panic
+    let bad = vec![Stop { at: f32::NAN, rgba: [9; 4] }];
+    e.apply(Command::Gradient {
+        layer: 0,
+        frame: 1,
+        kind: GradientKind::Radial,
+        from: (100.0, 50.0),
+        to: (150.0, 50.0),
+        start: [255, 255, 255, 255],
+        end: [255, 255, 255, 255],
+        area: None,
+        area_rings: Vec::new(),
+        stops: bad,
+        feather: 0.0,
+    })
+    .unwrap();
+    assert_eq!(e.pick_color(1, 100, 50), [255, 255, 255, 255]);
+    let c: Command =
+        serde_json::from_str(r#"{"cmd":"gradient","layer":0,"frame":0,"kind":"linear","from":[0,0],"to":[1,0],"start":[1,2,3,255],"end":[4,5,6,255]}"#)
+            .unwrap();
+    assert!(matches!(c, Command::Gradient { ref stops, .. } if stops.is_empty()), "a file from before stops reads");
+    let json = serde_json::to_string(&c).unwrap();
+    assert!(!json.contains("stops"), "no stops are not written: {json}");
 }

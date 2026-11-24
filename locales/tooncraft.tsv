@@ -49,6 +49,7 @@ tooncraft	Add Curve Ruler
 tooncraft	Add Ellipse Ruler	
 tooncraft	Add File to Shot Library	
 tooncraft	Add Frames to Library	
+tooncraft	Add Gradient to Palette	
 tooncraft	Add Inbetweens	
 tooncraft	Add Layer Above	
 tooncraft	Add Layer Mask	
@@ -59,6 +60,7 @@ tooncraft	Add Other
 tooncraft	Add Peg	
 tooncraft	Add Shake Here	
 tooncraft	Add Sound…	
+tooncraft	Add Stop	
 tooncraft	Add Straight Ruler	
 tooncraft	Add Three-Point Perspective	
 tooncraft	Add Two-Point Perspective	
@@ -85,8 +87,12 @@ tooncraft	Airbrush
 tooncraft	Airbrushes	
 tooncraft	Align left	
 tooncraft	Align right	
+tooncraft	Aligned	
 tooncraft	All	
 tooncraft	All visible layers	
+tooncraft	Alt+click sets a new source	
+tooncraft	Alt+click where to copy from first	
+tooncraft	Alt+click where to copy from, then paint	
 tooncraft	Amount	
 tooncraft	An image under the drawing, locked and faded, shown for the whole shot	
 tooncraft	Angle	
@@ -108,11 +114,13 @@ tooncraft	Apply Skew
 tooncraft	Around	
 tooncraft	Arrange	
 tooncraft	As a GIMP palette (.gpl)	
+tooncraft	As a gradient swatch in the palette shown	
 tooncraft	At most (0: as many as fit)	
 tooncraft	At most {n} offsets	
 tooncraft	Audio tracks	
 tooncraft	Autosave every	
 tooncraft	Back to its first layout	
+tooncraft	Back to the current colour and white or transparent	
 tooncraft	Back to the previous colour	
 tooncraft	Basic	
 tooncraft	Basics	
@@ -206,6 +214,8 @@ tooncraft	Clip to Layer Below
 tooncraft	Clip to the layer below	
 tooncraft	Clip volume here	
 tooncraft	Clip {n}: {name}	
+tooncraft	Clone source set at {x}, {y}	
+tooncraft	Clone stamp	
 tooncraft	Close	
 tooncraft	Close gaps	
 tooncraft	Close gaps by default	
@@ -241,9 +251,11 @@ tooncraft	Copy
 tooncraft	Copy / cut / paste frames	
 tooncraft	Copy Frames	
 tooncraft	Copy Pixels	
+tooncraft	Copy from	
 tooncraft	Copy look from	
 tooncraft	Copy opacity, blend mode, label colour, folder, peg, depth and effects to this layer	
 tooncraft	Copy the layer with its drawings, just above it	
+tooncraft	Could not add to the palette: it is full	
 tooncraft	Could not keep the workspace: {error}	
 tooncraft	Could not make the folder {dir}: {error}	
 tooncraft	Could not open the effects: {error}	
@@ -359,6 +371,7 @@ tooncraft	Ease out
 tooncraft	Ease to next key	
 tooncraft	Edit	
 tooncraft	Edit Decisions (OpenTimelineIO)…	
+tooncraft	Edit Stops	
 tooncraft	Edit Swatch…	
 tooncraft	Edit palette	
 tooncraft	Edit swatch	
@@ -510,7 +523,12 @@ tooncraft	Go To
 tooncraft	Go To Frame	
 tooncraft	Go back to just after this step	
 tooncraft	Gradient	
+tooncraft	Gradient added to the palette	
 tooncraft	Gradient map	
+tooncraft	Gradient preview	
+tooncraft	Gradient swatch {name}, {n} stops	
+tooncraft	Gradient swatch, {n} stops	
+tooncraft	Gradient tool: drag to paint the swatch's gradient	
 tooncraft	Grain	
 tooncraft	Grain contrast	
 tooncraft	Grain from Image…	
@@ -627,6 +645,7 @@ tooncraft	Keep the chosen item for other shots
 tooncraft	Keep the left side in place	
 tooncraft	Keep the outside	
 tooncraft	Keep the right side in place	
+tooncraft	Keep the same offset from one stroke to the next	
 tooncraft	Keep the top in place	
 tooncraft	Keep the top left in place	
 tooncraft	Keep the top right in place	
@@ -1228,6 +1247,7 @@ tooncraft	Set Loop Out Here
 tooncraft	Set Name	
 tooncraft	Set Out	
 tooncraft	Set a key at the current frame with the peg's values there	
+tooncraft	Set the gradient's colours and where they sit	
 tooncraft	Settings	
 tooncraft	Shadow colour	
 tooncraft	Shake the camera for 12 frames from the current frame	
@@ -1339,6 +1359,7 @@ tooncraft	Steps after
 tooncraft	Steps before	
 tooncraft	Stop	
 tooncraft	Stop Following the Line Layer	
+tooncraft	Stop {n}	
 tooncraft	Straight line from the last stroke	
 tooncraft	Straight ruler	
 tooncraft	Straightened	
@@ -1379,6 +1400,7 @@ tooncraft	Texture strength
 tooncraft	That brush is not in the library	
 tooncraft	The basic palette cannot be changed; add the colour to a palette of the shot	
 tooncraft	The canvas stays in its place	
+tooncraft	The current colour, half way	
 tooncraft	The current layer's drawing alone; draw here too	
 tooncraft	The current layer, from this frame	
 tooncraft	The current tool is not a brush of this kind	
@@ -1438,7 +1460,6 @@ tooncraft	Tip
 tooncraft	Tip angle	
 tooncraft	Tip from Image…	
 tooncraft	Tip shape	
-tooncraft	To the palette shown (on Basic, a new shot palette)	
 tooncraft	Tolerance	
 tooncraft	Tone curve	
 tooncraft	Tongue (L TH)	
@@ -1465,6 +1486,7 @@ tooncraft	Transition
 tooncraft	Trim start	
 tooncraft	Turbulence	
 tooncraft	Turn	
+tooncraft	Two Colours	
 tooncraft	Type a frame number to go there	
 tooncraft	Type the text; Ctrl+Enter places it, Escape drops it	
 tooncraft	UHD, 24 fps	
@@ -1527,6 +1549,7 @@ tooncraft	Width and height must be more than zero
 tooncraft	Window	
 tooncraft	Window puts it back	
 tooncraft	Wipe	
+tooncraft	With its opacity, to the palette shown (on Basic, a new shot palette)	
 tooncraft	Workspace	
 tooncraft	Wrote {file}	
 tooncraft	X	
@@ -1597,6 +1620,7 @@ tooncraft	{n} readings, hardest press {p} %
 tooncraft	{panel} is back in its place	
 tooncraft	{panel} panel menu	
 tooncraft	{seconds} s	
+tooncraft	{swatch}, {pct} % opaque	
 tooncraft	{tool} selected	
 tooncraft	{tool} settings reset	
 tooncraft	{tool}; hold or right-click for the other {group} tools	
