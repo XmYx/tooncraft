@@ -529,6 +529,7 @@ tooncraft	Lock
 tooncraft	Lock Layer	
 tooncraft	Lock Transparency	
 tooncraft	Lock transparency	
+tooncraft	Lock {layer}	
 tooncraft	Lock {name}	
 tooncraft	Look at	
 tooncraft	Look at all visible layers	
@@ -1161,6 +1162,7 @@ tooncraft	no drawing
 tooncraft	none	
 tooncraft	not set	
 tooncraft	of {total}	
+tooncraft	peg key	
 tooncraft	stroke {ms} ms	
 tooncraft	the file is too large	
 tooncraft	to	
