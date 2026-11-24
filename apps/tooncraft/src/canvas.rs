@@ -276,6 +276,8 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             crate::text_tool::input(app, at, resp);
         }
         Tool::Hand => {}
+        Tool::Zoom => view_zoom_input(app, ui, rect, resp, size, mods.alt),
+        Tool::RotateView => view_rotate_input(app, ui, rect, resp),
         Tool::Transform => {
             let view = app.view;
             let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
@@ -395,6 +397,46 @@ fn inside(poly: &[(f32, f32)], x: f32, y: f32) -> bool {
     c
 }
 
+/// The zoom tool: a click zooms in about the pointer (Alt+click zooms out); a drag to the right
+/// zooms in smoothly about where it started, to the left out.
+fn view_zoom_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Response, size: egui::Vec2, out: bool) {
+    if resp.hovered() {
+        ui.ctx().set_cursor_icon(if out { egui::CursorIcon::ZoomOut } else { egui::CursorIcon::ZoomIn });
+    }
+    if resp.clicked()
+        && let Some(p) = resp.interact_pointer_pos()
+    {
+        app.view.zoom_at(rect, size, p, if out { 0.8 } else { 1.25 });
+    }
+    if resp.dragged_by(PointerButton::Primary)
+        && let Some(start) = ui.input(|i| i.pointer.press_origin())
+    {
+        let dx = resp.drag_delta().x.clamp(-200.0, 200.0);
+        app.view.zoom_at(rect, size, start, (dx * 0.01).exp());
+    }
+}
+
+/// The rotate-view tool: drag around the view's centre to turn the view.
+fn view_rotate_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Response) {
+    if resp.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::Alias);
+    }
+    if resp.dragged_by(PointerButton::Primary)
+        && let Some(now) = resp.interact_pointer_pos()
+    {
+        let c = rect.center();
+        let (a, b) = (now - resp.drag_delta() - c, now - c);
+        // too near the centre the angle jumps: ignore those moves
+        if a.length() > 8.0 && b.length() > 8.0 {
+            app.view.rotate(b.angle() - a.angle());
+        }
+    }
+    if resp.double_clicked() {
+        let r = app.view.rotation;
+        app.view.rotate(-r);
+    }
+}
+
 /// The select tool: drag outside the selection draws a new one (lasso or rectangle); drag inside
 /// moves it, a corner scales it, the knob rotates it — shown live (the transform is re-applied
 /// each frame as a single undo step) and committed on release.
@@ -421,7 +463,9 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
         }
         return;
     }
-    if app.select_mode == SelectMode::Wand {
+    // Transform Selection (the rail's transform group): only the handles work; no new outline
+    let transform_only = app.rail.transform_only;
+    if app.select_mode == SelectMode::Wand && !transform_only {
         if resp.clicked() {
             crate::selection_tools::wand(app, c.x, c.y, op);
         }
@@ -431,7 +475,7 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
         app.selecting.clear();
         app.xform = None;
         // while adding, subtracting or intersecting, a drag always draws a new outline
-        if let Some(poly) = app.selection.clone().filter(|_| op == tooncraft_raster::select::Combine::Replace) {
+        if let Some(poly) = app.selection.clone().filter(|_| transform_only || op == tooncraft_raster::select::Combine::Replace) {
             let (corners, knob) = handles(&poly, app.view.zoom);
             let near = |q: (f32, f32)| (q.0 - c.x).hypot(q.1 - c.y) <= tol;
             let kind = if near(knob) {
@@ -448,6 +492,9 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
                 app.xform = Some(Xform { base: poly, base_rings, kind, start: (c.x, c.y), applied: false, now: (0.0, 0.0, 1.0, 0.0) });
                 return;
             }
+        }
+        if transform_only {
+            return;
         }
         if op == tooncraft_raster::select::Combine::Replace {
             crate::selection_tools::set_rings(app, Vec::new());
@@ -500,6 +547,9 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
         if resp.drag_stopped() {
             app.xform = None;
         }
+        return;
+    }
+    if transform_only {
         return;
     }
     if resp.dragged() {
@@ -674,7 +724,7 @@ fn keyboard_pen(app: &mut ToonApp, ui: &egui::Ui, resp: &egui::Response) {
                 let col = app.engine.pick_color(app.frame, pen.x as u32, pen.y as u32);
                 app.color = [col[0], col[1], col[2], 255];
             }
-            Tool::Hand => {}
+            Tool::Hand | Tool::Zoom | Tool::RotateView => {}
             Tool::Text => crate::text_tool::start(app, (pen.x, pen.y)),
             _ if pen.down => {
                 end(app);

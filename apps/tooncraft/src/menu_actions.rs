@@ -403,13 +403,17 @@ pub fn reset_tool(app: &mut ToonApp, tool: Tool) {
         app.set_status(tl!("This tool has no brush settings"));
         return;
     };
-    *app.brush_mut(kind) = Brush::preset(kind);
+    // the preset, with the smoothing the user chose in Preferences
+    let smoothing = app.preferences.prefs.smoothing;
+    let b = app.brush_mut(kind);
+    *b = Brush::preset(kind);
+    b.smoothing.average = smoothing;
     app.set_status(tlf!("{tool} settings reset", tool = tool.label()));
 }
 
 /// Open the shortcut editor at the tool's command.
 pub fn edit_tool_shortcut(app: &mut ToonApp, tool: Tool) {
-    app.keys.filter = tool.label();
+    app.keys.filter = crate::keys::label(&format!("tool.{}", tool.id()));
     app.show_shortcuts = true;
 }
 

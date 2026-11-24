@@ -160,6 +160,8 @@ fn pick_tool(a: &mut ToonApp, _: &egui::Context, id: &'static str) {
     }
     if let Some(t) = Tool::ALL.into_iter().find(|t| id.strip_prefix("tool.") == Some(t.id())) {
         a.tool = t;
+        // a tool key gives the plain tool (the rail's selection-only transform is a variant)
+        a.rail.transform_only = false;
         a.set_status(tlf!("{tool} selected", tool = t.label()));
     }
 }
@@ -199,6 +201,8 @@ pub static ALL: &[Cmd] = &[
     tool!("tool.hand", "Hand", Hand, "H"),
     tool!("tool.transform", "Transform layer", Transform, "Q"),
     tool!("tool.text", "Text", Text, "T"),
+    tool!("tool.zoom", "Zoom view", Zoom, "Z"),
+    tool!("tool.rotate_view", "Rotate view", RotateView, "R"),
     // ── playback and frames ──
     cmd("frame.play", tlm!("Play / stop"), Some(Icon::Play), G::Frame, Remap("Enter"), |a, _, _| a.toggle_play()),
     cmd("frame.prev", tlm!("Previous frame"), Some(Icon::PrevFrame), G::Frame, Remap(","), |a, _, _| a.go_to(a.frame as i64 - 1)),
@@ -620,7 +624,8 @@ mod tests {
         ] {
             assert!(get(id).is_some_and(|c| matches!(c.key, Key::Remap(_))), "{id}");
         }
-        assert_eq!(remappable().count(), 51);
+        // 51, then the zoom and rotate-view tools
+        assert_eq!(remappable().count(), 53);
     }
 
     #[test]

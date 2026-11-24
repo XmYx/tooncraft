@@ -279,9 +279,9 @@ fn the_export_dialog_offers_each_formats_options() {
 #[test]
 fn layouts_and_colour_chips() {
     let mut h = harness();
-    click(&mut h, "View");
-    click(&mut h, "Workspaces");
-    click(&mut h, "Exposure Sheet");
+    click(&mut h, "Window");
+    click(&mut h, "Workspace");
+    click(&mut h, "Sheet");
     assert!(h.state().tl.vertical);
     h.state_mut().workspace.raise(crate::dock::Pane::Colour);
     h.run();
@@ -445,13 +445,11 @@ fn the_top_bar_goes_to_a_typed_frame_sets_the_play_range_and_picks_a_workspace()
     let mut h = harness();
     type_number(&mut h, "Frame", "12");
     assert_eq!(h.state().frame, 11);
-    type_number(&mut h, "Play from", "5");
-    type_number(&mut h, "Play to", "9");
+    type_number(&mut h, "In", "5");
+    type_number(&mut h, "Out", "9");
     assert_eq!(h.state().tl.range, Some((4, 8)));
     assert_eq!(crate::timeline_extras::play_span(h.state()), (4, 9));
-    h.get(By::new().role(egui::Role::ComboBox).label("Workspace")).click();
-    h.run();
-    h.get_by_label("Exposure Sheet").click();
+    h.get(By::new().role(egui::Role::RadioButton).label("Sheet workspace")).click();
     h.run();
     assert!(h.state().tl.vertical);
     h.get(By::new().role(egui::Role::Button).label("Undo step"));

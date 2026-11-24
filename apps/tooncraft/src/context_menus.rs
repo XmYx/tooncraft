@@ -298,8 +298,6 @@ pub fn library_item(app: &mut ToonApp, ui: &mut Ui, item: usize) {
 
 /// The tool button's menu after its variants (the rail's flyout draws those): reset the tool's
 /// brush, and the shortcut editor at the tool.
-// Called by the tool rail's flyout (S2, `tool_rail.rs`); kept until that lands.
-#[allow(dead_code)]
 pub fn tool_button_extras(app: &mut ToonApp, ui: &mut Ui, tool: Tool) {
     set_target(app, Target::Tool(tool));
     context(ui, app, &["tool.reset_settings", "tool.shortcut"]);

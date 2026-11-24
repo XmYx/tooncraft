@@ -227,10 +227,12 @@ fn tool_and_panel_items_reset_settings_and_places() {
     a.brush_mut(kind).size = 77.0;
     act::reset_tool(&mut a, Tool::Ink);
     assert_eq!(a.brush_mut(kind).size, tooncraft_brush::Brush::preset(kind).size);
+    let preferred = a.preferences.prefs.smoothing;
+    assert_eq!(a.brush_mut(kind).smoothing.average, preferred, "the preferred smoothing stays");
     assert!(act::can_reset_tool(Tool::Hand).is_err());
     act::edit_tool_shortcut(&mut a, Tool::Ink);
     assert!(a.show_shortcuts);
-    assert_eq!(a.keys.filter, Tool::Ink.label());
+    assert_eq!(a.keys.filter, crate::keys::label("tool.ink"));
     assert!(a.workspace.close(Pane::Onion));
     act::reset_panel(&mut a, Pane::Onion);
     assert!(a.workspace.is_open(Pane::Onion));

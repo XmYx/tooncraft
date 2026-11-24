@@ -293,8 +293,11 @@ impl DockContent<Pane> for Content<'_> {
     }
 }
 
-/// The Window menu: every panel with a tick when it is open; picking one opens or closes it.
+/// The Window menu: the workspaces, then every panel with a tick when it is open; picking one
+/// opens or closes it.
 pub fn window_menu(app: &mut ToonApp, ui: &mut egui::Ui) {
+    ui.menu_button(tl!("Workspace"), |ui| crate::workspaces::menu(app, ui));
+    ui.separator();
     for pane in Pane::ALL {
         if pane == Pane::Canvas {
             continue;

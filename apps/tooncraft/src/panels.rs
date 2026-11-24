@@ -1,5 +1,5 @@
-//! Side panels and bars: tool bar, tool options, colour, brush, layers, onion skin and light
-//! table. Every value set by dragging (sliders, the colour field) also has a typed or keyboard
+//! Side panels and bars: tool options, colour, brush, layers, onion skin and light table (the
+//! tool rail is `tool_rail.rs`). Every value set by dragging (sliders, the colour field) also has a typed or keyboard
 //! alternative: sliders and drag values take arrow keys and typing, colours take hex and RGB.
 
 use egui::{Color32, Sense, Stroke, vec2};
@@ -8,111 +8,6 @@ use tooncraft_doc::{OnionMode, Pin};
 use tooncraft_engine::{Command, FillReference};
 
 use crate::app::{Tool, ToonApp};
-
-/// The tool bar's groups: variants of one kind of tool share a button, which shows the variant
-/// used last and a corner mark; right-click (or press and hold) opens the group to pick another.
-pub const TOOL_GROUPS: [&[Tool]; 9] = [
-    &[Tool::Pencil, Tool::Ink, Tool::Airbrush, Tool::Chalk, Tool::Watercolour],
-    &[Tool::Eraser],
-    &[Tool::Smudge],
-    &[Tool::Fill, Tool::Gradient],
-    &[Tool::Picker],
-    &[Tool::Select, Tool::Transform],
-    &[Tool::Shape],
-    &[Tool::Text],
-    &[Tool::Hand],
-];
-
-/// The variant a group's button shows: the current tool when it is in the group, or the one used
-/// last there.
-pub fn group_tool(app: &ToonApp, ctx: &egui::Context, group: usize) -> Tool {
-    let tools = TOOL_GROUPS[group];
-    if tools.contains(&app.tool) {
-        return app.tool;
-    }
-    let id = egui::Id::unique("tooncraft-tool-group-last").with(group);
-    ctx.data(|d| d.get_temp::<usize>(id)).and_then(|i| tools.get(i).copied()).unwrap_or(tools[0])
-}
-
-fn tool_button(app: &mut ToonApp, ui: &mut egui::Ui, t: Tool, grouped: bool) -> egui::Response {
-    let selected = app.tool == t;
-    let (rect, resp) = ui.allocate_exact_size(vec2(34.0, 32.0), Sense::click());
-    let v = ui.style().interact_selectable(&resp, selected);
-    let pal = crate::theme::palette(app.light_theme);
-    let bg = if selected {
-        pal.accent.gamma_multiply(0.35)
-    } else if resp.hovered() {
-        v.bg_fill
-    } else {
-        Color32::TRANSPARENT
-    };
-    ui.painter().rect(rect, 4.0, bg, if selected { Stroke::new(1.0, pal.accent) } else { Stroke::NONE }, egui::StrokeKind::Inside);
-    let fg = if selected { pal.text } else { pal.weak };
-    crate::icons::tool(ui.painter(), rect, t, fg);
-    if grouped {
-        // the corner mark: this button holds more tools
-        let c = rect.right_bottom() - vec2(3.0, 3.0);
-        ui.painter().add(egui::Shape::convex_polygon(vec![c, c - vec2(6.0, 0.0), c - vec2(0.0, 6.0)], fg, Stroke::NONE));
-    }
-    if resp.has_focus() {
-        ui.painter().rect_stroke(rect, 4.0, ui.visuals().selection.stroke, egui::StrokeKind::Outside);
-    }
-    let label = format!("{} ({})", t.label(), app.keys.text(&format!("tool.{}", t.id())));
-    resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, selected, label.clone()));
-    let tip = if grouped { tlf!("{tool}; right-click or hold for the other tools of the group", tool = label) } else { label };
-    resp.on_hover_text(tip)
-}
-
-/// The vertical tool bar.
-pub fn toolbar(app: &mut ToonApp, ui: &mut egui::Ui) {
-    ui.add_space(4.0);
-    ui.vertical_centered(|ui| {
-        let ctx = ui.ctx().clone();
-        for (g, tools) in TOOL_GROUPS.iter().enumerate() {
-            let t = group_tool(app, &ctx, g);
-            let grouped = tools.len() > 1;
-            let resp = tool_button(app, ui, t, grouped);
-            if resp.clicked() {
-                app.tool = t;
-            }
-            if grouped {
-                let held = resp.is_pointer_button_down_on() && ui.input(|i| i.pointer.press_start_time().is_some_and(|s| i.time - s > 0.45));
-                let open = (resp.secondary_clicked() || held).then_some(egui::SetOpenCommand::Bool(true));
-                egui::Popup::from_response(&resp)
-                    .kind(egui::PopupKind::Menu)
-                    .layout(egui::Layout::top_down_justified(egui::Align::Min))
-                    .open_memory(open)
-                    .align(egui::RectAlign::RIGHT_START)
-                    .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
-                    .show(|ui| {
-                        for (i, v) in tools.iter().enumerate() {
-                            let key = app.keys.text(&format!("tool.{}", v.id()));
-                            if ui.selectable_label(app.tool == *v, format!("{}   {key}", v.label())).clicked() {
-                                app.tool = *v;
-                                ctx.data_mut(|d| d.insert_temp(egui::Id::unique("tooncraft-tool-group-last").with(g), i));
-                            }
-                        }
-                    });
-            }
-            if let Some(i) = tools.iter().position(|v| *v == app.tool) {
-                ctx.data_mut(|d| d.insert_temp(egui::Id::unique("tooncraft-tool-group-last").with(g), i));
-            }
-            if matches!(g, 2 | 5) {
-                ui.add_space(6.0);
-            }
-        }
-        ui.add_space(10.0);
-        // current colour
-        let c = app.color;
-        let (rect, resp) = ui.allocate_exact_size(vec2(30.0, 30.0), Sense::click());
-        ui.painter().rect(rect, 4.0, Color32::from_rgb(c[0], c[1], c[2]), Stroke::new(1.0, Color32::from_gray(140)), egui::StrokeKind::Inside);
-        let label = tlf!("Colour #{hex}", hex = hex(c));
-        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label.clone()));
-        if resp.on_hover_text(tl!("Current colour: open the Colour panel")).clicked() {
-            app.workspace.raise(crate::dock::Pane::Colour);
-        }
-    });
-}
 
 fn hex(c: [u8; 4]) -> String {
     format!("{:02X}{:02X}{:02X}", c[0], c[1], c[2])
@@ -224,6 +119,12 @@ pub fn tool_options(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
             Tool::Hand => {
                 ui.label(tl!("Drag to pan; wheel zooms, Alt+wheel rotates"));
+            }
+            Tool::Zoom => {
+                ui.label(tl!("Click to zoom in, Alt+click to zoom out, drag left or right to zoom smoothly"));
+            }
+            Tool::RotateView => {
+                ui.label(tl!("Drag around the centre to turn the view; double-click puts it upright"));
             }
             Tool::Transform => crate::peg_transform::options(app, ui),
             _ => {

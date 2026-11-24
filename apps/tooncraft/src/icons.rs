@@ -320,6 +320,8 @@ impl From<Tool> for Icon {
             Tool::Hand => Icon::Hand,
             Tool::Transform => Icon::Transform,
             Tool::Text => Icon::Text,
+            Tool::Zoom => Icon::Zoom,
+            Tool::RotateView => Icon::RotateView,
         }
     }
 }
@@ -346,12 +348,6 @@ pub fn for_pane(p: crate::dock::Pane) -> Icon {
         Pane::Drawings => Icon::Drawings,
         Pane::Curves => Icon::Curves,
     }
-}
-
-/// Draw the icon for `tool` centred in `rect` (outline).
-pub fn tool(p: &Painter, rect: Rect, tool: Tool, color: Color32) {
-    let side = rect.width().min(rect.height()).min(crate::theme::metrics::ICON * 1.25);
-    paint(p, Rect::from_center_size(rect.center(), vec2(side, side)), Icon::from(tool), color, false);
 }
 
 /// Draw `icon` centred in `rect`; `filled` is the "on" variant.
