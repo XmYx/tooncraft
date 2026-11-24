@@ -10,9 +10,10 @@ Options:
   --screenshot <PNG>         render the window once to PNG and quit
   --panel <NAME>             bring a panel to the front (timeline, layers, brush, colour, onion, camera,
                              pegs, library, effects, sound, lipsync, timing, history, drawings,
-                             curves, palette)
+                             curves, palette, view2, navigator)
   --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size,
                              start, scene, colour-picker, icons, radial, import-video, pen
+  --second-view <LOOK>       show the second view in a look: shot, drawing, camera, side
   --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet
   --vertical                 show the exposure sheet down the page
   --tool <NAME>              start with a tool (pencil, ink, fill, gradient, select, shape …)
@@ -41,6 +42,8 @@ pub struct Cli {
     pub frame: Option<u32>,
     pub screenshot: Option<PathBuf>,
     pub panel: Option<String>,
+    /// The second view's look at start (`--second-view side`), with the panel in front.
+    pub second_view: Option<String>,
     pub bench_playback: Option<f64>,
     pub light: bool,
     pub light_table: bool,
@@ -130,6 +133,13 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             }
             "--screenshot" => cli.screenshot = Some(PathBuf::from(it.next().ok_or("--screenshot needs a file")?)),
             "--panel" => cli.panel = Some(it.next().ok_or("--panel needs a name")?),
+            "--second-view" => {
+                let v = it.next().ok_or("--second-view needs a look")?;
+                if crate::views::Look::from_id(&v).is_none() {
+                    return Err(format!("--second-view: unknown look {v} (shot, drawing, camera or side)"));
+                }
+                cli.second_view = Some(v);
+            }
             "--open" => {
                 let v = it.next().ok_or("--open needs a window name")?;
                 if !OPEN_NAMES.contains(&v.as_str()) {

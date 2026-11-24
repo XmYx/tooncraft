@@ -59,7 +59,11 @@ mod history_panel;
 mod history_ui_tests;
 mod icons;
 mod import_dialog;
+#[cfg(test)]
+mod keyboard_reach_ui_tests;
 mod keys;
+#[cfg(test)]
+mod language_ui_tests;
 mod layer_fx;
 mod layer_ops;
 mod layer_tree;
@@ -147,6 +151,9 @@ mod unsaved_ui_tests;
 mod vector_ui_tests;
 mod video_dialog;
 mod view;
+mod views;
+#[cfg(test)]
+mod views_ui_tests;
 mod workspaces;
 
 use args::{Cli, Launch};

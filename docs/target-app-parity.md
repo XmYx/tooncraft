@@ -24,32 +24,32 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 | | Value | Kind |
 |---|---|---|
 | In-scope feature rows | 314 | counted |
-| Done / exceeds / partial / missing | 213 / 3 / 30 / 68 | counted |
+| Done / exceeds / partial / missing | 234 / 3 / 21 / 56 | counted |
 | Out of scope (not in any denominator) | 4 | counted |
-| **Row parity**, (D + X + ½·P) / rows | **73.6 %** | counted |
-| **Weighted parity**, area weights × size-weighted rows | **56.1 %** | counted |
-| Size-weighted parity over all rows, no area weights | 57.2 % | counted |
-| **UI parity**, rows of the reference-layout area | **88.3 %** | counted |
+| **Row parity**, (D + X + ½·P) / rows | **78.8 %** | counted |
+| **Weighted parity**, area weights × size-weighted rows | **62.6 %** | counted |
+| Size-weighted parity over all rows, no area weights | 62.2 % | counted |
+| **UI parity**, rows of the reference-layout area | **90.4 %** | counted |
 
 | Area | Weight | Rows | D | X | P | M | Out | Row parity | Effort parity |
 |---|---|---|---|---|---|---|---|---|---|
-| Brush engine | 9 (9 %) | 29 | 19 | 0 | 2 | 8 | 1 | 69 % | 56 % |
-| Paper and textures | 3 (3 %) | 10 | 7 | 0 | 1 | 2 | 0 | 75 % | 77 % |
+| Brush engine | 9 (9 %) | 29 | 20 | 0 | 2 | 7 | 1 | 72 % | 58 % |
+| Paper and textures | 3 (3 %) | 10 | 9 | 0 | 0 | 1 | 0 | 90 % | 91 % |
 | Drawing tools | 7 (7 %) | 17 | 12 | 0 | 2 | 3 | 0 | 76 % | 58 % |
-| Selection and transform | 5 (5 %) | 14 | 9 | 0 | 1 | 4 | 0 | 68 % | 53 % |
+| Selection and transform | 5 (5 %) | 14 | 10 | 0 | 0 | 4 | 0 | 71 % | 56 % |
 | Colour and paint | 7 (7 %) | 18 | 14 | 0 | 1 | 3 | 0 | 81 % | 60 % |
-| Layers | 6 (6 %) | 13 | 10 | 0 | 0 | 3 | 0 | 77 % | 67 % |
-| Timeline and exposure sheet | 9 (9 %) | 20 | 16 | 0 | 1 | 3 | 0 | 82 % | 64 % |
-| Onion skin and light table | 4 (4 %) | 11 | 8 | 0 | 2 | 1 | 0 | 82 % | 75 % |
+| Layers | 6 (6 %) | 13 | 12 | 0 | 0 | 1 | 0 | 92 % | 93 % |
+| Timeline and exposure sheet | 9 (9 %) | 20 | 17 | 0 | 1 | 2 | 0 | 88 % | 70 % |
+| Onion skin and light table | 4 (4 %) | 11 | 11 | 0 | 0 | 0 | 0 | 100 % | 100 % |
 | Animation tools | 9 (9 %) | 18 | 9 | 1 | 2 | 6 | 0 | 61 % | 37 % |
-| Camera | 4 (4 %) | 8 | 4 | 0 | 0 | 4 | 0 | 50 % | 40 % |
-| Effects and compositing | 7 (7 %) | 22 | 13 | 0 | 3 | 6 | 0 | 66 % | 41 % |
+| Camera | 4 (4 %) | 8 | 5 | 0 | 0 | 3 | 0 | 62 % | 47 % |
+| Effects and compositing | 7 (7 %) | 22 | 16 | 0 | 0 | 6 | 0 | 73 % | 46 % |
 | Audio and lip-sync | 4 (4 %) | 14 | 11 | 0 | 1 | 2 | 0 | 82 % | 72 % |
-| Import, export and pipeline | 7 (7 %) | 28 | 20 | 0 | 2 | 6 | 1 | 75 % | 62 % |
+| Import, export and pipeline | 7 (7 %) | 28 | 21 | 0 | 2 | 5 | 1 | 79 % | 68 % |
 | Scripting and automation | 4 (4 %) | 7 | 1 | 0 | 2 | 4 | 0 | 29 % | 22 % |
-| UI and workspace | 5 (5 %) | 14 | 8 | 1 | 3 | 2 | 0 | 75 % | 67 % |
-| UI parity with the reference layout | 5 (5 %) | 47 | 40 | 0 | 3 | 4 | 0 | 88 % | 74 % |
-| Tablet and input | 4 (4 %) | 9 | 3 | 0 | 3 | 3 | 1 | 50 % | 45 % |
+| UI and workspace | 5 (5 %) | 14 | 12 | 1 | 1 | 0 | 0 | 96 % | 94 % |
+| UI parity with the reference layout | 5 (5 %) | 47 | 41 | 0 | 3 | 3 | 0 | 90 % | 77 % |
+| Tablet and input | 4 (4 %) | 9 | 4 | 0 | 3 | 2 | 1 | 61 % | 55 % |
 | Collaboration and review | 2 (2 %) | 5 | 2 | 0 | 0 | 3 | 1 | 40 % | 22 % |
 | Stability and performance | 4 (4 %) | 10 | 7 | 1 | 1 | 1 | 0 | 85 % | 69 % |
 <!-- parity:end -->
@@ -471,11 +471,11 @@ Weight: 5
 | Customisable shortcuts | all | D | S | Through craft-keymap, saved per user |
 | Command search | TB CS | D | S | Find Command (Ctrl+Shift+P): by name or by key, keyboard or click, runs like the shortcut |
 | Custom tool palettes and radial menus | TV CS PD | D | S | The Tool Palette panel (`--panel palette`): named palettes of any registry commands as buttons, put together from the keyboard (add by search, reorder, remove, rename, delete), kept in the preferences; the radial menu (V, `--open radial`) rings a chosen palette's first 12 commands round the pointer, picked by pointer or arrows and Enter (`tool_palettes_ui_tests`) |
-| Second view of the same shot and a navigator | TV TB CS | M | M | |
+| Second view of the same shot and a navigator | TV TB CS | D | M | The Second View panel draws the same shot with its own pan and zoom (a stroke there is an ordinary undo step), and the Navigator panel shows the whole picture with the main view's frame: click or arrow keys move the main view (`views_ui_tests`, `--panel view2`, `--panel navigator`) |
 | Undo history panel | TV CS | D | S | A panel listing every step; click one to go there (undo or redo as needed) |
 | Preferences dialog | all | D | S | Edit ▸ Preferences: general, drawing, onion skin, sheet and export tabs, each with Restore Defaults; a damaged settings file gives the defaults |
-| Translated interface | all | P | M | craft-i18n catalogs are validated; English is the only shipped language |
-| Every action reachable from the keyboard | — | P | M | **Ours:** the accessibility rule; kittest-tested for the main flows |
+| Translated interface | all | P | M | Preferences ▸ General ▸ Language picks the interface language (system, English or any built-in catalog), applied at once and kept per user (`language_ui_tests`); craft-i18n catalogs are validated. English is the only shipped language until a ToonCraft catalog lands in craft-i18n |
+| Every action reachable from the keyboard | — | D | M | **Ours:** every registry command is found by its own name in Find Command (Ctrl+Shift+P) and runs from there with arrows and Enter, and every panel opens from there by "Show <panel>"; panels and the sheet take F6, controls take Tab. Kittest-tested over the whole registry and every panel (`keyboard_reach_ui_tests`), accessibility check on |
 | Screen reader names for the canvas and the timeline | — | X | S | **Ours:** AccessKit nodes for the canvas and every visible cell |
 
 ## UI parity with the reference layout
@@ -529,7 +529,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Onion panel with a slider per step | TB | D | S | Also in the onion toggle's popover above the canvas |
 | Light table on the canvas | TB | D | S | |
 | Camera frame and safe areas | TB | D | S | |
-| Separate drawing, reference and perspective views | TB | M | M | One canvas |
+| Separate drawing, reference and perspective views | TB | D | M | The Second View panel has four looks: Shot (every layer), Drawing (the current layer alone), Camera (the camera's rendered picture, filmed off the UI thread) and Side (layers as lines at their depth with the camera's view cone; drag or Up/Down moves a layer in depth). Side is a flat side-on layout of the multiplane, not a free-orbit 3D view (`--second-view side`) |
 | Curve editor | TB | D | L | The Curves panel beside the timeline: value buttons, the graph with keys, other values faintly behind, an ease box with handles and typed values (`--panel curves`) |
 | Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
 | Library window for drawings | TB | D | L | The Drawing Library panel: the shot's reusable drawings with thumbnails, names and lengths; add the selected frames, insert as copies or linked, rename, reorder, remove; My Drawings keeps items in the user's folder for every shot |
