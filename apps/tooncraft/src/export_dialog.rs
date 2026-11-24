@@ -35,6 +35,8 @@ pub fn formats() -> Vec<(&'static str, String)> {
         ("psd", tl!("Layered PSD, Current Frame").to_string()),
         ("webp-frame", tl!("WebP Image, Current Frame").to_string()),
         ("ora", tl!("OpenRaster, Current Frame").to_string()),
+        ("sheet-pdf", tl!("Exposure Sheet to Print (PDF)").to_string()),
+        ("frames-pdf", tl!("Frames to Print (PDF)").to_string()),
     ]
 }
 
@@ -46,6 +48,8 @@ pub struct Caps {
     pub scale: bool,
     pub gif_loop: bool,
     pub digits: bool,
+    /// Printed on paper: a paper size (and, for frames, how many to a page).
+    pub print: bool,
 }
 
 pub fn caps(kind: &str) -> Caps {
@@ -54,10 +58,11 @@ pub fn caps(kind: &str) -> Caps {
         "mp4" | "mp4-hevc" | "mp4-av1" | "mov" | "gif" | "apng" | "webp" | "webp-lossy" | "png" | "tga" | "tiff" | "jpeg" | "exr" | "exr-layers"
     );
     Caps {
-        range: ours || matches!(kind, "prores4444" | "prores422" | "layers" | "psd-frames" | "psb-frames"),
+        range: ours || matches!(kind, "frames-pdf" | "prores4444" | "prores422" | "layers" | "psd-frames" | "psb-frames"),
         scale: ours,
         gif_loop: kind == "gif",
         digits: matches!(kind, "png" | "tga" | "tiff" | "jpeg" | "exr" | "exr-layers"),
+        print: matches!(kind, "sheet-pdf" | "frames-pdf"),
     }
 }
 
@@ -81,6 +86,19 @@ pub struct Dialog {
     pub loop_forever: bool,
     pub digits: u8,
     pub burn_in: bool,
+    /// Paper size for printed sheets and frames.
+    pub print_paper: Paper,
+    /// Printed frames per page (one of [`PER_PAGE`]).
+    pub per_page: u32,
+}
+
+use tooncraft_interop::sheet_pdf::{PER_PAGE, Paper};
+
+pub fn paper_name(p: Paper) -> String {
+    match p {
+        Paper::A4 => tl!("A4").to_string(),
+        Paper::Letter => tl!("US Letter").to_string(),
+    }
 }
 
 pub fn scale_name(s: u32) -> String {
@@ -105,6 +123,8 @@ impl Dialog {
             loop_forever: true,
             digits: 0,
             burn_in: false,
+            print_paper: Paper::A4,
+            per_page: 4,
         }
     }
 
@@ -197,9 +217,36 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
                     .labelled_by(l.id);
             });
             ui.end_row();
-            ui.label("");
-            ui.checkbox(&mut d.paper, tl!("Include the paper"));
-            ui.end_row();
+            if c.print {
+                let l = ui.label(tl!("Paper"));
+                egui::ComboBox::from_id_salt("export-print-paper")
+                    .selected_text(paper_name(d.print_paper))
+                    .show_ui(ui, |ui| {
+                        for p in [Paper::A4, Paper::Letter] {
+                            ui.selectable_value(&mut d.print_paper, p, paper_name(p));
+                        }
+                    })
+                    .response
+                    .labelled_by(l.id);
+                ui.end_row();
+            } else {
+                ui.label("");
+                ui.checkbox(&mut d.paper, tl!("Include the paper"));
+                ui.end_row();
+            }
+            if d.kind == "frames-pdf" {
+                let l = ui.label(tl!("Frames per page"));
+                egui::ComboBox::from_id_salt("export-per-page")
+                    .selected_text(d.per_page.to_string())
+                    .show_ui(ui, |ui| {
+                        for n in PER_PAGE {
+                            ui.selectable_value(&mut d.per_page, n, n.to_string());
+                        }
+                    })
+                    .response
+                    .labelled_by(l.id);
+                ui.end_row();
+            }
             if c.scale {
                 ui.label("");
                 ui.checkbox(&mut d.burn_in, tl!("Burn in the shot, frame and timecode"))
@@ -234,6 +281,7 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
     app.export_memory.insert(app.engine.project.name.clone(), d.clone());
     if go {
         let o = d.options(app);
+        app.print = (d.print_paper, d.per_page);
         app.export_with(d.kind, o);
         keep = false;
     }
