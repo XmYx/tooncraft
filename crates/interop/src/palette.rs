@@ -13,7 +13,8 @@ pub const MAX_FILE: usize = 1 << 20;
 pub fn to_gpl(p: &Palette) -> String {
     let clean = |s: &str| s.chars().filter(|c| !c.is_control()).collect::<String>();
     let mut out = format!("GIMP Palette\nName: {}\nColumns: 8\n#\n", clean(&p.name));
-    for s in &p.swatches {
+    // a GIMP palette holds plain colours only: gradient swatches are left out
+    for s in p.swatches.iter().filter(|s| !s.is_gradient()) {
         let name = if s.name.is_empty() { "Untitled".to_string() } else { clean(&s.name) };
         out.push_str(&format!("{:3} {:3} {:3}\t{}\n", s.rgb[0], s.rgb[1], s.rgb[2], name));
     }
@@ -168,6 +169,10 @@ mod tests {
         assert_eq!(back.name, "Skin tones");
         assert_eq!(back.swatches, p.swatches);
         assert!(from_gpl("not a palette").is_err());
+        // a gradient swatch has no GIMP form and is left out
+        let stops = vec![tooncraft_doc::palette::Stop { at: 0.0, rgba: [1, 2, 3, 255] }, tooncraft_doc::palette::Stop { at: 1.0, rgba: [9; 4] }];
+        assert!(p.push_gradient("sky", stops));
+        assert_eq!(from_gpl(&to_gpl(&p)).unwrap().swatches.len(), 2);
         // ACO: RGB, HSB (pure red), grey and a CMYK colour that is skipped
         let b = aco_v1(&[(0, [0xFF00, 0x8000, 0x0000, 0]), (1, [0, 65535, 65535, 0]), (8, [5000, 0, 0, 0]), (2, [1, 2, 3, 4])]);
         let (a, skipped) = from_aco(&b, "Imported").unwrap();

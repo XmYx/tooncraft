@@ -206,6 +206,7 @@ pub static ALL: &[Cmd] = &[
     tool!("tool.select", "Select", Select, "S"),
     tool!("tool.shape", "Shapes", Shape, "U"),
     tool!("tool.gradient", "Gradient", Gradient, "G"),
+    when(cmd("tool.clone", tlm!("Clone stamp"), Some(Icon::CloneStamp), G::Tool, Remap("J"), pick_tool), not_stroking),
     tool!("tool.hand", "Hand", Hand, "H"),
     tool!("tool.transform", "Transform layer", Transform, "Q"),
     tool!("tool.text", "Text", Text, "T"),
@@ -368,7 +369,7 @@ pub static ALL: &[Cmd] = &[
     }),
     cmd("edit.paste", tlm!("Paste"), Some(Icon::Paste), G::Edit, Fixed("Ctrl+V"), |a, ctx, _| {
         // pixels go onto the canvas when it has the keyboard, cells into the sheet otherwise
-        if ctx.memory(|m| m.focused()) == Some(crate::canvas::canvas_id()) || a.selection.is_some() {
+        if ctx.memory(|m| m.focused()).is_some_and(crate::views::is_drawing_view) || a.selection.is_some() {
             a.paste_pixels();
         } else {
             a.paste_cells(false, false);
@@ -496,6 +497,7 @@ pub static ALL: &[Cmd] = &[
     when(cmd("layer.add_peg", tlm!("Add Peg"), Some(Icon::Peg), G::Layer, NoKey, mc::run_layer), mc::can_add_peg),
     when(cmd("layer.move_up", tlm!("Move Layer Up"), None, G::Layer, NoKey, mc::run_layer), mc::not_top),
     when(cmd("layer.move_down", tlm!("Move Layer Down"), None, G::Layer, NoKey, mc::run_layer), mc::not_bottom),
+    toggle(cmd("layer.reference", tlm!("Reference Layer"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::is_reference),
     toggle(cmd("layer.adjustment", tlm!("Adjustment Layer"), Some(Icon::Effects), G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::is_adjustment),
     when(cmd("layer.mask_add", tlm!("Add Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::no_mask),
     toggle(
@@ -556,6 +558,13 @@ pub static ALL: &[Cmd] = &[
         a.playback.looping
     }),
     cmd("timeline.play_around", tlm!("Play Around"), Some(Icon::PlayAround), G::Timeline, NoKey, |a, _, _| crate::timeline_extras::play_around(a)),
+    toggle(
+        cmd("timeline.record_motion", tlm!("Record Motion"), None, G::Timeline, NoKey, |a, _, _| {
+            let on = !a.recorder.armed;
+            crate::motion_record::set_armed(a, on);
+        }),
+        |a| a.recorder.armed,
+    ),
     toggle(cmd("timeline.ping_pong", tlm!("Ping-pong"), None, G::Timeline, NoKey, |a, _, _| a.playback.ping_pong = !a.playback.ping_pong), |a| {
         a.playback.ping_pong
     }),
@@ -684,8 +693,8 @@ mod tests {
         ] {
             assert!(get(id).is_some_and(|c| matches!(c.key, Key::Remap(_))), "{id}");
         }
-        // 51, then the zoom and rotate-view tools, then the radial menu
-        assert_eq!(remappable().count(), 54);
+        // 51, then the zoom and rotate-view tools, then the radial menu, then the clone stamp
+        assert_eq!(remappable().count(), 55);
     }
 
     #[test]
