@@ -477,6 +477,7 @@ impl ToonApp {
             Some("new-shot") => app.new_shot = Some(app.new_shot_defaults()),
             Some("scene") => crate::scene_menus::open_settings(&mut app),
             Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
+            Some("colour-picker") => app.colour.window = true,
             _ => {}
         }
         if cli.demo && cli.screenshot.is_some() {
@@ -1950,6 +1951,7 @@ impl ToonApp {
         crate::command_search::window(self, ctx);
         crate::import_dialog::window(self, ctx);
         crate::export_dialog::window(self, ctx);
+        crate::colour_tools::picker_window(self, ctx);
         crate::preferences::window(self, ctx);
         crate::scene_menus::window(self, ctx);
         crate::unsaved::window(self, ctx);

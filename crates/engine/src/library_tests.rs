@@ -190,3 +190,65 @@ fn a_hostile_library_in_a_file_is_repaired() {
     assert_eq!(item.cells[0], Cell::Blank, "a key to a missing drawing becomes a blank");
     assert_eq!(item.len(), tooncraft_doc::library::MAX_ITEM_CELLS);
 }
+
+fn temp(name: &str) -> std::path::PathBuf {
+    let d = std::env::temp_dir().join(format!("tooncraft-drawfile-{}-{name}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    std::fs::create_dir_all(&d).unwrap();
+    d
+}
+
+#[test]
+fn an_item_moves_to_another_shot_through_a_drawing_file() {
+    let dir = temp("move");
+    let file = dir.join("walk.toondrawings").to_string_lossy().into_owned();
+    let mut a = engine();
+    a.apply(Command::SaveToLibrary { layer: 0, from: 0, to: 4, name: "Walk".into() }).unwrap();
+    let n = a.undo_len();
+    a.apply(Command::SaveLibraryFile { item: 0, path: file.clone() }).unwrap();
+    assert_eq!(a.undo_len(), n, "saving a file is not an undo step");
+    // a bigger shot: the drawings are centred at their own size
+    let mut b = Engine::new(Project::new("Other", 64, 48, 12, 12).unwrap());
+    let before = b.project.clone();
+    b.apply(Command::OpenLibraryFile { path: file.clone(), placement: crate::import::Placement::Actual }).unwrap();
+    assert_eq!(b.undo_label(), Some("Add drawing file to library"));
+    let item = b.project.library[0].clone();
+    assert_eq!(item.name, "Walk");
+    assert!(matches!(item.cells[..], [Cell::Key(_), Cell::Hold, Cell::Key(_), Cell::Hold, Cell::Hold]));
+    let d = item.drawings();
+    // the 32×32 drawing sits in the middle of 64×48: (4, 4) lands on (20, 12)
+    assert_eq!(rgb(b.project.drawing(d[0]).unwrap().pixel(20, 12)), rgb(RED));
+    assert_eq!(rgb(b.project.drawing(d[1]).unwrap().pixel(20, 12)), rgb(BLUE));
+    assert_eq!(b.project.drawing(d[0]).unwrap().pixel(2, 2)[3], 0, "outside the placed drawing stays empty");
+    // and it can be put on a layer like any item
+    b.apply(Command::InsertFromLibrary { item: 0, layer: 0, frame: 0, linked: false }).unwrap();
+    b.undo().unwrap();
+    b.undo().unwrap();
+    assert!(b.project == before, "adding the file was one undo step");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn bad_drawing_files_are_refused_and_change_nothing() {
+    let dir = temp("bad");
+    let mut e = engine();
+    let n = e.undo_len();
+    let missing = dir.join("none.toondrawings").to_string_lossy().into_owned();
+    assert!(matches!(e.apply(Command::OpenLibraryFile { path: missing, placement: Default::default() }), Err(EngineError::Import(_))));
+    let junk = dir.join("junk.toondrawings");
+    std::fs::write(&junk, b"not a zip").unwrap();
+    assert!(e.apply(Command::OpenLibraryFile { path: junk.to_string_lossy().into_owned(), placement: Default::default() }).is_err());
+    assert!(e.apply(Command::SaveLibraryFile { item: 3, path: dir.join("x").to_string_lossy().into_owned() }).is_err());
+    assert_eq!(e.undo_len(), n);
+    assert!(e.project.library.is_empty());
+    // a file with only blank cells adds nothing
+    let blank =
+        tooncraft_interop::drawing_file::DrawingFile { name: "x".into(), cells: vec![tooncraft_interop::drawing_file::FileCell::Blank], drawings: vec![] };
+    let p = dir.join("blank.toondrawings");
+    std::fs::write(&p, tooncraft_interop::drawing_file::to_bytes(&blank).unwrap()).unwrap();
+    assert!(e.apply(Command::OpenLibraryFile { path: p.to_string_lossy().into_owned(), placement: Default::default() }).is_err());
+    assert_eq!(e.project.drawing_count(), engine().project.drawing_count(), "a refused file leaves no drawings behind");
+    let line = r#"{"cmd":"open_library_file","path":"a.toondrawings"}"#;
+    assert!(matches!(serde_json::from_str::<Command>(line).unwrap(), Command::OpenLibraryFile { placement: crate::import::Placement::Fit, .. }));
+    let _ = std::fs::remove_dir_all(&dir);
+}

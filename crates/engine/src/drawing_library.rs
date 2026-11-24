@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 use tooncraft_doc::library::{self, Item};
 use tooncraft_doc::{Cell, DrawingId};
 
+use tooncraft_interop::drawing_file::{self, DrawingFile, FileCell};
+
 use crate::undo::{Entry, Part};
 use crate::{Engine, EngineError, Result};
 
@@ -129,6 +131,87 @@ pub(crate) fn move_item(e: &mut Engine, item: usize, to: usize) -> Result<()> {
     step(e, "Move library item", false, |e, _| {
         let i = e.project.library.remove(item);
         e.project.library.insert(to, i);
+        Ok(())
+    })
+}
+
+/// The drawing file of library item `item`: its drawings (each once, at the canvas size) and its
+/// cells pointing at them.
+pub fn to_file(p: &tooncraft_doc::Project, item: usize) -> Result<DrawingFile> {
+    let it = p.library.get(item).ok_or(EngineError::NoLibraryItem(item))?;
+    let ids = it.drawings();
+    let mut drawings = Vec::with_capacity(ids.len());
+    for d in &ids {
+        let s = p.drawing_owned(*d)?.ok_or(EngineError::NoDrawing(0))?;
+        drawings.push(s.to_image());
+    }
+    let index: BTreeMap<DrawingId, u32> = ids.iter().enumerate().map(|(i, d)| (*d, i as u32)).collect();
+    let cells = it
+        .cells
+        .iter()
+        .map(|c| match c {
+            Cell::Key(d) => index.get(d).map(|i| FileCell::Key(*i)).unwrap_or(FileCell::Blank),
+            Cell::Hold => FileCell::Hold,
+            Cell::Blank => FileCell::Blank,
+        })
+        .collect();
+    Ok(DrawingFile { name: it.name.clone(), cells, drawings })
+}
+
+/// Write library item `item` to `path` as a drawing file (atomically; not an undo step).
+pub(crate) fn save_file(e: &mut Engine, item: usize, path: &str) -> Result<()> {
+    let f = to_file(&e.project, item)?;
+    let bytes = drawing_file::to_bytes(&f).map_err(|err| EngineError::Import(err.to_string()))?;
+    craft_atomic::atomic_write(std::path::Path::new(path), &bytes).map_err(|err| EngineError::Import(format!("{path}: {err}")))?;
+    Ok(())
+}
+
+/// Add the drawing file at `path` to the shot's library as a new item: each drawing is placed on
+/// the canvas as `placement` says (centred). One undo step.
+pub(crate) fn open_file(e: &mut Engine, path: &str, placement: crate::import::Placement) -> Result<()> {
+    if e.project.library.len() >= library::MAX_ITEMS {
+        return Err(EngineError::Limit("library items"));
+    }
+    let p = std::path::Path::new(path);
+    let len = std::fs::metadata(p).map_err(|err| EngineError::Import(format!("{path}: {err}")))?.len();
+    if len > drawing_file::MAX_FILE {
+        return Err(EngineError::Import(format!("{path} is larger than {} MB", drawing_file::MAX_FILE >> 20)));
+    }
+    let bytes = std::fs::read(p).map_err(|err| EngineError::Import(format!("{path}: {err}")))?;
+    let f = drawing_file::from_bytes(&bytes).map_err(|err| EngineError::Import(err.to_string()))?;
+    add_file(e, f, placement)
+}
+
+/// Add a decoded drawing file to the library (see [`open_file`]).
+pub(crate) fn add_file(e: &mut Engine, f: DrawingFile, placement: crate::import::Placement) -> Result<()> {
+    if e.project.library.len() >= library::MAX_ITEMS {
+        return Err(EngineError::Limit("library items"));
+    }
+    let (w, h) = (e.project.width(), e.project.height());
+    step(e, "Add drawing file to library", false, |e, parts| {
+        let mut ids = Vec::with_capacity(f.drawings.len());
+        for img in &f.drawings {
+            let placed = if (img.width, img.height) == (w, h) { img.clone() } else { crate::import::place(img, w, h, placement) };
+            let mut s = tooncraft_raster::Surface::new(w, h)?;
+            s.load_image(&placed)?;
+            let id = e.project.add_drawing(Some(s))?;
+            parts.push(Part::Drawing { id, surface: None });
+            ids.push(id);
+        }
+        let cells: Vec<Cell> = f
+            .cells
+            .iter()
+            .map(|c| match c {
+                FileCell::Key(i) => ids.get(*i as usize).map(|d| Cell::Key(*d)).unwrap_or(Cell::Blank),
+                FileCell::Hold => Cell::Hold,
+                FileCell::Blank => Cell::Blank,
+            })
+            .collect();
+        let item = Item { name: f.name, cells }.sanitized(|_| true);
+        if item.is_empty() {
+            return Err(EngineError::Import("the drawing file shows no drawing".into()));
+        }
+        e.project.library.push(item);
         Ok(())
     })
 }

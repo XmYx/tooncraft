@@ -7,6 +7,8 @@
 use tooncraft_doc::{Cell, DrawingId};
 use tooncraft_engine::Command;
 
+use std::path::PathBuf;
+
 use crate::app::ToonApp;
 
 #[derive(Clone, Default)]
@@ -16,6 +18,60 @@ struct State {
     rename: Option<String>,
     /// Give the rename field the focus once (set when Rename Item is pressed).
     focus_rename: bool,
+    mine: Mine,
+}
+
+/// The user's own drawing files, kept between shots in a folder of their own.
+#[derive(Clone, Default)]
+struct Mine {
+    /// The folder (`None` until first looked up; `Some(None)`: no place for it on this system).
+    dir: Option<Option<PathBuf>>,
+    files: Vec<PathBuf>,
+    chosen: usize,
+    scanned: bool,
+}
+
+/// Most entries of the folder looked at, and most files listed.
+const MAX_SCAN: usize = 5000;
+const MAX_FILES: usize = 500;
+
+/// The folder of the user's drawing files, beside their other settings.
+fn default_dir() -> Option<PathBuf> {
+    crate::keys::overrides_path().and_then(|p| p.parent().map(|d| d.join("drawings")))
+}
+
+/// Use `dir` as the user's drawing folder (tests point it at a temporary folder).
+#[cfg(test)]
+pub(crate) fn set_folder(ctx: &egui::Context, dir: &std::path::Path) {
+    ctx.data_mut(|d| {
+        let mut st: State = d.get_temp(state_id()).unwrap_or_default();
+        st.mine = Mine { dir: Some(Some(dir.to_path_buf())), ..Mine::default() };
+        d.insert_temp(state_id(), st);
+    });
+}
+
+/// The drawing files in `dir`, sorted by name: at most [`MAX_SCAN`] entries are read and
+/// [`MAX_FILES`] listed, so a huge folder cannot stall the panel.
+fn scan(dir: &std::path::Path) -> Vec<PathBuf> {
+    let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
+    let mut files: Vec<PathBuf> = rd
+        .take(MAX_SCAN)
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.is_file() && p.extension().is_some_and(|x| x == tooncraft_interop::drawing_file::EXTENSION))
+        .collect();
+    files.sort();
+    files.truncate(MAX_FILES);
+    files
+}
+
+/// A free file name for `name` in `dir`: `<name>.toondrawings`, else `<name> 2…`.
+fn free_path(dir: &std::path::Path, name: &str) -> PathBuf {
+    let stem = tooncraft_engine::library::clean_category(name);
+    let ext = tooncraft_interop::drawing_file::EXTENSION;
+    (1..1000)
+        .map(|n| if n == 1 { dir.join(format!("{stem}.{ext}")) } else { dir.join(format!("{stem} {n}.{ext}")) })
+        .find(|p| !p.exists())
+        .unwrap_or_else(|| dir.join(format!("{stem} {}.{ext}", std::process::id())))
 }
 
 fn state_id() -> egui::Id {
@@ -70,6 +126,14 @@ pub fn panel(app: &mut ToonApp, ui: &mut egui::Ui) {
 }
 
 fn body(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State) {
+    if let Some(chosen) = shot_items(app, ui, st) {
+        mine(app, ui, st, chosen);
+    }
+}
+
+/// The shot's items; returns the chosen one (`Some(None)` when there are none), or `None` when
+/// the section already showed My Drawings.
+fn shot_items(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State) -> Option<Option<usize>> {
     refresh_thumbnails(app, ui.ctx());
     let (layer, frame) = (app.layer, app.frame);
     let (from, to) = add_range(app);
@@ -95,7 +159,8 @@ fn body(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State) {
     let items: Vec<(String, usize, Option<DrawingId>)> = app.engine.project.library.iter().map(|i| (i.name.clone(), i.len(), i.first_drawing())).collect();
     if items.is_empty() {
         ui.weak(tl!("No drawings yet: select frames on the timeline and add them."));
-        return;
+        mine(app, ui, st, None);
+        return None;
     }
     st.chosen = st.chosen.min(items.len() - 1);
     ui.separator();
@@ -118,7 +183,7 @@ fn body(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State) {
     }
     ui.separator();
     let i = st.chosen;
-    let Some((name, _, _)) = items.get(i) else { return };
+    let Some((name, _, _)) = items.get(i) else { return Some(None) };
     ui.label(tlf!("Chosen: {name}", name = name));
     ui.horizontal_wrapped(|ui| {
         if ui.button(tl!("Insert Item")).on_hover_text(tl!("On the current layer at the current frame, as new drawings")).clicked() {
@@ -161,5 +226,75 @@ fn body(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State) {
         if keep {
             st.rename = Some(n);
         }
+    }
+    Some(Some(i))
+}
+
+/// My Drawings: the user's drawing files, shared by every shot. Save the chosen shot item there,
+/// add a file to the shot's library, or open and save files anywhere. The folder is read only
+/// when this section is opened, and again after a save or Reload.
+fn mine(app: &mut ToonApp, ui: &mut egui::Ui, st: &mut State, chosen: Option<usize>) {
+    ui.separator();
+    let open = egui::CollapsingHeader::new(tl!("My Drawings")).id_salt("my-drawings").show(ui, |ui| {
+        let m = &mut st.mine;
+        let dir = m.dir.get_or_insert_with(default_dir).clone();
+        if !m.scanned {
+            m.files = dir.as_deref().map(scan).unwrap_or_default();
+            m.chosen = m.chosen.min(m.files.len().saturating_sub(1));
+            m.scanned = true;
+        }
+        let ext = tooncraft_interop::drawing_file::EXTENSION;
+        ui.horizontal_wrapped(|ui| {
+            let can_save = chosen.is_some() && dir.is_some();
+            if ui.add_enabled(can_save, egui::Button::new(tl!("Save Item to My Drawings"))).on_hover_text(tl!("Keep the chosen item for other shots")).clicked()
+                && let (Some(item), Some(d)) = (chosen, dir.as_deref())
+            {
+                let name = app.engine.project.library.get(item).map(|i| i.name.clone()).unwrap_or_default();
+                match std::fs::create_dir_all(d) {
+                    Ok(()) => {
+                        let path = free_path(d, &name);
+                        if app.run(Command::SaveLibraryFile { item, path: path.to_string_lossy().into_owned() }) {
+                            app.set_status(tlf!("Saved {file}", file = path.display()));
+                        }
+                    }
+                    Err(e) => app.set_status(tlf!("Could not make the folder {dir}: {error}", dir = d.display(), error = e)),
+                }
+                m.scanned = false;
+            }
+            if ui.add_enabled(chosen.is_some(), egui::Button::new(tl!("Save Drawing File…"))).clicked()
+                && let Some(item) = chosen
+                && let Some(f) = rfd::FileDialog::new().add_filter(tl!("Drawing files"), &[ext]).save_file()
+            {
+                app.run(Command::SaveLibraryFile { item, path: f.to_string_lossy().into_owned() });
+            }
+            if ui.button(tl!("Open Drawing File…")).clicked()
+                && let Some(f) = rfd::FileDialog::new().add_filter(tl!("Drawing files"), &[ext]).pick_file()
+            {
+                app.run(Command::OpenLibraryFile { path: f.to_string_lossy().into_owned(), placement: Default::default() });
+            }
+            if ui.button(tl!("Reload")).clicked() {
+                m.scanned = false;
+            }
+        });
+        if dir.is_none() {
+            ui.weak(tl!("No settings folder on this system, so My Drawings is not available."));
+        } else if m.files.is_empty() {
+            ui.weak(tl!("No drawing files yet: save an item here to use it in other shots."));
+        }
+        for (i, f) in m.files.iter().enumerate() {
+            let name = f.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+            if ui.selectable_label(m.chosen == i, tlf!("File {name}", name = name)).clicked() {
+                m.chosen = i;
+            }
+        }
+        if let Some(f) = m.files.get(m.chosen).cloned()
+            && ui.button(tl!("Add File to Shot Library")).clicked()
+        {
+            app.run(Command::OpenLibraryFile { path: f.to_string_lossy().into_owned(), placement: Default::default() });
+        }
+    });
+    if open.fully_closed() {
+        // looked at again when it opens next time
+        st.mine.scanned = false;
     }
 }

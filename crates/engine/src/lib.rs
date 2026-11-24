@@ -18,7 +18,7 @@ mod command;
 mod curves_tests;
 pub mod demo;
 pub mod drawing;
-mod drawing_library;
+pub mod drawing_library;
 #[cfg(test)]
 mod drawing_tests;
 mod effects;
@@ -38,6 +38,9 @@ pub mod shapes;
 pub mod text;
 pub mod touch;
 mod undo;
+pub mod vector;
+#[cfg(test)]
+mod vector_tests;
 
 pub use command::{Command, FillReference, sheet};
 pub use undo::Entry;
@@ -84,8 +87,16 @@ pub enum EngineError {
     EffectMismatch,
     #[error("cannot merge: {0}")]
     Merge(String),
+    #[error(transparent)]
+    Vector(#[from] tooncraft_vector::VectorError),
+    #[error("this is not a vector drawing (draw on a vector layer's blank frame)")]
+    NotVector,
     #[error("layer “{0}” has its transparency locked, so it cannot take a fill")]
     TransparencyLocked(String),
+    #[error("there is no swatch {1} in palette {0}")]
+    NoSwatch(usize, usize),
+    #[error("frame {0} has no line drawing to colour on the line layer")]
+    NoLineArt(u32),
     #[error("there is no library item {0}")]
     NoLibraryItem(usize),
     #[error("text: {0}")]
@@ -103,6 +114,9 @@ struct LiveStroke {
     /// Symmetry copies: each has its own stroke engine (smoothing and spacing per copy), all
     /// painting into the same stroke so overlaps never darken.
     mirrors: Vec<(tooncraft_doc::symmetry::Mirror, StrokeEngine)>,
+    /// On a vector layer: where the stroke goes, its brush and the points drawn; the dabs are
+    /// only a preview, replaced by one vector stroke when it ends.
+    vector: Option<vector::Live>,
     /// The stroke follows a ruler (see [`tooncraft_doc::rulers`]); positions are snapped before
     /// smoothing and symmetry.
     snap: Option<tooncraft_doc::rulers::Snapper>,
@@ -207,6 +221,7 @@ impl Engine {
         }
         let e = self.undo.pop().ok_or(EngineError::NothingToUndo)?;
         let inv = e.swap(&mut self.project);
+        self.project.sync_colour_layers();
         self.redo.push(inv);
         self.changes += 1;
         Ok(())
@@ -218,6 +233,7 @@ impl Engine {
         }
         let e = self.redo.pop().ok_or(EngineError::NothingToRedo)?;
         let inv = e.swap(&mut self.project);
+        self.project.sync_colour_layers();
         self.undo.push(inv);
         self.changes += 1;
         Ok(())
@@ -277,6 +293,17 @@ impl Engine {
             return Ok((d, Vec::new()));
         }
         let before = Part::Layers(self.project.layers.clone());
+        // a colour layer: the new drawing is the colour of the line drawing shown here
+        if let Some(li) = self.project.line_layer_of(layer) {
+            let line = self.project.drawing_at(li, frame).ok_or(EngineError::NoLineArt(frame + 1))?;
+            if self.project.layer(layer)?.colour_pairs.len() >= tooncraft_doc::colour_art::MAX_PAIRS {
+                return Err(DocError::TooManyDrawings.into());
+            }
+            let id = self.project.add_drawing(None)?;
+            self.project.layer_mut(layer)?.colour_pairs.push((line, id));
+            self.project.sync_colour_layers();
+            return Ok((id, vec![Part::Drawing { id, surface: None }, before]));
+        }
         let id = self.project.add_drawing(None)?;
         self.project.layer_mut(layer)?.set_key(frame, id);
         Ok((id, vec![Part::Drawing { id, surface: None }, before]))
@@ -300,8 +327,10 @@ impl Engine {
         let stroke = Stroke::begin_with(surface, brush, images);
         let (w, h) = (self.project.width(), self.project.height());
         let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush))).collect();
+        let vector = vector::Live::begin(&self.project, layer, frame, drawing, brush);
         let snap = self.project.rulers.snapper(w, h);
-        self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, snap, held: Default::default() });
+        self.live =
+            Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, vector, snap, held: Default::default() });
         Ok(())
     }
 
@@ -329,6 +358,10 @@ impl Engine {
         };
         let mut dabs = Vec::new();
         for sample in samples {
+            // a vector line keeps the positions after ruler snapping
+            if let (Some(v), Some(s)) = (live.vector.as_mut(), sample.sanitized()) {
+                v.push(s);
+            }
             dabs.extend(live.engine.feed(sample));
             for (m, eng) in &mut live.mirrors {
                 dabs.extend(eng.feed(mirror_sample(m, sample)));
@@ -341,6 +374,11 @@ impl Engine {
 
     /// Finish the live stroke as one undo step.
     pub fn end_stroke(&mut self) -> Result<()> {
+        if let Some(v) = self.live.as_mut().and_then(|l| l.vector.take()) {
+            // the dabs were a preview: drop them, then add the line as vector data
+            self.cancel_stroke();
+            return v.finish(self);
+        }
         let mut live = self.live.take().ok_or(EngineError::NotStroking)?;
         let mut dabs = Vec::new();
         // samples a ruler still held back (a short tap near a perspective ruler)
@@ -491,16 +529,23 @@ impl Engine {
         if self.live.is_some() {
             return Err(EngineError::Busy);
         }
-        command::apply(self, cmd)
+        let r = command::apply(self, cmd);
+        // colour layers follow their line layers whatever the command changed
+        self.project.sync_colour_layers();
+        r
     }
 }
 
+#[cfg(test)]
+mod colour_art_tests;
 #[cfg(test)]
 mod history_tests;
 #[cfg(test)]
 mod layerops_tests;
 #[cfg(test)]
 mod library_tests;
+#[cfg(test)]
+mod swatch_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

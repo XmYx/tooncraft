@@ -263,7 +263,7 @@ fn colour_chips(app: &mut ToonApp, ui: &mut egui::Ui) {
             let label = tlf!("Previous colour #{hex}", hex = hex([p[0], p[1], p[2], 255]));
             resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label.clone()));
             if resp.on_hover_text(tl!("Back to the previous colour")).clicked() {
-                app.color = [p[0], p[1], p[2], 255];
+                crate::colour_tools::set_rgb(app, p);
             }
         }
         // the current brush's opacity, next to its colour
@@ -285,14 +285,18 @@ fn colour_chips(app: &mut ToonApp, ui: &mut egui::Ui) {
 pub fn colour(app: &mut ToonApp, ui: &mut egui::Ui) {
     egui::ScrollArea::vertical().id_salt("colour-scroll").show(ui, |ui| {
         colour_chips(app, ui);
-        ui.checkbox(&mut app.colour.wheel, tl!("Hue wheel"));
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut app.colour.wheel, tl!("Hue wheel"));
+            ui.toggle_value(&mut app.colour.window, tl!("Picker Window")).on_hover_text(tl!("The picker in a window of its own"));
+        });
         let mut rgb = [app.color[0], app.color[1], app.color[2]];
         if app.colour.wheel && crate::colour_tools::wheel(ui, &mut rgb) {
-            app.color = [rgb[0], rgb[1], rgb[2], 255];
+            crate::colour_tools::set_rgb(app, rgb);
         }
         if crate::color::picker(ui, "drawing-colour", &mut rgb) {
-            app.color = [rgb[0], rgb[1], rgb[2], 255];
+            crate::colour_tools::set_rgb(app, rgb);
         }
+        crate::colour_tools::opacity(app, ui);
         ui.horizontal(|ui| {
             for (i, name) in [tl!("Red"), tl!("Green"), tl!("Blue")].iter().enumerate() {
                 let l = ui.label(*name);
@@ -305,7 +309,7 @@ pub fn colour(app: &mut ToonApp, ui: &mut egui::Ui) {
             if ui.add(egui::TextEdit::singleline(&mut h).desired_width(70.0)).labelled_by(l.id).changed()
                 && let Some(c) = parse_hex(&h)
             {
-                app.color = c;
+                crate::colour_tools::set_rgb(app, [c[0], c[1], c[2]]);
             }
         });
         ui.separator();

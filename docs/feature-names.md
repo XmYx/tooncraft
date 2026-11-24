@@ -44,7 +44,9 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Depth, Shake, Add Shake Here | Generic film words | Use |
 | Fill every drawing of the layer | Our wording | Use |
 | Tip, Tip from Image, Brush preset, My brushes | Generic | Use (common) |
+| Colour opacity, Picker Window, Colour Picker, Edit Swatch, Update paint in this colour | Generic colour words and our wording | Use (common) |
 | Brushes (panel), Favourites, Recent, Basics, Add Current Brush, Import Brush, Reload Library | Generic library words | Use (common) |
+| My Drawings, Save Item to My Drawings, Add File to Shot Library, Open Drawing File, Save Drawing File | Generic library words and our wording | Use (common) |
 | Drawing Library (panel), Add Frames to Library, Insert Item, Insert Item Linked, Remove from Library | Generic library words and our wording | Use (common) |
 | Animated WebP (lossless or lossy), WebP Image, TGA Sequence, TIFF Sequence, Layered PSD / PSB, All Frames | Format names (rule 3: formats we support) and our wording | Use |
 | Dynamics, Curve, Scatter, Jitter, Tip shape, Roundness, Tip angle | Generic brush words; our wording for the per-input response curves | Use |
@@ -65,3 +67,4 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Rest, Closed, Open, Wide, Round, Pucker, Teeth on lip, Tongue, Other consonants | Our names for the mouth shapes; phoneme letters are generic | Use |
 | Rulers, Straight ruler, Curve ruler, Ellipse ruler, Concentric ruler, One-, Two-, Three-Point Perspective, Snap strokes to grid lines, Reach | Generic drafting terms and our wording | Use (common) |
 | Text, Place Text, Align left, Centre, Align right, Line spacing, Letter spacing | Generic typesetting terms | Use (common) |
+| Colour layer, Add Colour Layer, Colour of …, Stop Following the Line Layer | Generic ink-and-paint terms and our wording | Use (common) |

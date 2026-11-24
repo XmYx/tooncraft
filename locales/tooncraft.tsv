@@ -7,6 +7,7 @@ tooncraft	 px
 tooncraft	 s	
 tooncraft	0: four, or more for a long shot	
 tooncraft	A copy of the clip starting at the current frame	
+tooncraft	A layer below for colour that follows this layer's drawings and timing	
 tooncraft	A new layer	
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
 tooncraft	A new shot (Ctrl+N)	
@@ -18,11 +19,13 @@ tooncraft	Actual size
 tooncraft	Add	
 tooncraft	Add All to Palette	
 tooncraft	Add Area	
+tooncraft	Add Colour Layer	
 tooncraft	Add Concentric Ruler	
 tooncraft	Add Current Brush	
 tooncraft	Add Current Colour	
 tooncraft	Add Curve Ruler	
 tooncraft	Add Ellipse Ruler	
+tooncraft	Add File to Shot Library	
 tooncraft	Add Frames to Library	
 tooncraft	Add Inbetweens	
 tooncraft	Add Layer Above	
@@ -154,11 +157,15 @@ tooncraft	Closed (M B P)
 tooncraft	Clouds	
 tooncraft	Colour	
 tooncraft	Colour #{hex}	
+tooncraft	Colour Picker	
 tooncraft	Colour burn	
 tooncraft	Colour dodge	
 tooncraft	Colour fringe	
 tooncraft	Colour jitter	
 tooncraft	Colour key	
+tooncraft	Colour layer added: paint under the lines, it follows their timing	
+tooncraft	Colour of {layer}	
+tooncraft	Colour opacity	
 tooncraft	Colour picker	
 tooncraft	Colour pickup	
 tooncraft	Colour to replace	
@@ -177,6 +184,7 @@ tooncraft	Copy Frames
 tooncraft	Copy look from	
 tooncraft	Copy opacity, blend mode, label colour, folder, peg, depth and effects to this layer	
 tooncraft	Copy the layer with its drawings, just above it	
+tooncraft	Could not make the folder {dir}: {error}	
 tooncraft	Could not open the effects: {error}	
 tooncraft	Could not open the palette: {error}	
 tooncraft	Could not open {file}: {error}	
@@ -236,6 +244,7 @@ tooncraft	Drawing Layer
 tooncraft	Drawing Library	
 tooncraft	Drawing at frame {n}: {mark}	
 tooncraft	Drawing duplicated	
+tooncraft	Drawing files	
 tooncraft	Drawing names	
 tooncraft	Drawing thumbnails in the cells	
 tooncraft	Drawing {id}	
@@ -268,6 +277,8 @@ tooncraft	Ease out
 tooncraft	Ease to next key	
 tooncraft	Edit	
 tooncraft	Edit Decisions (OpenTimelineIO)…	
+tooncraft	Edit Swatch…	
+tooncraft	Edit swatch	
 tooncraft	Edit the curve of {source}	
 tooncraft	Effect stack	
 tooncraft	Effects	
@@ -281,6 +292,7 @@ tooncraft	Eraser
 tooncraft	Erasers	
 tooncraft	Every drawing of the layer	
 tooncraft	Every panel back in its first place	
+tooncraft	Every unlocked layer: paint in the old colour takes the new one	
 tooncraft	Exclusion	
 tooncraft	Export	
 tooncraft	Export Mouth Sheet…	
@@ -303,6 +315,7 @@ tooncraft	Favourites
 tooncraft	Feather	
 tooncraft	Field Guide	
 tooncraft	File	
+tooncraft	File {name}	
 tooncraft	Fill	
 tooncraft	Fill Empty Frames	
 tooncraft	Fill only empty areas; a click on paint does nothing	
@@ -479,12 +492,14 @@ tooncraft	Keep the bottom in place
 tooncraft	Keep the bottom left in place	
 tooncraft	Keep the bottom right in place	
 tooncraft	Keep the centre in place	
+tooncraft	Keep the chosen item for other shots	
 tooncraft	Keep the left side in place	
 tooncraft	Keep the outside	
 tooncraft	Keep the right side in place	
 tooncraft	Keep the top in place	
 tooncraft	Keep the top left in place	
 tooncraft	Keep the top right in place	
+tooncraft	Keep this layer's drawings, but stop following the line layer's timing	
 tooncraft	Key	
 tooncraft	Key Here	
 tooncraft	Key at frame {n}	
@@ -546,6 +561,7 @@ tooncraft	Lock
 tooncraft	Lock Layer	
 tooncraft	Lock Transparency	
 tooncraft	Lock transparency	
+tooncraft	Lock {layer}	
 tooncraft	Lock {name}	
 tooncraft	Look at	
 tooncraft	Look at all visible layers	
@@ -603,6 +619,7 @@ tooncraft	Moving the {kind}
 tooncraft	Multiply	
 tooncraft	Mute clip {n}	
 tooncraft	Mute {track}	
+tooncraft	My Drawings	
 tooncraft	My brushes	
 tooncraft	Name	
 tooncraft	Name of this drawing	
@@ -638,6 +655,7 @@ tooncraft	Next panel
 tooncraft	No Colour	
 tooncraft	No Mark	
 tooncraft	No command matches	
+tooncraft	No drawing files yet: save an item here to use it in other shots.	
 tooncraft	No drawing here to swap	
 tooncraft	No drawings have names yet	
 tooncraft	No drawings yet: select frames on the timeline and add them.	
@@ -655,6 +673,7 @@ tooncraft	No pegs yet. Add one in the Pegs panel to see its keys here.
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
 tooncraft	No pixels of that colour on the layer	
 tooncraft	No recent shots	
+tooncraft	No settings folder on this system, so My Drawings is not available.	
 tooncraft	No sound in this shot.	
 tooncraft	No symmetry	
 tooncraft	None	
@@ -698,6 +717,7 @@ tooncraft	Opacity jitter
 tooncraft	Opacity per step	
 tooncraft	Open	
 tooncraft	Open (A I)	
+tooncraft	Open Drawing File…	
 tooncraft	Open Palette…	
 tooncraft	Open Recent	
 tooncraft	Open Stack…	
@@ -734,6 +754,7 @@ tooncraft	Paint the text into the drawing (Ctrl+Enter)
 tooncraft	Palette	
 tooncraft	Palette {name} added ({n} colours)	
 tooncraft	Palette {n}	
+tooncraft	Palette: {name}	
 tooncraft	Palettes	
 tooncraft	Pan	
 tooncraft	Panels become a locked reference layer with their timings and camera moves	
@@ -760,6 +781,7 @@ tooncraft	Perspective, two points
 tooncraft	Pick Colour Here	
 tooncraft	Pick colour	
 tooncraft	Picked #{hex}	
+tooncraft	Picker Window	
 tooncraft	Pin	
 tooncraft	Pin This Frame	
 tooncraft	Pin frame to the light table	
@@ -852,6 +874,7 @@ tooncraft	Redo {action}
 tooncraft	Reference	
 tooncraft	Reference Image…	
 tooncraft	Reference image added under the drawing, locked	
+tooncraft	Reload	
 tooncraft	Reload Library	
 tooncraft	Remove	
 tooncraft	Remove All Rulers	
@@ -914,6 +937,8 @@ tooncraft	Saturation jitter
 tooncraft	Save	
 tooncraft	Save / save as	
 tooncraft	Save As…	
+tooncraft	Save Drawing File…	
+tooncraft	Save Item to My Drawings	
 tooncraft	Save New Version	
 tooncraft	Save Palette…	
 tooncraft	Save Preset…	
@@ -1052,6 +1077,7 @@ tooncraft	Steps after
 tooncraft	Steps before	
 tooncraft	Stop	
 tooncraft	Stop Clipping	
+tooncraft	Stop Following the Line Layer	
 tooncraft	Straight line from the last stroke	
 tooncraft	Straight ruler	
 tooncraft	Straightened	
@@ -1063,6 +1089,8 @@ tooncraft	Strokes started near a ruler follow it; right-click to add rulers and 
 tooncraft	Subtract	
 tooncraft	Swap Drawing	
 tooncraft	Swatch #{hex}	
+tooncraft	Swatch changed	
+tooncraft	Swatch name	
 tooncraft	Swatch {name}, #{hex}	
 tooncraft	Symmetry	
 tooncraft	TGA Sequence	
@@ -1081,6 +1109,7 @@ tooncraft	The flip set holds at most {n} frames
 tooncraft	The last save of this shot was interrupted and there is no backup.	
 tooncraft	The last save was interrupted and the backup does not open: {error}	
 tooncraft	The layer has no other drawing	
+tooncraft	The picker in a window of its own	
 tooncraft	The selection is too detailed to keep; nothing changed	
 tooncraft	The sheet down the right side, layers as columns	
 tooncraft	The shot has as many palettes as it can hold	
@@ -1088,6 +1117,7 @@ tooncraft	The size changes around the centre; Canvas Size… keeps another part 
 tooncraft	Thicken lines	
 tooncraft	This frame	
 tooncraft	This layer	
+tooncraft	This layer already has a colour layer; another one follows it too	
 tooncraft	This layer gets its own steps, opacity and colours; the others keep the shot's	
 tooncraft	This layer hangs from no peg: add one from the tool options	
 tooncraft	Three-way	
@@ -1143,9 +1173,11 @@ tooncraft	Unpin This Frame
 tooncraft	Unsaved changes	
 tooncraft	Up	
 tooncraft	Update Marker	
+tooncraft	Update paint in this colour	
 tooncraft	Use brush {name}	
 tooncraft	Use for This Shot	
 tooncraft	Use for {mouth}	
+tooncraft	Vector lines	
 tooncraft	Vertical	
 tooncraft	Video (MP4, H.264)	
 tooncraft	Video (MP4, H.264)…	
@@ -1199,6 +1231,7 @@ tooncraft	no drawing
 tooncraft	none	
 tooncraft	not set	
 tooncraft	of {total}	
+tooncraft	peg key	
 tooncraft	stroke {ms} ms	
 tooncraft	the file is too large	
 tooncraft	to	

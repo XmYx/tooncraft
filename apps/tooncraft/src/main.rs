@@ -17,6 +17,9 @@ mod canvas;
 mod canvas_header;
 mod canvas_tools;
 mod color;
+mod colour_layers_ui;
+#[cfg(test)]
+mod colour_layers_ui_tests;
 mod colour_tools;
 #[cfg(test)]
 mod colour_ui_tests;
@@ -75,6 +78,8 @@ mod shell_ui_tests;
 mod sound;
 mod sound_panel;
 mod start_screen;
+#[cfg(test)]
+mod swatch_ui_tests;
 mod tablet;
 mod text_tool;
 #[cfg(test)]
@@ -83,6 +88,9 @@ mod textures;
 mod theme;
 mod timeline;
 mod timeline_extras;
+mod timeline_rows;
+#[cfg(test)]
+mod timeline_rows_ui_tests;
 #[cfg(test)]
 mod timeline_ui_tests;
 mod timing_panel;
@@ -94,6 +102,8 @@ mod ui_tests;
 mod unsaved;
 #[cfg(test)]
 mod unsaved_ui_tests;
+#[cfg(test)]
+mod vector_ui_tests;
 mod view;
 
 use args::{Cli, Launch};

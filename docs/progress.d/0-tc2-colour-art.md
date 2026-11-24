@@ -1,0 +1,1 @@
+- 2026-11-24: Line and colour art in one drawing: Add Colour Layer makes a layer below a line layer that follows its exposures (new drawing, hold, re-time and delete act on both, through undo and redo); painting on it makes the colour drawing paired with the line drawing; `AddColourLayer` and `SetColourOf` commands; saved with the shot, older files unchanged.
