@@ -379,13 +379,29 @@ pub(crate) fn swatch_fill(
             links.push(tooncraft_doc::palette::FillLink { drawing: *drawing, runs });
         }
     }
-    let before = e.project.palettes.clone();
-    let mut v = before.clone();
-    if let Some(s) = v.get_mut(palette).and_then(|p| p.swatches.get_mut(swatch)) {
-        s.links.extend(links);
+    // only this swatch's links go into the undo step (not a copy of every palette)
+    let Some(s) = e.project.palettes.get_mut(palette).and_then(|p| p.swatches.get_mut(swatch)) else { return Err(EngineError::NoSwatch(palette, swatch)) };
+    let before = s.links.clone();
+    s.links.extend(links);
+    let extra = s.links.len().saturating_sub(tooncraft_doc::palette::MAX_LINKS);
+    s.links = s.links.split_off(extra);
+    // the project-wide budget: drop this swatch's oldest links until everything fits
+    let total = tooncraft_doc::palette::link_runs(&e.project.palettes);
+    if total > tooncraft_doc::palette::MAX_TOTAL_LINK_RUNS
+        && let Some(s) = e.project.palettes.get_mut(palette).and_then(|p| p.swatches.get_mut(swatch))
+    {
+        let mut over = total - tooncraft_doc::palette::MAX_TOTAL_LINK_RUNS;
+        let mut drop = 0;
+        for l in &s.links {
+            if over == 0 {
+                break;
+            }
+            over = over.saturating_sub(l.runs.len());
+            drop += 1;
+        }
+        s.links = s.links.split_off(drop.min(s.links.len()));
     }
-    e.project.palettes = tooncraft_doc::palette::sanitize_all(v);
-    parts.push(Part::Palettes(before));
+    parts.push(Part::SwatchLinks(palette, swatch, before));
     e.push(Entry { label: "Fill".into(), parts });
     Ok(())
 }
@@ -467,6 +483,11 @@ pub(crate) fn edit_swatch(e: &mut Engine, palette: usize, swatch: usize, rgb: [u
     }
     let mut v = before.clone();
     if let Some(s) = v.get_mut(palette).and_then(|p| p.swatches.get_mut(swatch)) {
+        // without updating the paint, the linked paint keeps the old colour: it is no longer
+        // this swatch's paint, so the links go
+        if !update_paint && old != rgb {
+            s.links.clear();
+        }
         s.rgb = rgb;
         if let Some(n) = name {
             s.name = n;

@@ -153,3 +153,46 @@ fn links_are_capped_when_read() {
     assert_eq!(p.swatches[0].links.len(), MAX_LINKS);
     assert_eq!(p.swatches[0].links[0].runs.len(), MAX_LINK_RUNS);
 }
+
+#[test]
+fn all_links_together_stay_within_the_budget_and_undo_counts_them() {
+    use tooncraft_doc::palette::{FillLink, MAX_TOTAL_LINK_RUNS, link_runs, sanitize_all};
+    // a hostile file: many swatches each with many big links
+    let big = FillLink { drawing: tooncraft_doc::DrawingId(1), runs: vec![(0, 0, 1); 100_000] };
+    let mut p = Palette::new("Big");
+    for i in 0..30 {
+        p.push(&format!("s{i}"), SKIN);
+    }
+    for s in &mut p.swatches {
+        s.links = vec![big.clone(); 3];
+    }
+    let v = sanitize_all(vec![p.clone(), p]);
+    assert!(link_runs(&v) <= MAX_TOTAL_LINK_RUNS, "{}", link_runs(&v));
+    // a fill keeps only its swatch's links in the undo step, and the undo budget sees them
+    let mut e = Engine::new(Project::new("Linked", 32, 32, 12, 2).unwrap());
+    let mut p = Palette::new("Characters");
+    p.push("skin", SKIN);
+    e.apply(Command::SetPalettes { palettes: vec![p] }).unwrap();
+    for _ in 0..3 {
+        e.apply(Command::ClearDrawing { layer: 0, frame: 0 }).ok();
+        e.apply(Command::SwatchFill {
+            palette: 0,
+            swatch: 0,
+            layer: 0,
+            frame: 0,
+            x: 4,
+            y: 4,
+            options: Default::default(),
+            reference: Default::default(),
+            all_frames: false,
+        })
+        .unwrap();
+    }
+    let top = e.undo.last().unwrap();
+    assert!(top.parts.iter().any(|p| matches!(p, crate::undo::Part::SwatchLinks(0, 0, l) if l.len() == 2)), "the undo part holds the two links from before");
+    assert!(!top.parts.iter().any(|p| matches!(p, crate::undo::Part::Palettes(_))), "no full palettes copy");
+    assert!(top.bytes() >= 2 * 32 * 12, "the links are counted: {}", top.bytes());
+    // editing the swatch without updating the paint drops its links
+    e.apply(Command::EditSwatch { palette: 0, swatch: 0, rgb: NEW, name: None, update_paint: false }).unwrap();
+    assert!(e.project.palettes[0].swatches[0].links.is_empty());
+}

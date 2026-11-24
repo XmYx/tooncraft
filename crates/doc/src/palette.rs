@@ -78,6 +78,14 @@ pub struct Swatch {
 pub const MAX_LINKS: usize = 1024;
 /// Most runs of pixels one fill link keeps.
 pub const MAX_LINK_RUNS: usize = 200_000;
+/// Most runs all the links of all palettes keep together (12 bytes each: about 24 MB). Past it
+/// the oldest links are forgotten (see [`sanitize_all`]).
+pub const MAX_TOTAL_LINK_RUNS: usize = 2_000_000;
+
+/// Runs kept by every link of `palettes`.
+pub fn link_runs(palettes: &[Palette]) -> usize {
+    palettes.iter().flat_map(|p| &p.swatches).flat_map(|s| &s.links).map(|l| l.runs.len()).sum()
+}
 
 /// The pixels one fill painted in one drawing, as runs along rows: (y, first x, length).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -204,7 +212,23 @@ impl Palette {
 /// A list of palettes within the limits.
 pub fn sanitize_all(mut v: Vec<Palette>) -> Vec<Palette> {
     v.truncate(MAX_PALETTES);
-    v.into_iter().map(Palette::sanitized).collect()
+    let mut v: Vec<Palette> = v.into_iter().map(Palette::sanitized).collect();
+    // within the project-wide budget: each swatch keeps its newest links first; swatches earlier
+    // in the palettes are served first
+    let mut left = MAX_TOTAL_LINK_RUNS;
+    for s in v.iter_mut().flat_map(|p| p.swatches.iter_mut()) {
+        let mut keep = 0;
+        for l in s.links.iter().rev() {
+            if l.runs.len() > left {
+                break;
+            }
+            left -= l.runs.len();
+            keep += 1;
+        }
+        let drop = s.links.len() - keep;
+        s.links = s.links.split_off(drop);
+    }
+    v
 }
 
 #[cfg(test)]
