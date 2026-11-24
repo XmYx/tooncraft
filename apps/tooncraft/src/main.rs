@@ -42,6 +42,8 @@ mod effects_panel;
 mod export_dialog;
 mod frame_cache;
 #[cfg(test)]
+mod fx_ui_tests;
+#[cfg(test)]
 mod gaps_ui_tests;
 #[cfg(test)]
 mod guidance_ui_tests;
@@ -135,7 +137,7 @@ pub const APP_ID: &str = "ai.storyteller.tooncraft";
 
 fn main() -> eframe::Result {
     let cli: Cli = match args::parse(std::env::args().skip(1)) {
-        Ok(Launch::Run(cli)) => cli,
+        Ok(Launch::Run(cli)) => *cli,
         Ok(Launch::Print(text)) => {
             print!("{text}");
             return Ok(());

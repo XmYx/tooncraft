@@ -543,6 +543,9 @@ impl ToonApp {
         if cli.rulers {
             crate::rulers_ui::demo(&mut app);
         }
+        if !cli.fx.is_empty() {
+            crate::effects_panel::launch(&mut app, &cli.fx);
+        }
         if let Some(target) = cli.context_menu.as_deref() {
             crate::context_menus::prepare_launch(&mut app, target);
         }
