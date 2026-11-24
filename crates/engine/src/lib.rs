@@ -495,6 +495,7 @@ impl Engine {
 mod history_tests;
 #[cfg(test)]
 mod layerops_tests;
+#[cfg(test)]
 mod library_tests;
 #[cfg(test)]
 mod swatch_tests;
