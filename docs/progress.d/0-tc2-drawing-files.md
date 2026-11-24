@@ -1,0 +1,1 @@
+- 2026-11-24: Drawing files: a drawing-library item can be kept between shots as a `.toondrawings` file (drawings as PNG plus its timing), in the user's My Drawings folder or anywhere; adding one to another shot centres drawings made for another canvas size (`save_library_file`, `open_library_file`). Files are capped and repaired on reading.

@@ -45,6 +45,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Fill every drawing of the layer | Our wording | Use |
 | Tip, Tip from Image, Brush preset, My brushes | Generic | Use (common) |
 | Brushes (panel), Favourites, Recent, Basics, Add Current Brush, Import Brush, Reload Library | Generic library words | Use (common) |
+| My Drawings, Save Item to My Drawings, Add File to Shot Library, Open Drawing File, Save Drawing File | Generic library words and our wording | Use (common) |
 | Drawing Library (panel), Add Frames to Library, Insert Item, Insert Item Linked, Remove from Library | Generic library words and our wording | Use (common) |
 | Animated WebP (lossless or lossy), WebP Image, TGA Sequence, TIFF Sequence, Layered PSD / PSB, All Frames | Format names (rule 3: formats we support) and our wording | Use |
 | Dynamics, Curve, Scatter, Jitter, Tip shape, Roundness, Tip angle | Generic brush words; our wording for the per-input response curves | Use |

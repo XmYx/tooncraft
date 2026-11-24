@@ -75,7 +75,7 @@ fn decode(path: &str, max_side: u32, premultiplied: bool) -> std::result::Result
 }
 
 /// Place `img` centred on a `w`×`h` canvas as `placement` says.
-fn place(img: &RgbaImage, w: u32, h: u32, placement: Placement) -> RgbaImage {
+pub(crate) fn place(img: &RgbaImage, w: u32, h: u32, placement: Placement) -> RgbaImage {
     let (iw, ih) = (img.width.max(1) as f64, img.height.max(1) as f64);
     let scale = match placement {
         Placement::Fit => (w as f64 / iw).min(h as f64 / ih).min(1.0),

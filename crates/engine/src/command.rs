@@ -139,6 +139,19 @@ pub enum Command {
         item: usize,
         to: usize,
     },
+    /// Write library item `item` to `path` as a drawing file (`.toondrawings`) to use in other
+    /// shots. Not an undo step.
+    SaveLibraryFile {
+        item: usize,
+        path: String,
+    },
+    /// Add the drawing file at `path` to the library; drawings made for another canvas size are
+    /// centred as `placement` says (default: fit). One undo step.
+    OpenLibraryFile {
+        path: String,
+        #[serde(default)]
+        placement: crate::import::Placement,
+    },
     /// In every drawing of the layer, give the pixels close to `from` (within `tolerance` per
     /// channel) the colour `to`, keeping their opacity (antialiased edges stay soft). One undo
     /// step.
@@ -1008,6 +1021,8 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::RenameLibraryItem { item, name } => crate::drawing_library::rename(e, item, &name),
         Command::RemoveLibraryItem { item } => crate::drawing_library::remove(e, item),
         Command::MoveLibraryItem { item, to } => crate::drawing_library::move_item(e, item, to),
+        Command::SaveLibraryFile { item, path } => crate::drawing_library::save_file(e, item, &path),
+        Command::OpenLibraryFile { path, placement } => crate::drawing_library::open_file(e, &path, placement),
         Command::RecolourLayer { layer, from, to, tolerance } => crate::drawing::recolour(e, layer, from, to, tolerance),
         Command::SetSymmetry { symmetry } => {
             e.project.symmetry = symmetry.sanitized();
