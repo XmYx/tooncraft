@@ -183,7 +183,9 @@ fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: R
         }
         if visible {
             let target = if owners.get(li).copied().flatten().is_some() { clipped.get_or_insert_with(|| RgbaImage::transparent(w, h)) } else { &mut *img };
-            if end == li + 1 {
+            if layer.adjustment {
+                adjust(p, li, frame, target, origin, o, opacity, &map);
+            } else if end == li + 1 {
                 draw_layer(p, li, frame, target, origin, o, layer.blend, opacity, &map);
             } else {
                 // a clipping group: each clipping layer shows only where the base has paint, and
@@ -223,30 +225,129 @@ fn draw_layer(
     map: &impl Fn(usize) -> Option<Option<Affine>>,
 ) {
     let Some(layer) = p.layers.get(li) else { return };
-    let Some(s) = layer.drawing_at(frame).and_then(|d| p.drawing(d)) else { return };
+    let drawing = layer.drawing_at(frame).and_then(|d| p.drawing(d));
     let Some(t) = map(li) else { return };
-    if o.effects && tooncraft_fx::is_active(&layer.effects) {
+    let fx = o.effects && tooncraft_fx::is_active(&layer.effects);
+    let mask = layer.mask.filter(|m| m.enabled).and_then(|m| p.drawing(m.drawing).map(|s| (m, s)));
+    // a lens flare lights the picture even where its layer has no drawing
+    if drawing.is_none() && !(fx && tooncraft_fx::generates(&layer.effects)) {
+        return;
+    }
+    if fx || mask.is_some() {
         // the whole canvas here (see the top of `render_region`); the effects run on the drawn
         // part plus the stack's reach, which gives the same pixels for far less work
         let (w, h) = (dst.width, dst.height);
         let mut top = RgbaImage::transparent(w, h);
-        draw(s, &mut top, origin, t.as_ref(), 1.0, None);
-        let Some((x0, y0, x1, y1)) = top.opaque_bounds() else { return };
-        let (cx, cy, cx1, cy1) = match tooncraft_fx::stack_reach(&layer.effects, frame) {
-            Some(r) => (x0.saturating_sub(r), y0.saturating_sub(r), x1.saturating_add(r).min(w), y1.saturating_add(r).min(h)),
-            None => (0, 0, w, h),
+        if let Some(s) = drawing {
+            draw(s, &mut top, origin, t.as_ref(), 1.0, None);
+        }
+        let reach = if fx { tooncraft_fx::stack_reach(&layer.effects, frame) } else { Some(0) };
+        let (cx, cy, cx1, cy1) = match (reach, top.opaque_bounds()) {
+            (Some(r), Some((x0, y0, x1, y1))) => (x0.saturating_sub(r), y0.saturating_sub(r), x1.saturating_add(r).min(w), y1.saturating_add(r).min(h)),
+            (Some(_), None) => return,
+            (None, _) => (0, 0, w, h),
         };
         let mut part = if (cx, cy, cx1, cy1) == (0, 0, w, h) { top } else { top.crop(cx, cy, cx1 - cx, cy1 - cy) };
-        let below = tooncraft_fx::needs_below(&layer.effects).then(|| dst.crop(cx, cy, cx1 - cx, cy1 - cy));
-        tooncraft_fx::apply_stack_at(&mut part, (origin.0 + cx, origin.1 + cy), &layer.effects, frame, below.as_ref());
+        if fx {
+            let below = tooncraft_fx::needs_below(&layer.effects).then(|| dst.crop(cx, cy, cx1 - cx, cy1 - cy));
+            let sources = source_images(p, li, frame, origin, (w, h), (cx, cy, cx1 - cx, cy1 - cy), map);
+            let inputs = tooncraft_fx::Inputs { below: below.as_ref(), layers: &sources };
+            tooncraft_fx::apply_stack_with(&mut part, (origin.0 + cx, origin.1 + cy), &layer.effects, frame, inputs);
+        }
+        if let Some((m, ms)) = mask {
+            let mut shape = RgbaImage::transparent(w, h);
+            draw(ms, &mut shape, origin, t.as_ref(), 1.0, None);
+            let shape = if (cx, cy, cx1, cy1) == (0, 0, w, h) { shape } else { shape.crop(cx, cy, cx1 - cx, cy1 - cy) };
+            keep_by(&mut part, &shape, |px| m.keep(px));
+        }
         dst.composite_at(&part, cx, cy, mode, opacity);
-    } else if mode == BlendMode::Normal {
+    } else if let Some(s) = drawing
+        && mode == BlendMode::Normal
+    {
         draw(s, dst, origin, t.as_ref(), opacity, None);
-    } else {
+    } else if let Some(s) = drawing {
         let mut top = RgbaImage::transparent(dst.width, dst.height);
         draw(s, &mut top, origin, t.as_ref(), opacity, None);
         dst.blend_image(&top, mode);
     }
+}
+
+/// Scale `img`'s pixels by `keep(shape pixel)` (0…255); `shape` is the same size.
+fn keep_by(img: &mut RgbaImage, shape: &RgbaImage, keep: impl Fn([u8; 4]) -> u8) {
+    for (d, s) in img.data.as_chunks_mut::<4>().0.iter_mut().zip(shape.data.as_chunks::<4>().0.iter()) {
+        let k = keep(*s);
+        if k < 255 && d[3] > 0 {
+            *d = tooncraft_raster::scale_alpha(*d, k);
+        }
+    }
+}
+
+/// An adjustment layer: run its effects over `target` (everything composited below it) and lay
+/// the result over `target` where its drawing has paint (everywhere without one), cut by its
+/// mask, in its blend mode and opacity.
+fn adjust(
+    p: &Project,
+    li: usize,
+    frame: u32,
+    target: &mut RgbaImage,
+    origin: (u32, u32),
+    o: RenderOptions,
+    opacity: f32,
+    map: &impl Fn(usize) -> Option<Option<Affine>>,
+) {
+    let Some(layer) = p.layers.get(li) else { return };
+    if !o.effects || !tooncraft_fx::is_active(&layer.effects) {
+        return;
+    }
+    let Some(t) = map(li) else { return };
+    let (w, h) = (target.width, target.height);
+    let mut adjusted = target.clone();
+    let sources = source_images(p, li, frame, origin, (w, h), (0, 0, w, h), map);
+    let below = target.clone();
+    tooncraft_fx::apply_stack_with(&mut adjusted, origin, &layer.effects, frame, tooncraft_fx::Inputs { below: Some(&below), layers: &sources });
+    if let Some(s) = layer.drawing_at(frame).and_then(|d| p.drawing(d)) {
+        let mut shape = RgbaImage::transparent(w, h);
+        draw(s, &mut shape, origin, t.as_ref(), 1.0, None);
+        keep_by(&mut adjusted, &shape, |px| px[3]);
+    }
+    if let Some((m, ms)) = layer.mask.filter(|m| m.enabled).and_then(|m| p.drawing(m.drawing).map(|s| (m, s))) {
+        let mut shape = RgbaImage::transparent(w, h);
+        draw(ms, &mut shape, origin, t.as_ref(), 1.0, None);
+        keep_by(&mut adjusted, &shape, |px| m.keep(px));
+    }
+    // the result covers what it adjusted where it applies: lay it over, then mix by opacity
+    let mut out = below.clone();
+    out.composite(&adjusted, layer.blend, 1.0);
+    let k = opacity.clamp(0.0, 1.0);
+    for (d, (a, b)) in target.data.iter_mut().zip(below.data.iter().zip(out.data.iter())) {
+        *d = (*a as f32 + (*b as f32 - *a as f32) * k).round().clamp(0.0, 255.0) as u8;
+    }
+}
+
+/// The drawings of the layers layer `li`'s effects read (displacement maps), each through its own
+/// transform at `frame` and without its effects, cut to `part` (x, y, w, h) of a `size` canvas.
+/// A layer that is gone, is `li` itself or shows nothing gives no image.
+fn source_images(
+    p: &Project,
+    li: usize,
+    frame: u32,
+    origin: (u32, u32),
+    size: (u32, u32),
+    part: (u32, u32, u32, u32),
+    map: &impl Fn(usize) -> Option<Option<Affine>>,
+) -> Vec<(u64, RgbaImage)> {
+    let Some(layer) = p.layers.get(li) else { return Vec::new() };
+    tooncraft_fx::source_layers(&layer.effects)
+        .into_iter()
+        .filter_map(|id| {
+            let si = p.layer_index(crate::LayerId(id)).filter(|si| *si != li)?;
+            let s = p.layers.get(si)?.drawing_at(frame).and_then(|d| p.drawing(d))?;
+            let t = map(si)?;
+            let mut img = RgbaImage::transparent(size.0, size.1);
+            draw(s, &mut img, origin, t.as_ref(), 1.0, None);
+            Some((id, if part == (0, 0, size.0, size.1) { img } else { img.crop(part.0, part.1, part.2, part.3) }))
+        })
+        .collect()
 }
 
 /// Cut `img` by the matte layer `m`: keep what is inside its drawing (or outside it), scaled by
@@ -281,7 +382,7 @@ fn uses_effects(p: &Project, frame: u32, o: RenderOptions) -> bool {
             Some(only) => only == li || owner == Some(li),
             None => p.effective(l).0,
         };
-        shown && tooncraft_fx::is_active(&l.effects) && l.drawing_at(frame).is_some()
+        shown && tooncraft_fx::is_active(&l.effects) && (l.drawing_at(frame).is_some() || l.adjustment || tooncraft_fx::generates(&l.effects))
     })
 }
 
@@ -585,6 +686,51 @@ mod tests {
         assert!(lines.pixel(10, 20)[3] > 0, "the edge shows");
         p.onion.hide_previous = true;
         assert_eq!(render_frame(&p, 1, o).pixel(10, 20)[3], 0, "the previous step is hidden");
+    }
+
+    #[test]
+    fn a_flare_lights_an_empty_layer_and_displacement_reads_another_layer() {
+        let (mut p, _) = dot_project();
+        let o = RenderOptions { paper: false, ..Default::default() };
+        let li = p.add_layer("Light", 1).unwrap();
+        let flare = tooncraft_fx::EffectKind::LensFlare {
+            x: 100.0,
+            y: 40.0,
+            through_x: 64.0,
+            through_y: 32.0,
+            size: 6.0,
+            intensity: 1.0,
+            colour: [255, 255, 255],
+            rays: 0,
+            ghosts: 0,
+        };
+        p.layers[li].effects = vec![tooncraft_fx::Effect::new(flare)];
+        assert!(p.layers[li].drawing_at(0).is_none(), "the light layer has no drawing");
+        let lit = render_frame(&p, 0, o);
+        assert!(lit.pixel(100, 40)[3] > 200, "the flare shows: {:?}", lit.pixel(100, 40));
+        assert_eq!(lit.pixel(11, 11), [0, 0, 0, 255], "the dot below is untouched");
+        p.layers[li].effects.clear();
+        // a map layer whose red pushes the dot 6 px right; the map itself is hidden
+        let map_layer = p.add_layer("Map", 1).unwrap();
+        let m = p.add_drawing(None).unwrap();
+        for y in 0..64u32 {
+            for x in 0..64u32 {
+                let o = ((y * 64 + x) * 4) as usize;
+                p.drawing_mut(m).unwrap().tile_mut(0).unwrap().bytes_mut()[o..o + 4].copy_from_slice(&[255, 128, 0, 255]);
+            }
+        }
+        p.layers[map_layer].cells[0] = Cell::Key(m);
+        p.layers[map_layer].visible = false;
+        let id = p.layers[map_layer].id.0;
+        p.layers[0].effects =
+            vec![tooncraft_fx::Effect::new(tooncraft_fx::EffectKind::Displace { layer: id, amount_x: 6.0, amount_y: 0.0, brightness: false })];
+        let moved = render_frame(&p, 0, o);
+        assert_eq!(moved.pixel(11, 11)[3], 0, "the dot left its place");
+        assert_eq!(moved.pixel(17, 11), [0, 0, 0, 255], "for 6 px to the right");
+        // the layer pointing at itself, or a layer that is gone, moves nothing
+        p.layers[0].effects =
+            vec![tooncraft_fx::Effect::new(tooncraft_fx::EffectKind::Displace { layer: 9999, amount_x: 6.0, amount_y: 0.0, brightness: false })];
+        assert_eq!(render_frame(&p, 0, o).pixel(11, 11), [0, 0, 0, 255]);
     }
 
     /// A project with two layers, each with a dot drawn on frame 0 and nothing on frame 1: the

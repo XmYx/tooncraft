@@ -32,6 +32,8 @@ mod curves;
 #[cfg(test)]
 mod curves_ui_tests;
 mod dock;
+#[cfg(test)]
+mod dock_ui_tests;
 mod draw_aids;
 #[cfg(test)]
 mod drawaids_ui_tests;
@@ -42,6 +44,8 @@ mod effects_panel;
 mod export_dialog;
 mod frame_cache;
 #[cfg(test)]
+mod fx_ui_tests;
+#[cfg(test)]
 mod gaps_ui_tests;
 #[cfg(test)]
 mod guidance_ui_tests;
@@ -51,6 +55,7 @@ mod history_ui_tests;
 mod icons;
 mod import_dialog;
 mod keys;
+mod layer_fx;
 mod layer_ops;
 mod layer_tree;
 mod layers_list;
@@ -116,6 +121,9 @@ mod timeline_ruler;
 mod timeline_ui_tests;
 mod timing_panel;
 mod tool_options;
+mod tool_palettes;
+#[cfg(test)]
+mod tool_palettes_ui_tests;
 mod tool_rail;
 mod top_bar;
 #[cfg(test)]
@@ -127,6 +135,7 @@ mod unsaved;
 mod unsaved_ui_tests;
 #[cfg(test)]
 mod vector_ui_tests;
+mod video_dialog;
 mod view;
 mod workspaces;
 
@@ -137,7 +146,7 @@ pub const APP_ID: &str = "ai.storyteller.tooncraft";
 
 fn main() -> eframe::Result {
     let cli: Cli = match args::parse(std::env::args().skip(1)) {
-        Ok(Launch::Run(cli)) => cli,
+        Ok(Launch::Run(cli)) => *cli,
         Ok(Launch::Print(text)) => {
             print!("{text}");
             return Ok(());

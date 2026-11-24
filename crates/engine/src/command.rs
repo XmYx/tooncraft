@@ -97,6 +97,9 @@ pub enum Command {
         /// More rings of the selection (holes, other parts), with `area`.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         area_rings: Vec<Vec<(f32, f32)>>,
+        /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
     },
     /// Give a layer its own onion-skin settings (`None`: back to the shot's). A setting, not an
     /// undo step.
@@ -485,6 +488,17 @@ pub enum Command {
         path: String,
         frame: u32,
     },
+    /// The pictures of a video file (MP4 or QuickTime, H.264 or H.265) as a new layer from
+    /// `frame`: each picture a drawing at the shot frame its time falls on, held until the next,
+    /// scaled to fit the canvas; `options` choose the start, a step and a cap, and whether the
+    /// layer goes to the bottom locked and faded, as a reference for rotoscoping.
+    ImportVideo {
+        path: String,
+        #[serde(default)]
+        frame: u32,
+        #[serde(default)]
+        options: crate::interchange::VideoImport,
+    },
     /// An XDTS exposure sheet and its drawing folders, one new layer per track.
     ImportSheet {
         path: String,
@@ -623,6 +637,9 @@ pub enum Command {
         skew_y: f32,
         #[serde(default)]
         resample: tooncraft_raster::select::Resample,
+        /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
     },
     /// Distort the pixels inside `polygon` so the corners of its box land on `corners`
     /// (top-left, top-right, bottom-right, bottom-left): free distort and perspective.
@@ -635,6 +652,9 @@ pub enum Command {
         corners: [(f32, f32); 4],
         #[serde(default)]
         resample: tooncraft_raster::select::Resample,
+        /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
     },
     /// Erase the pixels inside `polygon`.
     ClearSelection {
@@ -643,6 +663,9 @@ pub enum Command {
         polygon: Vec<(f32, f32)>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         rings: Vec<Vec<(f32, f32)>>,
+        /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
     },
     /// Paste straight-RGBA pixels with their top-left at (x, y) (a new drawing on a blank cell).
     PastePixels {
@@ -956,6 +979,34 @@ pub enum Command {
         #[serde(default)]
         matte: Option<tooncraft_doc::Matte>,
     },
+    /// Make the layer an adjustment layer (its effects act on everything below it) or a normal
+    /// layer again.
+    SetLayerAdjustment {
+        layer: usize,
+        adjustment: bool,
+    },
+    /// Give the layer an empty painted mask (paint in it hides the layer; `invert`: paint shows
+    /// it) and start painting into it.
+    AddLayerMask {
+        layer: usize,
+        #[serde(default)]
+        invert: bool,
+    },
+    /// Change the layer's mask: on or off, inverted, and whether painting goes into it.
+    SetLayerMask {
+        layer: usize,
+        #[serde(default)]
+        enabled: Option<bool>,
+        #[serde(default)]
+        invert: Option<bool>,
+        #[serde(default)]
+        editing: Option<bool>,
+    },
+    /// Remove the layer's mask (its drawing stays until unused drawings are purged; undo brings
+    /// the mask back).
+    RemoveLayerMask {
+        layer: usize,
+    },
     /// Several commands as one undo step called `label` (at most [`MAX_BATCH`], none of them a
     /// batch). When one fails, the ones before it are undone and the error is returned, so the
     /// project is as it was.
@@ -974,6 +1025,11 @@ fn centre() -> (f32, f32) {
 
 fn yes() -> bool {
     true
+}
+
+/// A feather too small to soften anything (left out of saved command files).
+fn is_hard(f: &f32) -> bool {
+    f.is_nan() || *f < 0.5
 }
 
 fn unit() -> f32 {
@@ -1094,9 +1150,9 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::PathShape { layer, frame, brush, points, closed, curve, outline, fill } => {
             crate::drawing::path_shape(e, layer, frame, brush, &points, closed, curve, outline, fill)
         }
-        Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings } => {
+        Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, feather } => {
             frame_ok(e, frame)?;
-            crate::drawing::gradient(e, layer, frame, kind, from, to, start, end, area.as_deref(), &area_rings)
+            crate::drawing::gradient(e, layer, frame, kind, from, to, start, end, area.as_deref(), &area_rings, feather)
         }
         Command::SetLayerOnion { layer, onion } => {
             e.project.layer_mut(layer)?.onion = onion.map(OnionSkin::sanitized);
@@ -1290,13 +1346,13 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             Ok(())
         }),
         Command::ImportImages { paths, frame, hold, name, options } => crate::import::images(e, &paths, frame, hold.clamp(1, 64), &name, &options),
-        Command::TransformSelection { layer, frame, polygon, rings, dx, dy, scale_x, scale_y, angle, skew_x, skew_y, resample } => {
-            crate::select::transform(e, layer, frame, &polygon, &rings, (dx, dy, scale_x, scale_y, angle), (skew_x, skew_y), resample)
+        Command::TransformSelection { layer, frame, polygon, rings, dx, dy, scale_x, scale_y, angle, skew_x, skew_y, resample, feather } => {
+            crate::select::transform(e, layer, frame, (&polygon, &rings, feather), (dx, dy, scale_x, scale_y, angle), (skew_x, skew_y), resample)
         }
-        Command::DistortSelection { layer, frame, polygon, rings, corners, resample } => {
-            crate::select::distort(e, layer, frame, &polygon, &rings, corners, resample)
+        Command::DistortSelection { layer, frame, polygon, rings, corners, resample, feather } => {
+            crate::select::distort(e, layer, frame, (&polygon, &rings, feather), corners, resample)
         }
-        Command::ClearSelection { layer, frame, polygon, rings } => crate::select::clear(e, layer, frame, &polygon, &rings),
+        Command::ClearSelection { layer, frame, polygon, rings, feather } => crate::select::clear(e, layer, frame, (&polygon, &rings, feather)),
         Command::PastePixels { layer, frame, x, y, width, height, rgba } => crate::select::paste(e, layer, frame, (x, y), width, height, &rgba),
         Command::SetSound { path, offset } => crate::audio::set(e, path.as_deref(), offset),
         Command::SetCameraKey { frame, x, y, zoom, angle } => {
@@ -1429,6 +1485,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }
         Command::ImportLayers { path, frame } => crate::interchange::layers(e, &path, frame),
         Command::ImportGif { path, frame } => crate::interchange::gif(e, &path, frame),
+        Command::ImportVideo { path, frame, options } => crate::interchange::video(e, &path, frame, &options),
         Command::ImportSheet { path } => crate::interchange::sheet(e, &path),
         Command::ImportBoards { path, frame, camera } => crate::boards::import(e, &path, frame, camera),
         Command::MoveSound { offset, index } => crate::audio::edit(e, index, "Move sound", |c| {
@@ -1873,6 +1930,22 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }),
         Command::SetLayerMatte { layer, matte } => edit_layers(e, "Matte", |e| {
             e.project.layer_mut(layer)?.matte = matte;
+            Ok(())
+        }),
+        Command::SetLayerAdjustment { layer, adjustment } => edit_layers(e, "Adjustment layer", |e| {
+            e.project.layer_mut(layer)?.adjustment = adjustment;
+            Ok(())
+        }),
+        Command::AddLayerMask { layer, invert } => crate::layerops::add_mask(e, layer, invert),
+        Command::SetLayerMask { layer, enabled, invert, editing } => edit_layers(e, "Layer mask", |e| {
+            let m = e.project.layer_mut(layer)?.mask.as_mut().ok_or(EngineError::NoMask)?;
+            m.enabled = enabled.unwrap_or(m.enabled);
+            m.invert = invert.unwrap_or(m.invert);
+            m.editing = editing.unwrap_or(m.editing);
+            Ok(())
+        }),
+        Command::RemoveLayerMask { layer } => edit_layers(e, "Remove layer mask", |e| {
+            e.project.layer_mut(layer)?.mask.take().ok_or(EngineError::NoMask)?;
             Ok(())
         }),
         Command::Batch { label, commands } => batch(e, &label, commands),

@@ -189,3 +189,46 @@ fn typed_box_moves_and_scales_the_selection_and_the_wand_can_go_global() {
     h.run();
     assert!(!h.state().sel.contiguous);
 }
+
+#[test]
+fn feather_typed_in_the_options_softens_erase_and_copy() {
+    let mut h = harness();
+    {
+        let app = h.state_mut();
+        let (w, hh) = (app.engine.project.width(), app.engine.project.height());
+        app.run(Command::Fill { layer: 0, frame: 0, x: 5, y: 5, color: [20, 40, 200, 255], options: Default::default(), reference: Default::default() });
+        assert!(w > 400 && hh > 400);
+        crate::selection_tools::set_rings(app, vec![sq(200.0, 200.0, 400.0, 400.0)]);
+    }
+    h.run();
+    // type the feather into the Select tool's options, from the keyboard
+    h.get(By::new().role(egui::Role::SpinButton).label("Feather")).scroll_to_me();
+    h.run();
+    h.get(By::new().role(egui::Role::SpinButton).label("Feather")).click();
+    h.run();
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.get(By::new().role(egui::Role::SpinButton).label("Feather")).type_text("8");
+    h.key_press(Key::Enter);
+    h.run();
+    h.run();
+    assert_eq!(h.state().sel.feather, 8.0);
+    // copy carries the soft edge; Delete leaves a fade instead of a hard cut
+    h.state_mut().copy_pixels(false);
+    let (rgba, cw, _, _) = h.state().pixel_clipboard.clone().unwrap();
+    assert!(cw > 200, "the copied box includes the fade outside the outline");
+    let alpha = |x: usize, y: usize| rgba[(y * cw as usize + x) * 4 + 3];
+    assert!(alpha(0, cw as usize / 2) < 60, "the copy fades out at its edge");
+    h.state_mut().delete_selected_pixels();
+    h.run();
+    let px = |h: &Harness<'static, ToonApp>, x: i64, y: i64| {
+        let p = &h.state().engine.project;
+        p.drawing_at(0, 0).and_then(|d| p.drawing(d)).map_or([0; 4], |s| s.pixel(x, y))
+    };
+    assert_eq!(px(&h, 300, 300)[3], 0, "the middle is erased");
+    assert_eq!(px(&h, 150, 300)[3], 255, "far outside is kept");
+    let edge = px(&h, 200, 300)[3];
+    assert!(edge > 60 && edge < 200, "the edge keeps part of the paint, got {edge}");
+    // one undo step brings it all back
+    h.state_mut().engine.undo().unwrap();
+    assert_eq!(px(&h, 300, 300)[3], 255);
+}

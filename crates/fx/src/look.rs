@@ -1,5 +1,6 @@
 //! Looks and distortions: gradient map, posterise, luminance threshold, vignette, chromatic
-//! aberration, ripple, wave, turbulence and line smoothing. Every one works on the premultiplied
+//! aberration, lens flare, ripple, wave, turbulence, displacement by another layer and line
+//! smoothing. Every one works on the premultiplied
 //! image in place and is deterministic (the turbulence noise is a hash of the position and seed).
 
 use tooncraft_raster::{RgbaImage, premultiply, select, unpremultiply};
@@ -173,6 +174,117 @@ pub(crate) fn smooth(img: &mut RgbaImage, radius: f32) {
     }
 }
 
+/// A lens flare's look: where the light is, the point its ghosts line up through, and its size,
+/// strength, colour, number of rays and of ghosts.
+pub(crate) struct Flare {
+    pub light: (f32, f32),
+    pub through: (f32, f32),
+    pub size: f32,
+    pub intensity: f32,
+    pub colour: [u8; 3],
+    pub rays: u32,
+    pub ghosts: u32,
+}
+
+/// Light added at canvas `(x, y)` by the flare, per channel 0…1 (before the intensity cap).
+fn flare_light(f: &Flare, x: f32, y: f32) -> [f32; 3] {
+    let (lx, ly) = f.light;
+    let s = f.size.max(1.0);
+    let (dx, dy) = (x - lx, y - ly);
+    let d = dx.hypot(dy);
+    let c = f.colour.map(|v| v as f32 / 255.0);
+    // the bright core and a faint ring around it
+    let core = (-(d / s).powi(2) * 4.0).exp();
+    let ring = 0.3 * (-((d - 1.6 * s) / (0.12 * s)).powi(2)).exp();
+    // star rays: narrow peaks around the light, fading with distance
+    let rays = if f.rays >= 2 {
+        let a = dy.atan2(dx) * f.rays as f32 / 2.0;
+        0.6 * a.cos().abs().powi(60) * (-d / (4.0 * s)).exp()
+    } else {
+        0.0
+    };
+    let mut out = [0.0f32; 3];
+    for ch in 0..3 {
+        out[ch] = (core + ring + rays) * c[ch];
+    }
+    // ghosts: soft discs on the line from the light through `through`, each a different hue
+    let (vx, vy) = (f.through.0 - lx, f.through.1 - ly);
+    for i in 0..f.ghosts.min(MAX_GHOSTS) {
+        let t = 0.5 + i as f32 * 0.55;
+        let (gx, gy) = (lx + vx * 2.0 * t, ly + vy * 2.0 * t);
+        let r = s * (0.25 + 0.18 * ((i * 7) % 4) as f32);
+        let g = (gx - x).hypot(gy - y) / r;
+        if g < 1.4 {
+            let k = 0.18 * (1.0 - (g / 1.4).powi(2)).max(0.0);
+            let tint = [[1.0, 0.6, 0.3], [0.4, 1.0, 0.6], [0.5, 0.6, 1.0], [1.0, 0.4, 0.9]][(i % 4) as usize];
+            for ch in 0..3 {
+                out[ch] += k * tint[ch] * (0.5 + 0.5 * c[ch]);
+            }
+        }
+    }
+    out
+}
+
+/// Most ghosts on one flare.
+pub const MAX_GHOSTS: u32 = 16;
+
+/// Add a lens flare's light over the picture (screen, so it lights transparent areas too).
+pub(crate) fn lens_flare(img: &mut RgbaImage, origin: (u32, u32), f: &Flare) {
+    if f.intensity <= 0.0 {
+        return;
+    }
+    let w = img.width as usize;
+    par::rows(&mut img.data, w * 4, |y, row| {
+        let cy = (origin.1 as usize + y) as f32 + 0.5;
+        for (x, p) in row.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+            let cx = (origin.0 as usize + x) as f32 + 0.5;
+            let l = flare_light(f, cx, cy).map(|v| (v * f.intensity).clamp(0.0, 1.0));
+            let la = l[0].max(l[1]).max(l[2]);
+            if la <= 0.5 / 255.0 {
+                continue;
+            }
+            // premultiplied screen of the light (alpha = its strongest channel) over the pixel
+            let scr = |dst: u8, src: f32| (dst as f32 + src * (255.0 - dst as f32)).round().clamp(0.0, 255.0) as u8;
+            let a = scr(p[3], la);
+            for ch in 0..3 {
+                p[ch] = scr(p[ch], l[ch]).min(a);
+            }
+            p[3] = a;
+        }
+    });
+}
+
+/// Move the picture by another layer's pixels (`map`, the same size and place as `img`): its red
+/// moves pixels across by up to `amount_x`, its green down by up to `amount_y` (mid grey: no
+/// move); with `brightness`, its brightness moves them both ways. Where the map is transparent
+/// nothing moves.
+pub(crate) fn displace_by(img: &mut RgbaImage, map: &RgbaImage, amount_x: f32, amount_y: f32, brightness: bool) {
+    if (amount_x == 0.0 && amount_y == 0.0) || map.width != img.width || map.height != img.height {
+        return;
+    }
+    let src = img.clone();
+    let w = img.width as usize;
+    par::rows(&mut img.data, w * 4, |y, row| {
+        for (x, p) in row.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+            let Some(m) = map.data.get((y * w + x) * 4..(y * w + x) * 4 + 4) else { continue };
+            if m[3] == 0 {
+                continue;
+            }
+            let s = unpremultiply([m[0], m[1], m[2], m[3]]);
+            let k = m[3] as f32 / 255.0;
+            let (u, v) = if brightness {
+                let l = luma(s) * 2.0 - 1.0;
+                (l, l)
+            } else {
+                (s[0] as f32 / 127.5 - 1.0, s[1] as f32 / 127.5 - 1.0)
+            };
+            let (fx, fy) = (x as f32 + 0.5, y as f32 + 0.5);
+            let out = select::sample(&src, fx - u * amount_x * k, fy - v * amount_y * k);
+            p.copy_from_slice(&out);
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -231,5 +343,40 @@ mod tests {
         let mut s = img(40, 40, [0, 0, 0, 255]);
         smooth(&mut s, 2.0);
         assert_eq!(s.pixel(20, 20)[3], 255);
+    }
+
+    #[test]
+    fn lens_flare_lights_the_picture() {
+        let f = Flare { light: (10.0, 10.0), through: (32.0, 32.0), size: 8.0, intensity: 1.0, colour: [255, 220, 180], rays: 6, ghosts: 3 };
+        let mut i = RgbaImage::transparent(64, 64);
+        lens_flare(&mut i, (0, 0), &f);
+        assert!(i.pixel(10, 10)[3] > 200, "the core is bright: {:?}", i.pixel(10, 10));
+        // the first ghost sits on the line through the centre, past it
+        let g = i.pixel(32, 32);
+        assert!(g[3] > 0, "a ghost on the line: {g:?}");
+        assert!(i.data.as_chunks::<4>().0.iter().all(|p| p[0] <= p[3] && p[1] <= p[3] && p[2] <= p[3]));
+        let mut off = RgbaImage::transparent(64, 64);
+        lens_flare(&mut off, (0, 0), &Flare { intensity: 0.0, ..f });
+        assert!(off.data.iter().all(|v| *v == 0), "no strength, no light");
+    }
+
+    #[test]
+    fn displacement_follows_the_map() {
+        // a 1 px vertical line at x = 20; the map's red pushes pixels 4 px to the right
+        let mut i = RgbaImage::transparent(40, 20);
+        for y in 0..20 {
+            i.set_pixel(20, y, [0, 0, 0, 255]);
+        }
+        let map = img(40, 20, [255, 128, 0, 255]);
+        let mut d = i.clone();
+        displace_by(&mut d, &map, 4.0, 0.0, false);
+        assert_eq!(d.pixel(20, 5)[3], 0, "the line moved away");
+        assert!(d.pixel(24, 5)[3] > 200, "to the right: {:?}", d.pixel(24, 5));
+        let mut none = i.clone();
+        displace_by(&mut none, &RgbaImage::transparent(40, 20), 4.0, 4.0, false);
+        assert_eq!(none, i, "a transparent map moves nothing");
+        let mut b = i.clone();
+        displace_by(&mut b, &img(40, 20, [0, 0, 0, 255]), 3.0, 0.0, true);
+        assert!(b.pixel(17, 5)[3] > 200, "dark moves the other way: {:?}", b.pixel(17, 5));
     }
 }

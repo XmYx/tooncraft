@@ -180,8 +180,37 @@ pub struct Layer {
     /// A colour layer's drawings: (line drawing, colour drawing) pairs.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub colour_pairs: Vec<(DrawingId, DrawingId)>,
+    /// A painted mask over the whole layer (every frame), see [`LayerMask`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mask: Option<LayerMask>,
+    /// An adjustment layer: its effects act on everything composited below it (in its clipping
+    /// target), where its drawing has paint, or everywhere when it has no drawing at that frame.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub adjustment: bool,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
+}
+
+/// A layer's painted mask: one drawing in the layer's own space (it moves with the layer's
+/// transform). Paint in it hides the layer, the eraser brings it back; `invert` turns that
+/// round (paint shows, nothing else does). An empty mask hides nothing.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LayerMask {
+    pub drawing: DrawingId,
+    #[serde(default = "yes")]
+    pub enabled: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub invert: bool,
+    /// Strokes, fills and erasing on this layer go into the mask instead of the drawings.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub editing: bool,
+}
+
+impl LayerMask {
+    /// How much of the layer a mask pixel (premultiplied) keeps, 0…255.
+    pub fn keep(&self, px: [u8; 4]) -> u8 {
+        if self.invert { px[3] } else { 255 - px[3] }
+    }
 }
 
 fn is_zero(v: &f32) -> bool {
@@ -627,6 +656,9 @@ impl Project {
             }
             layer.opacity_keys = keys;
             layer.mouth_chart.retain(|_, d| p.drawings.contains_key(d));
+            if layer.mask.is_some_and(|m| !p.drawings.contains_key(&m.drawing)) {
+                layer.mask = None;
+            }
             if !seen.insert(layer.id) {
                 layer.id = LayerId(u64::MAX); // fixed below
             }
@@ -758,6 +790,8 @@ impl Project {
                 onion: None,
                 colour_of: None,
                 colour_pairs: Vec::new(),
+                mask: None,
+                adjustment: false,
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );
@@ -879,8 +913,14 @@ impl Project {
 
     /// Drawings no cell of a layer or a library item refers to.
     pub fn unused_drawings(&self) -> Vec<DrawingId> {
-        let used: std::collections::BTreeSet<DrawingId> =
-            self.layers.iter().flat_map(|l| l.cells.iter()).chain(self.library.iter().flat_map(|i| i.cells.iter())).filter_map(|c| c.key()).collect();
+        let used: std::collections::BTreeSet<DrawingId> = self
+            .layers
+            .iter()
+            .flat_map(|l| l.cells.iter())
+            .chain(self.library.iter().flat_map(|i| i.cells.iter()))
+            .filter_map(|c| c.key())
+            .chain(self.layers.iter().filter_map(|l| l.mask.map(|m| m.drawing)))
+            .collect();
         self.drawings.keys().filter(|d| !used.contains(d)).copied().collect()
     }
 
