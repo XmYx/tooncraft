@@ -273,7 +273,9 @@ fn pan_zoom(v: &mut View, ui: &Ui, rect: Rect, size: egui::Vec2, resp: &egui::Re
         ui.memory_mut(|m| m.set_focus_lock_filter(resp.id, egui::EventFilter { tab: false, horizontal_arrows: true, vertical_arrows: true, escape: false }));
         let (zin, zout, d) = ui.input(|i| {
             let mut d = egui::Vec2::ZERO;
-            for (k, s) in [(Key::ArrowLeft, vec2(40.0, 0.0)), (Key::ArrowRight, vec2(-40.0, 0.0)), (Key::ArrowUp, vec2(0.0, 40.0)), (Key::ArrowDown, vec2(0.0, -40.0))] {
+            for (k, s) in
+                [(Key::ArrowLeft, vec2(40.0, 0.0)), (Key::ArrowRight, vec2(-40.0, 0.0)), (Key::ArrowUp, vec2(0.0, 40.0)), (Key::ArrowDown, vec2(0.0, -40.0))]
+            {
                 if i.key_pressed(k) {
                     d += s;
                 }
@@ -516,7 +518,9 @@ pub fn navigator(app: &mut ToonApp, ui: &mut Ui) {
         ui.memory_mut(|m| m.set_focus_lock_filter(resp.id, egui::EventFilter { tab: false, horizontal_arrows: true, vertical_arrows: true, escape: false }));
         let d = ui.input(|i| {
             let mut d = egui::Vec2::ZERO;
-            for (k, s) in [(Key::ArrowLeft, vec2(-1.0, 0.0)), (Key::ArrowRight, vec2(1.0, 0.0)), (Key::ArrowUp, vec2(0.0, -1.0)), (Key::ArrowDown, vec2(0.0, 1.0))] {
+            for (k, s) in
+                [(Key::ArrowLeft, vec2(-1.0, 0.0)), (Key::ArrowRight, vec2(1.0, 0.0)), (Key::ArrowUp, vec2(0.0, -1.0)), (Key::ArrowDown, vec2(0.0, 1.0))]
+            {
                 if i.key_pressed(k) {
                     d += s;
                 }

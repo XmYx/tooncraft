@@ -32,6 +32,8 @@ mod curves;
 #[cfg(test)]
 mod curves_ui_tests;
 mod dock;
+#[cfg(test)]
+mod dock_ui_tests;
 mod draw_aids;
 #[cfg(test)]
 mod drawaids_ui_tests;
@@ -116,6 +118,9 @@ mod timeline_ruler;
 mod timeline_ui_tests;
 mod timing_panel;
 mod tool_options;
+mod tool_palettes;
+#[cfg(test)]
+mod tool_palettes_ui_tests;
 mod tool_rail;
 mod top_bar;
 #[cfg(test)]

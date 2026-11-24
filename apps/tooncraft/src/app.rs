@@ -508,6 +508,7 @@ impl ToonApp {
             Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
             Some("colour-picker") => app.colour.window = true,
             Some("icons") => app.show_icons = true,
+            Some("radial") => crate::tool_palettes::open_radial(&mut app, ctx),
             _ => {}
         }
         if cli.demo && cli.screenshot.is_some() {
@@ -1599,7 +1600,8 @@ impl ToonApp {
             self.selection = None;
         }
         // the Curves graph uses Ctrl+A to choose every key
-        if focus != Some(crate::curves::graph_id()) && ctx.input_mut(|i| i.consume_shortcut(&cmd(Key::A))) && !ctx.egui_wants_keyboard_input() {
+        // (a text field keeps its own Ctrl+A: the key is only taken when no text field has focus)
+        if focus != Some(crate::curves::graph_id()) && !ctx.egui_wants_keyboard_input() && ctx.input_mut(|i| i.consume_shortcut(&cmd(Key::A))) {
             crate::commands::try_run(self, ctx, "edit.select_all");
         }
         // Alt+arrows pan the canvas from the keyboard.
@@ -1704,6 +1706,7 @@ impl ToonApp {
         crate::scene_menus::window(self, ctx);
         crate::unsaved::window(self, ctx);
         crate::canvas_tools::dialog(self, ctx);
+        crate::tool_palettes::radial(self, ctx);
         if let Some(offer) = &self.recovery {
             let (path, when) = (offer.path.clone(), offer.when.clone());
             let mut decided = None;

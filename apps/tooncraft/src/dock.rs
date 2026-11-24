@@ -28,13 +28,14 @@ pub enum Pane {
     History,
     Drawings,
     Curves,
+    Palette,
     SecondView,
     Navigator,
 }
 
 impl Pane {
     /// Every panel, in the Window menu's order.
-    pub const ALL: [Pane; 18] = [
+    pub const ALL: [Pane; 19] = [
         Pane::Canvas,
         Pane::Timeline,
         Pane::Colour,
@@ -51,6 +52,7 @@ impl Pane {
         Pane::Timing,
         Pane::History,
         Pane::Curves,
+        Pane::Palette,
         Pane::SecondView,
         Pane::Navigator,
     ];
@@ -99,7 +101,7 @@ impl Default for Workspace {
         let right = Node::Split {
             axis: SplitAxis::Vertical,
             size: SplitSize::Ratio(0.5),
-            first: Box::new(tabs(&[Pane::Colour, Pane::Brush, Pane::Library, Pane::Drawings, Pane::SecondView], 0)),
+            first: Box::new(tabs(&[Pane::Colour, Pane::Brush, Pane::Library, Pane::Drawings, Pane::Palette, Pane::SecondView], 0)),
             second: Box::new(tabs(
                 &[Pane::Layers, Pane::Navigator, Pane::Onion, Pane::Camera, Pane::Pegs, Pane::Effects, Pane::Sound, Pane::LipSync, Pane::Timing, Pane::History],
                 0,
