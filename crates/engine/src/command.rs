@@ -109,6 +109,18 @@ pub enum Command {
     SetPalettes {
         palettes: Vec<tooncraft_doc::palette::Palette>,
     },
+    /// Change a swatch of the shot's palette `palette` (0-based): its colour, and its name when
+    /// given. `update_paint` (default true): paint in the old colour on every unlocked layer takes
+    /// the new one, opacity kept. One undo step.
+    EditSwatch {
+        palette: usize,
+        swatch: usize,
+        rgb: [u8; 3],
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default = "yes")]
+        update_paint: bool,
+    },
     /// Save the layer's cells `from..=to` (0-based frames, either order) as a drawing-library item
     /// called `name`, with its own copies of the drawings. One undo step.
     SaveToLibrary {
@@ -1008,6 +1020,7 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.touch();
             Ok(())
         }
+        Command::EditSwatch { palette, swatch, rgb, name, update_paint } => crate::drawing::edit_swatch(e, palette, swatch, rgb, name, update_paint),
         Command::SaveToLibrary { layer, from, to, name } => crate::drawing_library::save(e, layer, from, to, &name),
         Command::InsertFromLibrary { item, layer, frame, linked } => crate::drawing_library::insert(e, item, layer, frame, linked),
         Command::RenameLibraryItem { item, name } => crate::drawing_library::rename(e, item, &name),
