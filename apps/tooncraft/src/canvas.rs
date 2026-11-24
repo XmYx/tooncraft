@@ -298,8 +298,9 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                 (c.x, c.y)
             };
             let to_s = |x: f32, y: f32| view.to_screen(rect, size, pos2(x, y));
-            // a camera key's handle wins over the peg
-            if !crate::camera_path::input(app, ui, resp, &to_c, &to_s) {
+            // an armed motion recording takes the pointer first; then a camera key's handle
+            // wins over the peg
+            if !crate::motion_record::input(app, ui, resp, &to_c) && !crate::camera_path::input(app, ui, resp, &to_c, &to_s) {
                 crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
             }
         }
@@ -674,7 +675,9 @@ fn keyboard_pen(app: &mut ToonApp, ui: &egui::Ui, resp: &egui::Response) {
         return;
     }
     if app.tool == Tool::Transform {
-        crate::peg_transform::keyboard(app, ui);
+        if !crate::motion_record::keyboard(app, ui) {
+            crate::peg_transform::keyboard(app, ui);
+        }
         return;
     }
     if app.tool == Tool::Select && app.selection.is_some() {
@@ -940,6 +943,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     if app.tool == Tool::Transform {
         crate::peg_transform::overlay(app, &painter, &|x, y| c.screen(x, y), pal.accent, pal.panel);
     }
+    crate::motion_record::overlay(app, &painter, rect, pal.text, pal.panel);
     // camera frame
     // while a camera key is dragged, the frame follows it
     let preview = crate::camera_path::previewed(app);

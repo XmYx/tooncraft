@@ -70,6 +70,9 @@ mod menu_commands;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+mod motion_record;
+#[cfg(test)]
+mod motion_record_ui_tests;
 mod onion_popover;
 mod panel_chrome;
 mod panel_views;

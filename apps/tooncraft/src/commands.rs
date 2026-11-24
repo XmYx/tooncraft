@@ -556,6 +556,13 @@ pub static ALL: &[Cmd] = &[
         a.playback.looping
     }),
     cmd("timeline.play_around", tlm!("Play Around"), Some(Icon::PlayAround), G::Timeline, NoKey, |a, _, _| crate::timeline_extras::play_around(a)),
+    toggle(
+        cmd("timeline.record_motion", tlm!("Record Motion"), None, G::Timeline, NoKey, |a, _, _| {
+            let on = !a.recorder.armed;
+            crate::motion_record::set_armed(a, on);
+        }),
+        |a| a.recorder.armed,
+    ),
     toggle(cmd("timeline.ping_pong", tlm!("Ping-pong"), None, G::Timeline, NoKey, |a, _, _| a.playback.ping_pong = !a.playback.ping_pong), |a| {
         a.playback.ping_pong
     }),

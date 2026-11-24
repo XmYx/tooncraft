@@ -98,6 +98,8 @@ pub enum DocError {
     TooManyPegs,
     #[error("there is no peg {0}")]
     NoPeg(u64),
+    #[error("a peg can have at most {} keys", peg::MAX_PEG_KEYS)]
+    TooManyPegKeys,
     #[error("there is no light-table pin {0}")]
     NoSuchPin(usize),
     #[error("a drawing could not be read back from the page file")]

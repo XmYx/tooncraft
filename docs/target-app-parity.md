@@ -297,7 +297,7 @@ Weight: 9
 | Graph editor for keyed values | TB CS PD | P | L | The Curves panel plots each peg value against frames: drag keys in time and value (one undo step, Escape cancels), move them from the keyboard, ease many keys at once, drag the two ease handles. Camera, opacity and effect keys still edit in their own panels |
 | Several shots or scenes in one project | TV TB | M | L | |
 | Nested sequences (a shot or symbol inside a shot) | TB CS PD | M | L | |
-| Record transforms live while playing | PD | M | M | |
+| Record transforms live while playing | PD | D | M | Record Motion (Transform tool option, Timeline menu): a drag on the canvas plays the shot and keys every frame the layer passes, skipped frames filled; the arrow keys record while it plays; one undo step, Escape drops the take; `set_peg_keys` |
 
 ## Onion skin and light table
 
