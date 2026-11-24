@@ -152,7 +152,7 @@ pub fn menu(app: &mut ToonApp, ui: &mut egui::Ui) {
             app.set_status(tlf!("Recent shots not saved: {error}", error = e));
         }
         if let Some(p) = pick {
-            app.open(&p);
+            crate::unsaved::request(app, crate::unsaved::Replace::Open(p));
             ui.close();
         }
     });
