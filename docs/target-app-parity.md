@@ -24,30 +24,30 @@ refreshes the block with `cargo xtask parity --write` in a separate PR). Numbers
 | | Value | Kind |
 |---|---|---|
 | In-scope feature rows | 314 | counted |
-| Done / exceeds / partial / missing | 213 / 3 / 30 / 68 | counted |
+| Done / exceeds / partial / missing | 219 / 3 / 27 / 65 | counted |
 | Out of scope (not in any denominator) | 4 | counted |
-| **Row parity**, (D + X + ½·P) / rows | **73.6 %** | counted |
-| **Weighted parity**, area weights × size-weighted rows | **56.1 %** | counted |
-| Size-weighted parity over all rows, no area weights | 57.2 % | counted |
+| **Row parity**, (D + X + ½·P) / rows | **75.0 %** | counted |
+| **Weighted parity**, area weights × size-weighted rows | **57.9 %** | counted |
+| Size-weighted parity over all rows, no area weights | 58.6 % | counted |
 | **UI parity**, rows of the reference-layout area | **88.3 %** | counted |
 
 | Area | Weight | Rows | D | X | P | M | Out | Row parity | Effort parity |
 |---|---|---|---|---|---|---|---|---|---|
-| Brush engine | 9 (9 %) | 29 | 19 | 0 | 2 | 8 | 1 | 69 % | 56 % |
+| Brush engine | 9 (9 %) | 29 | 20 | 0 | 2 | 7 | 1 | 72 % | 58 % |
 | Paper and textures | 3 (3 %) | 10 | 7 | 0 | 1 | 2 | 0 | 75 % | 77 % |
 | Drawing tools | 7 (7 %) | 17 | 12 | 0 | 2 | 3 | 0 | 76 % | 58 % |
 | Selection and transform | 5 (5 %) | 14 | 9 | 0 | 1 | 4 | 0 | 68 % | 53 % |
 | Colour and paint | 7 (7 %) | 18 | 14 | 0 | 1 | 3 | 0 | 81 % | 60 % |
 | Layers | 6 (6 %) | 13 | 10 | 0 | 0 | 3 | 0 | 77 % | 67 % |
 | Timeline and exposure sheet | 9 (9 %) | 20 | 16 | 0 | 1 | 3 | 0 | 82 % | 64 % |
-| Onion skin and light table | 4 (4 %) | 11 | 8 | 0 | 2 | 1 | 0 | 82 % | 75 % |
+| Onion skin and light table | 4 (4 %) | 11 | 11 | 0 | 0 | 0 | 0 | 100 % | 100 % |
 | Animation tools | 9 (9 %) | 18 | 9 | 1 | 2 | 6 | 0 | 61 % | 37 % |
 | Camera | 4 (4 %) | 8 | 4 | 0 | 0 | 4 | 0 | 50 % | 40 % |
 | Effects and compositing | 7 (7 %) | 22 | 13 | 0 | 3 | 6 | 0 | 66 % | 41 % |
 | Audio and lip-sync | 4 (4 %) | 14 | 11 | 0 | 1 | 2 | 0 | 82 % | 72 % |
-| Import, export and pipeline | 7 (7 %) | 28 | 20 | 0 | 2 | 6 | 1 | 75 % | 62 % |
+| Import, export and pipeline | 7 (7 %) | 28 | 21 | 0 | 2 | 5 | 1 | 79 % | 68 % |
 | Scripting and automation | 4 (4 %) | 7 | 1 | 0 | 2 | 4 | 0 | 29 % | 22 % |
-| UI and workspace | 5 (5 %) | 14 | 8 | 1 | 3 | 2 | 0 | 75 % | 67 % |
+| UI and workspace | 5 (5 %) | 14 | 9 | 1 | 2 | 2 | 0 | 79 % | 72 % |
 | UI parity with the reference layout | 5 (5 %) | 47 | 40 | 0 | 3 | 4 | 0 | 88 % | 74 % |
 | Tablet and input | 4 (4 %) | 9 | 3 | 0 | 3 | 3 | 1 | 50 % | 45 % |
 | Collaboration and review | 2 (2 %) | 5 | 2 | 0 | 0 | 3 | 1 | 40 % | 22 % |
@@ -425,7 +425,7 @@ Weight: 7
 | Multi-frame layered PSD and PSB | TV CS | D | S | One file with a group per frame (PSD, or PSB for large canvases) |
 | TGA, TIFF and JPEG sequences | TV TB CS | D | S | TGA, TIFF and JPEG sequences through the Export dialog |
 | OpenEXR sequences, with layers | TV TB | P | M | Flat RGBA OpenEXR sequences through craft-image-codecs; no layers in one file |
-| More video codecs: H.265, VP9 or AV1, MOV H.264 | TV CS PD | D | M | Export ▸ Video in Other Codecs and `tooncraft-cli export --mp4/--mov --codec h264|h265|av1`: H.265 (MP4, MOV), AV1 (MP4) and H.264 in a QuickTime movie, through craft-video's encoders and craft-media's muxer, sound included |
+| More video codecs: H.265, VP9 or AV1, MOV H.264 | TV CS PD | D | M | Export ▸ Video in Other Codecs and `tooncraft-cli export` with `--mp4` or `--mov` and `--codec` (h264, h265 or av1): H.265 (MP4, MOV), AV1 (MP4) and H.264 in a QuickTime movie, through craft-video's encoders and craft-media's muxer, sound included |
 | OpenRaster frame export | TV | D | S | |
 | Transparent-background export | all | D | S | PNG, TGA, TIFF, OpenEXR, animated PNG and WebP, ProRes 4444 and OpenRaster without the paper; tested on PNG |
 | Export frame range and output size | all | D | S | One Export dialog: whole shot, selected frames, this frame or from–to; full, half or quarter size; GIF loop and sequence digits; remembered per shot |
