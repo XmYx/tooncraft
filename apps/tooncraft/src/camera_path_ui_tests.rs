@@ -21,8 +21,8 @@ fn harness() -> Harness<'static, ToonApp> {
         app,
     );
     let s = h.state_mut();
-    s.run(Command::SetCameraKey { frame: 0, x: 300.0, y: 200.0, zoom: 1.5, angle: 0.0 });
-    s.run(Command::SetCameraKey { frame: 10, x: 800.0, y: 400.0, zoom: 1.5, angle: 10.0 });
+    s.run(Command::SetCameraKey { frame: 0, x: 300.0, y: 200.0, zoom: 1.5, angle: 0.0, camera: 0 });
+    s.run(Command::SetCameraKey { frame: 10, x: 800.0, y: 400.0, zoom: 1.5, angle: 10.0, camera: 0 });
     s.tool = Tool::Transform;
     h.run();
     h.run();

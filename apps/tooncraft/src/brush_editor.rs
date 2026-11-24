@@ -306,6 +306,18 @@ fn wet(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
     };
     let l = ui.label(label);
     ui.add(egui::Slider::new(&mut b.wet.pickup, 0.0..=1.0).max_decimals(2)).labelled_by(l.id).on_hover_text(hint);
+    if kind == BrushKind::Smudge || kind == BrushKind::Eraser {
+        return;
+    }
+    for (label, hint, v) in [
+        (tl!("Water"), tl!("Thins the paint: watery paint goes on as a pale glaze"), &mut b.wet.dilution),
+        (tl!("Drying"), tl!("How quickly the brush runs out of paint along the stroke"), &mut b.wet.dry),
+        (tl!("Edge pooling"), tl!("Pigment gathers along the inside of the stroke's edge as it dries"), &mut b.wet.edge),
+        (tl!("Bleeding"), tl!("Paint creeps a little way past the edge of the stroke into the paper"), &mut b.wet.bleed),
+    ] {
+        let l = ui.label(label);
+        ui.add(egui::Slider::new(v, 0.0..=1.0).max_decimals(2)).labelled_by(l.id).on_hover_text(hint);
+    }
 }
 
 // ----- the curve editor -----

@@ -1,0 +1,1 @@
+- 2026-11-24: Particles (rain, snow, sparks, dust), tone and highlight from a matte layer, and light from normals (a normal-map layer or the drawing's own shape). Two Effects rows reach done.

@@ -59,7 +59,7 @@ or non-numbers fall back to the default).
 | `grain_kind` | `paper`, `canvas`, `speckle`, `clouds`, `image` | Which texture; `image` uses `grain.png` (and falls back to `paper` when the file has none) |
 | `color` | `[r, g, b, a]` | Straight (not premultiplied) 8-bit RGBA |
 | `smoothing` | `average` 0 … 1, `string` 0 … 500, `catch_up` bool | Moving-average strength, pulled-string length in canvas pixels, and whether the line finishes where the pen lifts |
-| `wet` | `pickup` 0 … 1 | Wet mixing, see below |
+| `wet` | `pickup`, `dilution`, `dry`, `edge`, `bleed`, each 0 … 1 | Wet mixing, water, drying and watercolour edges, see below |
 | `dynamics` | see below | Response curves |
 | `compose` | `normal`, `behind`, `keep_alpha`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `add` | Where the paint goes relative to the paint already there, or how it blends with it; absent means `normal` |
 | `jitter` | `hue` 0 … 0.5, `saturation` 0 … 1, `value` 0 … 1, `per_stroke` bool | Random colour change: the most each may move either way (hue in turns), per dab or once per stroke; absent means none |
@@ -132,6 +132,21 @@ In wet mode, flow and opacity apply per brush width of travel rather than per da
 depend on `spacing`, and the stroke is stamped onto the layer as it is (a dry brush is recomputed
 from the layer as it was before the stroke, which is why overlapping dabs of a dry brush never darken a
 line beyond its opacity). Wet brushes read the layer being painted on, not the other layers.
+
+The other `wet` fields (each 0 … 1, left out when 0; files without them read as 0):
+
+* `dilution`: water in the paint. The load starts thinner and the stroke lays less per brush width
+  of travel, so watery paint goes on as a pale glaze. Any value above 0 makes the brush wet.
+* `dry`: the brush runs dry; each brush width of travel keeps `1 − 0.35 × dry` of the load. Any
+  value above 0 makes the brush wet.
+* `edge`: watercolour edges. When the stroke ends, pigment pools along the inside of its edge
+  (darker and denser there), found from the stroke's footprint against its local mean.
+* `bleed`: paint creeps a little way (up to 12 px) past the edge into the paper in a ragged
+  pattern taken from a hash, so a replay gives the same pixels.
+
+Edges and bleeding are worked out once at the end of the stroke and are part of its single undo
+step. With the layer's transparency locked, pooling only darkens and nothing bleeds out. Strokes
+over 4096 tiles (a 4096 × 4096 px footprint) keep plain edges.
 
 ## Compatibility
 

@@ -231,6 +231,11 @@ pub struct Images {
     pub grain: Option<Arc<crate::Tip>>,
 }
 
+/// Largest stroke (in tiles, 64 px squares) whose watercolour edges are worked out at its end:
+/// 4096 tiles is a 4096 × 4096 px footprint. Bigger strokes keep plain edges, so a hostile or
+/// huge stroke cannot stall the app.
+pub const MAX_EDGE_TILES: usize = 4096;
+
 /// Paint carried by a wet brush: premultiplied RGBA, each 0 … 1.
 type Load = [f32; 4];
 
@@ -266,7 +271,7 @@ impl Stroke {
         let brush = brush.sanitized();
         surface.begin_capture();
 
-        let wet = brush.kind != BrushKind::Eraser && (brush.kind == BrushKind::Smudge || brush.wet.pickup > 0.0);
+        let wet = brush.kind != BrushKind::Eraser && (brush.kind == BrushKind::Smudge || brush.wet.carries_paint());
         Self {
             shape: Shape {
                 kind: brush.kind,
@@ -397,7 +402,9 @@ impl Stroke {
         let first = self.load.is_none();
         let paint = {
             let c = self.color;
-            [c[0] as f32 / 255.0, c[1] as f32 / 255.0, c[2] as f32 / 255.0, c[3] as f32 / 255.0]
+            // water thins the paint: the same colour, less of it
+            let thin = 1.0 - 0.85 * self.brush.wet.dilution;
+            [c[0] as f32 / 255.0 * thin, c[1] as f32 / 255.0 * thin, c[2] as f32 / 255.0 * thin, c[3] as f32 / 255.0 * thin]
         };
         let load = self.load.get_or_insert(if smudge { avg } else { paint });
         let k = rate(self.brush.wet.pickup);
@@ -416,9 +423,21 @@ impl Stroke {
             }
         }
         let load = *load;
+        // the brush runs dry: each brush width of travel leaves less paint in it
+        if !smudge
+            && self.brush.wet.dry > 0.0
+            && let Some(l) = self.load.as_mut()
+        {
+            let keep = (1.0 - 0.35 * self.brush.wet.dry).powf(step);
+            for c in l.iter_mut() {
+                *c *= keep;
+            }
+        }
+        let track = !smudge && (self.brush.wet.edge > 0.0 || self.brush.wet.bleed > 0.0);
         let (sin, cos) = dab.angle.sin_cos();
         let t = TILE as i64;
-        let opacity = self.brush.opacity;
+        // watery paint goes on as a thin glaze: less of it per brush width of travel
+        let opacity = self.brush.opacity * if smudge { 1.0 } else { 1.0 - 0.7 * self.brush.wet.dilution };
         let salt = self.dabs;
         for ty in y0 / t..=y1 / t {
             for tx in x0 / t..=x1 / t {
@@ -433,7 +452,15 @@ impl Stroke {
                             continue;
                         }
                         let d = 1.0 - (1.0 - a.min(0.999)).powf(step);
-                        let i = (((y - by) * t + (x - bx)) * 4) as usize;
+                        let li = ((y - by) * t + (x - bx)) as usize;
+                        if track {
+                            // the stroke's footprint, for its edges at the end
+                            let cov = self.coverage.entry(index).or_insert_with(|| vec![0u16; TILE_PIXELS]);
+                            if let Some(c) = cov.get_mut(li) {
+                                *c = (*c).max((a.min(1.0) * 65535.0) as u16);
+                            }
+                        }
+                        let i = li * 4;
                         let locked_alpha = (self.brush.compose == Compose::KeepAlpha).then_some(px[i + 3]);
                         // an unbiased rounding keeps slow blends moving
                         let dither = hash01(salt, (x as u64) << 20 ^ y as u64);
@@ -551,8 +578,118 @@ impl Stroke {
         }
     }
 
+    /// Watercolour edges, when the stroke ends: pigment pools along the inside of the stroke's
+    /// edge (darker there), and paint bleeds a little way past it into the paper in a ragged,
+    /// hashed pattern (so a replay gives the same pixels). Works from the stroke's footprint;
+    /// strokes over [`MAX_EDGE_TILES`] tiles keep their edges as they are.
+    fn finish_edges(&self, surface: &mut Surface) {
+        let (edge, bleed) = (self.brush.wet.edge, self.brush.wet.bleed);
+        if (edge <= 0.0 && bleed <= 0.0) || self.brush.kind == BrushKind::Eraser || self.brush.kind == BrushKind::Smudge || self.coverage.is_empty() {
+            return;
+        }
+        if self.coverage.len() > MAX_EDGE_TILES {
+            return;
+        }
+        let r = ((self.brush.size * 0.12).round() as i64).clamp(2, 12);
+        let cols = surface.width().div_ceil(TILE) as i64;
+        let rows = surface.height().div_ceil(TILE) as i64;
+        let t = TILE as i64;
+        // the touched tiles and, for bleeding, their neighbours (r is less than a tile)
+        let mut todo: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
+        for &i in self.coverage.keys() {
+            let (tx, ty) = (i as i64 % cols, i as i64 / cols);
+            for dy in -1..=1 {
+                for dx in -1..=1 {
+                    let (nx, ny) = (tx + dx, ty + dy);
+                    if (0..cols).contains(&nx) && (0..rows).contains(&ny) && (bleed > 0.0 || (dx, dy) == (0, 0)) {
+                        todo.insert((ny * cols + nx) as u32);
+                    }
+                }
+            }
+        }
+        let cov_at = |x: i64, y: i64| -> f32 {
+            if x < 0 || y < 0 || x >= cols * t || y >= rows * t {
+                return 0.0;
+            }
+            let i = ((y / t) * cols + x / t) as u32;
+            self.coverage.get(&i).and_then(|c| c.get(((y % t) * t + x % t) as usize)).map(|v| *v as f32 / 65535.0).unwrap_or(0.0)
+        };
+        let paint = premultiply(self.brush.color);
+        // with the layer's transparency locked, pooling only darkens and nothing bleeds out
+        let locked = self.brush.compose == Compose::KeepAlpha;
+        let n = (t + 2 * r) as usize;
+        let win = (2 * r + 1) as f32;
+        for index in todo {
+            let (bx, by) = ((index as i64 % cols) * t, (index as i64 / cols) * t);
+            // the footprint around this tile, then its local mean (a box blur, rows then columns)
+            // the inside of the stroke (its footprint past a threshold), so a soft brush still
+            // has a definite edge
+            let mut pad = vec![0.0f32; n * n];
+            for (k, v) in pad.iter_mut().enumerate() {
+                let c = cov_at(bx - r + (k % n) as i64, by - r + (k / n) as i64);
+                *v = ((c - 0.12) / 0.3).clamp(0.0, 1.0);
+            }
+            if pad.iter().all(|v| *v == 0.0) {
+                continue;
+            }
+            let mut rowsum = vec![0.0f32; n * TILE as usize];
+            for y in 0..n {
+                let mut acc: f32 = pad[y * n..y * n + 2 * r as usize].iter().sum();
+                for x in 0..TILE as usize {
+                    acc += pad[y * n + x + 2 * r as usize];
+                    rowsum[y * TILE as usize + x] = acc / win;
+                    acc -= pad[y * n + x];
+                }
+            }
+            let mut mean = vec![0.0f32; TILE_PIXELS];
+            for x in 0..TILE as usize {
+                let mut acc: f32 = (0..2 * r as usize).map(|y| rowsum[y * TILE as usize + x]).sum();
+                for y in 0..TILE as usize {
+                    acc += rowsum[(y + 2 * r as usize) * TILE as usize + x];
+                    mean[y * TILE as usize + x] = acc / win;
+                    acc -= rowsum[y * TILE as usize + x];
+                }
+            }
+            let Some(tile) = surface.tile_mut(index) else { continue };
+            let px = tile.bytes_mut();
+            for ly in 0..t {
+                for lx in 0..t {
+                    let li = (ly * t + lx) as usize;
+                    let c = pad[((ly + r) as usize) * n + (lx + r) as usize];
+                    let m = mean[li];
+                    let i = li * 4;
+                    if c > 0.0 && edge > 0.0 {
+                        // inside the stroke near its edge the inside-mask is above its local mean
+                        let e = ((c - m) * 2.0).clamp(0.0, 1.0) * edge;
+                        if e > 0.0 && px[i + 3] > 0 {
+                            let a = px[i + 3] as f32;
+                            let a2 = if locked { a } else { (a * (1.0 + 1.2 * e)).min(255.0) };
+                            let k = a2 / a * (1.0 - 0.45 * e);
+                            for ch in 0..3 {
+                                px[i + ch] = (px[i + ch] as f32 * k).round().clamp(0.0, a2) as u8;
+                            }
+                            px[i + 3] = a2.round() as u8;
+                        }
+                    } else if c <= 0.0 && bleed > 0.0 && m > 0.0 && !locked {
+                        // just outside: a ragged fringe, strongest where most of the stroke is near
+                        let (x, y) = (bx + lx, by + ly);
+                        let noise = hash01(0xB1EE_D5EE_D000_0001, ((x as u64) << 24) ^ y as u64);
+                        let reach = (m * 2.5).min(1.0);
+                        let amount = if noise < reach { 0.45 * bleed * reach * self.brush.opacity } else { 0.0 };
+                        if amount > 0.0 {
+                            let k = (amount * 255.0).round().clamp(0.0, 255.0) as u8;
+                            let out = over([px[i], px[i + 1], px[i + 2], px[i + 3]], scale_alpha(paint, k));
+                            px[i..i + 4].copy_from_slice(&out);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Finish the stroke; returns the tiles as they were before it (the undo record).
     pub fn end(self, surface: &mut Surface) -> TileSnapshot {
+        self.finish_edges(surface);
         if self.brush.kind == BrushKind::Eraser || self.wet || self.brush.compose == Compose::KeepAlpha {
             surface.prune();
         }
@@ -979,7 +1116,7 @@ mod dynamics_tests {
         let mut s = Surface::new(200, 80).unwrap();
         block(&mut s, 20, 70, [220, 30, 30, 255]);
         let before = s.clone();
-        let brush = Brush { size: 24.0, flow: 0.9, wet: Wet { pickup: 0.2 }, ..plain(BrushKind::Smudge) };
+        let brush = Brush { size: 24.0, flow: 0.9, wet: Wet { pickup: 0.2, ..Wet::default() }, ..plain(BrushKind::Smudge) };
         let pts: Vec<Sample> = (0..60).map(|i| Sample::at(50.0 + i as f32 * 2.0, 40.0, 1.0, i as f64 * 0.01)).collect();
         let undo = paint(&mut s, brush, &pts);
         let smear = s.pixel(90, 40);
@@ -987,13 +1124,28 @@ mod dynamics_tests {
         assert!(s.pixel(160, 40)[3] < smear[3], "the smear thins out along the stroke");
         // reloading fully from the empty layer at every step leaves no smear behind
         let mut t = before.clone();
-        paint(&mut t, Brush { wet: Wet { pickup: 1.0 }, ..brush }, &pts);
+        paint(&mut t, Brush { wet: Wet { pickup: 1.0, ..Wet::default() }, ..brush }, &pts);
         assert!(t.pixel(110, 40)[3] < s.pixel(110, 40)[3] / 2, "{} vs {}", t.pixel(110, 40)[3], s.pixel(110, 40)[3]);
         s.swap_snapshot(undo);
         s.prune();
         let mut b = before;
         b.prune();
         assert_eq!(s, b);
+    }
+
+    #[test]
+    fn huge_strokes_skip_their_edges_instead_of_stalling() {
+        let mut s = Surface::new(16384, 16384).unwrap();
+        let brush = Brush { wet: Wet { pickup: 0.3, edge: 1.0, bleed: 1.0, ..Wet::default() }, ..plain(BrushKind::Watercolour) };
+        let mut st = Stroke::begin(&mut s, brush);
+        // a footprint just over the cap (sparse: no pixels behind it)
+        for i in 0..=crate::stroke::MAX_EDGE_TILES as u32 {
+            st.coverage.insert(i, vec![u16::MAX; TILE_PIXELS]);
+        }
+        let t0 = std::time::Instant::now();
+        st.end(&mut s);
+        assert!(s.is_empty(), "no edge work was done");
+        assert!(t0.elapsed().as_secs_f32() < 2.0);
     }
 
     #[test]
@@ -1009,8 +1161,15 @@ mod dynamics_tests {
         let stroke = |pickup: f32| {
             let mut s = Surface::new(240, 80).unwrap();
             block(&mut s, 0, 240, ground);
-            let brush =
-                Brush { color: [240, 220, 20, 255], size: 20.0, flow: 1.0, opacity: 1.0, hardness: 1.0, wet: Wet { pickup }, ..plain(BrushKind::Watercolour) };
+            let brush = Brush {
+                color: [240, 220, 20, 255],
+                size: 20.0,
+                flow: 1.0,
+                opacity: 1.0,
+                hardness: 1.0,
+                wet: Wet { pickup, ..Wet::default() },
+                ..plain(BrushKind::Watercolour)
+            };
             let pts: Vec<Sample> = (0..80).map(|i| Sample::at(20.0 + i as f32 * 2.5, 40.0, 1.0, i as f64 * 0.01)).collect();
             paint(&mut s, brush, &pts);
             unpremultiply_blue(s.pixel(190, 40))
@@ -1041,7 +1200,7 @@ mod dynamics_tests {
         let mut s = Surface::new(120, 80).unwrap();
         block(&mut s, 10, 60, [255, 255, 255, 255]);
         let pts: Vec<Sample> = (0..40).map(|i| Sample::at(20.0 + i as f32 * 2.5, 40.0, 1.0, i as f64 * 0.01)).collect();
-        paint(&mut s, Brush { size: 30.0, flow: 1.0, wet: Wet { pickup: 0.9 }, ..plain(BrushKind::Smudge) }, &pts);
+        paint(&mut s, Brush { size: 30.0, flow: 1.0, wet: Wet { pickup: 0.9, ..Wet::default() }, ..plain(BrushKind::Smudge) }, &pts);
         for (_, t) in s.tiles() {
             assert!(t.bytes().as_chunks::<4>().0.iter().all(|p| p[0] <= p[3] && p[1] <= p[3] && p[2] <= p[3]));
         }
