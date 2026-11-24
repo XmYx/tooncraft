@@ -157,6 +157,10 @@ struct ProjectJson {
     light_table: LightTable,
     #[serde(default)]
     camera: tooncraft_doc::Camera,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    cameras: Vec<tooncraft_doc::ShotCamera>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    camera_cuts: Vec<tooncraft_doc::CameraCut>,
     #[serde(default)]
     folders: Vec<tooncraft_doc::Folder>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -252,6 +256,8 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             rulers: p.rulers.clone(),
             poses: p.poses.clone(),
             camera: p.camera.clone(),
+            cameras: p.cameras.clone(),
+            camera_cuts: p.camera_cuts.clone(),
             folders: p.folders.clone(),
             pegs: p.pegs.clone(),
             marks: p.marks.iter().map(|(d, m)| MarkEntry { drawing: *d, mark: *m }).collect(),
@@ -418,6 +424,7 @@ fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::P
     let ids: std::collections::BTreeSet<DrawingId> = p.drawing_ids().collect();
     p.library = tooncraft_doc::library::sanitize_all(pj.library, |d| ids.contains(&d));
     p.camera = pj.camera.sanitized(p.width(), p.height());
+    (p.cameras, p.camera_cuts) = tooncraft_doc::camera::sanitize_cameras(pj.cameras, pj.camera_cuts, p.width(), p.height());
     p.set_pegs(pj.pegs);
     // vector strokes only for drawings that exist, sanitized, within one budget for the shot
     // (the id set, not `drawing()`: that would read paged drawings back into memory)

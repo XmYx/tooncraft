@@ -351,21 +351,50 @@ pub enum Command {
         offset: i32,
     },
     /// Set (or replace) the camera key at `frame`: centre `x`, `y` in canvas pixels, `zoom` (1 =
-    /// whole canvas), `angle` in degrees. The camera is switched on.
+    /// whole canvas), `angle` in degrees. The camera is switched on. `camera`: which camera (0,
+    /// the default, is the main one).
     SetCameraKey {
         frame: u32,
         x: f32,
         y: f32,
         zoom: f32,
         angle: f32,
+        #[serde(default)]
+        camera: usize,
     },
     /// Remove the camera key at `frame`.
     RemoveCameraKey {
         frame: u32,
+        #[serde(default)]
+        camera: usize,
     },
     /// Render exports through the camera, or not.
     SetCamera {
         enabled: bool,
+        #[serde(default)]
+        camera: usize,
+    },
+    /// A new camera besides the main one, switched on; `from`: start as a copy of that camera.
+    AddCamera {
+        name: String,
+        #[serde(default)]
+        from: Option<usize>,
+    },
+    RenameCamera {
+        camera: usize,
+        name: String,
+    },
+    /// Remove a camera besides the main one; cuts to it go, later cameras move down one.
+    RemoveCamera {
+        camera: usize,
+    },
+    /// From `frame` on, film through `camera` (replaces a cut at that frame).
+    SetCameraCut {
+        frame: u32,
+        camera: usize,
+    },
+    RemoveCameraCut {
+        frame: u32,
     },
     /// Add a peg (pivot at the canvas centre), optionally hanging from `parent`.
     AddPeg {
@@ -508,10 +537,14 @@ pub enum Command {
     /// Add a camera shake.
     AddCameraShake {
         shake: Shake,
+        #[serde(default)]
+        camera: usize,
     },
     /// Remove the camera shake at `index`.
     RemoveCameraShake {
         index: usize,
+        #[serde(default)]
+        camera: usize,
     },
     /// Add an image brush tip (grey mask; dark is ink) under `id`, replacing a tip with that id.
     AddTip {
@@ -1148,6 +1181,24 @@ fn folders(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Pr
     }
 }
 
+/// Run `edit` on the shot's cameras and cuts as one undo step when it returns `true` (a change);
+/// on error they are restored.
+fn cameras(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Project) -> std::result::Result<bool, DocError>) -> Result<()> {
+    let before = (e.project.camera.clone(), e.project.cameras.clone(), e.project.camera_cuts.clone());
+    match edit(&mut e.project) {
+        Ok(changed) => {
+            if changed {
+                e.push(Entry { label: label.into(), parts: vec![Part::Cameras(before.0, before.1, before.2)] });
+            }
+            Ok(())
+        }
+        Err(err) => {
+            (e.project.camera, e.project.cameras, e.project.camera_cuts) = before;
+            Err(err.into())
+        }
+    }
+}
+
 /// Run `edit` on the project's pegs as one undo step; on error the pegs are restored.
 fn pegs(e: &mut Engine, label: &str, edit: impl FnOnce(&mut tooncraft_doc::Project) -> std::result::Result<(), DocError>) -> Result<()> {
     let before = e.project.pegs.clone();
@@ -1425,28 +1476,70 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::ClearSelection { layer, frame, polygon, rings, feather } => crate::select::clear(e, layer, frame, (&polygon, &rings, feather)),
         Command::PastePixels { layer, frame, x, y, width, height, rgba } => crate::select::paste(e, layer, frame, (x, y), width, height, &rgba),
         Command::SetSound { path, offset } => crate::audio::set(e, path.as_deref(), offset),
-        Command::SetCameraKey { frame, x, y, zoom, angle } => {
+        Command::SetCameraKey { frame, x, y, zoom, angle, camera } => {
             frame_ok(e, frame)?;
-            let before = Part::Camera(e.project.camera.clone());
             let (w, h) = (e.project.width(), e.project.height());
-            e.project.camera.set(tooncraft_doc::CameraKey { frame, x, y, zoom, angle }.sanitized(w, h));
-            e.project.camera.enabled = true;
-            e.push(Entry { label: "Camera key".into(), parts: vec![before] });
-            Ok(())
+            cameras(e, "Camera key", |p| {
+                let c = p.camera_by_index_mut(camera).ok_or(DocError::NoSuchCamera(camera))?;
+                c.set(tooncraft_doc::CameraKey { frame, x, y, zoom, angle }.sanitized(w, h));
+                c.enabled = true;
+                Ok(true)
+            })
         }
-        Command::RemoveCameraKey { frame } => {
-            let before = Part::Camera(e.project.camera.clone());
-            if e.project.camera.remove(frame) {
-                e.push(Entry { label: "Remove camera key".into(), parts: vec![before] });
+        Command::RemoveCameraKey { frame, camera } => {
+            cameras(e, "Remove camera key", |p| Ok(p.camera_by_index_mut(camera).ok_or(DocError::NoSuchCamera(camera))?.remove(frame)))
+        }
+        Command::SetCamera { enabled, camera } => cameras(e, "Camera", |p| {
+            p.camera_by_index_mut(camera).ok_or(DocError::NoSuchCamera(camera))?.enabled = enabled;
+            Ok(true)
+        }),
+        Command::AddCamera { name, from } => cameras(e, "Add camera", |p| {
+            if p.cameras.len() >= tooncraft_doc::camera::MAX_CAMERAS {
+                return Err(DocError::TooManyCameras);
             }
-            Ok(())
+            let camera = match from {
+                Some(i) => p.camera_by_index(i).cloned().ok_or(DocError::NoSuchCamera(i))?,
+                None => tooncraft_doc::Camera::default(),
+            };
+            let name = name.trim().chars().take(tooncraft_doc::camera::MAX_CAMERA_NAME).collect();
+            p.cameras.push(tooncraft_doc::ShotCamera { name, camera: tooncraft_doc::Camera { enabled: true, ..camera } });
+            Ok(true)
+        }),
+        Command::RenameCamera { camera, name } => cameras(e, "Rename camera", |p| {
+            let c = camera.checked_sub(1).and_then(|i| p.cameras.get_mut(i)).ok_or(DocError::NoSuchCamera(camera))?;
+            c.name = name.trim().chars().take(tooncraft_doc::camera::MAX_CAMERA_NAME).collect();
+            Ok(true)
+        }),
+        Command::RemoveCamera { camera } => cameras(e, "Remove camera", |p| {
+            let i = camera.checked_sub(1).filter(|i| *i < p.cameras.len()).ok_or(DocError::NoSuchCamera(camera))?;
+            p.cameras.remove(i);
+            p.camera_cuts.retain(|c| c.camera != camera);
+            for c in &mut p.camera_cuts {
+                if c.camera > camera {
+                    c.camera -= 1;
+                }
+            }
+            Ok(true)
+        }),
+        Command::SetCameraCut { frame, camera } => {
+            frame_ok(e, frame)?;
+            cameras(e, "Camera cut", |p| {
+                if camera >= p.camera_count() {
+                    return Err(DocError::NoSuchCamera(camera));
+                }
+                match p.camera_cuts.binary_search_by_key(&frame, |c| c.frame) {
+                    Ok(i) => p.camera_cuts[i].camera = camera,
+                    Err(_) if p.camera_cuts.len() >= tooncraft_doc::camera::MAX_CUTS => return Err(DocError::TooManyCuts),
+                    Err(i) => p.camera_cuts.insert(i, tooncraft_doc::CameraCut { frame, camera }),
+                }
+                Ok(true)
+            })
         }
-        Command::SetCamera { enabled } => {
-            let before = Part::Camera(e.project.camera.clone());
-            e.project.camera.enabled = enabled;
-            e.push(Entry { label: "Camera".into(), parts: vec![before] });
-            Ok(())
-        }
+        Command::RemoveCameraCut { frame } => cameras(e, "Remove camera cut", |p| {
+            let before = p.camera_cuts.len();
+            p.camera_cuts.retain(|c| c.frame != frame);
+            Ok(p.camera_cuts.len() != before)
+        }),
         Command::AddPeg { name, parent } => pegs(e, "Add peg", |p| p.add_peg(&name, parent).map(|_| ())),
         Command::AddPegForLayer { layer, name } => {
             e.project.layer(layer)?;
@@ -1576,24 +1669,27 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.depth = d;
             Ok(())
         }),
-        Command::AddCameraShake { shake } => {
-            if e.project.camera.shakes.len() >= tooncraft_doc::camera::MAX_SHAKES {
+        Command::AddCameraShake { shake, camera } => {
+            let c = e.project.camera_by_index(camera).ok_or(DocError::NoSuchCamera(camera))?;
+            if c.shakes.len() >= tooncraft_doc::camera::MAX_SHAKES {
                 return Err(EngineError::Limit("camera shakes"));
             }
-            let before = Part::Camera(e.project.camera.clone());
-            e.project.camera.shakes.push(shake.sanitized());
-            e.project.camera.enabled = true;
-            e.push(Entry { label: "Camera shake".into(), parts: vec![before] });
-            Ok(())
+            cameras(e, "Camera shake", |p| {
+                let c = p.camera_by_index_mut(camera).ok_or(DocError::NoSuchCamera(camera))?;
+                c.shakes.push(shake.sanitized());
+                c.enabled = true;
+                Ok(true)
+            })
         }
-        Command::RemoveCameraShake { index } => {
-            if index >= e.project.camera.shakes.len() {
+        Command::RemoveCameraShake { index, camera } => {
+            let c = e.project.camera_by_index(camera).ok_or(DocError::NoSuchCamera(camera))?;
+            if index >= c.shakes.len() {
                 return Err(EngineError::Limit("camera shake index"));
             }
-            let before = Part::Camera(e.project.camera.clone());
-            e.project.camera.shakes.remove(index);
-            e.push(Entry { label: "Remove camera shake".into(), parts: vec![before] });
-            Ok(())
+            cameras(e, "Remove camera shake", |p| {
+                p.camera_by_index_mut(camera).ok_or(DocError::NoSuchCamera(camera))?.shakes.remove(index);
+                Ok(true)
+            })
         }
         Command::AddTip { id, name, width, height, alpha } => {
             let tip = tooncraft_brush::Tip::new(&name, width, height, alpha).ok_or(tooncraft_raster::RasterError::BadImage { got: 0, want: 1 })?;

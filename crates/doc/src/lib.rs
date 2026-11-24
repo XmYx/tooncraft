@@ -26,7 +26,7 @@ pub mod sound;
 pub mod symmetry;
 pub mod timing;
 
-pub use camera::{Camera, CameraKey, Shake};
+pub use camera::{Camera, CameraCut, CameraKey, Shake, ShotCamera};
 pub use exposure::{Cell, ExposureError, reverse_cells};
 pub use markers::{MAX_MARKER_TEXT, MAX_MARKERS, MAX_NAME, parse_timecode, timecode};
 pub use onion::{
@@ -99,6 +99,12 @@ pub enum DocError {
     TooManyPegs,
     #[error("there is no peg {0}")]
     NoPeg(u64),
+    #[error("there is no camera {0}")]
+    NoSuchCamera(usize),
+    #[error("a shot can have at most {} cameras besides the main one", camera::MAX_CAMERAS)]
+    TooManyCameras,
+    #[error("a shot can have at most {} camera cuts", camera::MAX_CUTS)]
+    TooManyCuts,
     #[error("a peg can have at most {} keys", peg::MAX_PEG_KEYS)]
     TooManyPegKeys,
     #[error("there is no light-table pin {0}")]
@@ -474,6 +480,10 @@ pub struct Project {
     /// Audio track switches by track index (tracks past the end have defaults).
     pub audio_tracks: Vec<AudioTrack>,
     pub camera: Camera,
+    /// Cameras besides the main one.
+    pub cameras: Vec<ShotCamera>,
+    /// Which camera films the shot from which frame, sorted by frame.
+    pub camera_cuts: Vec<CameraCut>,
     pub folders: Vec<Folder>,
     /// Image brush tips used by this shot's brushes, by id.
     pub tips: BTreeMap<u64, std::sync::Arc<tooncraft_brush::Tip>>,
@@ -514,6 +524,8 @@ impl PartialEq for Project {
             && self.sounds == o.sounds
             && self.audio_tracks == o.audio_tracks
             && self.camera == o.camera
+            && self.cameras == o.cameras
+            && self.camera_cuts == o.camera_cuts
             && self.folders == o.folders
             && self.tips == o.tips
             && self.pegs == o.pegs
@@ -571,6 +583,8 @@ impl Project {
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
             camera: Camera::default(),
+            cameras: Vec::new(),
+            camera_cuts: Vec::new(),
             folders: Vec::new(),
             tips: BTreeMap::new(),
             pegs: Vec::new(),
@@ -606,6 +620,8 @@ impl Project {
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
             camera: Camera::default(),
+            cameras: Vec::new(),
+            camera_cuts: Vec::new(),
             folders: Vec::new(),
             tips: BTreeMap::new(),
             pegs: Vec::new(),
@@ -732,13 +748,16 @@ impl Project {
             p.pivot = (p.pivot.0 + fx, p.pivot.1 + fy);
         }
         // the camera's neutral centre is the canvas centre: keep keyed framings where they were
-        for k in &mut self.camera.keys {
+        for k in self.cameras.iter_mut().map(|c| &mut c.camera).chain(std::iter::once(&mut self.camera)).flat_map(|c| c.keys.iter_mut()) {
             k.x += fx;
             k.y += fy;
         }
         self.width = width;
         self.height = height;
         self.camera = std::mem::take(&mut self.camera).sanitized(width, height);
+        for c in &mut self.cameras {
+            c.camera = std::mem::take(&mut c.camera).sanitized(width, height);
+        }
         Ok(())
     }
 
