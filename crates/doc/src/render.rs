@@ -89,7 +89,7 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
     let w = rect.2.min(p.width() - x);
     let h = rect.3.min(p.height() - y);
     // Effects reach across the canvas (blurs, shadows, zoom blur): render it all, then cut out.
-    if o.effects && (x, y, w, h) != (0, 0, p.width(), p.height()) && uses_effects(p, frame, o) {
+    if o.effects && (x, y, w, h) != (0, 0, p.width(), p.height()) && (uses_effects(p, frame, o) || uses_graph(p, o)) {
         return render_region(p, frame, (0, 0, p.width(), p.height()), o).crop(x, y, w, h);
     }
     let mut img = background(p, (x, y), w, h, o.paper);
@@ -141,7 +141,18 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
             }
         }
     }
-    layers(p, frame, &mut img, (x, y), o, |li, f| Some(map(li, f)));
+    if uses_graph(p, o) {
+        // the compositing graph builds the frame from each layer's own picture
+        let full = (0, 0, p.width(), p.height());
+        let layer = |id: u64| p.layer_index(crate::LayerId(id)).map(|li| render_region(p, frame, full, layer_alone(o, li)));
+        match p.comp.render(frame, (p.width(), p.height()), &layer) {
+            Some(g) => img.over_image(&g),
+            // too big for the graph's memory budget: the layer stack
+            None => layers(p, frame, &mut img, (x, y), o, |li, f| Some(map(li, f))),
+        }
+    } else {
+        layers(p, frame, &mut img, (x, y), o, |li, f| Some(map(li, f)));
+    }
     img
 }
 
@@ -508,6 +519,17 @@ fn apply_matte(
     }
 }
 
+/// Does the compositing graph build this picture? Only for a whole composite with effects on:
+/// a single layer, the fill's reference pictures and effect-free renders use the layer stack.
+fn uses_graph(p: &Project, o: RenderOptions) -> bool {
+    o.effects && o.only_layer.is_none() && o.references_with.is_none() && p.comp.active()
+}
+
+/// Options for one layer's own picture in the graph: no paper, onion skin or light table.
+fn layer_alone(o: RenderOptions, li: usize) -> RenderOptions {
+    RenderOptions { paper: false, onion_layer: None, light_table: false, only_layer: Some(li), ..o }
+}
+
 /// Will compositing `frame` with these options run any effect?
 fn uses_effects(p: &Project, frame: u32, o: RenderOptions) -> bool {
     let owner = o.only_layer.and_then(|only| p.matte_owners().get(only).copied().flatten());
@@ -536,6 +558,15 @@ pub fn render_camera(p: &Project, frame: u32, o: RenderOptions) -> RgbaImage {
     }
     let (w, h) = (p.width(), p.height());
     let mut out = background(p, (0, 0), w, h, o.paper);
+    if uses_graph(p, o) {
+        // the compositing graph builds the frame from each layer filmed on its own
+        let layer = |id: u64| p.layer_index(crate::LayerId(id)).map(|li| render_camera(p, frame, layer_alone(o, li)));
+        if let Some(g) = p.comp.render(frame, (w, h), &layer) {
+            out.over_image(&g);
+            return out;
+        }
+        // too big for the graph's memory budget: the layer stack below
+    }
     layers(p, frame, &mut out, (0, 0), o, |li, f| {
         let depth = p.layers.get(li).map(|l| l.depth).unwrap_or(0.0);
         // the camera of this frame's cut, at the frame being drawn (time effects draw other

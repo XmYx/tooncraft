@@ -1,0 +1,1 @@
+- 2026-11-24: A compositing graph for the shot (layer, effect, blend, mask and output nodes) that builds the frame when switched on, saved with the shot and edited through the `edit_comp` command; the node view follows when the shared node editor lands in craft-libs.

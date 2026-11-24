@@ -58,6 +58,9 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Grain texture, Grain from Image, Canvas weave, Speckle, Clouds | Descriptive | Use |
 | Wet mixing, Colour pickup, Watercolour, Smudge, Smear fade | Generic painting words | Use (common) |
 | Undo History, Step, Recent colours, Blur, Fine blur | Generic words | Use (common) |
+| All selected cells, Transform drawings | Descriptive | Use |
+| Mesh Warp, Grid, Apply Mesh Warp, Cancel Mesh Warp | Generic image-editing words | Use (common) |
+| Liquify, Push, Twirl left, Twirl right, Pinch, Bloat, Strength | Generic image-editing words (liquify is the common term) | Use (common) |
 | Line ends (Round, Flat, Square), Corners (Round, Sharp, Cut) | Generic drawing words | Use (common) |
 | Clone stamp, Copy from, Aligned, Hardness | Generic painting words (clone stamp is the common term) | Use (common) |
 | Gradient swatch, Edit Stops, Add Stop, Two Colours, Add Gradient to Palette | Generic colour words and our wording | Use (common) |

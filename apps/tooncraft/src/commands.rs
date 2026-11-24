@@ -206,6 +206,7 @@ pub static ALL: &[Cmd] = &[
     tool!("tool.select", "Select", Select, "S"),
     tool!("tool.shape", "Shapes", Shape, "U"),
     tool!("tool.gradient", "Gradient", Gradient, "G"),
+    when(cmd("tool.liquify", tlm!("Liquify"), Some(Icon::Liquify), G::Tool, Remap("Shift+K"), pick_tool), not_stroking),
     when(cmd("tool.clone", tlm!("Clone stamp"), Some(Icon::CloneStamp), G::Tool, Remap("J"), pick_tool), not_stroking),
     tool!("tool.hand", "Hand", Hand, "H"),
     tool!("tool.transform", "Transform layer", Transform, "Q"),
@@ -220,6 +221,7 @@ pub static ALL: &[Cmd] = &[
     cmd("frame.next_drawing", tlm!("Next drawing"), Some(Icon::NextDrawing), G::Frame, Remap("Ctrl+Right"), |a, _, _| a.step_drawing(true)),
     cmd("view.radial_menu", tlm!("Radial menu"), Some(Icon::Radial), G::View, Remap("V"), |a, ctx, _| crate::tool_palettes::open_radial(a, ctx)),
     cmd("app.find_command", tlm!("Find a command"), Some(Icon::Search), G::Help, Remap("Ctrl+Shift+P"), |a, _, _| a.find.open = true),
+    toggle(cmd("select.quick_mask", tlm!("Quick Mask"), None, G::Select, Remap("Shift+Q"), |a, _, _| crate::quick_mask::toggle(a)), crate::quick_mask::is_on),
     cmd("select.invert", tlm!("Invert selection"), None, G::Select, Remap("Ctrl+Shift+I"), |a, _, _| crate::selection_tools::invert(a)),
     cmd("frame.swap_next", tlm!("Show the next drawing of the layer here"), None, G::Frame, Remap("Ctrl+Alt+Down"), |a, _, _| a.swap_step(true)),
     cmd("frame.swap_prev", tlm!("Show the previous drawing of the layer here"), None, G::Frame, Remap("Ctrl+Alt+Up"), |a, _, _| a.swap_step(false)),
@@ -700,8 +702,8 @@ mod tests {
         ] {
             assert!(get(id).is_some_and(|c| matches!(c.key, Key::Remap(_))), "{id}");
         }
-        // 51, then the zoom and rotate-view tools, then the radial menu, then the clone stamp
-        assert_eq!(remappable().count(), 55);
+        // 51, then the zoom and rotate-view tools, then the radial menu, then the clone stamp, then quick mask, then liquify
+        assert_eq!(remappable().count(), 57);
     }
 
     #[test]

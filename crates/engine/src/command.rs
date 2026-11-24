@@ -135,6 +135,16 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "is_hard")]
         feather: f32,
     },
+    /// Liquify along `points`: push, twirl, pinch or bloat the pixels under a soft brush.
+    Liquify {
+        layer: usize,
+        frame: u32,
+        #[serde(default)]
+        mode: crate::liquify::LiquifyMode,
+        #[serde(default)]
+        brush: crate::liquify::LiquifyBrush,
+        points: Vec<(f32, f32)>,
+    },
     /// The clone stamp along `points`: each pixel takes the one at `offset` (source minus
     /// destination) on `source_layer` (this layer when absent) at the same frame.
     CloneStamp {
@@ -773,6 +783,22 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "is_hard")]
         feather: f32,
     },
+    /// Warp the pixels inside `polygon` with a grid of `cols` × `rows` cells over its box:
+    /// `points` ((cols + 1) × (rows + 1), row by row) are where the grid's points go.
+    MeshWarpSelection {
+        layer: usize,
+        frame: u32,
+        polygon: Vec<(f32, f32)>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        rings: Vec<Vec<(f32, f32)>>,
+        cols: u32,
+        rows: u32,
+        points: Vec<(f32, f32)>,
+        #[serde(default)]
+        resample: tooncraft_raster::select::Resample,
+        #[serde(default, skip_serializing_if = "is_hard")]
+        feather: f32,
+    },
     /// Erase the pixels inside `polygon`.
     ClearSelection {
         layer: usize,
@@ -1130,6 +1156,10 @@ pub enum Command {
     RemoveLayerMask {
         layer: usize,
     },
+    /// One edit of the shot's compositing graph (one undo step).
+    EditComp {
+        edit: CompEdit,
+    },
     /// Several commands as one undo step called `label` (at most [`MAX_BATCH`], none of them a
     /// batch). When one fails, the ones before it are undone and the error is returned, so the
     /// project is as it was.
@@ -1304,6 +1334,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
                 stops
             };
             crate::drawing::gradient(e, layer, frame, kind, from, to, &stops, area.as_deref(), &area_rings, feather)
+        }
+        Command::Liquify { layer, frame, mode, brush, points } => {
+            frame_ok(e, frame)?;
+            crate::liquify::liquify(e, layer, frame, mode, brush, &points)
         }
         Command::CloneStamp { layer, frame, source_layer, offset, tip, points } => {
             frame_ok(e, frame)?;
@@ -1506,6 +1540,9 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }
         Command::DistortSelection { layer, frame, polygon, rings, corners, resample, feather } => {
             crate::select::distort(e, layer, frame, (&polygon, &rings, feather), corners, resample)
+        }
+        Command::MeshWarpSelection { layer, frame, polygon, rings, cols, rows, points, resample, feather } => {
+            crate::select::mesh_warp(e, layer, frame, (&polygon, &rings, feather), cols, rows, &points, resample)
         }
         Command::ClearSelection { layer, frame, polygon, rings, feather } => crate::select::clear(e, layer, frame, (&polygon, &rings, feather)),
         Command::PastePixels { layer, frame, x, y, width, height, rgba } => crate::select::paste(e, layer, frame, (x, y), width, height, &rgba),
@@ -2207,8 +2244,94 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             e.project.layer_mut(layer)?.mask.take().ok_or(EngineError::NoMask)?;
             Ok(())
         }),
+        Command::EditComp { edit } => edit_comp(e, edit),
         Command::Batch { label, commands } => batch(e, &label, commands),
     }
+}
+
+/// One edit of the compositing graph.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case")]
+pub enum CompEdit {
+    /// Replace the graph with one that matches the layer stack, switched on.
+    FromLayers,
+    /// Switch the graph on or off.
+    SetEnabled {
+        enabled: bool,
+    },
+    AddNode {
+        kind: tooncraft_doc::comp::NodeKind,
+        #[serde(default)]
+        pos: [f32; 2],
+    },
+    RemoveNode {
+        node: u64,
+    },
+    /// Link an output to an input (it replaces any link into that input).
+    Link {
+        from: u64,
+        to: u64,
+        input: usize,
+    },
+    Unlink {
+        to: u64,
+        input: usize,
+    },
+    MoveNode {
+        node: u64,
+        pos: [f32; 2],
+    },
+    /// Change what a node does (its settings).
+    SetNode {
+        node: u64,
+        kind: tooncraft_doc::comp::NodeKind,
+    },
+}
+
+fn edit_comp(e: &mut Engine, edit: CompEdit) -> Result<()> {
+    let before = e.project.comp.clone();
+    let fresh = matches!(edit, CompEdit::FromLayers).then(|| tooncraft_doc::comp::CompGraph::from_layers(&e.project));
+    let g = &mut e.project.comp;
+    let label = match edit {
+        CompEdit::FromLayers => {
+            if let Some(f) = fresh {
+                *g = f;
+            }
+            "Compositing graph from layers"
+        }
+        CompEdit::SetEnabled { enabled } => {
+            g.enabled = enabled;
+            "Compositing graph on or off"
+        }
+        CompEdit::AddNode { kind, pos } => {
+            g.add(kind, pos)?;
+            "Add node"
+        }
+        CompEdit::RemoveNode { node } => {
+            g.remove(node)?;
+            "Remove node"
+        }
+        CompEdit::Link { from, to, input } => {
+            g.link(tooncraft_doc::comp::CompLink { from, to, input })?;
+            "Link nodes"
+        }
+        CompEdit::Unlink { to, input } => {
+            g.unlink(to, input);
+            "Unlink nodes"
+        }
+        CompEdit::MoveNode { node, pos } => {
+            g.place(node, pos)?;
+            "Move node"
+        }
+        CompEdit::SetNode { node, kind } => {
+            g.set_kind(node, kind)?;
+            "Node settings"
+        }
+    };
+    if e.project.comp != before {
+        e.push(Entry { label: label.into(), parts: vec![Part::Comp(Box::new(before))] });
+    }
+    Ok(())
 }
 
 /// Apply `commands` as one undo step; on an error, undo the ones applied and return it.

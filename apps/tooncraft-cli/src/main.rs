@@ -14,7 +14,7 @@
 //! tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --exr-layers <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
 //! tooncraft-cli check <file.toon>                          interrupted saves, backup, load check
 //! tooncraft-cli bench [--json]                             stroke latency, fill, compositing, save
-//! tooncraft-cli brush (make <kind> <file> | info <file> | preview <file> <png> [--size WxH])
+//! tooncraft-cli brush (make <kind> <file> | info <file> | preview <file> <png> [--size WxH] | import-abr <file.abr> <dir>)
 //! ```
 //! Exit codes: 0 success, 1 failure, 2 usage error.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
@@ -49,7 +49,7 @@ const USAGE: &str = "usage:
   tooncraft-cli scrub <file.toon>          step through every frame; time and memory (TOONCRAFT_PAGE_BUDGET_MB)
   tooncraft-cli bench [--json]
   tooncraft-cli bench --effects [--size WxH] [--frames N] [--threads N] [--json]
-  tooncraft-cli brush (make <kind> <file.toonbrush> | info <file.toonbrush> | preview <file.toonbrush> <out.png> [--size WxH])
+  tooncraft-cli brush (make <kind> <file.toonbrush> | info <file.toonbrush> | preview <file.toonbrush> <out.png> [--size WxH] | import-abr <file.abr> <dir>)
 ";
 
 struct Args {

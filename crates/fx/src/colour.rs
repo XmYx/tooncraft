@@ -169,6 +169,23 @@ pub(crate) fn grain(img: &mut RgbaImage, origin: (u32, u32), amount: f32, size: 
     });
 }
 
+/// A surface texture over the layer's paint: where the texture has a valley the paint thins (by
+/// `amount` at the deepest), so drawings and fills on the layer show the grain. The texture is
+/// fixed to the canvas, like paper.
+pub(crate) fn texture(img: &mut RgbaImage, origin: (u32, u32), grain: &tooncraft_brush::Grain, amount: f32) {
+    if amount <= 0.0 {
+        return;
+    }
+    each(img, |x, y, s| {
+        if s[3] == 0 {
+            return s;
+        }
+        let h = grain.height((x + origin.0 as usize) as f32, (y + origin.1 as usize) as f32);
+        let keep = (1.0 - amount * (1.0 - h)).clamp(0.0, 1.0);
+        [s[0], s[1], s[2], (s[3] as f32 * keep).round() as u8]
+    });
+}
+
 /// Colour key: transparent near `key`, fading out over `softness` past `tolerance`.
 pub(crate) fn key(img: &mut RgbaImage, key: [u8; 3], tolerance: f32, softness: f32) {
     let k = [key[0] as f32 / 255.0, key[1] as f32 / 255.0, key[2] as f32 / 255.0];
