@@ -137,7 +137,7 @@ Weight: 9
 | Pressure to size and opacity | all | D | S | |
 | Tilt to dab angle and flattening | TV CS PD | D | S | |
 | Speed to size (thin when fast, or thick) | TV CS | D | S | |
-| Pen barrel rotation as an input | TV CS | M | S | The pen sample has no rotation field yet |
+| Pen barrel rotation as an input | TV CS | D | S | The Pen rotation input drives any dab property through its curve; read from the tablet on X11 (also Xwayland) and macOS, turned into canvas space under a rotated or mirrored view |
 | Response curves for every input and dab property | TV CS PD | D | M | A curve for each of five inputs (pressure, tilt, speed, direction, chance) on size, opacity, flow, scatter and angle |
 | Random jitter of size, opacity, angle and scatter | TV CS PD | D | S | The chance input on each property, with quick sliders |
 | Colour jitter per dab and per stroke (hue, saturation, value) | TV CS PD | D | S | Hue, saturation and brightness jitter, per dab or once per stroke; replays exactly |
@@ -310,12 +310,12 @@ Weight: 4
 | Opacity with falloff | all | D | S | |
 | Tint colours for before and after | all | D | S | |
 | Onion by drawings or by frames | TV TB | D | S | The reach shows in the before and after tints on the timeline ruler; right-click the Onion Skin toggle above the canvas for quick settings |
-| Onion on the current layer or on all layers | TV CS | P | S | Both work; only the current-layer path is tested |
+| Onion on the current layer or on all layers | TV CS | D | S | "Onion skin on every visible layer" in the Onion Skin panel and popover; hidden layers and layers left out of the onion skin stay out (tested on the CPU render) |
 | Onion skin as outlines | TV | D | S | Also: hide only the step before |
 | Onion settings per layer | TV TB | D | S | Own settings for a layer in the Onion Skin panel (steps, opacity, colours, outlines); an onion toggle in each timeline row leaves a layer out or takes it back; the shot's switch still turns all off |
-| Pick the exact relative frames shown | TB CS | P | S | An opacity per step on each side (0 hides that step), and key drawings only; no free list of offsets |
+| Pick the exact relative frames shown | TB CS | D | S | "Exact frames" in the Onion Skin panel: type the offsets (`-4 -2 +2`, up to 16, ±99 frames); also an opacity per step on each side and key drawings only; the ruler shows the picked reach |
 | Light table: pin any frame of any layer, with opacity | TB CS | D | S | |
-| Shift and trace: move or turn a pinned frame without changing it | TB TV | M | M | |
+| Shift and trace: move or turn a pinned frame without changing it | TB TV | D | M | Each light-table pin in the Onion Skin panel has Across, Down and Turn fields and Reset Shift; the drawing is untouched (`shift_pin` command, saved in the shot, `--shift-trace`) |
 
 ## Animation tools
 
@@ -465,7 +465,7 @@ Weight: 5
 |---|---|---|---|---|
 | Dense dark theme and a light theme | all | D | S | |
 | Standard panels: tools, tool options, brush, colour, layers, timeline | all | D | S | |
-| Dockable panels: move, tab, float | TV TB CS | P | M | Through craft-ui docking; moving panels is not tested here |
+| Dockable panels: move, tab, float | TV TB CS | D | M | Through craft-ui docking: drag a tab onto another stack to tab it or to a panel's side to split, float from the stack menu and move the window by its title, Move To and Reset Panel from the keyboard; the canvas stays docked and a panel dropped on it floats there (`dock_ui_tests`) |
 | Saved workspaces | TV TB CS | D | S | Draw, Time, Ink & Paint and Sheet keep their own edits per user (Reset Workspace puts one back); Save Workspace As… keeps named layouts |
 | Keyboard shortcuts for every tool | all | D | S | |
 | Customisable shortcuts | all | D | S | Through craft-keymap, saved per user |

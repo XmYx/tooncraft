@@ -1017,3 +1017,19 @@ fn video_export_in_every_codec_and_container() {
     assert!(video(&e.project, &path, o, VideoCodec::Av1, Container::Mov, |_| {}).is_err());
     assert!(!path.exists());
 }
+
+#[test]
+fn shift_pin_moves_a_pin_as_a_setting_and_refuses_a_missing_one() {
+    let mut e = engine();
+    e.apply(Command::TogglePin { layer: 0, frame: 3 }).unwrap();
+    e.apply(Command::ShiftPin { index: 0, x: 40, y: -9, turn: -450 }).unwrap();
+    let s = e.project.light_table.pins[0].shift;
+    assert_eq!((s.x, s.y, s.turn), (40, -9, 3150), "turns wrap into one revolution");
+    assert_eq!(e.undo_label(), None, "a light-table setting is not an undo step");
+    assert!(e.apply(Command::ShiftPin { index: 1, x: 0, y: 0, turn: 0 }).is_err());
+    // hostile numbers are capped, and the command reads from a JSON line
+    let c: Command = serde_json::from_str(r#"{"cmd":"shift_pin","index":0,"x":2147483647}"#).unwrap();
+    e.apply(c).unwrap();
+    assert_eq!(e.project.light_table.pins[0].shift.x, tooncraft_doc::MAX_PIN_SHIFT);
+    assert_eq!(e.project.light_table.pins[0].shift.turn, 0);
+}

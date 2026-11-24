@@ -32,6 +32,8 @@ mod curves;
 #[cfg(test)]
 mod curves_ui_tests;
 mod dock;
+#[cfg(test)]
+mod dock_ui_tests;
 mod draw_aids;
 #[cfg(test)]
 mod drawaids_ui_tests;
@@ -96,6 +98,8 @@ mod status_strip;
 #[cfg(test)]
 mod swatch_ui_tests;
 mod tablet;
+#[cfg(test)]
+mod tc3_anim_ui_tests;
 #[cfg(test)]
 mod tcui_time_ui_tests;
 mod text_tool;
