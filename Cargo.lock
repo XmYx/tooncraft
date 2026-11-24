@@ -4528,6 +4528,7 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
+ "tooncraft-brush",
  "tooncraft-raster",
 ]
 
