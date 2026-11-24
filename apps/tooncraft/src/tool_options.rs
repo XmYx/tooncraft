@@ -17,15 +17,13 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.horizontal_wrapped(|ui| body(app, ui));
 }
 
-/// The Tool Properties panel: the same settings as the bar, laid out to the panel's width, for a
+/// The Tool Properties panel: the same settings as the bar, one per line, for a
 /// side-panel layout. Its widgets have their own ids, so the bar and the panel can both show.
 pub fn panel(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.push_id("tool-properties", |ui| {
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.set_max_width(ui.available_width());
-                body(app, ui);
-            });
+            // one setting per line: a side panel is narrow and tall
+            ui.vertical(|ui| body(app, ui));
         });
     });
 }
@@ -127,6 +125,11 @@ pub enum Scale {
 /// and a box to type in. The box is the keyboard path (arrow keys and typing); it carries the
 /// name for assistive technology. Returns whether the value changed.
 pub fn scrub(ui: &mut egui::Ui, name: &str, v: &mut f32, range: std::ops::RangeInclusive<f32>, scale: Scale, suffix: &str) -> bool {
+    // one unit, so a wrapping row (the Tool Properties panel) never parts the name from its bar
+    ui.horizontal(|ui| scrub_row(ui, name, v, range, scale, suffix)).inner
+}
+
+fn scrub_row(ui: &mut egui::Ui, name: &str, v: &mut f32, range: std::ops::RangeInclusive<f32>, scale: Scale, suffix: &str) -> bool {
     let (lo, hi) = (*range.start(), *range.end());
     if !v.is_finite() {
         *v = lo;

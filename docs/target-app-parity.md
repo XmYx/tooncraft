@@ -490,7 +490,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
-| Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | P | M | Same family of layout; tool settings sit in a bar above the canvas, not in a properties panel |
+| Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | D | M | Tools left, canvas centre, timeline below, colour and the Tool Properties panel at the side (`--panel tool-properties`: the current tool's settings, also kept in the bar above the canvas); the Sheet workspace puts the exposure sheet down the right (`tool_properties_ui_tests`) |
 | Start screen with recent shots and a new-shot form | TB | D | S | With no shot to open: a new-shot form with size presets, the recent shots (missing ones marked), Open… and the demo shot; waits for a recovery offer to be answered; turn it off in Preferences (`--open start` shows it) |
 | Named workspaces picked from a bar | TB | D | S | Segments in the top bar (Draw, Time, Ink & Paint, Sheet; right-click one to reset it or save it as a named workspace); the same and the saved ones in Window ▸ Workspace (`--layout`) |
 | Compositing workspace with a node view | TB | M | XL | No node view |

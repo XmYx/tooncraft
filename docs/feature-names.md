@@ -14,6 +14,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Onion skin | Used descriptively by many unrelated animation apps | Use (common) |
 | Light table | Physical animation desk; used descriptively by several apps | Use (common) |
 | Hold one frame longer / shorter | Our wording | Use |
+| Tool Properties | Plain words for a panel of the current tool's settings; used descriptively by many drawing apps | Use (common) |
 | Re-time layer, "each drawing on Ns" | Industry phrase "on twos / threes" | Use |
 | Steady line | Our name for the pulled-string stabilizer; avoids vendor names for it | Use |
 | Smoothing | Descriptive | Use |
