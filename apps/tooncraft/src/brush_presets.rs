@@ -49,20 +49,50 @@ fn presets(app: &ToonApp, kind: BrushKind) -> Vec<(String, String, Option<Brush>
         .collect()
 }
 
-/// The "Preset" picker and "Revert" for the brush of `kind`.
+/// The name of the preset picked last for `kind` (shown on the dropdown).
+fn picked_id(kind: BrushKind) -> Id {
+    Id::unique("tooncraft-preset-picked").with(kind.id())
+}
+
+/// The preset dropdown for the brush of `kind`: it shows the current brush as a stroke and the
+/// preset picked last; it opens on the library's presets, each drawn as a stroke, and Revert.
 pub fn picker(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
     let list = presets(app, kind);
-    let l = ui.label(tl!("Preset"));
-    let mut chosen: Option<String> = None;
-    egui::ComboBox::from_id_salt(("brush-preset", kind.id()))
-        .selected_text(tl!("Choose…"))
-        .width(150.0)
-        .show_ui(ui, |ui| {
+    let pal = crate::theme::palette(app.light_theme);
+    let current = *app.brush_mut(kind);
+    let picked = ui.ctx().data(|d| d.get_temp::<String>(picked_id(kind)));
+    let name = picked.unwrap_or_else(|| tl!("Own settings").to_string());
+    let font = egui::FontId::proportional(12.0);
+    let galley = ui.painter().layout_no_wrap(name.clone(), font, pal.text);
+    let stroke_w = 64.0;
+    let (rect, resp) = ui.allocate_exact_size(vec2(stroke_w + galley.size().x + 30.0, 22.0), Sense::click());
+    ui.painter().rect(rect, 4.0, pal.raised, egui::Stroke::NONE, egui::StrokeKind::Inside);
+    if resp.hovered() {
+        ui.painter().rect_stroke(rect, 4.0, egui::Stroke::new(1.0, pal.weak), egui::StrokeKind::Inside);
+    }
+    let img = Rect::from_min_size(rect.left_top() + vec2(4.0, 3.0), vec2(stroke_w, 16.0));
+    if let Some(t) = sample(ui, &format!("current-{}", kind.id()), current) {
+        // the stroke on the bar's own colour: light strokes stay readable on the dark bar
+        ui.painter().rect_filled(img, 2.0, Color32::from_rgb(232, 229, 222));
+        ui.painter().image(t.id(), img, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+    }
+    ui.painter().galley(pos2(img.right() + 6.0, rect.center().y - galley.size().y * 0.5), galley, pal.text);
+    crate::tool_options::caret(ui.painter(), pos2(rect.right() - 9.0, rect.center().y), pal.weak);
+    if resp.has_focus() {
+        ui.painter().rect_stroke(rect, 4.0, egui::Stroke::new(2.0, pal.playhead), egui::StrokeKind::Outside);
+    }
+    let label = tl!("Preset").to_string();
+    resp.widget_info(|| WidgetInfo::labeled(egui::Role::ComboBox, true, label.clone()));
+    let resp = resp.on_hover_text(tlf!("Brush preset: {name}", name = name));
+    let mut chosen: Option<(String, String)> = None;
+    let mut revert = false;
+    egui::Popup::menu(&resp).show(|ui| {
+        egui::ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
             for (id, name, brush) in &list {
                 let (rect, resp) = ui.allocate_exact_size(vec2(SAMPLE.0 as f32 + 8.0, SAMPLE.1 as f32 + 18.0), Sense::click());
                 let label = name.clone();
                 resp.widget_info(|| WidgetInfo::labeled(egui::Role::Button, true, label.clone()));
-                if resp.hovered() {
+                if resp.hovered() || resp.has_focus() {
                     ui.painter().rect_filled(rect, 3.0, ui.visuals().widgets.hovered.bg_fill);
                 }
                 ui.painter().text(rect.left_top() + vec2(4.0, 1.0), egui::Align2::LEFT_TOP, name, egui::FontId::proportional(11.5), ui.visuals().text_color());
@@ -74,18 +104,25 @@ pub fn picker(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
                     ui.painter().image(t.id(), img, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
                 }
                 if resp.clicked() {
-                    chosen = Some(id.clone());
+                    chosen = Some((id.clone(), name.clone()));
+                    ui.close();
                 }
             }
-        })
-        .response
-        .labelled_by(l.id);
-    if let Some(id) = chosen {
+        });
+        ui.separator();
+        if ui.button(tl!("Revert")).on_hover_text(tl!("Put this brush's own settings back (the colour stays)")).clicked() {
+            revert = true;
+            ui.close();
+        }
+    });
+    if let Some((id, name)) = chosen {
         crate::brush_library::use_brush(app, &id);
+        ui.ctx().data_mut(|d| d.insert_temp(picked_id(kind), name));
     }
-    if ui.button(tl!("Revert")).on_hover_text(tl!("Put this brush's own settings back (the colour stays)")).clicked() {
+    if revert {
         let color = app.color;
         *app.brush_mut(kind) = Brush { color, ..Brush::preset(kind) };
+        ui.ctx().data_mut(|d| d.remove::<String>(picked_id(kind)));
         app.set_status(tl!("Brush settings reverted"));
     }
 }

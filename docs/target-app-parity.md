@@ -496,7 +496,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Compositing workspace with a node view | TB | M | XL | No node view |
 | Scripting workspace with a script editor and log | TB | M | L | No scripting panels |
 | Panels that can be closed and added back | TB | D | S | Every panel but the canvas closes from its tab; the Window menu puts it back where it was (`panels_ui_tests`) |
-| Many tabs in one stack stay readable | TB | P | S | Names shorten when a stack holds many tabs |
+| Many tabs in one stack stay readable | TB | D | S | Every tab shows its panel's glyph and name; a stack narrower than 220 px, or too crowded for whole names, shows glyphs only, each naming its panel on hover and to screen readers |
 | Dark theme and a light theme | TB | D | S | Contrast tested |
 | Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Zoom and rotation, tool and layer, drawing, frame, colour, the canvas pixel under the pointer; notices on the right fade after a few seconds (a polite live region) |
 | Top menus for play, drawing, scene and windows | TB | D | M | File, Edit, Frame, Layer, Drawing, Play, Scene, View, Window, Help |
@@ -508,7 +508,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Tool bar with flyouts for related tools | TB | D | S | The tool rail: select (lasso, rectangle, ellipse, wand), transform (selection, layer peg), draw, smudge, erase, fill, shapes, text, picker and, at the bottom, view (hand, zoom, rotate view); a corner mark on groups; hold, right-click, Menu or Shift+F10 opens the flyout with icon, name and key; the last-used variant is remembered in the preferences; colour chips swap back to the previous colour |
 | Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | One 32 px bar: the menus, the workspace segments, command search and undo/redo; New, Open and Save are in the File menu and on their keys; the transport and the frame, in, out, frame rate and hold fields are in the Timeline header (shot length in its ⋯ menu) |
 | Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | Icon toggles above the canvas (onion, light table, field guide, safe areas, mirror, symmetry, rulers) with zoom and rotation; right-click or Shift+F10 on a toggle opens its settings, for onion a slider per step from 5 before to 5 after |
-| Brush properties: preset list with previews | TB | D | S | Preset picker with sample strokes, Revert |
+| Brush properties: preset list with previews | TB | D | S | The tool options bar: the tool's glyph and name (its group's tools), a preset dropdown showing the current brush as a stroke and every preset as a stroke, Revert; size, opacity and smoothing as scrub fields (drag the name or bar, or type) |
 | Brush editor | TB | D | S | The Brush panel, every control keyboard-reachable |
 | Pencil properties: caps and joins | TB | M | S | Size, opacity, smoothing, steady line; no caps or joins |
 | Paint bucket properties: modes and gap buttons | TB | D | S | Fill, empty only, repaint; gap presets with a reach ring |
@@ -523,7 +523,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Selected range highlight | TB | D | S | |
 | Right-click menu on timeline cells | TB | D | S | Swap drawing, marks, hold for, fill empty frames, frame and clipboard commands |
 | Right-click menu on exposure-sheet cells | TB | D | S | The same menu in the vertical sheet |
-| Panel menus (a ☰ button per panel) | TB | M | S | |
+| Panel menus (a ☰ button per panel) | TB | D | S | A `⋯` button at the end of every tab strip: the shown panel's own commands (timeline orientation, colour wheel and picker window, onion on/off), then Float, Move To and Close (`shell_chrome_ui_tests`) |
 | Vertical exposure sheet | TB | D | M | Layers as columns, frames down the side, the same keys and menus (`--vertical`, `--layout sheet`) |
 | Onion skin on the canvas, tinted before and after | TB | D | S | |
 | Onion panel with a slider per step | TB | D | S | Also in the onion toggle's popover above the canvas |
