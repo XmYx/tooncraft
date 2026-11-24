@@ -10,9 +10,10 @@ Options:
   --screenshot <PNG>         render the window once to PNG and quit
   --panel <NAME>             bring a panel to the front (timeline, layers, brush, colour, onion, camera,
                              pegs, library, effects, sound, lipsync, timing, history, drawings,
-                             curves)
+                             curves, view2, navigator)
   --open <NAME>              open a window: preferences, export, shortcuts, find, new-shot, canvas-size,
                              start, scene, colour-picker, icons
+  --second-view <LOOK>       show the second view in a look: shot, drawing, camera, side
   --layout <NAME>            start in a layout: drawing, timing, ink-paint, sheet
   --vertical                 show the exposure sheet down the page
   --tool <NAME>              start with a tool (pencil, ink, fill, gradient, select, shape …)
@@ -36,6 +37,8 @@ pub struct Cli {
     pub frame: Option<u32>,
     pub screenshot: Option<PathBuf>,
     pub panel: Option<String>,
+    /// The second view's look at start (`--second-view side`), with the panel in front.
+    pub second_view: Option<String>,
     pub bench_playback: Option<f64>,
     pub light: bool,
     pub light_table: bool,
@@ -64,7 +67,7 @@ pub const LAYOUT_NAMES: [&str; 4] = ["drawing", "timing", "ink-paint", "sheet"];
 
 #[derive(Debug, PartialEq)]
 pub enum Launch {
-    Run(Cli),
+    Run(Box<Cli>),
     Print(String),
 }
 
@@ -115,6 +118,13 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             }
             "--screenshot" => cli.screenshot = Some(PathBuf::from(it.next().ok_or("--screenshot needs a file")?)),
             "--panel" => cli.panel = Some(it.next().ok_or("--panel needs a name")?),
+            "--second-view" => {
+                let v = it.next().ok_or("--second-view needs a look")?;
+                if crate::views::Look::from_id(&v).is_none() {
+                    return Err(format!("--second-view: unknown look {v} (shot, drawing, camera or side)"));
+                }
+                cli.second_view = Some(v);
+            }
             "--open" => {
                 let v = it.next().ok_or("--open needs a window name")?;
                 if !OPEN_NAMES.contains(&v.as_str()) {
@@ -152,7 +162,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             }
         }
     }
-    Ok(Launch::Run(cli))
+    Ok(Launch::Run(Box::new(cli)))
 }
 
 #[cfg(test)]
@@ -162,20 +172,20 @@ mod tests {
     #[test]
     fn parses() {
         let s = |v: &[&str]| parse(v.iter().map(|s| s.to_string()));
-        assert_eq!(s(&["--demo", "--frame", "3"]), Ok(Launch::Run(Cli { demo: true, frame: Some(2), ..Default::default() })));
+        assert_eq!(s(&["--demo", "--frame", "3"]), Ok(Launch::Run(Box::new(Cli { demo: true, frame: Some(2), ..Default::default() }))));
         assert!(s(&["--nope"]).is_err());
         assert!(s(&["a.toon", "b.toon"]).is_err());
         assert!(matches!(s(&["--help"]), Ok(Launch::Print(_))));
         assert_eq!(
             s(&["--open", "preferences", "--layout", "sheet", "--vertical"]),
-            Ok(Launch::Run(Cli { open: Some("preferences".into()), layout: Some("sheet".into()), vertical: true, ..Default::default() }))
+            Ok(Launch::Run(Box::new(Cli { open: Some("preferences".into()), layout: Some("sheet".into()), vertical: true, ..Default::default() })))
         );
         assert!(s(&["--open", "nope"]).is_err());
-        assert_eq!(s(&["--loop", "3..9"]), Ok(Launch::Run(Cli { loop_range: Some((2, 8)), ..Default::default() })));
+        assert_eq!(s(&["--loop", "3..9"]), Ok(Launch::Run(Box::new(Cli { loop_range: Some((2, 8)), ..Default::default() }))));
         assert!(s(&["--loop", "x"]).is_err());
         assert!(s(&["--layout", "nope"]).is_err());
         assert!(s(&["--open"]).is_err());
-        assert_eq!(s(&["--context-menu", "cell"]), Ok(Launch::Run(Cli { context_menu: Some("cell".into()), ..Default::default() })));
+        assert_eq!(s(&["--context-menu", "cell"]), Ok(Launch::Run(Box::new(Cli { context_menu: Some("cell".into()), ..Default::default() }))));
         assert!(s(&["--context-menu", "nope"]).is_err());
         assert!(s(&["--context-menu"]).is_err());
     }

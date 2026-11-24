@@ -366,7 +366,7 @@ pub static ALL: &[Cmd] = &[
     }),
     cmd("edit.paste", tlm!("Paste"), Some(Icon::Paste), G::Edit, Fixed("Ctrl+V"), |a, ctx, _| {
         // pixels go onto the canvas when it has the keyboard, cells into the sheet otherwise
-        if ctx.memory(|m| m.focused()) == Some(crate::canvas::canvas_id()) || a.selection.is_some() {
+        if ctx.memory(|m| m.focused()).is_some_and(crate::views::is_drawing_view) || a.selection.is_some() {
             a.paste_pixels();
         } else {
             a.paste_cells(false, false);

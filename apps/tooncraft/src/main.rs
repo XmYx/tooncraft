@@ -128,6 +128,9 @@ mod unsaved_ui_tests;
 #[cfg(test)]
 mod vector_ui_tests;
 mod view;
+mod views;
+#[cfg(test)]
+mod views_ui_tests;
 mod workspaces;
 
 use args::{Cli, Launch};
@@ -137,7 +140,7 @@ pub const APP_ID: &str = "ai.storyteller.tooncraft";
 
 fn main() -> eframe::Result {
     let cli: Cli = match args::parse(std::env::args().skip(1)) {
-        Ok(Launch::Run(cli)) => cli,
+        Ok(Launch::Run(cli)) => *cli,
         Ok(Launch::Print(text)) => {
             print!("{text}");
             return Ok(());

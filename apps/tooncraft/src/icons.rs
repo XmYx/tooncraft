@@ -84,6 +84,8 @@ pub enum Icon {
     Camera,
     LipSync,
     Drawings,
+    SecondView,
+    Navigator,
     // actions
     Swap,
     Add,
@@ -114,7 +116,7 @@ pub enum Icon {
 
 #[allow(dead_code, reason = "the shared icon family: the UI-pass shell, canvas and menu code draws from all of it; the tests paint every glyph")]
 impl Icon {
-    pub const ALL: [Icon; 88] = [
+    pub const ALL: [Icon; 90] = [
         Icon::Pencil,
         Icon::Ink,
         Icon::Airbrush,
@@ -179,6 +181,8 @@ impl Icon {
         Icon::Camera,
         Icon::LipSync,
         Icon::Drawings,
+        Icon::SecondView,
+        Icon::Navigator,
         Icon::Swap,
         Icon::Add,
         Icon::Duplicate,
@@ -232,6 +236,8 @@ impl Icon {
             Icon::Camera => tl!("Camera"),
             Icon::LipSync => tl!("Lip sync"),
             Icon::Drawings => tl!("Drawings"),
+            Icon::SecondView => tl!("Second view"),
+            Icon::Navigator => tl!("Navigator"),
             Icon::Swap => tl!("Swap colours"),
             Icon::SelectLasso => tl!("Lasso"),
             Icon::SelectRect => tl!("Rectangle"),
@@ -590,6 +596,17 @@ impl Glyph {
                 top.extend(Self::arc_pts((0.0, -0.3), 0.95, 0.75, PI * 0.15, PI * 0.85));
                 self.outline(&top);
                 self.line((-0.6, 0.12), (0.6, 0.12));
+            }
+            Icon::SecondView => {
+                // two views of one picture, the second in front
+                self.rect_outline((-0.95, -0.8), (0.35, 0.3));
+                self.rect_outline((-0.35, -0.3), (0.95, 0.8));
+                self.dot((0.3, 0.25), 0.18);
+            }
+            Icon::Navigator => {
+                // the whole picture with the part on screen marked
+                self.rect_outline((-0.95, -0.75), (0.95, 0.75));
+                self.rect((-0.2, -0.35), (0.55, 0.25));
             }
             Icon::Drawings => {
                 self.rect_outline((-0.95, -0.95), (0.45, 0.45));

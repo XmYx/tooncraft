@@ -75,6 +75,8 @@ pub fn view(pane: Pane) -> PanelView {
         Pane::History => panel("history", &[], Icon::History, tlm!("Undo History"), crate::history_panel::panel),
         Pane::Drawings => panel("drawings", &["drawing-library"], Icon::Drawings, tlm!("Drawing Library"), crate::drawing_library::panel),
         Pane::Curves => panel("curves", &["curve"], Icon::Curves, tlm!("Curves"), crate::curves::panel),
+        Pane::SecondView => panel("view2", &["second-view"], Icon::SecondView, tlm!("Second View"), crate::views::panel),
+        Pane::Navigator => panel("navigator", &[], Icon::Navigator, tlm!("Navigator"), crate::views::navigator),
     }
 }
 
@@ -115,7 +117,7 @@ mod tests {
         // the --panel names in args.rs USAGE
         for n in [
             "timeline", "layers", "brush", "colour", "onion", "camera", "pegs", "library", "effects", "sound", "lipsync", "timing", "history", "drawings",
-            "curves",
+            "curves", "view2", "navigator",
         ] {
             assert!(by_name(n).is_some(), "{n}");
             assert!(crate::args::USAGE.contains(n), "{n} is documented");

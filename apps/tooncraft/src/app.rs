@@ -226,6 +226,8 @@ pub struct ToonApp {
     pub mouse_pressure: f32,
     pub view: View,
     pub view_fitted: bool,
+    /// The Second View panel's look and its own pan and zoom.
+    pub view2: crate::views::SecondView,
     pub playback: Playback,
     pub clock: Instant,
     pub textures: TileTextures,
@@ -409,6 +411,7 @@ impl ToonApp {
             mouse_pressure: 0.75,
             view: View::default(),
             view_fitted: false,
+            view2: Default::default(),
             playback: Playback::default(),
             clock: Instant::now(),
             textures: TileTextures::default(),
@@ -486,6 +489,10 @@ impl ToonApp {
         };
         if let Some(name) = &cli.panel {
             app.workspace.raise(Pane::from_name(name));
+        }
+        if let Some(look) = cli.second_view.as_deref().and_then(crate::views::Look::from_id) {
+            app.view2.look = look;
+            app.workspace.raise(Pane::SecondView);
         }
         crate::text_tool::register_fonts(&mut app);
         if let Some(t) = cli.tool.as_deref().and_then(|n| Tool::ALL.into_iter().find(|t| t.id() == n)) {
@@ -1536,7 +1543,7 @@ impl ToonApp {
         }
         // Single keys only when no text field or focused grid/canvas takes the keyboard.
         let focus = ctx.memory(|m| m.focused());
-        let own_focus = focus.is_some_and(|f| f == crate::canvas::canvas_id() || f == crate::timeline::grid_id());
+        let own_focus = focus.is_some_and(|f| crate::views::is_drawing_view(f) || crate::views::owns_keys(f) || f == crate::timeline::grid_id());
         // Copy / cut / paste of exposure-sheet cells (egui turns Ctrl+C/X/V into these events).
         if focus == Some(crate::timeline::grid_id()) || (focus.is_none() && !ctx.egui_wants_keyboard_input()) {
             let (copy, cut, paste, shift) = ctx.input(|i| {
@@ -1560,7 +1567,7 @@ impl ToonApp {
             if paste {
                 self.paste_cells(shift, false);
             }
-        } else if focus == Some(crate::canvas::canvas_id()) {
+        } else if focus.is_some_and(crate::views::is_drawing_view) {
             let (copy, cut, paste) = ctx.input(|i| {
                 let mut r = (false, false, false);
                 for e in &i.events {
@@ -1627,7 +1634,9 @@ impl ToonApp {
         }
         let plain = |i: &egui::InputState, k| i.modifiers.is_none() && i.key_pressed(k);
         // Remappable commands (craft-keymap); Enter stays with the canvas's keyboard pen.
-        let canvas_focused = focus == Some(crate::canvas::canvas_id());
+        let canvas_focused = focus.is_some_and(crate::views::is_drawing_view);
+        // the camera and side looks and the navigator take +, − and the arrows themselves
+        let view_keys = focus.is_some_and(crate::views::owns_keys);
         // while a polyline is being placed, Enter finishes it and Backspace removes a point
         let placing = !self.aids.path.is_empty();
         crate::draw_aids::path_keys(self, ctx);
@@ -1636,6 +1645,7 @@ impl ToonApp {
         } else {
             self.keys.dispatch_filtered(ctx, |id| {
                 !(placing && id == "frame.play")
+                    && !(view_keys && (id == "frame.hold_more" || id == "frame.hold_less"))
                     && !(canvas_focused && (id == "frame.play" || (id == "frame.clear" && self.keyboard_pen.is_some_and(|p| p.down))))
                     // the Transform tool turns the peg with [ and ] on the focused canvas
                     && !(canvas_focused && self.tool == Tool::Transform && (id == "brush.smaller" || id == "brush.bigger"))
@@ -1648,7 +1658,7 @@ impl ToonApp {
                 plain(i, Key::ArrowUp) && !own_focus,
                 plain(i, Key::ArrowDown) && !own_focus,
                 plain(i, Key::Backspace),
-                plain(i, Key::Plus),
+                plain(i, Key::Plus) && !view_keys,
             ]
         });
         // plain arrows, Backspace and + are fixed second keys of registry commands
