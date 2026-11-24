@@ -217,6 +217,7 @@ pub static ALL: &[Cmd] = &[
     cmd("frame.next", tlm!("Next frame"), Some(Icon::NextFrame), G::Frame, Remap("."), |a, _, _| a.go_to(a.frame as i64 + 1)),
     cmd("frame.prev_drawing", tlm!("Previous drawing"), Some(Icon::PrevDrawing), G::Frame, Remap("Ctrl+Left"), |a, _, _| a.step_drawing(false)),
     cmd("frame.next_drawing", tlm!("Next drawing"), Some(Icon::NextDrawing), G::Frame, Remap("Ctrl+Right"), |a, _, _| a.step_drawing(true)),
+    cmd("view.radial_menu", tlm!("Radial menu"), Some(Icon::Radial), G::View, Remap("V"), |a, ctx, _| crate::tool_palettes::open_radial(a, ctx)),
     cmd("app.find_command", tlm!("Find a command"), Some(Icon::Search), G::Help, Remap("Ctrl+Shift+P"), |a, _, _| a.find.open = true),
     cmd("select.invert", tlm!("Invert selection"), None, G::Select, Remap("Ctrl+Shift+I"), |a, _, _| crate::selection_tools::invert(a)),
     cmd("frame.swap_next", tlm!("Show the next drawing of the layer here"), None, G::Frame, Remap("Ctrl+Alt+Down"), |a, _, _| a.swap_step(true)),
