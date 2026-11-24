@@ -1,0 +1,1 @@
+- 2026-11-24: Effects play back in real time at 4K: up to four frame workers render ahead and make the tiles, so a 4-effect stack plays at 24 fps at 1080p and 4K.
