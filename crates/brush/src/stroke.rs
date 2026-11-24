@@ -774,10 +774,12 @@ mod dynamics_tests {
             for source in [Source::Pressure, Source::Tilt, Source::Speed, Source::Rotation, Source::Random] {
                 let brush = with_response(|r| r.set(target, source, 1.0));
                 // two strokes with different inputs: pressure, tilt, speed, heading
-                let a: Vec<Sample> =
-                    (0..30).map(|i| Sample { x: 10.0 + i as f32 * 2.0, y: 20.0, pressure: 1.0, tilt_x: 0.0, tilt_y: 0.0, time: i as f64 * 0.5, rotation: 0.0 }).collect();
-                let b: Vec<Sample> =
-                    (0..30).map(|i| Sample { x: 200.0, y: 10.0 + i as f32 * 12.0, pressure: 0.1, tilt_x: 0.9, tilt_y: 0.0, time: i as f64 * 0.0005, rotation: 0.0 }).collect();
+                let a: Vec<Sample> = (0..30)
+                    .map(|i| Sample { x: 10.0 + i as f32 * 2.0, y: 20.0, pressure: 1.0, tilt_x: 0.0, tilt_y: 0.0, time: i as f64 * 0.5, rotation: 0.0 })
+                    .collect();
+                let b: Vec<Sample> = (0..30)
+                    .map(|i| Sample { x: 200.0, y: 10.0 + i as f32 * 12.0, pressure: 0.1, tilt_x: 0.9, tilt_y: 0.0, time: i as f64 * 0.0005, rotation: 0.0 })
+                    .collect();
                 // the mean size and strength of the dabs after the first (the speed is unknown there)
                 let key = |ds: Vec<Dab>| {
                     let n = ds.len().saturating_sub(1).max(1) as f32;
