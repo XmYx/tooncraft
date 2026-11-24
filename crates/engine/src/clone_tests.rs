@@ -28,6 +28,7 @@ fn red_square(e: &mut Engine, layer: usize) {
         end: [255, 0, 0, 255],
         area: Some(square),
         area_rings: Vec::new(),
+        stops: Vec::new(),
         feather: 0.0,
     })
     .unwrap();

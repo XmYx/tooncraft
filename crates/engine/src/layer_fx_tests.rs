@@ -89,3 +89,58 @@ fn an_adjustment_layer_changes_everything_below() {
     e.undo().unwrap();
     assert!(!e.project.layers[li].adjustment);
 }
+
+#[test]
+fn the_fill_and_the_wand_look_at_reference_layers() {
+    use crate::FillReference;
+    // a closed box of line on layer 0 (the reference), and an empty colour layer 1
+    let mut e = Engine::new(Project::new("r", 64, 48, 24, 4).unwrap());
+    for (a, b) in [((10.0, 10.0), (50.0, 10.0)), ((50.0, 10.0), (50.0, 40.0)), ((50.0, 40.0), (10.0, 40.0)), ((10.0, 40.0), (10.0, 10.0))] {
+        let brush = tooncraft_brush::Brush { size: 3.0, color: [0, 0, 0, 255], ..Default::default() };
+        let samples = (0..=20)
+            .map(|i| {
+                let t = i as f32 / 20.0;
+                tooncraft_brush::Sample {
+                    x: a.0 + (b.0 - a.0) * t,
+                    y: a.1 + (b.1 - a.1) * t,
+                    pressure: 1.0,
+                    tilt_x: 0.0,
+                    tilt_y: 0.0,
+                    time: i as f64 * 0.01,
+                    rotation: 0.0,
+                }
+            })
+            .collect();
+        e.apply(Command::Stroke { layer: 0, frame: 0, brush, samples }).unwrap();
+    }
+    e.apply(Command::AddLayer { name: "Colour".into(), index: None }).unwrap();
+    // another layer between them with a line through the box: "all layers" sees it, references do not
+    e.apply(Command::AddLayer { name: "Rough".into(), index: Some(1) }).unwrap();
+    let rough = tooncraft_brush::Brush { size: 3.0, color: [200, 0, 0, 255], ..Default::default() };
+    let line = (0..=20)
+        .map(|i| tooncraft_brush::Sample {
+            x: 30.0,
+            y: 5.0 + 40.0 * i as f32 / 20.0,
+            pressure: 1.0,
+            tilt_x: 0.0,
+            tilt_y: 0.0,
+            time: i as f64 * 0.01,
+            rotation: 0.0,
+        })
+        .collect();
+    e.apply(Command::Stroke { layer: 1, frame: 0, brush: rough, samples: line }).unwrap();
+    let opts = tooncraft_raster::fill::FillOptions::default();
+    let area =
+        |e: &Engine, r: FillReference| crate::select::wand_looking_at(e, 2, 0, (20, 25), 10, r, true).map_or(0, |m| m.data.iter().filter(|v| **v != 0).count());
+    let all = area(&e, FillReference::AllLayers);
+    let none = area(&e, FillReference::ReferenceLayers);
+    assert!(none > all * 4, "nothing is marked yet: the whole empty canvas ({none} vs {all})");
+    e.apply(Command::SetLayerReference { layer: 0, reference: true }).unwrap();
+    let refs = area(&e, FillReference::ReferenceLayers);
+    assert!(refs > all && refs < none, "the box without the rough line through it: {refs} (all {all}, none {none})");
+    // the fill on the colour layer reaches across the rough line too
+    e.apply(Command::Fill { layer: 2, frame: 0, x: 20, y: 25, color: [0, 0, 255, 255], options: opts, reference: FillReference::ReferenceLayers }).unwrap();
+    let img = render_frame(&e.project, 0, plain());
+    assert_eq!(img.pixel(40, 25)[2], 255, "filled on the far side of the rough line: {:?}", img.pixel(40, 25));
+    assert_eq!(img.pixel(58, 45)[3], 0, "not outside the box");
+}

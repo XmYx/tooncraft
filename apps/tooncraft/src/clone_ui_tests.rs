@@ -78,6 +78,7 @@ fn alt_click_sets_the_source_and_a_drag_paints_the_copy() {
         end: red,
         area: Some(square),
         area_rings: Vec::new(),
+        stops: Vec::new(),
         feather: 0.0
     }));
     h.key_press(Key::J);

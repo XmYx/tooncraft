@@ -20,6 +20,9 @@ pub struct RenderOptions {
     pub light_table: bool,
     /// Only this layer (fill reference "current layer", per-layer exports).
     pub only_layer: Option<usize>,
+    /// Only the layers marked as references ([`crate::Layer::reference`]) and this one (the
+    /// fill's and the wand's "reference layers").
+    pub references_with: Option<usize>,
     /// Run the layers' effect stacks (off: only the drawn pixels, as the fill bucket needs).
     pub effects: bool,
     /// A map applied to the whole canvas before compositing (canvas pixels → output pixels);
@@ -29,7 +32,7 @@ pub struct RenderOptions {
 
 impl Default for RenderOptions {
     fn default() -> Self {
-        Self { paper: true, onion_layer: None, light_table: false, only_layer: None, space: None, effects: true }
+        Self { paper: true, onion_layer: None, light_table: false, only_layer: None, references_with: None, space: None, effects: true }
     }
 }
 
@@ -155,6 +158,13 @@ fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: R
     let mut li = 0;
     while li < n {
         let Some(layer) = p.layers.get(li) else { break };
+        if let Some(cur) = o.references_with
+            && li != cur
+            && !layer.reference
+        {
+            li += 1;
+            continue;
+        }
         let (visible, opacity) = p.effective_at(layer, frame);
         if let Some(only) = only {
             if only == li {

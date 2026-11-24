@@ -123,6 +123,7 @@ pub fn fill_selection(app: &mut ToonApp) {
         end: c,
         area: Some(area),
         area_rings,
+        stops: Vec::new(),
         feather: app.sel.feather,
     };
     app.run(Command::Batch { label: tl!("Fill selection").to_string(), commands: vec![cmd] });

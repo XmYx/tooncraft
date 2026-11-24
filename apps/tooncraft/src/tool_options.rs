@@ -4,7 +4,6 @@
 //! in the box), then the options of that tool. The full brush settings are in the Brush panel.
 
 use egui::{Color32, Sense, Stroke, vec2};
-use tooncraft_engine::FillReference;
 
 use crate::app::{Tool, ToonApp};
 
@@ -194,20 +193,7 @@ fn fill_options(app: &mut ToonApp, ui: &mut egui::Ui) {
     if scrub(ui, tl!("Tolerance"), &mut tolerance, 0.0..=255.0, Scale::Linear, "") {
         app.fill.tolerance = tolerance.round().clamp(0.0, 255.0) as u8;
     }
-    let l = ui.label(tl!("Look at"));
-    let text = |r: FillReference| match r {
-        FillReference::Layer => tl!("This layer"),
-        FillReference::AllLayers => tl!("All visible layers"),
-    };
-    egui::ComboBox::from_id_salt("fill-ref")
-        .selected_text(text(app.fill_reference))
-        .show_ui(ui, |ui| {
-            for r in [FillReference::AllLayers, FillReference::Layer] {
-                ui.selectable_value(&mut app.fill_reference, r, text(r));
-            }
-        })
-        .response
-        .labelled_by(l.id);
+    crate::layer_fx::reference_picker(ui, "fill-ref", &mut app.fill_reference);
     ui.separator();
     let l = ui.label(tl!("Close gaps"));
     ui.add(egui::DragValue::new(&mut app.fill.gap).range(0..=tooncraft_raster::fill::MAX_GAP).suffix(" px")).labelled_by(l.id);

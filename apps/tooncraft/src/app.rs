@@ -231,6 +231,8 @@ pub struct ToonApp {
     pub mouse_pressure: f32,
     pub view: View,
     pub view_fitted: bool,
+    /// The Second View panel's look and its own pan and zoom.
+    pub view2: crate::views::SecondView,
     pub playback: Playback,
     pub clock: Instant,
     pub textures: TileTextures,
@@ -314,8 +316,12 @@ pub struct ToonApp {
     pub keys: crate::keys::Keys,
     /// Show the camera frame on the canvas.
     pub show_camera: bool,
+    /// A camera key being dragged on the canvas (see `camera_path`).
+    pub camera_drag: Option<crate::camera_path::CameraDrag>,
     pub peg_ui: crate::pegs::PegUi,
     pub transform_ui: crate::peg_transform::TransformUi,
+    /// Record motion: armed, and the take in progress.
+    pub recorder: crate::motion_record::Recorder,
     pub curve_ui: crate::curves::CurveUi,
     pub layer_ui: crate::layer_tree::LayerUi,
     pub timing_ui: crate::timing_panel::TimingUi,
@@ -416,6 +422,7 @@ impl ToonApp {
             mouse_pressure: 0.75,
             view: View::default(),
             view_fitted: false,
+            view2: Default::default(),
             playback: Playback::default(),
             clock: Instant::now(),
             textures: TileTextures::default(),
@@ -467,8 +474,10 @@ impl ToonApp {
             sound: crate::sound::Sound::default(),
             keys: crate::keys::Keys::new(!cfg!(test) && cli.screenshot.is_none()),
             show_camera: true,
+            camera_drag: None,
             peg_ui: Default::default(),
             transform_ui: Default::default(),
+            recorder: Default::default(),
             curve_ui: Default::default(),
             layer_ui: Default::default(),
             timing_ui: Default::default(),
@@ -494,6 +503,10 @@ impl ToonApp {
         };
         if let Some(name) = &cli.panel {
             app.workspace.raise(Pane::from_name(name));
+        }
+        if let Some(look) = cli.second_view.as_deref().and_then(crate::views::Look::from_id) {
+            app.view2.look = look;
+            app.workspace.raise(Pane::SecondView);
         }
         crate::text_tool::register_fonts(&mut app);
         if let Some(t) = cli.tool.as_deref().and_then(|n| Tool::ALL.into_iter().find(|t| t.id() == n)) {
@@ -549,6 +562,12 @@ impl ToonApp {
         {
             app.workspace.raise(Pane::from_name(name));
         }
+        if cli.record_motion {
+            let layer = app.layer;
+            app.run(Command::AddPegForLayer { layer, name: tl!("Peg 1").to_owned() });
+            app.tool = Tool::Transform;
+            crate::motion_record::set_armed(&mut app, true);
+        }
         if cli.light_table {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
@@ -557,6 +576,14 @@ impl ToonApp {
                 app.run(Command::ShiftPin { index: 0, x: 60, y: 24, turn: 120 });
                 app.workspace.raise(Pane::Onion);
             }
+        }
+        if cli.camera_path {
+            let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+            let last = app.engine.project.length().saturating_sub(1);
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.35, y: h * 0.45, zoom: 1.6, angle: 0.0 });
+            app.run(Command::SetCameraKey { frame: last / 2, x: w * 0.5, y: h * 0.35, zoom: 1.4, angle: 0.0 });
+            app.run(Command::SetCameraKey { frame: last, x: w * 0.65, y: h * 0.55, zoom: 1.2, angle: -6.0 });
+            app.tool = Tool::Transform;
         }
         if cli.rulers {
             crate::rulers_ui::demo(&mut app);
@@ -1007,6 +1034,8 @@ impl ToonApp {
 
     pub fn replace_engine(&mut self, engine: Engine, path: Option<PathBuf>) {
         self.engine = engine;
+        self.recorder.forget();
+        self.camera_drag = None;
         self.path = path;
         self.frame = 0;
         self.layer = self.engine.project.layers.len().saturating_sub(1);
@@ -1088,6 +1117,19 @@ impl ToonApp {
                 .set_file_name(format!("{name}.mp4"))
                 .save_file()
                 .map(|f| export::mp4(&self.engine.project, &f, o, |_| {}).map(|_| tlf!("Exported {file}", file = f.display())).map_err(|e| e.to_string())),
+            "mp4-hevc" | "mp4-av1" | "mov" => {
+                use export::{Container, VideoCodec};
+                let (codec, container, ext) = match kind {
+                    "mp4-hevc" => (VideoCodec::Hevc, Container::Mp4, "mp4"),
+                    "mp4-av1" => (VideoCodec::Av1, Container::Mp4, "mp4"),
+                    _ => (VideoCodec::H264, Container::Mov, "mov"),
+                };
+                rfd::FileDialog::new().add_filter(ext.to_uppercase(), &[ext]).set_file_name(format!("{name}.{ext}")).save_file().map(|f| {
+                    export::video(&self.engine.project, &f, o, codec, container, |_| {})
+                        .map(|_| tlf!("Exported {file}", file = f.display()))
+                        .map_err(|e| e.to_string())
+                })
+            }
             "apng" => rfd::FileDialog::new()
                 .add_filter("PNG", &["png"])
                 .set_file_name(format!("{name}.png"))
@@ -1121,6 +1163,11 @@ impl ToonApp {
             }),
             "exr" => rfd::FileDialog::new().set_title(tl!("Folder for the OpenEXR frames")).pick_folder().map(|d| {
                 export::exr_sequence(&self.engine.project, &d, &name, o, |_| {})
+                    .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
+                    .map_err(|e| e.to_string())
+            }),
+            "exr-layers" => rfd::FileDialog::new().set_title(tl!("Folder for the layered OpenEXR frames")).pick_folder().map(|d| {
+                export::exr_layered_sequence(&self.engine.project, &d, &name, o, |_| {})
                     .map(|f| tlf!("Exported {count} frames to {folder}", count = f.len(), folder = d.display()))
                     .map_err(|e| e.to_string())
             }),
@@ -1235,6 +1282,8 @@ impl ToonApp {
         } else {
             self.stats.last_shown = None;
         }
+        crate::motion_record::tick(self, ctx);
+        crate::camera_path::settle(self);
         self.autosave_tick();
         // Sound: decode when the soundtrack changed, follow playback, scrub on frame changes.
         self.sound.sync(&self.engine.project);
@@ -1361,6 +1410,13 @@ impl ToonApp {
                     if ui.button(tl!("Video (MP4, H.264)…")).clicked() {
                         crate::export_dialog::open(self, "mp4");
                     }
+                    ui.menu_button(tl!("Video in Other Codecs"), |ui| {
+                        for (kind, label) in [("mp4-hevc", tl!("MP4, H.265…")), ("mp4-av1", tl!("MP4, AV1…")), ("mov", tl!("QuickTime MOV, H.264…"))] {
+                            if ui.button(label).clicked() {
+                                crate::export_dialog::open(self, kind);
+                            }
+                        }
+                    });
                     if ui.button(tl!("Animated PNG…")).clicked() {
                         crate::export_dialog::open(self, "apng");
                     }
@@ -1408,6 +1464,9 @@ impl ToonApp {
                     }
                     if ui.button(tl!("OpenEXR Sequence…")).clicked() {
                         crate::export_dialog::open(self, "exr");
+                    }
+                    if ui.button(tl!("Layered OpenEXR Sequence…")).clicked() {
+                        crate::export_dialog::open(self, "exr-layers");
                     }
                     if ui.button(tl!("TIFF Sequence…")).clicked() {
                         crate::export_dialog::open(self, "tiff");
@@ -1499,7 +1558,7 @@ impl ToonApp {
         use egui::{Key, KeyboardShortcut, Modifiers};
         // commands picked in Find Command run through the registry, like their menu items
         for id in std::mem::take(&mut self.find.pending) {
-            crate::commands::run(self, ctx, &id);
+            crate::command_search::run(self, ctx, &id);
         }
         let cmd = |k| KeyboardShortcut::new(Modifiers::COMMAND, k);
         let cmd_shift = |k| KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, k);
@@ -1558,7 +1617,7 @@ impl ToonApp {
         }
         // Single keys only when no text field or focused grid/canvas takes the keyboard.
         let focus = ctx.memory(|m| m.focused());
-        let own_focus = focus.is_some_and(|f| f == crate::canvas::canvas_id() || f == crate::timeline::grid_id());
+        let own_focus = focus.is_some_and(|f| crate::views::is_drawing_view(f) || crate::views::owns_keys(f) || f == crate::timeline::grid_id());
         // Copy / cut / paste of exposure-sheet cells (egui turns Ctrl+C/X/V into these events).
         if focus == Some(crate::timeline::grid_id()) || (focus.is_none() && !ctx.egui_wants_keyboard_input()) {
             let (copy, cut, paste, shift) = ctx.input(|i| {
@@ -1582,7 +1641,7 @@ impl ToonApp {
             if paste {
                 self.paste_cells(shift, false);
             }
-        } else if focus == Some(crate::canvas::canvas_id()) {
+        } else if focus.is_some_and(crate::views::is_drawing_view) {
             let (copy, cut, paste) = ctx.input(|i| {
                 let mut r = (false, false, false);
                 for e in &i.events {
@@ -1650,7 +1709,11 @@ impl ToonApp {
         }
         let plain = |i: &egui::InputState, k| i.modifiers.is_none() && i.key_pressed(k);
         // Remappable commands (craft-keymap); Enter stays with the canvas's keyboard pen.
-        let canvas_focused = focus == Some(crate::canvas::canvas_id());
+        let canvas_focused = focus.is_some_and(crate::views::is_drawing_view);
+        // the camera and side looks and the navigator take +, − and the arrows themselves
+        let view_keys = focus.is_some_and(crate::views::owns_keys);
+        // the Transform tool has no keyboard pen, so there Enter plays (record motion's keys)
+        let pen_keys = canvas_focused && self.tool != Tool::Transform;
         // while a polyline is being placed, Enter finishes it and Backspace removes a point
         let placing = !self.aids.path.is_empty();
         crate::draw_aids::path_keys(self, ctx);
@@ -1659,7 +1722,8 @@ impl ToonApp {
         } else {
             self.keys.dispatch_filtered(ctx, |id| {
                 !(placing && id == "frame.play")
-                    && !(canvas_focused && (id == "frame.play" || (id == "frame.clear" && self.keyboard_pen.is_some_and(|p| p.down))))
+                    && !(view_keys && (id == "frame.hold_more" || id == "frame.hold_less"))
+                    && !(pen_keys && (id == "frame.play" || (id == "frame.clear" && self.keyboard_pen.is_some_and(|p| p.down))))
                     // the Transform tool turns the peg with [ and ] on the focused canvas
                     && !(canvas_focused && self.tool == Tool::Transform && (id == "brush.smaller" || id == "brush.bigger"))
             })
@@ -1671,7 +1735,7 @@ impl ToonApp {
                 plain(i, Key::ArrowUp) && !own_focus,
                 plain(i, Key::ArrowDown) && !own_focus,
                 plain(i, Key::Backspace),
-                plain(i, Key::Plus),
+                plain(i, Key::Plus) && !view_keys,
             ]
         });
         // plain arrows, Backspace and + are fixed second keys of registry commands

@@ -17,6 +17,20 @@ pub enum FillReference {
     /// Every visible layer (paint under ink on its own layer).
     #[default]
     AllLayers,
+    /// The layers marked as references, and the layer itself.
+    ReferenceLayers,
+}
+
+impl FillReference {
+    /// How to render the picture this reference looks at, for `layer`.
+    pub fn render_options(self, layer: usize) -> tooncraft_doc::RenderOptions {
+        let base = tooncraft_doc::RenderOptions { paper: false, effects: false, ..Default::default() };
+        match self {
+            FillReference::Layer => tooncraft_doc::RenderOptions { only_layer: Some(layer), ..base },
+            FillReference::AllLayers => base,
+            FillReference::ReferenceLayers => tooncraft_doc::RenderOptions { references_with: Some(layer), ..base },
+        }
+    }
 }
 
 /// One change to a project. `layer` is a layer index (0 = bottom), `frame` is 0-based.
@@ -97,6 +111,9 @@ pub enum Command {
         /// More rings of the selection (holes, other parts), with `area`.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         area_rings: Vec<Vec<(f32, f32)>>,
+        /// A gradient swatch's stops; two or more replace `start` and `end`.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        stops: Vec<tooncraft_doc::palette::Stop>,
         /// Soft edge, pixels (0: hard). See [`tooncraft_raster::select::feather`].
         #[serde(default, skip_serializing_if = "is_hard")]
         feather: f32,
@@ -400,6 +417,12 @@ pub enum Command {
         skew: f32,
         #[serde(default)]
         ease: Ease,
+    },
+    /// Set (or replace) several keys of one peg as one undo step: a recorded take. Refused whole
+    /// when a key lies past the end of the shot or there are more than a peg can hold.
+    SetPegKeys {
+        peg: PegId,
+        keys: Vec<PegKey>,
     },
     RemovePegKey {
         peg: PegId,
@@ -991,6 +1014,12 @@ pub enum Command {
         #[serde(default)]
         matte: Option<tooncraft_doc::Matte>,
     },
+    /// Mark the layer as a reference for the fill bucket and the magic wand (when they look at
+    /// reference layers), or not.
+    SetLayerReference {
+        layer: usize,
+        reference: bool,
+    },
     /// Make the layer an adjustment layer (its effects act on everything below it) or a normal
     /// layer again.
     SetLayerAdjustment {
@@ -1162,9 +1191,15 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::PathShape { layer, frame, brush, points, closed, curve, outline, fill } => {
             crate::drawing::path_shape(e, layer, frame, brush, &points, closed, curve, outline, fill)
         }
-        Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, feather } => {
+        Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, stops, feather } => {
             frame_ok(e, frame)?;
-            crate::drawing::gradient(e, layer, frame, kind, from, to, start, end, area.as_deref(), &area_rings, feather)
+            let stops = tooncraft_doc::palette::sanitize_stops(stops);
+            let stops = if stops.is_empty() {
+                vec![tooncraft_doc::palette::Stop { at: 0.0, rgba: start }, tooncraft_doc::palette::Stop { at: 1.0, rgba: end }]
+            } else {
+                stops
+            };
+            crate::drawing::gradient(e, layer, frame, kind, from, to, &stops, area.as_deref(), &area_rings, feather)
         }
         Command::CloneStamp { layer, frame, source_layer, offset, tip, points } => {
             frame_ok(e, frame)?;
@@ -1422,6 +1457,28 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             frame_ok(e, frame)?;
             pegs(e, "Peg key", |p| {
                 p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.set_key(PegKey { frame, x, y, angle, scale_x, scale_y, skew, ease });
+                Ok(())
+            })
+        }
+        Command::SetPegKeys { peg, keys } => {
+            if keys.len() > tooncraft_doc::peg::MAX_PEG_KEYS {
+                return Err(DocError::TooManyPegKeys.into());
+            }
+            if let Some(k) = keys.iter().find(|k| k.frame >= e.project.length()) {
+                return Err(DocError::NoFrame(k.frame).into());
+            }
+            if keys.is_empty() {
+                return Ok(());
+            }
+            pegs(e, "Record motion", |p| {
+                let pg = p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?;
+                let new = keys.iter().filter(|k| !pg.has_key(k.frame)).map(|k| k.frame).collect::<std::collections::BTreeSet<_>>().len();
+                if pg.keys.len() + new > tooncraft_doc::peg::MAX_PEG_KEYS {
+                    return Err(DocError::TooManyPegKeys);
+                }
+                for k in keys {
+                    pg.set_key(k);
+                }
                 Ok(())
             })
         }
@@ -1946,6 +2003,10 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         }),
         Command::SetLayerMatte { layer, matte } => edit_layers(e, "Matte", |e| {
             e.project.layer_mut(layer)?.matte = matte;
+            Ok(())
+        }),
+        Command::SetLayerReference { layer, reference } => edit_layers(e, "Reference layer", |e| {
+            e.project.layer_mut(layer)?.reference = reference;
             Ok(())
         }),
         Command::SetLayerAdjustment { layer, adjustment } => edit_layers(e, "Adjustment layer", |e| {

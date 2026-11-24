@@ -31,6 +31,7 @@ tooncraft	A new peg; with a peg selected, the new one hangs from it
 tooncraft	A palette holds up to {n} commands	
 tooncraft	A short bouncing-ball shot to try things on	
 tooncraft	A shot keeps at least one layer	
+tooncraft	A take holds at most {n} keys: the rest was not recorded	
 tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
 tooncraft	A window of its own	
 tooncraft	About ToonCraft	
@@ -48,6 +49,7 @@ tooncraft	Add Curve Ruler
 tooncraft	Add Ellipse Ruler	
 tooncraft	Add File to Shot Library	
 tooncraft	Add Frames to Library	
+tooncraft	Add Gradient to Palette	
 tooncraft	Add Inbetweens	
 tooncraft	Add Layer Above	
 tooncraft	Add Layer Mask	
@@ -58,6 +60,7 @@ tooncraft	Add Other
 tooncraft	Add Peg	
 tooncraft	Add Shake Here	
 tooncraft	Add Sound…	
+tooncraft	Add Stop	
 tooncraft	Add Straight Ruler	
 tooncraft	Add Three-Point Perspective	
 tooncraft	Add Two-Point Perspective	
@@ -111,11 +114,13 @@ tooncraft	Apply Skew
 tooncraft	Around	
 tooncraft	Arrange	
 tooncraft	As a GIMP palette (.gpl)	
+tooncraft	As a gradient swatch in the palette shown	
 tooncraft	At most (0: as many as fit)	
 tooncraft	At most {n} offsets	
 tooncraft	Audio tracks	
 tooncraft	Autosave every	
 tooncraft	Back to its first layout	
+tooncraft	Back to the current colour and white or transparent	
 tooncraft	Back to the previous colour	
 tooncraft	Basic	
 tooncraft	Basics	
@@ -158,6 +163,9 @@ tooncraft	By frames
 tooncraft	Calibrate: draw a few strokes in the box below as you normally do.	
 tooncraft	Calibration pad	
 tooncraft	Camera	
+tooncraft	Camera key at frame {frame} moved	
+tooncraft	Camera look	
+tooncraft	Camera move cancelled	
 tooncraft	Cancel	
 tooncraft	Cancel Distort	
 tooncraft	Cannot read this video: {reason}	
@@ -197,6 +205,7 @@ tooncraft	Clear frame
 tooncraft	Clear frame / erase selection	
 tooncraft	Clear {mouth}	
 tooncraft	Click an area to select the pixels like it	
+tooncraft	Click or drag to move the view there; the arrow keys move it too.	
 tooncraft	Click the canvas to pick a colour (Alt+click with any brush)	
 tooncraft	Click the canvas to place text; Enter places it at the keyboard pen	
 tooncraft	Click to place points; Enter or double-click finishes	
@@ -246,6 +255,7 @@ tooncraft	Copy from
 tooncraft	Copy look from	
 tooncraft	Copy opacity, blend mode, label colour, folder, peg, depth and effects to this layer	
 tooncraft	Copy the layer with its drawings, just above it	
+tooncraft	Could not add to the palette: it is full	
 tooncraft	Could not keep the workspace: {error}	
 tooncraft	Could not make the folder {dir}: {error}	
 tooncraft	Could not open the effects: {error}	
@@ -307,6 +317,7 @@ tooncraft	Drag further from the pivot to scale or turn
 tooncraft	Drag inside to move, a corner to scale, the top knob to rotate	
 tooncraft	Drag the four corners freely (perspective), then Apply	
 tooncraft	Drag the handles to move, scale or turn the selection	
+tooncraft	Drag the layer while the shot plays and every frame it passes is keyed (one undo step; Escape drops the take)	
 tooncraft	Drag to move this end of the loop range, or use the arrow keys when it has the focus	
 tooncraft	Drag to move, a corner to scale, the knob to turn, the cross to move the pivot	
 tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates	
@@ -321,6 +332,7 @@ tooncraft	Drawing at frame {n}: {mark}
 tooncraft	Drawing duplicated	
 tooncraft	Drawing files	
 tooncraft	Drawing names	
+tooncraft	Drawing plane	
 tooncraft	Drawing thumbnails in the cells	
 tooncraft	Drawing {id}	
 tooncraft	Drawing {id}, {name}	
@@ -357,6 +369,7 @@ tooncraft	Ease out
 tooncraft	Ease to next key	
 tooncraft	Edit	
 tooncraft	Edit Decisions (OpenTimelineIO)…	
+tooncraft	Edit Stops	
 tooncraft	Edit Swatch…	
 tooncraft	Edit palette	
 tooncraft	Edit swatch	
@@ -374,6 +387,7 @@ tooncraft	Erase Selection
 tooncraft	Eraser	
 tooncraft	Erasers	
 tooncraft	Every drawing of the layer	
+tooncraft	Every layer, as on the canvas; draw here too	
 tooncraft	Every panel back in its first place	
 tooncraft	Every unlocked layer: paint in the old colour takes the new one	
 tooncraft	Exact frames	
@@ -411,6 +425,7 @@ tooncraft	Fill the area under the click
 tooncraft	Fill the canvas	
 tooncraft	Filled	
 tooncraft	Film	
+tooncraft	Filming…	
 tooncraft	Find	
 tooncraft	Find Command	
 tooncraft	Find a command	
@@ -423,6 +438,7 @@ tooncraft	Finish the stroke first
 tooncraft	First / last frame	
 tooncraft	First Frame	
 tooncraft	First frame	
+tooncraft	Fit	
 tooncraft	Fit / actual size	
 tooncraft	Fit Curve to My Hand	
 tooncraft	Fit inside the canvas	
@@ -454,6 +470,7 @@ tooncraft	Folder for the TGA frames
 tooncraft	Folder for the TIFF frames	
 tooncraft	Folder for the exposure sheet and drawings	
 tooncraft	Folder for the layer sequences	
+tooncraft	Folder for the layered OpenEXR frames	
 tooncraft	Folder {name}	
 tooncraft	Folder {n}	
 tooncraft	Font	
@@ -501,7 +518,12 @@ tooncraft	Go To
 tooncraft	Go To Frame	
 tooncraft	Go back to just after this step	
 tooncraft	Gradient	
+tooncraft	Gradient added to the palette	
 tooncraft	Gradient map	
+tooncraft	Gradient preview	
+tooncraft	Gradient swatch {name}, {n} stops	
+tooncraft	Gradient swatch, {n} stops	
+tooncraft	Gradient tool: drag to paint the swatch's gradient	
 tooncraft	Grain	
 tooncraft	Grain contrast	
 tooncraft	Grain from Image…	
@@ -640,6 +662,7 @@ tooncraft	Keys only
 tooncraft	Label Colour	
 tooncraft	Label colour	
 tooncraft	Label colour of {name}	
+tooncraft	Language	
 tooncraft	Large	
 tooncraft	Lasso	
 tooncraft	Lasso fill	
@@ -658,6 +681,8 @@ tooncraft	Layer options
 tooncraft	Layer properties copied	
 tooncraft	Layer {name}	
 tooncraft	Layer {n}	
+tooncraft	Layered OpenEXR Sequence	
+tooncraft	Layered OpenEXR Sequence…	
 tooncraft	Layered PSB, All Frames	
 tooncraft	Layered PSB, All Frames…	
 tooncraft	Layered PSD, All Frames	
@@ -704,12 +729,13 @@ tooncraft	Lock transparency
 tooncraft	Lock {layer}	
 tooncraft	Lock {name}	
 tooncraft	Look at	
-tooncraft	Look at all visible layers	
 tooncraft	Loop	
 tooncraft	Loop in	
 tooncraft	Loop out	
 tooncraft	Loop playback	
 tooncraft	Luminosity	
+tooncraft	MP4, AV1…	
+tooncraft	MP4, H.265…	
 tooncraft	Magic Wand	
 tooncraft	Magic wand	
 tooncraft	Make a new peg and hang the current layer from it	
@@ -772,6 +798,7 @@ tooncraft	My brushes
 tooncraft	Name	
 tooncraft	Name of this drawing	
 tooncraft	Name, category or kind	
+tooncraft	Navigator	
 tooncraft	Nearest (hard edges)	
 tooncraft	Neighbours	
 tooncraft	New Area	
@@ -842,6 +869,7 @@ tooncraft	Not a matte
 tooncraft	Note for frame {n}	
 tooncraft	Nothing copied yet	
 tooncraft	Nothing is selected	
+tooncraft	Nothing moved: no motion recorded	
 tooncraft	Nothing to redo	
 tooncraft	Nothing to select there	
 tooncraft	Nothing to undo	
@@ -951,6 +979,7 @@ tooncraft	Paste frames, moving later frames right
 tooncraft	Pasted	
 tooncraft	Pause	
 tooncraft	Peg	
+tooncraft	Peg 1	
 tooncraft	Peg Current Layer	
 tooncraft	Peg {n}	
 tooncraft	Peg “{name}”	
@@ -1032,6 +1061,7 @@ tooncraft	Put this brush's own settings back (the colour stays)
 tooncraft	Put this tab's settings back	
 tooncraft	Put {pin} back where it was drawn	
 tooncraft	Quarter size	
+tooncraft	QuickTime MOV, H.264…	
 tooncraft	Quit	
 tooncraft	Radial	
 tooncraft	Radial menu	
@@ -1052,6 +1082,13 @@ tooncraft	Recent shots not saved: {error}
 tooncraft	Recolour Every Drawing of the Layer	
 tooncraft	Recolour Layer	
 tooncraft	Recoloured	
+tooncraft	Record Motion	
+tooncraft	Record armed	
+tooncraft	Record motion armed: with the Transform tool, drag the layer and it records while the shot plays	
+tooncraft	Record motion off	
+tooncraft	Recorded motion on {n} frames	
+tooncraft	Recording	
+tooncraft	Recording motion: Escape drops the take	
 tooncraft	Recover	
 tooncraft	Recover unsaved work	
 tooncraft	Recovered; save to keep it	
@@ -1065,7 +1102,10 @@ tooncraft	Redo up to here
 tooncraft	Redo {action}	
 tooncraft	Reference	
 tooncraft	Reference Image…	
+tooncraft	Reference Layer	
 tooncraft	Reference image added under the drawing, locked	
+tooncraft	Reference layer	
+tooncraft	Reference layers	
 tooncraft	Reload	
 tooncraft	Reload Library	
 tooncraft	Remove	
@@ -1173,6 +1213,9 @@ tooncraft	Screen
 tooncraft	Search	
 tooncraft	Search brushes	
 tooncraft	Search commands	
+tooncraft	Second View	
+tooncraft	Second view	
+tooncraft	Second view: {layer}, frame {frame}	
 tooncraft	Select	
 tooncraft	Select All	
 tooncraft	Select Layer Above	
@@ -1193,6 +1236,7 @@ tooncraft	Set Loop Out Here
 tooncraft	Set Name	
 tooncraft	Set Out	
 tooncraft	Set a key at the current frame with the peg's values there	
+tooncraft	Set the gradient's colours and where they sit	
 tooncraft	Settings	
 tooncraft	Shadow colour	
 tooncraft	Shake the camera for 12 frames from the current frame	
@@ -1232,9 +1276,12 @@ tooncraft	Show this window at start
 tooncraft	Show {category} brushes	
 tooncraft	Show {layer}	
 tooncraft	Show {name} here	
+tooncraft	Show {panel}	
 tooncraft	Shows the item's own drawings: drawing on one changes every linked use	
 tooncraft	Shrink	
 tooncraft	Shrink Selection	
+tooncraft	Side	
+tooncraft	Side look: {layer} at depth {depth}	
 tooncraft	Silence below	
 tooncraft	Similar pixels	
 tooncraft	Size	
@@ -1299,6 +1346,7 @@ tooncraft	Steps after
 tooncraft	Steps before	
 tooncraft	Stop	
 tooncraft	Stop Following the Line Layer	
+tooncraft	Stop {n}	
 tooncraft	Straight line from the last stroke	
 tooncraft	Straight ruler	
 tooncraft	Straightened	
@@ -1319,10 +1367,12 @@ tooncraft	Swatch changed
 tooncraft	Swatch name	
 tooncraft	Swatch {name}, #{hex}	
 tooncraft	Symmetry	
+tooncraft	System language	
 tooncraft	TGA Sequence	
 tooncraft	TGA Sequence…	
 tooncraft	TIFF Sequence	
 tooncraft	TIFF Sequence…	
+tooncraft	Take dropped	
 tooncraft	Take every	
 tooncraft	Teeth on lip (F V)	
 tooncraft	Text	
@@ -1336,10 +1386,14 @@ tooncraft	Texture strength
 tooncraft	That brush is not in the library	
 tooncraft	The basic palette cannot be changed; add the colour to a palette of the shot	
 tooncraft	The canvas stays in its place	
+tooncraft	The current colour, half way	
+tooncraft	The current layer's drawing alone; draw here too	
 tooncraft	The current layer, from this frame	
 tooncraft	The current tool is not a brush of this kind	
 tooncraft	The drawings' own colours	
+tooncraft	The fill bucket and the magic wand look at this layer when set to look at reference layers	
 tooncraft	The flip set holds at most {n} frames	
+tooncraft	The frame as the camera films it	
 tooncraft	The last palette stays	
 tooncraft	The last save of this shot was interrupted and there is no backup.	
 tooncraft	The last save was interrupted and the backup does not open: {error}	
@@ -1348,6 +1402,8 @@ tooncraft	The layer already has a mask
 tooncraft	The layer has no mask	
 tooncraft	The layer has no other drawing	
 tooncraft	The layer is locked	
+tooncraft	The layers from the side, at their depth; drag one to move it nearer or farther	
+tooncraft	The layers marked Reference layer, and this one	
 tooncraft	The other tools of this group	
 tooncraft	The picker in a window of its own	
 tooncraft	The radial menu's palette is empty: add commands to it in the Tool Palette panel	
@@ -1356,6 +1412,7 @@ tooncraft	The shot has as many palettes as it can hold
 tooncraft	The shot has no sound	
 tooncraft	The size changes around the centre; Canvas Size… keeps another part in place. Each change is one undo step.	
 tooncraft	The tool has no brush	
+tooncraft	The whole picture in the second view	
 tooncraft	There is no layer above	
 tooncraft	There is no layer below	
 tooncraft	Thicken lines	
@@ -1388,7 +1445,6 @@ tooncraft	Tip
 tooncraft	Tip angle	
 tooncraft	Tip from Image…	
 tooncraft	Tip shape	
-tooncraft	To the palette shown (on Basic, a new shot palette)	
 tooncraft	Tolerance	
 tooncraft	Tone curve	
 tooncraft	Tongue (L TH)	
@@ -1413,6 +1469,7 @@ tooncraft	Transform selection
 tooncraft	Trim start	
 tooncraft	Turbulence	
 tooncraft	Turn	
+tooncraft	Two Colours	
 tooncraft	Type a frame number to go there	
 tooncraft	Type the text; Ctrl+Enter places it, Escape drops it	
 tooncraft	UHD, 24 fps	
@@ -1431,6 +1488,7 @@ tooncraft	Unpin This Frame
 tooncraft	Unpin {pin}	
 tooncraft	Unsaved changes	
 tooncraft	Up	
+tooncraft	Up and Down move the current layer farther or nearer; drag a layer to move it.	
 tooncraft	Update Marker	
 tooncraft	Update paint in this colour	
 tooncraft	Use Brush	
@@ -1445,8 +1503,12 @@ tooncraft	Vector lines
 tooncraft	Vertical	
 tooncraft	Vertical Exposure Sheet	
 tooncraft	Video	
+tooncraft	Video (MP4, AV1)	
 tooncraft	Video (MP4, H.264)	
 tooncraft	Video (MP4, H.264)…	
+tooncraft	Video (MP4, H.265)	
+tooncraft	Video (QuickTime MOV, H.264)	
+tooncraft	Video in Other Codecs	
 tooncraft	View	
 tooncraft	View rotation; click to set it back to 0°	
 tooncraft	Vignette	
@@ -1469,6 +1531,7 @@ tooncraft	Width
 tooncraft	Width and height must be more than zero	
 tooncraft	Window	
 tooncraft	Window puts it back	
+tooncraft	With its opacity, to the palette shown (on Basic, a new shot palette)	
 tooncraft	Workspace	
 tooncraft	Wrote {file}	
 tooncraft	X	
@@ -1519,6 +1582,7 @@ tooncraft	{icon}, on
 tooncraft	{key} was taken from “{command}”	
 tooncraft	{layer}, frame {frame}	
 tooncraft	{layer}, frame {frame}: {cell}	
+tooncraft	{look} look	
 tooncraft	{name} (missing)	
 tooncraft	{name} ({n} frames)	
 tooncraft	{name} and {n} more	
@@ -1538,6 +1602,7 @@ tooncraft	{n} readings, hardest press {p} %
 tooncraft	{panel} is back in its place	
 tooncraft	{panel} panel menu	
 tooncraft	{seconds} s	
+tooncraft	{swatch}, {pct} % opaque	
 tooncraft	{tool} selected	
 tooncraft	{tool} settings reset	
 tooncraft	{tool}; hold or right-click for the other {group} tools	
