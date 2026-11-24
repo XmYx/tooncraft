@@ -193,9 +193,9 @@ Weight: 7
 | Eyedropper | all | D | S | |
 | Gradient tool (linear, radial) | all | D | S | Gradient tool (G): drag start to end, to transparent or to white, kept inside the selection |
 | Symmetry and mirror drawing (axes, radial) | TV CS PD | D | M | Left and right, top and bottom, four ways, radial and mirrored radial (2 to 32 copies) with the axes drawn on the canvas; a mirrored stroke is one undo step and the setting is saved in the shot |
-| Stroke rulers: straight, curve, ellipse, concentric | TV TB CS | M | M | |
-| Perspective rulers with vanishing points | TV CS PD | M | M | |
-| Grid display and snapping strokes to it | TV TB CS | P | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it; freehand strokes do not |
+| Stroke rulers: straight, curve, ellipse, concentric | TV TB CS | D | M | Rulers above the canvas: a stroke started near a straight, curve or ellipse ruler follows it, a concentric ruler takes every stroke on the ellipse through its start; handles drag on the canvas or are typed in the Rulers menu; saved with the shot |
+| Perspective rulers with vanishing points | TV CS PD | D | M | One, two or three vanishing points; after a few pixels of travel the stroke runs on the line through the closest point in that direction |
+| Grid display and snapping strokes to it | TV TB CS | D | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it, and with Rulers ▸ Snap strokes to grid lines a freehand stroke started near a grid line runs along it |
 | Snap the end of a stroke to a clean line or ellipse when held | CS PD | D | S | Hold to straighten: hold the pen still for half a second and a rough line or loop becomes a clean line or ellipse |
 | Text tool | TV TB CS | M | M | |
 | Clone stamp | TV CS | M | S | |

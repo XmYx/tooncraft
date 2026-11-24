@@ -18,6 +18,7 @@ pub mod paging;
 pub mod palette;
 pub mod peg;
 pub mod render;
+pub mod rulers;
 pub mod sound;
 pub mod symmetry;
 pub mod timing;
@@ -343,6 +344,8 @@ pub struct Project {
     pub symmetry: symmetry::Symmetry,
     /// Named colour palettes of the shot.
     pub palettes: Vec<palette::Palette>,
+    /// Stroke rulers and grid snapping (a drawing aid stored with the shot).
+    pub rulers: rulers::Rulers,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -368,6 +371,7 @@ impl PartialEq for Project {
             && self.drawing_names == o.drawing_names
             && self.symmetry == o.symmetry
             && self.palettes == o.palettes
+            && self.rulers == o.rulers
     }
 }
 
@@ -395,6 +399,7 @@ impl Project {
             onion: OnionSkin::default(),
             symmetry: symmetry::Symmetry::default(),
             palettes: Vec::new(),
+            rulers: rulers::Rulers::default(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
@@ -426,6 +431,7 @@ impl Project {
             onion: OnionSkin::default(),
             symmetry: symmetry::Symmetry::default(),
             palettes: Vec::new(),
+            rulers: rulers::Rulers::default(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
