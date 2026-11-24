@@ -63,6 +63,8 @@ mod history_panel;
 #[cfg(test)]
 mod history_ui_tests;
 mod icons;
+#[cfg(test)]
+mod ik_ui_tests;
 mod import_dialog;
 #[cfg(test)]
 mod keyboard_reach_ui_tests;

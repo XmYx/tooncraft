@@ -336,7 +336,7 @@ Weight: 9
 | Generated inbetween drawings (morphing between keys) | TV TB | M | L | |
 | Cut-out puppets: parts on pegs with drawing swaps | TB | P | L | Parts on pegs work; no swap library or rig templates |
 | Deformers: bone, curve and envelope on drawings | TB | M | XL | |
-| Inverse kinematics on peg chains | TB | M | L | |
+| Inverse kinematics on peg chains | TB | D | L | Transform tool ▸ Inverse Kinematics: moving a peg (drag or arrow keys) turns up to eight pegs it hangs from so its pivot follows, only their angles change; one undo step; Escape cancels a drag; the solver is bounded and handles mirrored parents and loops |
 | Master controllers driving poses | TB | M | L | |
 | Pose and template library | TB CS | P | M | Poses: a peg and the pegs below it saved under a name with the shot and put back on any frame from the Pegs panel (`save_pose`, `apply_pose`, `rename_pose`, `remove_pose`), one undo step each; no rig templates shared between shots yet |
 | Rotoscoping on a video layer | TV CS PD | P | M | Image sequences import; no video file import |
