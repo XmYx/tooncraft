@@ -160,7 +160,7 @@ Weight: 9
 | Pattern and ribbon brushes (an image repeated along the stroke) | TV CS | D | M | Tip layout in the brush editor: Pattern lays the image tip end to end, turned along the stroke; Ribbon stretches it along the stroke as one seamless band (`tip_mode`) |
 | Animated brushes (a tip that changes per dab or per frame) | TV CS | D | M | An image tip of several cells side by side (`tip_cells`), shown in turn, at random or by timeline frame (`tip_order`) |
 | Brush blend modes (paint as multiply, behind, and so on) | TV CS PD | D | S | Behind, only on paint, multiply, screen, overlay, darken, lighten and add |
-| Brushes at large sizes stay real time | all | P | M | Measured up to a 120 px airbrush (0.15 ms a sample); not measured at 500–1000 px ([performance.md](performance.md)) |
+| Brushes at large sizes stay real time | all | P | M | Dry brushes up to 1000 px stay inside a 60 Hz frame per dab (airbrush 1000 px: 5.7 ms, chalk 1000 px: 8.6 ms, big dabs stamped on several threads); wet brushes are still single-threaded (watercolour 600 px: 22 ms a dab) ([performance.md](performance.md)) |
 | Brush rendering on the GPU | TV CS PD | M | L | **Ours:** a craft-gpu dab path (RFC-0022) with the CPU path kept as the test oracle |
 | Import of Photoshop ABR brushes | CS PD | M | M | Tips and basic settings |
 | Import of a vendor's own brush packages | CS PD | O | M | Out of scope: the native brush formats of Clip Studio and Procreate are proprietary and undocumented |
