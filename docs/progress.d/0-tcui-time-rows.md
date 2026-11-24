@@ -1,0 +1,1 @@
+- 2026-11-24: Timeline rows use the shared eye, lock and onion icons with a label-colour bar, marked drawings show a coloured dot, and the Layers panel has icon buttons with a split add button and rows with a thumbnail of the drawing on the current frame.

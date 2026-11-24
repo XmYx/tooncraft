@@ -222,3 +222,49 @@ fn the_status_strip_shows_the_frame_colour_and_the_latest_notice() {
     h.run();
     h.get_by_label("Saved the shot");
 }
+
+#[test]
+fn the_layers_toolbar_adds_from_the_split_button_by_keyboard_and_rows_show_thumbnails() {
+    let mut h = harness();
+    h.state_mut().workspace.raise(crate::dock::Pane::Layers);
+    h.run();
+    let n = h.state().engine.project.layers.len();
+    h.get(By::new().role(egui::Role::Button).label("New Layer")).focus();
+    h.run();
+    h.key_press(Key::Space);
+    h.run();
+    assert_eq!(h.state().engine.project.layers.len(), n + 1, "+ adds a drawing layer");
+    // the arrow half offers the other kinds
+    h.get(By::new().role(egui::Role::Button).label("Add Other")).focus();
+    h.run();
+    h.key_press(Key::Enter);
+    h.run();
+    h.get_by_label("Reference Image…");
+    h.get_by_label("Drawing Layer").click();
+    h.run();
+    assert_eq!(h.state().engine.project.layers.len(), n + 2);
+    // a drawing on this frame gets a thumbnail in its row
+    let (layer, frame) = (h.state().layer, h.state().frame);
+    let brush = tooncraft_brush::Brush { size: 12.0, ..tooncraft_brush::Brush::preset(tooncraft_brush::BrushKind::Ink) };
+    let samples: Vec<_> = (0..10).map(|i| tooncraft_brush::Sample::at(20.0 + i as f32 * 4.0, 30.0, 1.0, i as f64 * 0.01)).collect();
+    assert!(h.state_mut().run(tooncraft_engine::Command::Stroke { layer, frame, brush, samples }));
+    h.run();
+    h.run();
+    let d = h.state().engine.project.drawing_at(layer, frame).expect("the stroke made a drawing");
+    assert!(h.state().thumbs.contains_key(&d), "the row's thumbnail is made");
+    // with only one layer below, Merge Down is offered; on the bottom layer it says why not
+    h.state_mut().layer = 0;
+    h.run();
+    h.get(By::new().role(egui::Role::Button).label("Merge Current Layer Down"));
+}
+
+#[test]
+fn the_row_eye_hides_a_layer_from_the_keyboard() {
+    let mut h = harness();
+    let name = h.state().engine.project.layers[0].name.clone();
+    h.get(By::new().role(egui::Role::CheckBox).label(&format!("Show {name}"))).focus();
+    h.run();
+    h.key_press(Key::Space);
+    h.run();
+    assert!(!h.state().engine.project.layers[0].visible);
+}

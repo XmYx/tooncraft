@@ -323,7 +323,7 @@ Weight: 9
 
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
-| Key, breakdown and inbetween marks with a spacing chart | TV TB | D | S | |
+| Key, breakdown and inbetween marks with a spacing chart | TV TB | D | S | A dot in the mark's colour on the drawing's cell, named in the cell for screen readers |
 | Flip and scrub through drawings | all | D | S | |
 | Rolling and flipping between chosen drawings from the keyboard | TV TB | D | S | Choose frames with Ctrl+Alt+Enter, flip round them with Ctrl+Alt+Left and Right (hold to roll); dots on the ruler |
 | Re-time a range, with presets and re-timing between keys | TV TB | D | S | **Ours:** non-destructive, one undo step |
@@ -518,7 +518,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Colour view: palette list, named swatches | TB | D | S | Palettes kept with the shot, named swatches, current and previous colour |
 | Colour sliders with opacity | TB | D | S | Hue, saturation, brightness, red, green, blue, the colour's own opacity and the brush's opacity |
 | Picker with alpha and a gradient | TB | P | S | A floating Colour Picker window (`--open colour-picker`) as well as the docked one; the colour has its own opacity; no gradient swatches |
-| Timeline layer rows with toggles | TB | D | S | Show and lock toggles in each row (named check boxes, keyboard reachable); a mark on every cell where the layer's pegs are keyed, named "peg key" for screen readers; the rest in the Layers panel and the row's right-click menu |
+| Timeline layer rows with toggles | TB | D | S | Show, lock and onion toggles in each row on the shared icons (named check boxes, keyboard reachable) and a bar in the label colour; a mark on every cell where the layer's pegs are keyed, named "peg key" for screen readers; the Layers panel rows have a thumbnail of the drawing on this frame and a split add button; the rest in the row's right-click menu |
 | Timeline buttons | TB | D | S | One header row: icon transport, loop, Play Around, speed and inline fields; the rest in its ⋯ menu |
 | Selected range highlight | TB | D | S | |
 | Right-click menu on timeline cells | TB | D | S | Swap drawing, hold for 1 to 8, marks, new and duplicate drawing, insert and remove frames, fill empty frames, cut, copy, paste and paste reversed, go to; every item with its icon and key, disabled ones saying why; Shift+F10 or the Menu key opens it |
