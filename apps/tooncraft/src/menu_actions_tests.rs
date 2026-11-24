@@ -237,3 +237,34 @@ fn tool_and_panel_items_reset_settings_and_places() {
     let home = crate::dock::Workspace::default().layout.location(&Pane::Onion).ok();
     assert_eq!(a.workspace.layout.location(&Pane::Onion).ok(), home);
 }
+
+#[test]
+fn brush_preset_items_work_on_the_users_brushes_only() {
+    let mut a = app();
+    // never the user's own brush folder
+    let dir = std::env::temp_dir().join(format!("tooncraft-menu-presets-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    a.library = crate::brush_library::State::new(Some(dir.clone()));
+    a.library.library.rescan();
+    let builtin = a.library.library.entries().iter().find(|e| Some(e.kind) == Tool::Ink.brush()).map(|e| e.id.clone()).expect("built-in ink");
+    assert!(act::can_change_preset(&a, &builtin).is_err());
+    assert!(act::can_change_preset(&a, "file:nope").is_err());
+    act::duplicate_preset(&mut a, &builtin);
+    let mine = a.library.selected.clone().expect("the copy is chosen");
+    assert!(act::can_change_preset(&a, &mine).is_ok());
+    act::rename_preset(&mut a, &mine, "Scratchy");
+    assert_eq!(a.library.library.get(&mine).map(|e| e.name.as_str()), Some("Scratchy"));
+    a.tool = Tool::Pencil;
+    assert!(act::can_save_into_preset(&a, &mine).is_err(), "a pencil is not an ink");
+    a.tool = Tool::Ink;
+    let kind = Tool::Ink.brush().expect("ink");
+    a.brush_mut(kind).size = 23.0;
+    act::save_current_into_preset(&mut a, &mine);
+    assert_eq!(a.library.library.load(&mine).map(|p| p.1.size), Ok(23.0));
+    let out = dir.join("export.toonbrush");
+    act::export_preset(&mut a, &mine, &out);
+    assert!(out.exists());
+    act::delete_preset(&mut a, &mine);
+    assert!(a.library.library.get(&mine).is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}

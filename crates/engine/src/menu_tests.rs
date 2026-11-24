@@ -1,5 +1,5 @@
 //! Engine support for the right-click menus: `Command::Batch` (several commands, one undo step,
-//! all or nothing) and selecting the pixels of one colour.
+//! all or nothing) selecting the pixels of one colour, and the brush preset commands.
 
 use super::*;
 
@@ -84,4 +84,42 @@ fn colour_mask_selects_the_pixels_of_one_colour() {
     // another frame, or a layer that does not exist, has nothing of it
     assert!(crate::select::colour_mask(&e, 0, 3, [200, 30, 20], 2).is_none());
     assert!(crate::select::colour_mask(&e, 7, 0, [200, 30, 20], 2).is_none());
+}
+
+fn brush_dir(name: &str) -> std::path::PathBuf {
+    let d = std::env::temp_dir().join(format!("tooncraft-menu-brushes-{}-{name}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    d
+}
+
+#[test]
+fn brush_presets_rename_duplicate_overwrite_export_and_remove() {
+    use crate::library::Library;
+    use tooncraft_brush::{Brush, BrushKind};
+    let dir = brush_dir("ops");
+    let mut lib = Library::new(Some(dir.clone()));
+    let builtin = lib.entries().iter().find(|e| e.kind == BrushKind::Ink).map(|e| e.id.clone()).expect("a built-in ink");
+    // built-ins are read-only, but can be duplicated and exported
+    assert!(lib.rename(&builtin, "Mine").is_err());
+    assert!(lib.remove(&builtin).is_err());
+    assert!(lib.overwrite(&builtin, &Brush::preset(BrushKind::Ink)).is_err());
+    let copy = lib.duplicate(&builtin, "copy").unwrap();
+    assert!(lib.get(&copy).is_some_and(|e| e.name.ends_with(" copy") && e.category == crate::library::MY_BRUSHES));
+    lib.rename(&copy, "  Wobbly ink ").unwrap();
+    assert_eq!(lib.get(&copy).map(|e| e.name.as_str()), Some("Wobbly ink"));
+    assert!(lib.rename(&copy, "   ").is_err());
+    let big = Brush { size: 31.0, ..Brush::preset(BrushKind::Ink) };
+    lib.overwrite(&copy, &big).unwrap();
+    assert_eq!(lib.load(&copy).unwrap().1.size, 31.0);
+    assert_eq!(lib.load(&copy).unwrap().0, "Wobbly ink", "the name is kept");
+    assert!(lib.overwrite(&copy, &Brush::preset(BrushKind::Chalk)).is_err(), "another kind is refused");
+    let out = dir.join("shared.toonbrush");
+    lib.export(&builtin, &out).unwrap();
+    assert!(out.exists());
+    lib.set_favourite(&copy, true).unwrap();
+    lib.remove(&copy).unwrap();
+    assert!(lib.get(&copy).is_none());
+    assert!(!lib.is_favourite(&copy));
+    assert!(lib.remove(&copy).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
 }

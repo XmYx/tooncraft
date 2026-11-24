@@ -268,6 +268,73 @@ pub fn select_colour(app: &mut ToonApp, rgb: [u8; 3]) {
     }
 }
 
+// ----- brush preset -----
+
+/// Built-in brushes cannot be renamed, changed or deleted.
+pub fn can_change_preset(app: &ToonApp, id: &str) -> Enabled {
+    match app.library.library.get(id).map(|e| &e.source) {
+        None => Err(tl!("That brush is not in the library").to_string()),
+        Some(tooncraft_engine::library::Source::Builtin(_)) => Err(tl!("Built-in brushes cannot be changed; duplicate one to make your own").to_string()),
+        Some(_) => Ok(()),
+    }
+}
+
+/// The current brush can go into a preset of the user's of the same kind.
+pub fn can_save_into_preset(app: &ToonApp, id: &str) -> Enabled {
+    can_change_preset(app, id)?;
+    let kind = app.library.library.get(id).map(|e| e.kind);
+    match app.tool.brush() {
+        Some(k) if Some(k) == kind => Ok(()),
+        _ => Err(tl!("The current tool is not a brush of this kind").to_string()),
+    }
+}
+
+fn report(app: &mut ToonApp, r: Result<(), String>, done: String) {
+    match r {
+        Ok(()) => app.set_status(done),
+        Err(e) => app.set_status(e),
+    }
+}
+
+pub fn rename_preset(app: &mut ToonApp, id: &str, name: &str) {
+    let r = app.library.library.rename(id, name);
+    report(app, r, tlf!("Brush renamed to {name}", name = name.trim()));
+}
+
+/// A copy of the preset, chosen in the library.
+pub fn duplicate_preset(app: &mut ToonApp, id: &str) {
+    match app.library.library.duplicate(id, tl!("copy")) {
+        Ok(new) => {
+            app.library.selected = Some(new);
+            app.set_status(tl!("Brush duplicated"));
+        }
+        Err(e) => app.set_status(e),
+    }
+}
+
+pub fn delete_preset(app: &mut ToonApp, id: &str) {
+    let r = app.library.library.remove(id);
+    report(app, r, tl!("Brush deleted").to_string());
+}
+
+/// Save the current brush's settings into the preset (its name and tip stay).
+pub fn save_current_into_preset(app: &mut ToonApp, id: &str) {
+    if let Err(why) = can_save_into_preset(app, id) {
+        app.set_status(why);
+        return;
+    }
+    let Some(kind) = app.tool.brush() else { return };
+    let brush = *app.brush_mut(kind);
+    let r = app.library.library.overwrite(id, &brush);
+    report(app, r, tl!("Brush saved").to_string());
+}
+
+/// Write the preset to `path` as a brush file to share.
+pub fn export_preset(app: &mut ToonApp, id: &str, path: &std::path::Path) {
+    let r = app.library.library.export(id, path);
+    report(app, r, tlf!("Saved {file}", file = path.display()));
+}
+
 // ----- drawing library item -----
 
 /// Put the item on a new layer above the current one, from the current frame (one undo step).
