@@ -277,55 +277,112 @@ impl CompGraph {
         out
     }
 
+    /// The nodes the output reads, directly or through others (each once, the output itself
+    /// left out), and how many links from each of them those nodes and the output read.
+    fn reachable(&self) -> HashMap<u64, usize> {
+        let mut uses: HashMap<u64, usize> = HashMap::new();
+        let Some(out) = self.output() else { return uses };
+        let mut stack = vec![out];
+        let mut seen = std::collections::HashSet::new();
+        while let Some(n) = stack.pop() {
+            if !seen.insert(n) {
+                continue;
+            }
+            for l in self.links.iter().filter(|l| l.to == n) {
+                *uses.entry(l.from).or_insert(0) += 1;
+                stack.push(l.from);
+            }
+        }
+        uses
+    }
+
+    /// Can a frame of `size` be built within [`MAX_GRAPH_BYTES`], even if every node the output
+    /// reads held its picture at once? When not, the compositor uses the layer stack.
+    pub fn fits(&self, size: (u32, u32)) -> bool {
+        let frame = size.0 as u64 * size.1 as u64 * 4;
+        // the nodes' pictures, plus the one being built
+        (self.reachable().len() as u64).saturating_add(1).saturating_mul(frame) <= MAX_GRAPH_BYTES
+    }
+
     /// Build the frame: `layer(id)` gives a layer's picture (the whole canvas, premultiplied),
-    /// `None` when there is no such layer. `None` when the graph is not active.
+    /// `None` when there is no such layer. `None` when the graph is not active or would not fit
+    /// in [`MAX_GRAPH_BYTES`] (see [`CompGraph::fits`]); the compositor then uses the layer stack.
+    /// Each node's picture is kept only until the last node that reads it has.
     pub fn render(&self, frame: u32, size: (u32, u32), layer: &dyn Fn(u64) -> Option<RgbaImage>) -> Option<RgbaImage> {
-        if !self.active() {
+        if !self.active() || !self.fits(size) {
             return None;
         }
         let out = self.output()?;
-        let mut memo: HashMap<u64, RgbaImage> = HashMap::new();
         let src = self.source(out, 0)?;
-        Some(self.eval(src, frame, size, layer, &mut memo, 0))
+        let mut ev = Eval { graph: self, frame, size, layer, uses: self.reachable(), done: HashMap::new() };
+        Some(ev.take(src, 0))
+    }
+}
+
+/// Most bytes of node pictures one frame of the graph may need (when more, the layer stack is
+/// used).
+pub const MAX_GRAPH_BYTES: u64 = 4 << 30;
+
+/// One frame's evaluation: the pictures made so far, each with how many reads are left.
+struct Eval<'a> {
+    graph: &'a CompGraph,
+    frame: u32,
+    size: (u32, u32),
+    layer: &'a dyn Fn(u64) -> Option<RgbaImage>,
+    /// Reads left of each node's picture (links from it into the nodes being built).
+    uses: HashMap<u64, usize>,
+    done: HashMap<u64, RgbaImage>,
+}
+
+impl Eval<'_> {
+    fn blank(&self) -> RgbaImage {
+        RgbaImage::transparent(self.size.0, self.size.1)
     }
 
-    fn eval(
-        &self,
-        id: u64,
-        frame: u32,
-        size: (u32, u32),
-        layer: &dyn Fn(u64) -> Option<RgbaImage>,
-        memo: &mut HashMap<u64, RgbaImage>,
-        depth: usize,
-    ) -> RgbaImage {
-        if let Some(img) = memo.get(&id) {
-            return img.clone();
+    /// Node `id`'s picture for one reader: moved out at its last read, copied before.
+    fn take(&mut self, id: u64, depth: usize) -> RgbaImage {
+        if !self.done.contains_key(&id) {
+            let img = self.build(id, depth);
+            self.done.insert(id, img);
         }
-        let blank = || RgbaImage::transparent(size.0, size.1);
+        let left = self.uses.get(&id).copied().unwrap_or(1);
+        if left <= 1 {
+            self.uses.remove(&id);
+            self.done.remove(&id).unwrap_or_else(|| self.blank())
+        } else {
+            self.uses.insert(id, left - 1);
+            self.done.get(&id).cloned().unwrap_or_else(|| self.blank())
+        }
+    }
+
+    fn input(&mut self, id: u64, i: usize, depth: usize) -> RgbaImage {
+        match self.graph.source(id, i) {
+            Some(s) => self.take(s, depth + 1),
+            None => self.blank(),
+        }
+    }
+
+    fn build(&mut self, id: u64, depth: usize) -> RgbaImage {
         // links never close a loop (sanitized), and the depth cap ends a damaged graph anyway
         if depth > MAX_NODES {
-            return blank();
+            return self.blank();
         }
-        let input = |memo: &mut HashMap<u64, RgbaImage>, i: usize| match self.source(id, i) {
-            Some(s) => self.eval(s, frame, size, layer, memo, depth + 1),
-            None => blank(),
-        };
-        let img = match self.node(id).map(|n| n.kind.clone()) {
-            Some(NodeKind::Layer { layer: l }) => layer(l).filter(|i| (i.width, i.height) == size).unwrap_or_else(blank),
+        match self.graph.node(id).map(|n| n.kind.clone()) {
+            Some(NodeKind::Layer { layer: l }) => (self.layer)(l).filter(|i| (i.width, i.height) == self.size).unwrap_or_else(|| self.blank()),
             Some(NodeKind::Effect { effect }) => {
-                let mut img = input(memo, 0);
-                tooncraft_fx::apply_stack(&mut img, std::slice::from_ref(&effect), frame, None);
+                let mut img = self.input(id, 0, depth);
+                tooncraft_fx::apply_stack(&mut img, std::slice::from_ref(&effect), self.frame, None);
                 img
             }
             Some(NodeKind::Blend { mode, opacity }) => {
-                let mut back = input(memo, 0);
-                let front = input(memo, 1);
+                let mut back = self.input(id, 0, depth);
+                let front = self.input(id, 1, depth);
                 back.composite(&front, mode, opacity);
                 back
             }
             Some(NodeKind::Mask { invert }) => {
-                let mut img = input(memo, 0);
-                let matte = input(memo, 1);
+                let mut img = self.input(id, 0, depth);
+                let matte = self.input(id, 1, depth);
                 for (d, s) in img.data.as_chunks_mut::<4>().0.iter_mut().zip(matte.data.as_chunks::<4>().0.iter()) {
                     let k = if invert { 255 - s[3] } else { s[3] };
                     if k < 255 {
@@ -334,10 +391,8 @@ impl CompGraph {
                 }
                 img
             }
-            Some(NodeKind::Output) | None => blank(),
-        };
-        memo.insert(id, img.clone());
-        img
+            Some(NodeKind::Output) | None => self.blank(),
+        }
     }
 }
 
@@ -434,5 +489,35 @@ mod tests {
         assert_eq!(g.links.len(), 2, "the loop's second half, the self link and the dangling one are gone: {:?}", g.links);
         let img = g.render(0, (2, 2), &|_| None).unwrap();
         assert_eq!(img.data.len(), 16);
+    }
+
+    #[test]
+    fn pictures_are_freed_after_their_last_reader_and_big_graphs_fall_back() {
+        // one layer read by a chain of 100 blends (each also reading the layer): a fan-out
+        let mut g = CompGraph { enabled: true, ..Default::default() };
+        let l = g.add(NodeKind::Layer { layer: 1 }, [0.0, 0.0]).unwrap();
+        let mut last = l;
+        for _ in 0..100 {
+            let b = g.add(NodeKind::Blend { mode: BlendMode::Normal, opacity: 0.5 }, [0.0, 0.0]).unwrap();
+            g.link(CompLink { from: last, to: b, input: 0 }).unwrap();
+            g.link(CompLink { from: l, to: b, input: 1 }).unwrap();
+            last = b;
+        }
+        let out = g.add(NodeKind::Output, [0.0, 0.0]).unwrap();
+        g.link(CompLink { from: last, to: out, input: 0 }).unwrap();
+        let uses = g.reachable();
+        assert_eq!(uses.get(&l), Some(&101), "the layer is read by every blend and the first");
+        let calls = std::cell::Cell::new(0);
+        let layer = |_: u64| {
+            calls.set(calls.get() + 1);
+            Some(picture([255, 0, 0, 255]))
+        };
+        let img = g.render(0, (4, 4), &layer).unwrap();
+        assert_eq!(img.pixel(0, 0), [255, 0, 0, 255]);
+        assert_eq!(calls.get(), 1, "the layer's picture is made once and shared");
+        // a frame too big for the budget: the graph steps aside for the layer stack
+        assert!(g.fits((64, 64)));
+        assert!(!g.fits((16384, 16384)), "102 pictures of 1 GiB each");
+        assert!(g.render(0, (16384, 16384), &|_| None).is_none());
     }
 }

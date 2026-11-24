@@ -145,8 +145,10 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
         // the compositing graph builds the frame from each layer's own picture
         let full = (0, 0, p.width(), p.height());
         let layer = |id: u64| p.layer_index(crate::LayerId(id)).map(|li| render_region(p, frame, full, layer_alone(o, li)));
-        if let Some(g) = p.comp.render(frame, (p.width(), p.height()), &layer) {
-            img.over_image(&g);
+        match p.comp.render(frame, (p.width(), p.height()), &layer) {
+            Some(g) => img.over_image(&g),
+            // too big for the graph's memory budget: the layer stack
+            None => layers(p, frame, &mut img, (x, y), o, |li, f| Some(map(li, f))),
         }
     } else {
         layers(p, frame, &mut img, (x, y), o, |li, f| Some(map(li, f)));
@@ -561,8 +563,9 @@ pub fn render_camera(p: &Project, frame: u32, o: RenderOptions) -> RgbaImage {
         let layer = |id: u64| p.layer_index(crate::LayerId(id)).map(|li| render_camera(p, frame, layer_alone(o, li)));
         if let Some(g) = p.comp.render(frame, (w, h), &layer) {
             out.over_image(&g);
+            return out;
         }
-        return out;
+        // too big for the graph's memory budget: the layer stack below
     }
     layers(p, frame, &mut out, (0, 0), o, |li, f| {
         let depth = p.layers.get(li).map(|l| l.depth).unwrap_or(0.0);
