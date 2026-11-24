@@ -61,6 +61,7 @@ pub fn source_label(s: Source) -> String {
         Source::Speed => tl!("Speed"),
         Source::Rotation => tl!("Direction"),
         Source::Random => tl!("Random"),
+        Source::Barrel => tl!("Pen rotation"),
     }
     .to_string()
 }
@@ -628,7 +629,7 @@ mod tests {
         assert_eq!((st.target, st.source), (Target::Opacity, Source::Speed));
         h.get(By::new().role(egui::Role::Slider).label_contains("Curve: Speed to Opacity, point 1 of 2"));
         // Tab from the last source button lands on the curve editor, and its keys then work
-        h.get_by_label("Edit the curve of Random").focus();
+        h.get_by_label("Edit the curve of Pen rotation").focus();
         h.run();
         h.key_press(Key::Tab);
         h.run();

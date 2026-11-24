@@ -81,14 +81,15 @@ archive, and the id is assigned when the brush is put to use.
 * `tilt` (0 … 1): how much the pen's lean flattens and turns the dab.
 * `min_size` (0.01 … 1): the smallest size as a fraction of `size`, whatever the mappings say.
 * `response`: for each **target** (`size`, `opacity`, `flow`, `scatter`, `angle`) a set of
-  **sources** (`pressure`, `tilt`, `speed`, `rotation`, `random`), each with an `amount` (-1 … 1; 0 is off) and a
+  **sources** (`pressure`, `tilt`, `speed`, `rotation`, `random`, `barrel`), each with an `amount` (-1 … 1; 0 is off) and a
   `curve`. Only mappings that are on, or that have a curve other than the source's starting curve,
   are written. A missing `curve` is the source's starting curve: the identity for every source except
   `speed`, which starts as the reverse (`[[0, 1], [1, 0]]`, fast strokes give less).
 
 Inputs are normalised to 0 … 1 before the curve is applied: `pressure` is the pen pressure, `tilt` is
 how far the pen leans from upright, `speed` is the pointer speed (1 at 2500 px/s or more), `rotation` is
-the stroke's heading in turns (0 is rightwards, 0.25 downwards), and `random` is a fresh number for every
+the stroke's heading in turns (0 is rightwards, 0.25 downwards), `barrel` is the pen's barrel rotation in
+turns (0 … 1 clockwise, relative to the canvas; 0 for a mouse or a pen without a rotating barrel), and `random` is a fresh number for every
 dab and target, taken from a hash of the stroke's first position and the dab's number, so replaying the
 same stroke gives the same pixels.
 

@@ -102,17 +102,25 @@ fn sample(app: &ToonApp, rect: Rect, p: Pos2, pressure: f32) -> Sample {
     let c = to_canvas(app, rect, p);
     let t = app.stroke_start.map(|s| s.elapsed().as_secs_f64()).unwrap_or(0.0);
     // A tablet reading (X11 / macOS) beats touch force and the mouse setting.
-    let (pressure, tilt_x, tilt_y) = match app.tablet.pen() {
-        Some(pen) => (pen.pressure, pen.tilt_x, pen.tilt_y),
-        None => (pressure, 0.0, 0.0),
+    let (pressure, tilt_x, tilt_y, barrel) = match app.tablet.pen() {
+        Some(pen) => (pen.pressure, pen.tilt_x, pen.tilt_y, pen.rotation),
+        None => (pressure, 0.0, 0.0, 0.0),
     };
-    // The view may be rotated or mirrored: tilt is in screen space, the brush works in canvas space.
-    let (s, co) = (-app.view.rotation).sin_cos();
+    let (tilt_x, tilt_y, rotation) = to_canvas_pen(app.view.rotation, app.view.flip, tilt_x, tilt_y, barrel);
+    Sample { x: c.x, y: c.y, pressure, tilt_x, tilt_y, time: t, rotation }
+}
+
+/// Pen tilt and barrel rotation are in screen space; the brush works in canvas space, and the
+/// view may be rotated (`view_rotation`, radians) or mirrored.
+pub(crate) fn to_canvas_pen(view_rotation: f32, flip: bool, tilt_x: f32, tilt_y: f32, barrel: f32) -> (f32, f32, f32) {
+    let (s, co) = (-view_rotation).sin_cos();
     let (mut tx, ty) = (tilt_x * co - tilt_y * s, tilt_x * s + tilt_y * co);
-    if app.view.flip {
+    let mut turns = barrel - view_rotation / std::f32::consts::TAU;
+    if flip {
         tx = -tx;
+        turns = -turns;
     }
-    Sample { x: c.x, y: c.y, pressure, tilt_x: tx, tilt_y: ty, time: t }
+    (tx, ty, turns.rem_euclid(1.0))
 }
 
 fn begin(app: &mut ToonApp, s: Sample) {
@@ -710,7 +718,7 @@ fn keyboard_pen(app: &mut ToonApp, ui: &egui::Ui, resp: &egui::Response) {
     pen.x = (pen.x + dx * step).clamp(0.0, w - 1.0);
     pen.y = (pen.y + dy * step).clamp(0.0, h - 1.0);
     let t = app.stroke_start.map(|s| s.elapsed().as_secs_f64()).unwrap_or(0.0);
-    let s = Sample { x: pen.x, y: pen.y, pressure: app.mouse_pressure, tilt_x: 0.0, tilt_y: 0.0, time: t };
+    let s = Sample { x: pen.x, y: pen.y, pressure: app.mouse_pressure, tilt_x: 0.0, tilt_y: 0.0, time: t, rotation: 0.0 };
     if (dx != 0.0 || dy != 0.0) && pen.down {
         let _ = app.engine.stroke_to(s);
     }
