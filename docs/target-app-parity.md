@@ -466,7 +466,7 @@ Weight: 5
 | Dense dark theme and a light theme | all | D | S | |
 | Standard panels: tools, tool options, brush, colour, layers, timeline | all | D | S | |
 | Dockable panels: move, tab, float | TV TB CS | P | M | Through craft-ui docking; moving panels is not tested here |
-| Saved workspaces | TV TB CS | D | S | Named layouts per user, plus Drawing and Timing |
+| Saved workspaces | TV TB CS | D | S | Draw, Time, Ink & Paint and Sheet keep their own edits per user (Reset Workspace puts one back); Save Workspace As… keeps named layouts |
 | Keyboard shortcuts for every tool | all | D | S | |
 | Customisable shortcuts | all | D | S | Through craft-keymap, saved per user |
 | Command search | TB CS | D | S | Find Command (Ctrl+Shift+P): by name or by key, keyboard or click, runs like the shortcut |
@@ -492,7 +492,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 |---|---|---|---|---|
 | Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | P | M | Same family of layout; tool settings sit in a bar above the canvas, not in a properties panel |
 | Start screen with recent shots and a new-shot form | TB | D | S | With no shot to open: a new-shot form with size presets, the recent shots (missing ones marked), Open… and the demo shot; waits for a recovery offer to be answered; turn it off in Preferences (`--open start` shows it) |
-| Named workspaces picked from a bar | TB | D | S | The Workspace picker in the top bar (Drawing, Timing, Ink and Paint, Exposure Sheet); saved ones in View ▸ Workspaces (`--layout`) |
+| Named workspaces picked from a bar | TB | D | S | Segments in the top bar (Draw, Time, Ink & Paint, Sheet; right-click one to reset it or save it as a named workspace); the same and the saved ones in Window ▸ Workspace (`--layout`) |
 | Compositing workspace with a node view | TB | M | XL | No node view |
 | Scripting workspace with a script editor and log | TB | M | L | No scripting panels |
 | Panels that can be closed and added back | TB | D | S | Every panel but the canvas closes from its tab; the Window menu puts it back where it was (`panels_ui_tests`) |
@@ -502,11 +502,11 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Top menus for play, drawing, scene and windows | TB | D | M | File, Edit, Frame, Layer, Drawing, Play, Scene, View, Window, Help |
 | File menu with recent files | TB | D | S | File ▸ Open Recent: the last 12 shots opened or saved, newest first, missing ones marked, Clear Recent Shots |
 | Edit menu with selection and transform items | TB | D | S | Undo and redo with names, Preferences, select, invert, grow and shrink, transform submenu |
-| View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | |
+| View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | Workspaces are in Window ▸ Workspace |
 | Play commands with speed | TB | D | S | Frame menu and the Timeline header: play, step by frame and by drawing, in and out fields, speed, loop, Play Around with its reach |
-| A Windows menu listing every panel | TB | D | S | Window: every panel with a tick when open, and Reset Panels |
-| Tool bar with flyouts for related tools | TB | D | S | Grouped buttons with a corner mark; right-click or press and hold for the group |
-| Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | New, Open, Save, undo, redo, workspace in the top bar; the transport and the frame, in, out, frame rate and hold fields in the Timeline header (shot length in its ⋯ menu) |
+| A Windows menu listing every panel | TB | D | S | Window: Workspace, every panel with a tick when open, and Reset Panels |
+| Tool bar with flyouts for related tools | TB | D | S | The tool rail: select (lasso, rectangle, ellipse, wand), transform (selection, layer peg), draw, smudge, erase, fill, shapes, text, picker and, at the bottom, view (hand, zoom, rotate view); a corner mark on groups; hold, right-click, Menu or Shift+F10 opens the flyout with icon, name and key; the last-used variant is remembered in the preferences; colour chips swap back to the previous colour |
+| Top bar with file buttons, undo, workspace picker, transport and frame fields | TB | D | M | One 32 px bar: the menus, the workspace segments, command search and undo/redo; New, Open and Save are in the File menu and on their keys; the transport and the frame, in, out, frame rate and hold fields are in the Timeline header (shot length in its ⋯ menu) |
 | Canvas bar: onion, light table, guides, mirror toggles | TB | D | S | Icon toggles above the canvas (onion, light table, field guide, safe areas, mirror, symmetry, rulers) with zoom and rotation; right-click or Shift+F10 on a toggle opens its settings, for onion a slider per step from 5 before to 5 after |
 | Brush properties: preset list with previews | TB | D | S | Preset picker with sample strokes, Revert |
 | Brush editor | TB | D | S | The Brush panel, every control keyboard-reachable |

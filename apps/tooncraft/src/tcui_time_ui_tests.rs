@@ -161,7 +161,14 @@ fn the_timeline_options_menu_opens_from_the_keyboard() {
     focus(&mut h, By::new().role(egui::Role::Button).label("Timeline options"));
     h.key_press(Key::Enter);
     h.run();
-    for item in ["New", "Duplicate", "Ping-pong", "Set In", "Vertical", "Timecode", "Zoom In"] {
+    for item in ["New drawing", "Duplicate drawing", "Insert frame", "Hold one frame longer", "Pin frame to the light table"] {
+        assert!(has_item(&h, item), "{item}");
+    }
+    // the switches are a level down, and the submenus open from the keyboard too
+    focus(&mut h, By::new().role(egui::Role::Button).label("Display"));
+    h.key_press(Key::Enter);
+    h.run();
+    for item in ["Vertical", "Timecode", "Thumbnails", "Zoom the timeline in"] {
         assert!(has_item(&h, item), "{item}");
     }
     h.get(By::new().role(egui::Role::SpinButton).label("Shot length"));

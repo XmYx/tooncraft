@@ -27,46 +27,34 @@ fn sep(ui: &mut Ui) {
     ui.add(egui::Separator::default().vertical().spacing(6.0));
 }
 
-fn button(app: &ToonApp, ui: &mut Ui, icon: Icon, label: &str, key: &str) -> egui::Response {
-    let b = IconButton::new(icon, label);
-    let b = if key.is_empty() { b } else { b.shortcut(app.keys.text(key)) };
-    ui.add(b)
+/// An icon button for the registry command `id`: its icon (or `icon`), its key in the tooltip,
+/// on/off for toggles, disabled with the reason when it cannot run.
+fn command(app: &mut ToonApp, ui: &mut Ui, id: &str, icon: Option<Icon>, label: &str) {
+    let Some(c) = crate::commands::get(id) else { return };
+    let Some(icon) = icon.or(c.icon) else { return };
+    let mut b = IconButton::new(icon, label).shortcut(c.key_text(app)).disabled((c.enabled)(app).err());
+    if let Some(on) = c.checked {
+        b = b.active(on(app));
+    }
+    if ui.add(b).clicked() {
+        let ctx = ui.ctx().clone();
+        crate::commands::run(app, &ctx, c.id);
+    }
 }
 
 fn transport(app: &mut ToonApp, ui: &mut Ui) {
-    if button(app, ui, Icon::First, tl!("First frame"), "frame.first").clicked() {
-        app.playback.stop();
-        app.frame = 0;
-    }
-    if button(app, ui, Icon::PrevDrawing, tl!("Previous drawing"), "frame.prev_drawing").clicked() {
-        app.step_drawing(false);
-    }
-    if button(app, ui, Icon::PrevFrame, tl!("Previous frame"), "frame.prev").clicked() {
-        app.go_to(app.frame as i64 - 1);
-    }
+    command(app, ui, "frame.first", None, tl!("First frame"));
+    command(app, ui, "frame.prev_drawing", None, tl!("Previous drawing"));
+    command(app, ui, "frame.prev", None, tl!("Previous frame"));
     let playing = app.playback.playing;
     let (icon, label) = if playing { (Icon::Pause, tl!("Stop")) } else { (Icon::Play, tl!("Play")) };
-    if ui.add(IconButton::new(icon, label).shortcut(app.keys.text("frame.play")).active(playing)).clicked() {
-        app.toggle_play();
-    }
-    if button(app, ui, Icon::NextFrame, tl!("Next frame"), "frame.next").clicked() {
-        app.go_to(app.frame as i64 + 1);
-    }
-    if button(app, ui, Icon::NextDrawing, tl!("Next drawing"), "frame.next_drawing").clicked() {
-        app.step_drawing(true);
-    }
-    if button(app, ui, Icon::Last, tl!("Last frame"), "frame.last").clicked() {
-        app.playback.stop();
-        app.frame = app.engine.project.length().saturating_sub(1);
-    }
+    command(app, ui, "frame.play", Some(icon), label);
+    command(app, ui, "frame.next", None, tl!("Next frame"));
+    command(app, ui, "frame.next_drawing", None, tl!("Next drawing"));
+    command(app, ui, "frame.last", None, tl!("Last frame"));
     sep(ui);
-    let looping = app.playback.looping;
-    if ui.add(IconButton::new(Icon::Loop, tl!("Loop playback")).active(looping)).clicked() {
-        app.playback.looping = !looping;
-    }
-    if button(app, ui, Icon::PlayAround, tl!("Play Around"), "").clicked() {
-        crate::timeline_extras::play_around(app);
-    }
+    command(app, ui, "timeline.loop", None, tl!("Loop playback"));
+    command(app, ui, "timeline.play_around", None, tl!("Play Around"));
     let l = ui.label(tl!("Around"));
     ui.add(egui::DragValue::new(&mut app.tl.around).range(1..=crate::timeline_extras::MAX_AROUND).prefix("±"))
         .labelled_by(l.id)
@@ -162,82 +150,26 @@ fn more(app: &mut ToonApp, ui: &mut Ui) {
     egui::Popup::menu(&resp).align(egui::RectAlign::TOP_END).show(|ui| menu(app, ui));
 }
 
-/// The timeline's other commands and switches, as menu items.
+/// The timeline's other commands and switches, as registry menu items: the frame commands, then
+/// playback and display in a submenu each (at most 14 items a level).
 pub fn menu(app: &mut ToonApp, ui: &mut Ui) {
-    let (layer, frame) = (app.layer, app.frame);
-    let key = |app: &ToonApp, id: &str| app.keys.text(id);
-    if ui.add(egui::Button::new(tl!("New")).shortcut_text(key(app, "frame.new_drawing"))).on_hover_text(tl!("New drawing")).clicked() {
-        app.run(Command::NewDrawing { layer, frame });
-    }
-    if ui.add(egui::Button::new(tl!("Duplicate")).shortcut_text(key(app, "frame.duplicate"))).on_hover_text(tl!("Duplicate drawing")).clicked() {
-        app.run(Command::DuplicateDrawing { layer, frame });
-    }
-    if ui.add(egui::Button::new(tl!("Insert")).shortcut_text(key(app, "frame.insert"))).on_hover_text(tl!("Insert frame")).clicked() {
-        app.run(Command::InsertFrame { layer: Some(layer), frame });
-    }
-    if ui.add(egui::Button::new(tl!("Delete")).shortcut_text(key(app, "frame.delete"))).on_hover_text(tl!("Delete frame")).clicked() {
-        app.run(Command::DeleteFrame { layer: Some(layer), frame });
-    }
-    if ui.add(egui::Button::new(tl!("Hold +")).shortcut_text(key(app, "frame.hold_more"))).on_hover_text(tl!("Show one frame longer")).clicked() {
-        app.run(Command::ExtendHold { layer, frame });
-    }
-    if ui.add(egui::Button::new(tl!("Hold −")).shortcut_text(key(app, "frame.hold_less"))).on_hover_text(tl!("Show one frame shorter")).clicked() {
-        app.run(Command::ShortenHold { layer, frame });
-    }
-    if ui.add(egui::Button::new(tl!("Clear")).shortcut_text(key(app, "frame.clear"))).on_hover_text(tl!("Clear frame")).clicked() {
-        app.run(Command::ClearCell { layer, frame });
-    }
-    if ui.add(egui::Button::new(tl!("Pin")).shortcut_text(key(app, "view.pin"))).on_hover_text(tl!("Pin this frame to the light table")).clicked() {
-        app.run(Command::TogglePin { layer, frame });
-    }
+    use crate::menus::{SEP, context};
+    context(
+        ui,
+        app,
+        &["frame.new_drawing", "frame.duplicate", "frame.insert", "frame.delete", SEP, "frame.hold_more", "frame.hold_less", "frame.clear", "view.pin"],
+    );
     ui.separator();
-    let pp = app.playback.ping_pong;
-    if ui.selectable_label(pp, tl!("Ping-pong")).on_hover_text(tl!("Play forward, then backward, then forward again")).clicked() {
-        app.playback.ping_pong = !pp;
-    }
-    let selected = app.has_range();
-    if ui
-        .add_enabled(selected, egui::Button::new(tl!("Play Selection")))
-        .on_hover_text(tl!("Play only the selected frames"))
-        .on_disabled_hover_text(tl!("Select a range of frames in the exposure sheet first"))
-        .clicked()
-    {
-        crate::timeline_extras::play_selection(app);
-    }
-    if ui.button(tl!("Set In")).on_hover_text(tl!("Playback starts here")).clicked() {
-        crate::timeline_extras::set_in_out(app, true);
-    }
-    if ui.button(tl!("Set Out")).on_hover_text(tl!("Playback loops back after this frame")).clicked() {
-        crate::timeline_extras::set_in_out(app, false);
-    }
-    if ui.add_enabled(app.tl.range.is_some(), egui::Button::new(tl!("Clear In and Out"))).on_disabled_hover_text(tl!("No in and out range is set")).clicked() {
-        app.tl.range = None;
-    }
-    ui.separator();
-    ui.toggle_value(&mut app.tl.vertical, tl!("Vertical")).on_hover_text(tl!("Show the sheet down the page: layers as columns, frames as rows"));
-    let tc = app.tl.timecode;
-    if ui.selectable_label(tc, tl!("Timecode")).on_hover_text(tl!("Show the position as HH:MM:SS:FF instead of a frame number")).clicked() {
-        app.tl.timecode = !tc;
-    }
-    if ui.selectable_label(app.thumbnails, tl!("Thumbnails")).on_hover_text(tl!("Show drawing thumbnails in the cells")).clicked() {
-        app.thumbnails = !app.thumbnails;
-    }
-    if !app.engine.project.sounds.is_empty() {
-        let on = !app.sound.muted;
-        if ui.selectable_label(on, tl!("Sound")).on_hover_text(tl!("Play the soundtrack")).clicked() {
-            app.sound.muted = on;
-        }
-    }
-    if ui.add(egui::Button::new(tl!("Zoom In")).shortcut_text(key(app, "timeline.zoom_in"))).on_hover_text(tl!("Show fewer, wider frames")).clicked() {
-        app.tl.zoom_by(crate::timeline_extras::ZOOM_STEP);
-    }
-    if ui
-        .add(egui::Button::new(tl!("Zoom Out")).shortcut_text(key(app, "timeline.zoom_out")))
-        .on_hover_text(tl!("Show more frames (or Ctrl and the wheel)"))
-        .clicked()
-    {
-        app.tl.zoom_by(1.0 / crate::timeline_extras::ZOOM_STEP);
-    }
+    ui.menu_button(tl!("Playback"), |ui| {
+        context(
+            ui,
+            app,
+            &["timeline.ping_pong", "timeline.play_selection", SEP, "timeline.set_in", "timeline.set_out", "timeline.clear_in_out", SEP, "timeline.sound"],
+        );
+    });
+    ui.menu_button(tl!("Display"), |ui| {
+        context(ui, app, &["timeline.vertical", "timeline.timecode", "timeline.thumbnails", SEP, "timeline.zoom_in", "timeline.zoom_out"]);
+    });
     ui.separator();
     let len = app.engine.project.length();
     let mut frames = len;

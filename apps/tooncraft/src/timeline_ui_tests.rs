@@ -27,23 +27,23 @@ fn harness() -> Harness<'static, ToonApp> {
     h
 }
 
-/// Click an item in the Timeline header's ⋯ menu (opened fresh each time).
+/// Click an item in the Timeline header's ⋯ menu (opened fresh each time), looking in its
+/// Playback and Display submenus when it is not on the first level.
 fn timeline_option(h: &mut Harness<'static, ToonApp>, label: &str) {
     h.get(By::new().role(egui::Role::Button).label("Timeline options")).click();
     h.run();
-    // the item's name may carry its shortcut after it ("Zoom In Alt+=")
-    let item = h
-        .query_all(By::new().label_contains(label))
-        .find(|n| n.accesskit_node().label().is_some_and(|t| t == label || t.starts_with(&format!("{label} "))))
-        .map(|n| n.rect().center());
-    if let Some(at) = item {
-        h.event(egui::Event::PointerMoved(at));
-        h.run();
-        h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: true, modifiers: egui::Modifiers::NONE });
-        h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: false, modifiers: egui::Modifiers::NONE });
+    for sub in ["", "Playback", "Display"] {
+        if !sub.is_empty() {
+            h.get_by_label(sub).click();
+            h.run();
+        }
+        if h.query_by_label(label).is_some() {
+            h.get_by_label(label).click();
+            h.run();
+            return;
+        }
     }
-    assert!(item.is_some(), "no item {label} in the Timeline options menu");
-    h.run();
+    panic!("no item {label} in the Timeline options menu");
 }
 
 fn click(h: &mut Harness<'static, ToonApp>, label: &str) {
@@ -140,10 +140,10 @@ fn ping_pong_timecode_and_zoom_buttons_are_named_and_work() {
     let want = tooncraft_doc::timecode(h.state().frame, fps);
     h.get_by_label_contains(&want);
     let z0 = h.state().tl.zoom;
-    timeline_option(&mut h, "Zoom In");
+    timeline_option(&mut h, "Zoom the timeline in");
     assert!(h.state().tl.zoom > z0);
-    timeline_option(&mut h, "Zoom Out");
-    timeline_option(&mut h, "Zoom Out");
+    timeline_option(&mut h, "Zoom the timeline out");
+    timeline_option(&mut h, "Zoom the timeline out");
     assert!(h.state().tl.zoom < z0);
 }
 
@@ -177,6 +177,8 @@ fn play_selection_plays_only_the_selected_frames() {
     let layer = h.state().layer;
     // nothing selected: the item is there but cannot be used
     h.get(By::new().role(egui::Role::Button).label("Timeline options")).click();
+    h.run();
+    h.get_by_label("Playback").click();
     h.run();
     assert!(h.get(By::new().role(egui::Role::Button).label("Play Selection")).accesskit_node().is_disabled(), "disabled with nothing selected");
     h.key_press(Key::Escape);

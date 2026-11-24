@@ -9,7 +9,6 @@ use crate::app::ToonApp;
 
 /// Smallest and largest timeline zoom (1 is the normal cell width).
 pub const ZOOM_RANGE: (f32, f32) = (0.4, 4.0);
-pub const ZOOM_STEP: f32 = 1.25;
 
 /// Timeline state that is not part of the project.
 pub struct State {

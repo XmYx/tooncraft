@@ -8,48 +8,33 @@ use tooncraft_doc::symmetry::SymmetryMode;
 use tooncraft_engine::Command;
 
 use crate::app::ToonApp;
-use crate::icons::{Icon, IconButton};
+use crate::icons::IconButton;
 
-/// A toggle with a settings menu on right-click and from the keyboard; true when clicked.
-fn toggle(app: &mut ToonApp, ui: &mut Ui, icon: Icon, label: &str, on: bool, key: &str, menu: fn(&mut ToonApp, &mut Ui)) -> bool {
-    let b = IconButton::new(icon, label).active(on);
-    let b = if key.is_empty() { b } else { b.shortcut(app.keys.text(key)) };
-    let resp = ui.add(b);
+/// The registry toggle `id` as an icon button named `label`, with its settings `menu` on
+/// right-click and from the keyboard (Shift+F10 or the Menu key).
+fn toggle(app: &mut ToonApp, ui: &mut Ui, id: &str, label: &str, menu: fn(&mut ToonApp, &mut Ui)) {
+    let Some(c) = crate::commands::get(id) else { return };
+    let Some(icon) = c.icon else { return };
+    let on = c.checked.is_some_and(|f| f(app));
+    let resp = ui.add(IconButton::new(icon, label).active(on).shortcut(c.key_text(app)));
     let now = resp.has_focus() && crate::timeline::menu_key(ui);
     crate::timeline::keyboard_menu(ui, &resp, now, |ui| menu(app, ui));
     resp.context_menu(|ui| menu(app, ui));
-    resp.clicked()
+    if resp.clicked() {
+        let ctx = ui.ctx().clone();
+        crate::commands::run(app, &ctx, c.id);
+    }
 }
 
 pub fn strip(app: &mut ToonApp, ui: &mut Ui) {
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 2.0;
-        let onion = app.engine.project.onion.enabled;
-        if toggle(app, ui, Icon::Onion, tl!("Onion Skin"), onion, "view.onion", crate::onion_popover::ui) {
-            app.run(Command::SetOnion { onion: tooncraft_doc::OnionSkin { enabled: !onion, ..app.engine.project.onion } });
-        }
-        let lt = app.engine.project.light_table.enabled;
-        if toggle(app, ui, Icon::LightTable, tl!("Light Table"), lt, "", light_table_menu) {
-            app.run(Command::SetLightTable { enabled: Some(!lt), opacity: None });
-        }
-        let fg = app.canvas_ui.field_guide;
-        if toggle(app, ui, Icon::Grid, tl!("Field Guide"), fg, "", guides_menu) {
-            app.canvas_ui.field_guide = !fg;
-        }
-        let sa = app.canvas_ui.safe_areas;
-        if toggle(app, ui, Icon::SafeArea, tl!("Safe Areas"), sa, "", guides_menu) {
-            app.canvas_ui.safe_areas = !sa;
-        }
-        let flip = app.view.flip;
-        if toggle(app, ui, Icon::Mirror, tl!("Mirror View"), flip, "view.mirror", view_menu) {
-            app.view.flip = !flip;
-        }
-        let sym = app.engine.project.symmetry;
-        if toggle(app, ui, Icon::FlipH, tl!("Symmetry"), sym.is_on(), "", symmetry_menu) {
-            let mut s = sym;
-            s.mode = if sym.is_on() { SymmetryMode::Off } else { SymmetryMode::Vertical };
-            app.run(Command::SetSymmetry { symmetry: s });
-        }
+        toggle(app, ui, "view.onion", tl!("Onion Skin"), crate::onion_popover::ui);
+        toggle(app, ui, "view.light_table", tl!("Light Table"), light_table_menu);
+        toggle(app, ui, "view.field_guide", tl!("Field Guide"), guides_menu);
+        toggle(app, ui, "view.safe_areas", tl!("Safe Areas"), guides_menu);
+        toggle(app, ui, "view.mirror", tl!("Mirror View"), view_menu);
+        toggle(app, ui, "view.symmetry", tl!("Symmetry"), symmetry_menu);
         crate::rulers_ui::toggle(app, ui);
         // one control high: a right-to-left layout would otherwise take all the height there is
         let h = ui.spacing().interact_size.y;

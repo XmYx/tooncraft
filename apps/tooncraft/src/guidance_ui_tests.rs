@@ -5,7 +5,7 @@
 
 use egui::{Key, Modifiers, vec2};
 use egui_kittest::Harness;
-use egui_kittest::kittest::{By, NodeT, Queryable};
+use egui_kittest::kittest::{By, Queryable};
 use tooncraft_engine::Command;
 
 use crate::app::{Tool, ToonApp};
@@ -35,23 +35,23 @@ fn two_drawings(h: &mut Harness<'static, ToonApp>) {
     h.run();
 }
 
-/// Click an item in the Timeline header's ⋯ menu (opened fresh each time).
+/// Click an item in the Timeline header's ⋯ menu (opened fresh each time), looking in its
+/// Playback and Display submenus when it is not on the first level.
 fn timeline_option(h: &mut Harness<'static, ToonApp>, label: &str) {
     h.get(By::new().role(egui::Role::Button).label("Timeline options")).click();
     h.run();
-    // the item's name may carry its shortcut after it ("Zoom In Alt+=")
-    let item = h
-        .query_all(By::new().label_contains(label))
-        .find(|n| n.accesskit_node().label().is_some_and(|t| t == label || t.starts_with(&format!("{label} "))))
-        .map(|n| n.rect().center());
-    if let Some(at) = item {
-        h.event(egui::Event::PointerMoved(at));
-        h.run();
-        h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: true, modifiers: egui::Modifiers::NONE });
-        h.event(egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed: false, modifiers: egui::Modifiers::NONE });
+    for sub in ["", "Playback", "Display"] {
+        if !sub.is_empty() {
+            h.get_by_label(sub).click();
+            h.run();
+        }
+        if h.query_by_label(label).is_some() {
+            h.get_by_label(label).click();
+            h.run();
+            return;
+        }
     }
-    assert!(item.is_some(), "no item {label} in the Timeline options menu");
-    h.run();
+    panic!("no item {label} in the Timeline options menu");
 }
 
 fn click(h: &mut Harness<'static, ToonApp>, label: &str) {
@@ -297,9 +297,9 @@ fn the_export_dialog_offers_each_formats_options() {
 #[test]
 fn layouts_and_colour_chips() {
     let mut h = harness();
-    click(&mut h, "View");
-    click(&mut h, "Workspaces");
-    click(&mut h, "Exposure Sheet");
+    click(&mut h, "Window");
+    click(&mut h, "Workspace");
+    click(&mut h, "Sheet");
     assert!(h.state().tl.vertical);
     h.state_mut().workspace.raise(crate::dock::Pane::Colour);
     h.run();
@@ -467,9 +467,7 @@ fn the_timeline_header_goes_to_a_typed_frame_sets_the_play_range_and_the_top_bar
     type_number(&mut h, "Out", "9");
     assert_eq!(h.state().tl.range, Some((4, 8)));
     assert_eq!(crate::timeline_extras::play_span(h.state()), (4, 9));
-    h.get(By::new().role(egui::Role::ComboBox).label("Workspace")).click();
-    h.run();
-    h.get_by_label("Exposure Sheet").click();
+    h.get(By::new().role(egui::Role::RadioButton).label("Sheet workspace")).click();
     h.run();
     assert!(h.state().tl.vertical);
     h.get(By::new().role(egui::Role::Button).label("Undo step"));
