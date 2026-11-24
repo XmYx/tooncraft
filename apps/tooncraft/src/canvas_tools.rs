@@ -208,7 +208,7 @@ pub fn dialog(app: &mut ToonApp, ctx: &egui::Context) {
             if ui.button(tl!("Resize")).clicked() {
                 apply = Some(Command::ResizeCanvas { width: w, height: h, anchor: (anchor.0 as f32 / 2.0, anchor.1 as f32 / 2.0) });
             }
-            let cam = &app.engine.project.camera;
+            let cam = app.engine.project.camera_at(app.frame);
             if ui
                 .add_enabled(!cam.keys.is_empty(), egui::Button::new(tl!("Crop to Camera")))
                 .on_hover_text(tl!("Crop to the camera frame at the current frame (no rotation)"))

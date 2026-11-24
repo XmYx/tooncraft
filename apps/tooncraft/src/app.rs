@@ -31,6 +31,8 @@ pub enum Tool {
     Select,
     Shape,
     Gradient,
+    /// Copy pixels from a point set with Alt+click.
+    Clone,
     Hand,
     /// Move, scale and turn the current layer's peg on the canvas.
     Transform,
@@ -72,7 +74,7 @@ pub enum XformKind {
 }
 
 impl Tool {
-    pub const ALL: [Tool; 17] = [
+    pub const ALL: [Tool; 18] = [
         Tool::Pencil,
         Tool::Ink,
         Tool::Airbrush,
@@ -85,6 +87,7 @@ impl Tool {
         Tool::Select,
         Tool::Shape,
         Tool::Gradient,
+        Tool::Clone,
         Tool::Hand,
         Tool::Transform,
         Tool::Text,
@@ -119,6 +122,7 @@ impl Tool {
             Tool::Select => tl!("Select"),
             Tool::Shape => tl!("Shapes"),
             Tool::Gradient => tl!("Gradient"),
+            Tool::Clone => tl!("Clone stamp"),
             Tool::Hand => tl!("Hand"),
             Tool::Transform => tl!("Transform layer"),
             Tool::Text => tl!("Text"),
@@ -143,6 +147,7 @@ impl Tool {
             Tool::Select => "select",
             Tool::Shape => "shape",
             Tool::Gradient => "gradient",
+            Tool::Clone => "clone",
             Tool::Hand => "hand",
             Tool::Transform => "transform",
             Tool::Text => "text",
@@ -251,6 +256,8 @@ pub struct ToonApp {
     pub scene_form: Option<crate::scene_menus::SceneForm>,
     /// The Export dialog, and its last choices per shot.
     pub export_dialog: Option<crate::export_dialog::Dialog>,
+    /// Paper and frames per page for the next printed sheet or frames.
+    pub print: (tooncraft_interop::sheet_pdf::Paper, u32),
     pub export_memory: crate::export_dialog::Memory,
     /// Find Command.
     pub find: crate::command_search::State,
@@ -313,6 +320,8 @@ pub struct ToonApp {
     pub show_camera: bool,
     /// A camera key being dragged on the canvas (see `camera_path`).
     pub camera_drag: Option<crate::camera_path::CameraDrag>,
+    /// The camera the Camera panel and the camera path edit (0: the main camera).
+    pub camera_edit: usize,
     pub peg_ui: crate::pegs::PegUi,
     pub transform_ui: crate::peg_transform::TransformUi,
     /// Record motion: armed, and the take in progress.
@@ -359,7 +368,13 @@ pub fn autosave_dir() -> Option<PathBuf> {
 
 impl ToonApp {
     pub fn new(cc: &eframe::CreationContext<'_>, cli: Cli) -> Self {
-        Self::with_context(&cc.egui_ctx, cli)
+        #[allow(unused_mut)]
+        let mut app = Self::with_context(&cc.egui_ctx, cli);
+        #[cfg(target_os = "windows")]
+        if app.preferences.prefs.wintab {
+            app.tablet.start_wintab(cc);
+        }
+        app
     }
 
     /// Build the app on a context (also used by the UI tests).
@@ -436,6 +451,7 @@ impl ToonApp {
             recent_files: crate::start_screen::Recent::new(!cfg!(test) && cli.screenshot.is_none() && cli.bench_playback.is_none()),
             start: Default::default(),
             export_dialog: None,
+            print: (tooncraft_interop::sheet_pdf::Paper::A4, 4),
             export_memory: Default::default(),
             find: Default::default(),
             import_dialog: None,
@@ -470,6 +486,7 @@ impl ToonApp {
             keys: crate::keys::Keys::new(!cfg!(test) && cli.screenshot.is_none()),
             show_camera: true,
             camera_drag: None,
+            camera_edit: 0,
             peg_ui: Default::default(),
             transform_ui: Default::default(),
             recorder: Default::default(),
@@ -514,6 +531,7 @@ impl ToonApp {
                 app.preferences.tab = crate::preferences::Tab::Pen;
             }
             Some("export") => crate::export_dialog::open(&mut app, "mp4"),
+            Some("print-frames") => crate::export_dialog::open(&mut app, "frames-pdf"),
             Some("shortcuts") => app.show_shortcuts = true,
             Some("find") => app.find.open = true,
             Some("new-shot") => app.new_shot = Some(app.new_shot_defaults()),
@@ -557,6 +575,31 @@ impl ToonApp {
         {
             app.workspace.raise(Pane::from_name(name));
         }
+        if cli.poses {
+            let layer = app.layer;
+            app.run(Command::AddPegForLayer { layer, name: tl!("Body").to_owned() });
+            if let Some(body) = app.engine.project.pegs.last().map(|p| p.id) {
+                app.run(Command::AddPeg { name: tl!("Head").to_owned(), parent: Some(body) });
+                let key = |peg, x: f32, angle: f32| Command::SetPegKey {
+                    peg,
+                    frame: 0,
+                    x,
+                    y: 0.0,
+                    angle,
+                    scale_x: 1.0,
+                    scale_y: 1.0,
+                    skew: 0.0,
+                    ease: tooncraft_doc::Ease::Linear,
+                };
+                app.run(key(body, 0.0, 0.0));
+                app.run(Command::SavePose { peg: body, frame: 0, name: tl!("Stand").to_owned() });
+                app.run(key(body, 60.0, -12.0));
+                app.run(Command::SavePose { peg: body, frame: 0, name: tl!("Lean").to_owned() });
+                app.peg_ui.selected = Some(body);
+                app.peg_ui.pose = Some(1);
+            }
+            app.workspace.raise(Pane::Pegs);
+        }
         if cli.record_motion {
             let layer = app.layer;
             app.run(Command::AddPegForLayer { layer, name: tl!("Peg 1").to_owned() });
@@ -586,6 +629,19 @@ impl ToonApp {
             app.tool = Tool::Transform;
             app.transform_ui.ik = true;
         }
+        if cli.cameras {
+            let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+            let half = app.engine.project.length() / 2;
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.5, y: h * 0.5, zoom: 1.0, angle: 0.0, camera: 0 });
+            app.run(Command::AddCamera { name: tl!("Close").to_owned(), from: None });
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.3, y: h * 0.6, zoom: 2.2, angle: 0.0, camera: 1 });
+            app.run(Command::SetCameraCut { frame: half, camera: 1 });
+            app.camera_edit = 1;
+            if cli.frame.is_none() {
+                app.frame = half;
+            }
+            app.workspace.raise(Pane::Camera);
+        }
         if cli.light_table {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
@@ -598,9 +654,9 @@ impl ToonApp {
         if cli.camera_path {
             let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
             let last = app.engine.project.length().saturating_sub(1);
-            app.run(Command::SetCameraKey { frame: 0, x: w * 0.35, y: h * 0.45, zoom: 1.6, angle: 0.0 });
-            app.run(Command::SetCameraKey { frame: last / 2, x: w * 0.5, y: h * 0.35, zoom: 1.4, angle: 0.0 });
-            app.run(Command::SetCameraKey { frame: last, x: w * 0.65, y: h * 0.55, zoom: 1.2, angle: -6.0 });
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.35, y: h * 0.45, zoom: 1.6, angle: 0.0, camera: 0 });
+            app.run(Command::SetCameraKey { frame: last / 2, x: w * 0.5, y: h * 0.35, zoom: 1.4, angle: 0.0, camera: 0 });
+            app.run(Command::SetCameraKey { frame: last, x: w * 0.65, y: h * 0.55, zoom: 1.2, angle: -6.0, camera: 0 });
             app.tool = Tool::Transform;
         }
         if cli.rulers {
@@ -1121,6 +1177,29 @@ impl ToonApp {
     }
 
     /// Export as `kind` with `o` (range, size, paper, loop, digits): asks where, then writes.
+    /// The words printed on sheets and frames, translated.
+    fn print_labels() -> tooncraft_interop::sheet_pdf::Labels {
+        tooncraft_interop::sheet_pdf::Labels { frame: tl!("Frame").to_string(), notes: tl!("Notes").to_string(), frames: tl!("frames").to_string() }
+    }
+
+    /// The face sheets and frames are printed in: the app's own.
+    fn print_face(&self) -> Result<&tooncraft_engine::text::Face, String> {
+        self.engine.fonts.get("Ubuntu Light").ok_or_else(|| tl!("No font to print with").to_string())
+    }
+
+    /// The exposure sheet as a PDF to print.
+    pub fn sheet_pdf(&self, paper: tooncraft_interop::sheet_pdf::Paper) -> Result<Vec<u8>, String> {
+        let face = self.print_face()?;
+        tooncraft_interop::sheet_pdf::export(&self.engine.project, paper, face.data(), &Self::print_labels()).map_err(|e| e.to_string())
+    }
+
+    /// Frames `start..end` as a PDF to print, on the paper and as many to a page as last chosen.
+    pub fn frames_pdf(&self, start: u32, end: u32) -> Result<Vec<u8>, String> {
+        let face = self.print_face()?;
+        let (paper, per_page) = self.print;
+        tooncraft_interop::sheet_pdf::frames(&self.engine.project, paper, start, end, per_page, face.data(), &Self::print_labels()).map_err(|e| e.to_string())
+    }
+
     pub fn export_with(&mut self, kind: &str, o: tooncraft_engine::export::ExportOptions) {
         use tooncraft_engine::export;
         let name = self.engine.project.name.clone();
@@ -1173,6 +1252,16 @@ impl ToonApp {
                 craft_atomic::atomic_write(&f, tooncraft_interop::otio::to_json(&self.engine.project).as_bytes())
                     .map(|_| tlf!("Exported {file}", file = f.display()))
                     .map_err(|e| e.to_string())
+            }),
+            "sheet-pdf" => rfd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(format!("{name} sheet.pdf")).save_file().map(|f| {
+                self.sheet_pdf(self.print.0)
+                    .and_then(|bytes| craft_atomic::atomic_write(&f, &bytes).map_err(|e| e.to_string()))
+                    .map(|_| tlf!("Exported {file}", file = f.display()))
+            }),
+            "frames-pdf" => rfd::FileDialog::new().add_filter("PDF", &["pdf"]).set_file_name(format!("{name} frames.pdf")).save_file().map(|f| {
+                self.frames_pdf(o.start, o.end)
+                    .and_then(|bytes| craft_atomic::atomic_write(&f, &bytes).map_err(|e| e.to_string()))
+                    .map(|_| tlf!("Exported {file}", file = f.display()))
             }),
             "jpeg" => rfd::FileDialog::new().set_title(tl!("Folder for the JPEG frames")).pick_folder().map(|d| {
                 export::jpeg_sequence(&self.engine.project, &d, &name, o, 90, |_| {})
@@ -1270,6 +1359,9 @@ impl ToonApp {
 
     /// Per-frame logic outside drawing: playback clock, autosave.
     pub fn tick(&mut self, ctx: &egui::Context) {
+        // WinTab's queued pen packets (Windows, WinTab mode); nothing elsewhere
+        let focused = ctx.input(|i| i.focused);
+        self.tablet.poll(focused);
         // long shots: drawings far from the playhead go to the page file
         if !self.engine.is_stroking()
             && let Err(e) = self.engine.page(self.frame)
@@ -1476,6 +1568,12 @@ impl ToonApp {
                     {
                         let o = tooncraft_engine::export::ExportOptions::whole(&self.engine.project);
                         self.export_with("otio", o);
+                    }
+                    if ui.button(tl!("Exposure Sheet to Print (PDF)…")).clicked() {
+                        crate::export_dialog::open(self, "sheet-pdf");
+                    }
+                    if ui.button(tl!("Frames to Print (PDF)…")).clicked() {
+                        crate::export_dialog::open(self, "frames-pdf");
                     }
                     if ui.button(tl!("JPEG Sequence…")).clicked() {
                         crate::export_dialog::open(self, "jpeg");

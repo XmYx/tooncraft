@@ -200,7 +200,7 @@ Weight: 7
 | Grid display and snapping strokes to it | TV TB CS | D | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it, and with Rulers ▸ Snap strokes to grid lines a freehand stroke started near a grid line runs along it |
 | Snap the end of a stroke to a clean line or ellipse when held | CS PD | D | S | Hold to straighten: hold the pen still for half a second and a rough line or loop becomes a clean line or ellipse |
 | Text tool | TV TB CS | D | M | Text tool (T): click or Enter at the keyboard pen places a box, type, Ctrl+Enter paints it as one undo step; font, size, alignment, line and letter spacing; shaped through craft-font-catalog, so kerning and joined scripts follow the font; `text` command for scripts (`tooncraft-cli run --font`). Text is pixels once placed |
-| Clone stamp | TV CS | M | S | |
+| Clone stamp | TV CS | D | S | Clone stamp tool (J, with Smudge on the rail): Alt+click sets the source, painting copies from it with a soft round tip (size, hardness, opacity), from this layer or another, aligned or from the source each stroke; reads the source from before the stroke; one undo step (`clone_stamp` command) |
 | Reference image viewer with eyedropper | TV CS PD | M | S | |
 | Vector stroke layers (strokes kept as editable curves) | TB CS | P | XL | The Layers panel's Vector lines switch: pen strokes on that layer are kept as centre lines with a width per point (`tooncraft-vector`), painted into the drawing's tiles so fill, onion skin and export read them; saved in the shot. Not yet: shapes, symmetry copies, duplicate drawing keeping the lines, a vector view of the line |
 | Vector line editing: reshape, width, erase to the intersection | TB CS | P | L | Commands move a point, set a width, smooth, delete, recolour and cut a line back to its crossings (one undo step each); the eraser on a vector layer cuts the line it touches back to its crossings. No point-dragging tool on the canvas yet |
@@ -338,7 +338,7 @@ Weight: 9
 | Deformers: bone, curve and envelope on drawings | TB | M | XL | |
 | Inverse kinematics on peg chains | TB | D | L | Transform tool ▸ Inverse Kinematics: moving a peg (drag or arrow keys) turns up to eight pegs it hangs from so its pivot follows, only their angles change; one undo step; Escape cancels a drag; the solver is bounded and handles mirrored parents and loops |
 | Master controllers driving poses | TB | M | L | |
-| Pose and template library | TB CS | M | M | |
+| Pose and template library | TB CS | P | M | Poses: a peg and the pegs below it saved under a name with the shot and put back on any frame from the Pegs panel (`save_pose`, `apply_pose`, `rename_pose`, `remove_pose`), one undo step each; no rig templates shared between shots yet |
 | Rotoscoping on a video layer | TV CS PD | P | M | Image sequences import; no video file import |
 | Motion tracking of a point in footage | TV TB | M | L | |
 
@@ -354,7 +354,7 @@ Weight: 4
 | Camera frame on the canvas, crop to it | all | D | S | |
 | Camera path editing on the canvas | TB PD | D | S | The camera centre's path over the shot with a square per key; with the Transform tool a key's square drags to move it and the current frame's cross drags to key the camera there (one undo step, Escape cancels; the camera frame follows); typed values in the Camera panel (`--camera-path`) |
 | Depth of field by layer depth | TB | M | M | |
-| Several cameras and camera cuts in a shot | TB | M | M | |
+| Several cameras and camera cuts in a shot | TB | D | M | Camera panel: add, rename and remove cameras (each with its own keys and shakes), pick the one to edit, Cut Here films the shot through it from the current frame; exports and Crop to Camera follow the cuts; cuts show on the timeline ruler; `add_camera`, `set_camera_cut`, a `camera` field on the camera commands |
 | Free 3D camera over a layered scene | TB | M | L | Depth trucks only |
 
 ## Effects and compositing
@@ -376,13 +376,13 @@ Weight: 7
 | Soft masks from shapes | TV TB PD | D | S | Rectangle, ellipse or a drawn shape (a selection's outline, resampled so keys blend point by point), feathered and keyframable |
 | Line thickening and smoothing | TV | D | S | Thicken and thin, and Smooth lines (jagged edges rebuilt smooth) |
 | Gradient map, posterise and threshold | TV TB PD | D | S | Gradient map (dark to light colour), posterise (2 to 64 levels), black and white by brightness, and the alpha threshold |
-| Motion blur from movement | TV TB | M | M | |
+| Motion blur from movement | TV TB | D | M | Motion blur from movement: the layer's drawing averaged over 2–16 points of a shutter up to 2 frames wide, along its peg and camera movement |
 | Distortions: ripple, wave, turbulence, displacement | TV TB | D | M | Ripple, wave and turbulence, animated over frames; Displace by layer moves the picture by another layer's colour or brightness |
 | Lens looks: vignette, chromatic aberration, flares | TV TB PD | D | S | Vignette, colour fringe and a keyframable lens flare (core, ring, rays, ghosts) that lights a layer even without a drawing |
-| Tone and highlight from mattes, lighting from normals | TV TB | M | L | |
-| Particles (rain, snow, sparks) | TV TB | M | L | |
-| Time effects: trails, frame blending, time remap | TV TB PD | M | M | |
-| Transitions between cuts | TV TB PD | M | S | |
+| Tone and highlight from mattes, lighting from normals | TV TB | D | L | Tone from a matte (shade or highlight where another layer covers the drawing, offset and softened) and Light from normals (from a normal-map layer or the drawing's own rounded shape; direction, height, roundness, colour) |
+| Particles (rain, snow, sparks) | TV TB | D | L | Particles: rain, snow, sparks and dust from an emitter rectangle with rate, life, speed, direction, spread, gravity, size and colour; each frame is worked out on its own (up to 20 000 alive), so renders repeat exactly |
+| Time effects: trails, frame blending, time remap | TV TB PD | D | M | Trails (up to 16 earlier pictures, fading), Frame blending (mix of the next frame) and Time remap (speed and start, keyable for ramps, reverse and holds) |
+| Transitions between cuts | TV TB PD | D | S | Transition effect: a layer comes in or leaves over a number of frames by dissolve, wipe, iris or push; a cut between two layers is one going out as the other comes in |
 | Effect presets and saved stacks | TV TB | D | S | Five built-in looks added as one undo step; any layer's stack saved to and opened from a .toonfx file |
 | Node compositing graph | TB | M | XL | |
 
@@ -438,7 +438,7 @@ Weight: 7
 | Scanned paper: peg-hole registration and clean-up | TV TB | M | L | |
 | Camera capture for stop motion and pencil tests | TV | M | M | |
 | Scene export for compositing apps (layers, camera, timing) | TV TB | M | M | |
-| Printed exposure sheets and frames (PDF) | TV TB | M | S | |
+| Printed exposure sheets and frames (PDF) | TV TB | D | S | Export ▸ Exposure Sheet to Print (PDF): frame, notes and a column per layer, drawing numbers where they start and hold lines, whole seconds to a page; Frames to Print (PDF): 1 to 12 frames to a page through the camera; A4 or US Letter; `tooncraft-cli export --sheet-pdf` and `--frames-pdf`; through craft-pdf |
 | Shot list and edit decisions out (EDL or OTIO) | TB | D | S | OpenTimelineIO: a track per layer, a clip per exposure, gaps and markers |
 | Asset library shared between shots | TB CS | P | M | Drawings with their timing, through My Drawings (`.toondrawings` files in the user's folder, or anywhere); no shared sounds, templates or rigs |
 | Reading the references' native project files | all | O | XL | Out of scope: the native project formats of TVPaint, Harmony, Clip Studio and Procreate are proprietary and undocumented; exchange goes through PSD, XDTS and image sequences |
@@ -545,12 +545,12 @@ Weight: 4
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
 | Pen pressure and tilt on X11 and macOS | all | D | S | Shared photocraft-tablet reader, also under Xwayland |
-| Pen pressure and tilt on Windows | all | P | S | Windows Ink touch force only; no tilt |
+| Pen pressure and tilt on Windows | all | P | S | Windows Ink gives pressure (as touch force), the eraser end and the barrel button; Preferences ▸ Pen ▸ WinTab reads pressure, tilt and rotation through the shared WinTab backend. Built and type-checked for Windows, not yet run on Windows hardware |
 | Pen input in Wayland-native windows | all | M | M | |
 | Pen eraser end switches tool | TV CS | D | S | |
-| Pen side buttons mapped to actions | TV CS | M | S | |
+| Pen side buttons mapped to actions | TV CS | D | S | Preferences ▸ Pen: each side button (sent as a middle or right click on X11 and macOS, the barrel button through the pointer hooks on Windows) runs any command over the canvas while the pen is near, instead of panning or opening the menu |
 | Touch gestures: pinch zoom and twist, taps for undo and redo | CS PD | D | S | Pinch and twist; a two-finger tap undoes and a three-finger tap redoes (the stroke the first finger began is dropped) |
-| Palm rejection while the pen is near | CS PD | P | S | Touches are ignored while the pen is seen and for 1.2 s after; the pen is seen through the tablet reader (X11, Xwayland, macOS), so not yet on Windows or Wayland-native windows |
+| Palm rejection while the pen is near | CS PD | P | S | Touches are ignored while the pen is seen and for 1.2 s after; the pen is seen through the tablet reader (X11, Xwayland, macOS, Windows in WinTab mode). Not with Windows Ink (the pointer hooks do not say which touch is the pen) or in Wayland-native windows |
 | Global pressure curve and calibration | TV CS PD | D | S | Preferences ▸ Pen (`--open pen`): one curve for every brush, applied to pen and touch pressure (the mouse keeps its own setting); a calibration pad records test strokes and Fit Curve to My Hand makes the hardest press (95th percentile) full pressure |
 | End-to-end stroke latency measured | — | P | S | Engine latency per sample is measured; input-to-screen is not |
 | iPad and Android tablet builds | CS PD | O | XL | Out of scope: the suite targets desktop Linux, macOS and Windows |
@@ -579,7 +579,7 @@ Weight: 4
 | Crash-safe saving and hostile-file loading | — | X | S | **Ours:** journaled atomic saves, property-tested loader, deny lints on every crate |
 | Real-time playback at the shot's frame rate | all | D | S | |
 | Playback cache of composited frames | TV TB | D | M | Rendered ahead of the playhead |
-| Effects play back in real time | TV TB | P | M | 1080p, 4 effects: 24 fps; 4K drops frames ([performance.md](performance.md)) |
+| Effects play back in real time | TV TB | D | M | Up to four frame workers render ahead and make the tiles: a 4-effect stack plays at 24 fps at 1080p (0 dropped) and 4K (2 dropped at the cold start, load ≈ 50) ([performance.md](performance.md)) |
 | Large shots stay real time (4K, 240 drawings) | TV TB | D | S | Measured: 24.1 fps, 0 dropped |
 | Fast open and save of large shots | all | D | S | 4K 240-drawing shot loads in 0.12 s |
 | Memory bounded on very long shots | TV TB | D | M | Drawings page to disk past a memory budget (1 GB by default); 2000-frame 4K shot scrubs at 317 MB peak ([performance.md](performance.md)) |

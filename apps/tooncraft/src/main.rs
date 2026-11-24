@@ -16,9 +16,14 @@ mod brush_presets;
 mod camera_path;
 #[cfg(test)]
 mod camera_path_ui_tests;
+#[cfg(test)]
+mod cameras_ui_tests;
 mod canvas;
 mod canvas_header;
 mod canvas_tools;
+mod clone_tool;
+#[cfg(test)]
+mod clone_ui_tests;
 mod color;
 mod colour_layers_ui;
 #[cfg(test)]
@@ -94,6 +99,8 @@ mod pegs;
 #[cfg(test)]
 mod pen_ui_tests;
 mod pipeline;
+#[cfg(test)]
+mod poses_ui_tests;
 mod preferences;
 mod rulers_ui;
 #[cfg(test)]
