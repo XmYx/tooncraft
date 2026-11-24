@@ -1112,6 +1112,19 @@ impl ToonApp {
                 .set_file_name(format!("{name}.mp4"))
                 .save_file()
                 .map(|f| export::mp4(&self.engine.project, &f, o, |_| {}).map(|_| tlf!("Exported {file}", file = f.display())).map_err(|e| e.to_string())),
+            "mp4-hevc" | "mp4-av1" | "mov" => {
+                use export::{Container, VideoCodec};
+                let (codec, container, ext) = match kind {
+                    "mp4-hevc" => (VideoCodec::Hevc, Container::Mp4, "mp4"),
+                    "mp4-av1" => (VideoCodec::Av1, Container::Mp4, "mp4"),
+                    _ => (VideoCodec::H264, Container::Mov, "mov"),
+                };
+                rfd::FileDialog::new().add_filter(ext.to_uppercase(), &[ext]).set_file_name(format!("{name}.{ext}")).save_file().map(|f| {
+                    export::video(&self.engine.project, &f, o, codec, container, |_| {})
+                        .map(|_| tlf!("Exported {file}", file = f.display()))
+                        .map_err(|e| e.to_string())
+                })
+            }
             "apng" => rfd::FileDialog::new()
                 .add_filter("PNG", &["png"])
                 .set_file_name(format!("{name}.png"))
@@ -1387,6 +1400,13 @@ impl ToonApp {
                     if ui.button(tl!("Video (MP4, H.264)…")).clicked() {
                         crate::export_dialog::open(self, "mp4");
                     }
+                    ui.menu_button(tl!("Video in Other Codecs"), |ui| {
+                        for (kind, label) in [("mp4-hevc", tl!("MP4, H.265…")), ("mp4-av1", tl!("MP4, AV1…")), ("mov", tl!("QuickTime MOV, H.264…"))] {
+                            if ui.button(label).clicked() {
+                                crate::export_dialog::open(self, kind);
+                            }
+                        }
+                    });
                     if ui.button(tl!("Animated PNG…")).clicked() {
                         crate::export_dialog::open(self, "apng");
                     }

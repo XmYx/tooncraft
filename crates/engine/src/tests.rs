@@ -984,6 +984,41 @@ impl Drop for Gone {
     }
 }
 
+#[test]
+fn video_export_in_every_codec_and_container() {
+    use crate::export::{Container, VideoCodec, video};
+    let dir = scratch("codecs");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let _gone = Gone(dir.clone());
+    let mut e = engine();
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: circle(100.0, 100.0, 40.0) }).unwrap();
+    let mut o = ExportOptions::whole(&e.project);
+    o.end = 4;
+    for (codec, container, name, want) in [
+        (VideoCodec::H264, Container::Mov, "a.mov", "h264"),
+        (VideoCodec::Hevc, Container::Mp4, "b.mp4", "hevc"),
+        (VideoCodec::Hevc, Container::Mov, "c.mov", "hevc"),
+        (VideoCodec::Av1, Container::Mp4, "d.mp4", "av1"),
+    ] {
+        let path = dir.join(name);
+        video(&e.project, &path, o, codec, container, |_| {}).unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        let file = craft_media::isobmff::open(bytes.as_slice()).unwrap();
+        assert_eq!(file.is_quicktime, container == Container::Mov, "{name}");
+        let t = file.track_of_kind(craft_media::isobmff::TrackKind::Video).unwrap();
+        let t = &file.tracks[t];
+        assert_eq!(t.codec().map(|c| c.name()), Some(want), "{name}");
+        assert_eq!(t.samples.len(), 4, "{name}");
+        assert!(t.samples[0].is_sync, "{name} starts on a key picture");
+        assert!(t.samples.iter().all(|s| s.size > 0), "{name}");
+    }
+    // AV1 has no QuickTime mapping: an error, and no file
+    let path = dir.join("e.mov");
+    assert!(video(&e.project, &path, o, VideoCodec::Av1, Container::Mov, |_| {}).is_err());
+    assert!(!path.exists());
+}
+
 /// An empty folder for one test, and the guard that removes it.
 fn scratch_dir(name: &str) -> (std::path::PathBuf, Gone) {
     let d = scratch(name);
