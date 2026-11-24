@@ -1,0 +1,1 @@
+- Effects: soft masks can use a drawn shape taken from a selection; new Lens flare and Displace by layer effects.

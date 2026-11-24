@@ -142,6 +142,7 @@ tooncraft	Brushes
 tooncraft	Built-in brushes cannot be changed; duplicate one to make your own	
 tooncraft	Burn in the shot, frame and timecode	
 tooncraft	By	
+tooncraft	By brightness	
 tooncraft	By drawings	
 tooncraft	By frames	
 tooncraft	Camera	
@@ -273,6 +274,7 @@ tooncraft	Difference
 tooncraft	Digits in frame numbers	
 tooncraft	Direction	
 tooncraft	Discard	
+tooncraft	Displace by layer	
 tooncraft	Display	
 tooncraft	Distance from the drawing plane for the camera: above 0 is further away, below 0 nearer	
 tooncraft	Distort	
@@ -291,7 +293,9 @@ tooncraft	Drag to move this end of the loop range, or use the arrow keys when it
 tooncraft	Drag to move, a corner to scale, the knob to turn, the cross to move the pivot	
 tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates	
 tooncraft	Draw	
+tooncraft	Draw a selection on the canvas first	
 tooncraft	Draw the peg's other values faintly, each scaled to fit, to compare their timing	
+tooncraft	Draw the shape with a selection tool, then take its outline here	
 tooncraft	Drawing	
 tooncraft	Drawing Layer	
 tooncraft	Drawing Library	
@@ -307,6 +311,7 @@ tooncraft	Drawing: a big canvas, colour and brushes on the right, the timeline b
 tooncraft	Drawings	
 tooncraft	Drawings are moved, never resampled; paint outside the new canvas is cut (undo brings it back).	
 tooncraft	Drawings no frame shows	
+tooncraft	Drawn shape	
 tooncraft	Dream	
 tooncraft	Drop shadow	
 tooncraft	Drop the text (Escape)	
@@ -463,6 +468,8 @@ tooncraft	Gamma
 tooncraft	Gaps	
 tooncraft	General	
 tooncraft	Ghosts	
+tooncraft	Ghosts towards X	
+tooncraft	Ghosts towards Y	
 tooncraft	Give an area already painted on this layer a new colour	
 tooncraft	Give the preset a name	
 tooncraft	Give the workspace a name	
@@ -636,12 +643,15 @@ tooncraft	Layers merged
 tooncraft	Left and right	
 tooncraft	Length	
 tooncraft	Length (0: to the end)	
+tooncraft	Lens flare	
 tooncraft	Letter spacing	
 tooncraft	Levels	
 tooncraft	Library	
 tooncraft	Licensed under the MIT License or the Apache License 2.0.	
 tooncraft	Light Table	
 tooncraft	Light Theme	
+tooncraft	Light X	
+tooncraft	Light Y	
 tooncraft	Light colour	
 tooncraft	Light or dark theme	
 tooncraft	Light table	
@@ -674,12 +684,14 @@ tooncraft	Luminosity
 tooncraft	Magic Wand	
 tooncraft	Magic wand	
 tooncraft	Make a new peg and hang the current layer from it	
+tooncraft	Map layer	
 tooncraft	Mark As	
 tooncraft	Marker	
 tooncraft	Marker added at frame {n}	
 tooncraft	Marker at frame {n}: {text}	
 tooncraft	Marker removed from frame {n}	
 tooncraft	Markers	
+tooncraft	Mask shape	
 tooncraft	Matte	
 tooncraft	Matte: keep inside	
 tooncraft	Matte: keep outside	
@@ -772,6 +784,7 @@ tooncraft	No drawings have names yet
 tooncraft	No drawings yet: select frames on the timeline and add them.	
 tooncraft	No earlier drawing on this layer	
 tooncraft	No earlier marker	
+tooncraft	No effect called {id}	
 tooncraft	No effects on this layer.	
 tooncraft	No font is available	
 tooncraft	No in and out range is set	
@@ -788,6 +801,7 @@ tooncraft	No pixels of this colour in the drawing
 tooncraft	No recent shots	
 tooncraft	No room for more palettes	
 tooncraft	No settings folder on this system, so My Drawings is not available.	
+tooncraft	No shape yet: nothing is kept	
 tooncraft	No sound in this shot.	
 tooncraft	No such layer	
 tooncraft	No symmetry	
@@ -985,6 +999,7 @@ tooncraft	Radial menu
 tooncraft	Radial, mirrored	
 tooncraft	Radius	
 tooncraft	Random	
+tooncraft	Rays	
 tooncraft	Re-time Between Keys	
 tooncraft	Re-time Layer	
 tooncraft	Re-time the selected frames (or the whole layer)	
@@ -1373,6 +1388,7 @@ tooncraft	Use brush {name}
 tooncraft	Use for This Shot	
 tooncraft	Use for {mouth}	
 tooncraft	Use in the radial menu	
+tooncraft	Use the Selection as the Shape	
 tooncraft	Vector lines	
 tooncraft	Vertical	
 tooncraft	Vertical Exposure Sheet	
@@ -1464,6 +1480,7 @@ tooncraft	{n} frames
 tooncraft	{n} frames at {w}×{h}	
 tooncraft	{n} images, from frame {frame}	
 tooncraft	{n} keys	
+tooncraft	{n} points	
 tooncraft	{panel} is back in its place	
 tooncraft	{panel} panel menu	
 tooncraft	{seconds} s	
