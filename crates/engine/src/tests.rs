@@ -1157,3 +1157,33 @@ fn shift_pin_moves_a_pin_as_a_setting_and_refuses_a_missing_one() {
     assert_eq!(e.project.light_table.pins[0].shift.x, tooncraft_doc::MAX_PIN_SHIFT);
     assert_eq!(e.project.light_table.pins[0].shift.turn, 0);
 }
+
+#[test]
+fn an_animated_tip_shows_the_cell_of_the_frame_drawn_on() {
+    let mut e = engine();
+    // two 8×8 cells: the first a full square, the second only its left column
+    let mut alpha = vec![0u8; 16 * 8];
+    for y in 0..8 {
+        for x in 0..8 {
+            alpha[y * 16 + x] = 255;
+        }
+        alpha[y * 16 + 8] = 255;
+    }
+    e.apply(Command::AddTip { id: 5, name: "two".into(), width: 16, height: 8, alpha }).unwrap();
+    let brush = tooncraft_brush::Brush {
+        tip: Some(5),
+        tip_cells: 2,
+        tip_order: tooncraft_brush::TipOrder::Frame,
+        size: 30.0,
+        ..tooncraft_brush::Brush::preset(tooncraft_brush::BrushKind::Ink)
+    };
+    let dot = vec![Sample::at(60.0, 60.0, 1.0, 0.0)];
+    let cmd = |frame| Command::Stroke { layer: 0, frame, brush, samples: dot.clone() };
+    e.apply(cmd(0)).unwrap();
+    e.apply(cmd(1)).unwrap();
+    let inked = |f: u32| {
+        let d = e.project.drawing_at(0, f).unwrap();
+        e.project.drawing(d).unwrap().tiles().map(|(_, t)| t.bytes().as_chunks::<4>().0.iter().filter(|p| p[3] > 0).count()).sum::<usize>()
+    };
+    assert!(inked(0) > inked(1) * 3, "frame 1 shows the full cell, frame 2 the thin one: {} vs {}", inked(0), inked(1));
+}

@@ -88,6 +88,7 @@ tooncraft	Align right
 tooncraft	All	
 tooncraft	All visible layers	
 tooncraft	Amount	
+tooncraft	An animated tip: the image is this many pictures side by side	
 tooncraft	An image under the drawing, locked and faded, shown for the whole shot	
 tooncraft	Angle	
 tooncraft	Angle jitter	
@@ -152,6 +153,7 @@ tooncraft	By
 tooncraft	By brightness	
 tooncraft	By drawings	
 tooncraft	By frames	
+tooncraft	By timeline frame	
 tooncraft	Calibrate: draw a few strokes in the box below as you normally do.	
 tooncraft	Calibration pad	
 tooncraft	Camera	
@@ -168,6 +170,7 @@ tooncraft	Canvas weave
 tooncraft	Canvas zoom	
 tooncraft	Canvas: {layer}, frame {frame}	
 tooncraft	Category	
+tooncraft	Cell order	
 tooncraft	Centre	
 tooncraft	Centre X	
 tooncraft	Centre Y	
@@ -581,6 +584,7 @@ tooncraft	Imported the board {file}
 tooncraft	Imported {count} images	
 tooncraft	Imported {count} video frames	
 tooncraft	In	
+tooncraft	In turn along the stroke	
 tooncraft	In-between	
 tooncraft	Inbetween	
 tooncraft	Inbetweens	
@@ -953,6 +957,7 @@ tooncraft	Paste Reversed
 tooncraft	Paste as New Drawings	
 tooncraft	Paste frames, moving later frames right	
 tooncraft	Pasted	
+tooncraft	Pattern along the stroke	
 tooncraft	Pause	
 tooncraft	Peg	
 tooncraft	Peg 1	
@@ -1128,6 +1133,7 @@ tooncraft	Result blend
 tooncraft	Reverse	
 tooncraft	Reverse Selected Frames	
 tooncraft	Revert	
+tooncraft	Ribbon	
 tooncraft	Ripple	
 tooncraft	Rotate 90°	
 tooncraft	Rotate 90° Clockwise	
@@ -1299,6 +1305,8 @@ tooncraft	Split opposite
 tooncraft	Spray	
 tooncraft	Spread under lines	
 tooncraft	Square, 24 fps	
+tooncraft	Stamp	
+tooncraft	Stamp: the tip at every dab. Pattern: copies end to end, turned along the stroke. Ribbon: the image stretched along the stroke	
 tooncraft	Standard definition, 25 fps	
 tooncraft	Standard definition, 30 fps	
 tooncraft	Start	
@@ -1408,7 +1416,9 @@ tooncraft	Tinted
 tooncraft	Tinted before and after	
 tooncraft	Tip	
 tooncraft	Tip angle	
+tooncraft	Tip cells	
 tooncraft	Tip from Image…	
+tooncraft	Tip layout	
 tooncraft	Tip shape	
 tooncraft	To the palette shown (on Basic, a new shot palette)	
 tooncraft	Tolerance	

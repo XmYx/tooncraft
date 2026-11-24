@@ -339,11 +339,20 @@ impl Engine {
         let surface = self.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
         let stroke = Stroke::begin_with(surface, brush, images);
         let (w, h) = (self.project.width(), self.project.height());
-        let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush))).collect();
+        let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush).at_frame(frame))).collect();
         let vector = vector::Live::begin(&self.project, layer, frame, drawing, brush);
         let snap = self.project.rulers.snapper(w, h);
-        self.live =
-            Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, vector, snap, held: Default::default() });
+        self.live = Some(LiveStroke {
+            last: None,
+            drawing,
+            created,
+            engine: StrokeEngine::new(brush).at_frame(frame),
+            stroke,
+            mirrors,
+            vector,
+            snap,
+            held: Default::default(),
+        });
         Ok(())
     }
 
