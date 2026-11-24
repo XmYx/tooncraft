@@ -226,7 +226,7 @@ pub fn cell(app: &mut ToonApp, ui: &mut Ui, layer: usize, frame: u32) {
 /// The menu on the timeline ruler, opened on `frame`.
 pub fn ruler(app: &mut ToonApp, ui: &mut Ui, frame: u32) {
     set_target(app, Target::Ruler(frame));
-    context(ui, app, &["ruler.loop_in", "ruler.loop_out", "ruler.clear_loop", SEP]);
+    context(ui, app, &["ruler.loop_in", "ruler.loop_out", "timeline.clear_in_out", SEP]);
     sub(ui, app, tl!("Onion Range"), &["onion.range_1", "onion.range_2", "onion.range_3", "onion.range_5", SEP, "onion.keys_only"]);
     ui.separator();
     // Go To Frame: typed in place, no dialog

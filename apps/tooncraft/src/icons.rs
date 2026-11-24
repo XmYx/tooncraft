@@ -326,28 +326,9 @@ impl From<Tool> for Icon {
     }
 }
 
-#[allow(dead_code, reason = "the shared icon family: the UI-pass shell, canvas and menu code draws from all of it; the tests paint every glyph")]
 /// The glyph of a panel's tab.
 pub fn for_pane(p: crate::dock::Pane) -> Icon {
-    use crate::dock::Pane;
-    match p {
-        Pane::Canvas => Icon::Canvas,
-        Pane::Timeline => Icon::Timeline,
-        Pane::Colour => Icon::Colour,
-        Pane::Brush => Icon::Brush,
-        Pane::Layers => Icon::Layers,
-        Pane::Onion => Icon::Onion,
-        Pane::Camera => Icon::Camera,
-        Pane::Pegs => Icon::Peg,
-        Pane::Library => Icon::Library,
-        Pane::Effects => Icon::Effects,
-        Pane::Sound => Icon::Sound,
-        Pane::LipSync => Icon::LipSync,
-        Pane::Timing => Icon::Timing,
-        Pane::History => Icon::History,
-        Pane::Drawings => Icon::Drawings,
-        Pane::Curves => Icon::Curves,
-    }
+    crate::panel_views::view(p).icon
 }
 
 /// Draw `icon` centred in `rect`; `filled` is the "on" variant.

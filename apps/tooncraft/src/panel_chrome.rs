@@ -68,28 +68,7 @@ impl<'a> Chrome<'a> {
 
 impl DockContent<Pane> for Chrome<'_> {
     fn body(&mut self, ui: &mut Ui, pane: &Pane) {
-        let app = &mut *self.app;
-        match pane {
-            Pane::Canvas => {
-                crate::canvas_header::strip(app, ui);
-                crate::canvas::show(app, ui)
-            }
-            Pane::Timeline => crate::timeline::show(app, ui),
-            Pane::Colour => crate::panels::colour(app, ui),
-            Pane::Brush => crate::panels::brush(app, ui),
-            Pane::Layers => crate::panels::layers(app, ui),
-            Pane::Onion => crate::panels::onion(app, ui),
-            Pane::Camera => crate::panels::camera(app, ui),
-            Pane::Pegs => crate::pegs::panel(app, ui),
-            Pane::Library => crate::brush_library::panel(app, ui),
-            Pane::Effects => crate::effects_panel::show(app, ui),
-            Pane::Sound => crate::sound_panel::show(app, ui),
-            Pane::LipSync => crate::lipsync_panel::show(app, ui),
-            Pane::Timing => crate::timing_panel::panel(app, ui),
-            Pane::History => crate::history_panel::panel(app, ui),
-            Pane::Drawings => crate::drawing_library::panel(app, ui),
-            Pane::Curves => crate::curves::panel(app, ui),
-        }
+        (crate::panel_views::view(*pane).ui)(self.app, ui);
     }
 
     fn logical_label(&self, pane: &Pane) -> String {
@@ -130,7 +109,12 @@ impl DockContent<Pane> for Chrome<'_> {
         let pane = *active;
         let name = tlf!("{panel} panel menu", panel = pane.label());
         let resp = ui.add(IconButton::new(Icon::More, name).size(ui.max_rect().height().min(24.0)));
-        egui::Popup::menu(&resp).show(|ui| stack_menu(self, ui, pane, floating));
+        // `--context-menu tab`: the first stack drawn opens its menu
+        let mut popup = egui::Popup::menu(&resp);
+        if crate::context_menus::launch_now(ui.ctx(), "tab") {
+            popup = popup.open_memory(Some(egui::SetOpenCommand::Bool(true)));
+        }
+        popup.show(|ui| stack_menu(self, ui, pane, floating));
     }
 
     /// The tab's right-click menu: Reset Panel (craft-ui adds Float, Move To and Close after it).
@@ -171,22 +155,16 @@ fn stack_menu(c: &mut Chrome<'_>, ui: &mut Ui, pane: Pane, floating: bool) {
     crate::context_menus::panel_tab(c.app, ui, pane);
 }
 
-/// The panel's own commands at the top of its `⋯` menu; false when it has none.
+/// The panel's own commands at the top of its `⋯` menu (from the panel registry); false when it
+/// has none.
 fn own_commands(app: &mut ToonApp, ui: &mut Ui, pane: Pane) -> bool {
-    match pane {
-        Pane::Timeline => {
-            ui.checkbox(&mut app.tl.vertical, tl!("Vertical Exposure Sheet")).on_hover_text(tl!("Frames down the page, layers as columns"));
+    match crate::panel_views::view(pane).menu {
+        Some(menu) => {
+            menu(app, ui);
+            true
         }
-        Pane::Colour => {
-            ui.checkbox(&mut app.colour.wheel, tl!("Hue Wheel"));
-            ui.checkbox(&mut app.colour.window, tl!("Picker Window"));
-        }
-        Pane::Onion => {
-            ui.checkbox(&mut app.engine.project.onion.enabled, tl!("Onion Skin"));
-        }
-        _ => return false,
+        None => false,
     }
-    true
 }
 
 /// Paint each visible tab's glyph into the room left in front of its name.
