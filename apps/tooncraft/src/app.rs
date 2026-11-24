@@ -247,6 +247,10 @@ pub struct ToonApp {
     pub show_shortcuts: bool,
     pub show_about: bool,
     pub confirm_close: bool,
+    /// New, Open or Open Recent waiting for an answer about unsaved changes.
+    pub pending_replace: Option<crate::unsaved::Replace>,
+    /// Move the keyboard focus to the question's Save button on its next frame.
+    pub replace_focus: bool,
     close_confirmed: bool,
     pub recovery: Option<RecoveryOffer>,
     autosave_dir: Option<PathBuf>,
@@ -409,6 +413,8 @@ impl ToonApp {
             show_shortcuts: false,
             show_about: false,
             confirm_close: false,
+            pending_replace: None,
+            replace_focus: false,
             close_confirmed: false,
             recovery: None,
             autosave_dir: if cli.screenshot.is_some() || cli.bench_playback.is_some() { None } else { autosave_dir() },
@@ -1313,10 +1319,10 @@ impl ToonApp {
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button(tl!("File"), |ui| {
                 if ui.button(tl!("New Shot…")).clicked() {
-                    self.new_shot = Some(self.new_shot_defaults());
+                    crate::unsaved::request(self, crate::unsaved::Replace::NewShot);
                 }
                 if ui.button(tl!("Open…")).clicked() {
-                    self.open_dialog();
+                    crate::unsaved::request(self, crate::unsaved::Replace::Browse);
                 }
                 crate::start_screen::menu(self, ui);
                 ui.separator();
@@ -1595,10 +1601,10 @@ impl ToonApp {
             self.save();
         }
         if open {
-            self.open_dialog();
+            crate::unsaved::request(self, crate::unsaved::Replace::Browse);
         }
         if new {
-            self.new_shot = Some(self.new_shot_defaults());
+            crate::unsaved::request(self, crate::unsaved::Replace::NewShot);
         }
         if undo && !self.engine.is_stroking() {
             self.undo();
@@ -1638,7 +1644,15 @@ impl ToonApp {
         }
         // F6 moves focus between the canvas and the exposure sheet.
         if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::F6)) {
-            let to = if ctx.memory(|m| m.focused()) == Some(crate::canvas::canvas_id()) { crate::timeline::grid_id() } else { crate::canvas::canvas_id() };
+            let to = if ctx.memory(|m| m.focused()) == Some(crate::canvas::canvas_id()) {
+                // a closed timeline comes back first, so the focus has somewhere to go
+                if !self.workspace.is_open(Pane::Timeline) {
+                    self.workspace.raise(Pane::Timeline);
+                }
+                crate::timeline::grid_id()
+            } else {
+                crate::canvas::canvas_id()
+            };
             ctx.memory_mut(|m| m.request_focus(to));
         }
         // Single keys only when no text field or focused grid/canvas takes the keyboard.
@@ -1728,6 +1742,7 @@ impl ToonApp {
             || self.preferences.open
             || self.start.open
             || self.scene_form.is_some()
+            || self.pending_replace.is_some()
         {
             return;
         }
@@ -1934,6 +1949,7 @@ impl ToonApp {
         crate::colour_tools::picker_window(self, ctx);
         crate::preferences::window(self, ctx);
         crate::scene_menus::window(self, ctx);
+        crate::unsaved::window(self, ctx);
         crate::canvas_tools::dialog(self, ctx);
         if let Some(offer) = &self.recovery {
             let (path, when) = (offer.path.clone(), offer.when.clone());
