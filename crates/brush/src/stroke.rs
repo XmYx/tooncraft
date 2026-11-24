@@ -27,12 +27,32 @@ pub struct StrokeEngine {
     /// Number of dabs made so far, and the stroke's random seed.
     index: u64,
     seed: u64,
+    /// Distance travelled along the stroke, in pixels.
+    dist: f32,
+    /// The timeline frame being drawn on (tips whose cell follows the frame).
+    frame: u32,
 }
 
 impl StrokeEngine {
     pub fn new(brush: Brush) -> Self {
         let brush = brush.sanitized();
-        Self { stabilizer: Stabilizer::new(brush.smoothing), brush, last: None, carry: 0.0, speed: 0.0, heading: 0.0, index: 0, seed: 0 }
+        Self { stabilizer: Stabilizer::new(brush.smoothing), brush, last: None, carry: 0.0, speed: 0.0, heading: 0.0, index: 0, seed: 0, dist: 0.0, frame: 0 }
+    }
+
+    /// The timeline frame (0-based) the stroke is drawn on, for tips whose cell follows the frame.
+    pub fn at_frame(mut self, frame: u32) -> Self {
+        self.frame = frame;
+        self
+    }
+
+    /// The spacing between dabs as a fraction of the diameter: a pattern lays copies end to
+    /// end, a ribbon needs dense dabs to stay smooth.
+    fn spacing(&self) -> f32 {
+        match self.brush.tip_mode {
+            crate::TipMode::Stamp => self.brush.spacing,
+            crate::TipMode::Pattern => 1.0,
+            crate::TipMode::Ribbon => self.brush.spacing.min(0.08),
+        }
     }
 
     pub fn brush(&self) -> &Brush {
@@ -81,7 +101,7 @@ impl StrokeEngine {
         loop {
             let t = (travelled / len).clamp(0.0, 1.0);
             let here = lerp_sample(&prev, &s, t);
-            let step = (self.brush.spacing * self.diameter(&here, 1.0)).max(0.5);
+            let step = (self.spacing() * self.diameter(&here, 1.0)).max(0.5);
             let need = step - self.carry;
             if travelled + need > len || budget == 0 {
                 self.carry += len - travelled;
@@ -90,12 +110,16 @@ impl StrokeEngine {
             travelled += need;
             self.carry = 0.0;
             let at = lerp_sample(&prev, &s, (travelled / len).clamp(0.0, 1.0));
+            let walked = self.dist + travelled;
+            let saved = std::mem::replace(&mut self.dist, walked);
             // a spray lays several dabs per step (each with its own scatter and chances)
             for _ in 0..self.brush.count.max(1) {
                 out.push(self.dab(&at));
             }
             budget = budget.saturating_sub(self.brush.count.max(1) as usize);
+            self.dist = saved;
         }
+        self.dist += len;
         self.last = Some(s);
     }
 
@@ -153,12 +177,25 @@ impl StrokeEngine {
             x += a.cos() * scatter;
             y += a.sin() * scatter;
         }
+        // patterns and ribbons turn with the stroke; stamps turn with the pen
+        let base = match self.brush.tip_mode {
+            crate::TipMode::Stamp => tilt_angle,
+            crate::TipMode::Pattern | crate::TipMode::Ribbon => self.heading * TAU,
+        };
+        let cells = self.brush.tip_cells.max(1) as u64;
+        let cell = match self.brush.tip_order {
+            crate::TipOrder::Sequence => self.index % cells,
+            crate::TipOrder::Random => (hash01(self.seed ^ self.index.wrapping_mul(0x2545_F491_4F6C_DD1D), 55) * cells as f32) as u64 % cells,
+            crate::TipOrder::Frame => self.frame as u64 % cells,
+        } as u16;
         let dab = Dab {
             x,
             y,
             radius: diameter * 0.5,
             alpha,
-            angle: self.brush.angle.to_radians() + tilt_angle + turn * TAU,
+            cell,
+            along: self.dist / self.brush.size.max(0.5),
+            angle: self.brush.angle.to_radians() + base + turn * TAU,
             roundness: (self.brush.roundness * (1.0 - d.tilt * m * 0.75)).clamp(0.1, 1.0),
             pressure: s.pressure,
             color: self.jittered(),
@@ -243,6 +280,8 @@ impl Stroke {
                 // a grain image that is missing falls back to paper
                 texture: Grain::new(brush.grain_kind, brush.grain_scale, brush.grain_angle, brush.grain_contrast, images.grain),
                 tip: images.tip,
+                tip_mode: brush.tip_mode,
+                cells: brush.tip_cells.max(1) as u16,
             },
             color: premultiply(brush.color),
             brush,
@@ -815,7 +854,7 @@ mod tests {
         let mut s = Surface::new(128, 128).unwrap();
         let brush = Brush { size: 40.0, smoothing: crate::Smoothing { average: 0.0, ..Default::default() }, ..Brush::preset(BrushKind::Ink) };
         let mut st = Stroke::begin_with_tip(&mut s, brush, Some(tip));
-        let dab = Dab { x: 64.0, y: 64.0, radius: 20.0, alpha: 1.0, angle: 0.0, roundness: 1.0, pressure: 1.0, color: None };
+        let dab = Dab { x: 64.0, y: 64.0, radius: 20.0, alpha: 1.0, angle: 0.0, roundness: 1.0, pressure: 1.0, color: None, cell: 0, along: 0.0 };
         st.add(&mut s, &[dab]);
         st.end(&mut s);
         assert!(s.pixel(54, 64)[3] > 200 && s.pixel(74, 64)[3] == 0);
@@ -983,7 +1022,21 @@ mod dynamics_tests {
         // a thin blade turned upright covers a tall, narrow patch
         let mut s = Surface::new(80, 80).unwrap();
         let mut st = Stroke::begin(&mut s, Brush { size: 40.0, hardness: 1.0, ..blade });
-        st.add(&mut s, &[Dab { x: 40.0, y: 40.0, radius: 20.0, alpha: 1.0, angle: std::f32::consts::FRAC_PI_2, roundness: 0.2, pressure: 1.0, color: None }]);
+        st.add(
+            &mut s,
+            &[Dab {
+                x: 40.0,
+                y: 40.0,
+                radius: 20.0,
+                alpha: 1.0,
+                angle: std::f32::consts::FRAC_PI_2,
+                roundness: 0.2,
+                pressure: 1.0,
+                color: None,
+                cell: 0,
+                along: 0.0,
+            }],
+        );
         st.end(&mut s);
         let (tall, wide) = ((0..80).filter(|y| s.pixel(40, *y)[3] > 128).count(), (0..80).filter(|x| s.pixel(*x, 40)[3] > 128).count());
         assert!(tall > wide * 3, "{tall} tall, {wide} wide");

@@ -53,6 +53,9 @@ or non-numbers fall back to the default).
 | `grain_scale` | 0.5 … 64 | Grain feature size in canvas pixels (for an image: canvas pixels per image pixel) |
 | `grain_angle` | -180 … 180 | Grain rotation in degrees (turns the texture, not the dab; values wrap); left out when 0 |
 | `grain_contrast` | 0.1 … 4 | Grain contrast: above 1 sharpens peaks and valleys, below 1 flattens them; left out when 1 |
+| `tip_mode` | `stamp`, `pattern`, `ribbon` | How the image tip is laid along the stroke: stamped at every dab; copies end to end turned along the stroke (dabs one diameter apart); or stretched along the stroke as one band, the image repeating every brush width. Left out when `stamp` |
+| `tip_cells` | 1 … 64 | The image tip is this many pictures side by side (an animated tip). Left out when 1 |
+| `tip_order` | `sequence`, `random`, `frame` | Which cell each dab shows: in turn, at random (replays exactly), or the cell of the timeline frame drawn on. Left out when `sequence` |
 | `grain_kind` | `paper`, `canvas`, `speckle`, `clouds`, `image` | Which texture; `image` uses `grain.png` (and falls back to `paper` when the file has none) |
 | `color` | `[r, g, b, a]` | Straight (not premultiplied) 8-bit RGBA |
 | `smoothing` | `average` 0 … 1, `string` 0 … 500, `catch_up` bool | Moving-average strength, pulled-string length in canvas pixels, and whether the line finishes where the pen lifts |

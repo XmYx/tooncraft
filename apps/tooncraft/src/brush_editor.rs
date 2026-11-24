@@ -109,6 +109,52 @@ fn shape(app: &mut ToonApp, ui: &mut Ui, kind: BrushKind) {
             crate::layer_ops::compose_combo(ui, &mut b.compose);
             ui.end_row();
         }
+        // how an image tip is laid along the stroke, and tips made of several cells
+        if b.tip.is_some() {
+            use tooncraft_brush::{TipMode, TipOrder};
+            let l = ui.label(tl!("Tip layout"));
+            let name = |m: TipMode| match m {
+                TipMode::Stamp => tl!("Stamp"),
+                TipMode::Pattern => tl!("Pattern along the stroke"),
+                TipMode::Ribbon => tl!("Ribbon"),
+            };
+            egui::ComboBox::from_id_salt("brush-tip-mode")
+                .selected_text(name(b.tip_mode))
+                .show_ui(ui, |ui| {
+                    for m in TipMode::ALL {
+                        ui.selectable_value(&mut b.tip_mode, m, name(m));
+                    }
+                })
+                .response
+                .labelled_by(l.id)
+                .on_hover_text(tl!(
+                    "Stamp: the tip at every dab. Pattern: copies end to end, turned along the stroke. Ribbon: the image stretched along the stroke"
+                ));
+            ui.end_row();
+            let l = ui.label(tl!("Tip cells"));
+            ui.add(egui::DragValue::new(&mut b.tip_cells).range(1..=tooncraft_brush::MAX_TIP_CELLS))
+                .labelled_by(l.id)
+                .on_hover_text(tl!("An animated tip: the image is this many pictures side by side"));
+            ui.end_row();
+            if b.tip_cells > 1 {
+                let l = ui.label(tl!("Cell order"));
+                let name = |o: TipOrder| match o {
+                    TipOrder::Sequence => tl!("In turn along the stroke"),
+                    TipOrder::Random => tl!("Random"),
+                    TipOrder::Frame => tl!("By timeline frame"),
+                };
+                egui::ComboBox::from_id_salt("brush-tip-order")
+                    .selected_text(name(b.tip_order))
+                    .show_ui(ui, |ui| {
+                        for o in TipOrder::ALL {
+                            ui.selectable_value(&mut b.tip_order, o, name(o));
+                        }
+                    })
+                    .response
+                    .labelled_by(l.id);
+                ui.end_row();
+            }
+        }
     });
 }
 

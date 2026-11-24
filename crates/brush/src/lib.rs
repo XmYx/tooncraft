@@ -29,6 +29,8 @@ pub use dab::Dab;
 #[cfg(test)]
 mod paint_tests;
 #[cfg(test)]
+mod tip_tests;
+#[cfg(test)]
 mod wet_tests;
 pub use grain::{Grain, GrainKind, builtin_grain, paper_grain};
 pub use response::{Dynamics, Inputs, Mapping, Response, Source, Target, hash01};
@@ -87,6 +89,51 @@ impl BrushKind {
     pub fn from_id(id: &str) -> Option<BrushKind> {
         BrushKind::ALL.into_iter().find(|k| k.id() == id)
     }
+}
+
+/// How an image tip is laid along the stroke.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TipMode {
+    /// Stamped at every dab, at the tip's own angle.
+    #[default]
+    Stamp,
+    /// Repeated end to end along the stroke, each copy turned to the stroke's direction.
+    Pattern,
+    /// Stretched along the stroke as one continuous band (the image repeats every brush width).
+    Ribbon,
+}
+
+impl TipMode {
+    pub const ALL: [TipMode; 3] = [TipMode::Stamp, TipMode::Pattern, TipMode::Ribbon];
+}
+
+/// Which cell of a tip made of several cells (side by side in one image) each dab shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TipOrder {
+    /// One after another along the stroke.
+    #[default]
+    Sequence,
+    /// A random cell for every dab (replays exactly).
+    Random,
+    /// The cell of the timeline frame being drawn on (frame 1 shows the first).
+    Frame,
+}
+
+impl TipOrder {
+    pub const ALL: [TipOrder; 3] = [TipOrder::Sequence, TipOrder::Random, TipOrder::Frame];
+}
+
+/// Most cells a tip image can be split into.
+pub const MAX_TIP_CELLS: u8 = 64;
+
+fn is_stamp(m: &TipMode) -> bool {
+    *m == TipMode::Stamp
+}
+
+fn is_sequence(o: &TipOrder) -> bool {
+    *o == TipOrder::Sequence
 }
 
 /// Where a brush puts its paint relative to what is already on the layer.
@@ -357,6 +404,15 @@ pub struct Brush {
     /// Dabs laid at each spacing step, 1 … [`MAX_COUNT`]; with scatter, a spray.
     #[serde(skip_serializing_if = "is_one")]
     pub count: u8,
+    /// How the image tip is laid along the stroke.
+    #[serde(skip_serializing_if = "is_stamp")]
+    pub tip_mode: TipMode,
+    /// The image tip is this many cells side by side (1 … [`MAX_TIP_CELLS`]): an animated tip.
+    #[serde(skip_serializing_if = "is_one")]
+    pub tip_cells: u8,
+    /// Which cell each dab shows.
+    #[serde(skip_serializing_if = "is_sequence")]
+    pub tip_order: TipOrder,
 }
 
 impl Default for Brush {
@@ -391,6 +447,9 @@ impl Brush {
             compose: Compose::Normal,
             jitter: ColorJitter::default(),
             count: 1,
+            tip_mode: TipMode::Stamp,
+            tip_cells: 1,
+            tip_order: TipOrder::Sequence,
         };
         match kind {
             BrushKind::Pencil => Brush { size: 3.5, hardness: 0.7, grain: 0.55, grain_scale: 1.6, opacity: 0.9, ..base },
@@ -477,6 +536,9 @@ impl Brush {
             compose: self.compose,
             jitter: self.jitter.sanitized(),
             count: self.count.clamp(1, MAX_COUNT),
+            tip_mode: self.tip_mode,
+            tip_cells: self.tip_cells.clamp(1, MAX_TIP_CELLS),
+            tip_order: self.tip_order,
         }
     }
 }
