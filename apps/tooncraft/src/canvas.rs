@@ -98,13 +98,17 @@ fn to_picture(app: &ToonApp, rect: Rect, p: Pos2) -> Pos2 {
     app.view.to_canvas(rect, size, p)
 }
 
-fn sample(app: &ToonApp, rect: Rect, p: Pos2, pressure: f32) -> Sample {
+/// `force` is the touch force the window system reported with the event, if any.
+fn sample(app: &ToonApp, rect: Rect, p: Pos2, force: Option<f32>) -> Sample {
     let c = to_canvas(app, rect, p);
     let t = app.stroke_start.map(|s| s.elapsed().as_secs_f64()).unwrap_or(0.0);
-    // A tablet reading (X11 / macOS) beats touch force and the mouse setting.
-    let (pressure, tilt_x, tilt_y, barrel) = match app.tablet.pen() {
-        Some(pen) => (pen.pressure, pen.tilt_x, pen.tilt_y, pen.rotation),
-        None => (pressure, 0.0, 0.0, 0.0),
+    // A tablet reading (X11 / macOS) beats touch force, which beats the mouse setting. Real pen
+    // and touch pressure goes through the global pressure curve; the mouse setting is used as is.
+    let curve = &app.preferences.prefs.pressure_curve;
+    let (pressure, tilt_x, tilt_y, barrel) = match (app.tablet.pen(), force) {
+        (Some(pen), _) => (crate::preferences::pen_pressure(curve, pen.pressure), pen.tilt_x, pen.tilt_y, pen.rotation),
+        (None, Some(f)) => (crate::preferences::pen_pressure(curve, f), 0.0, 0.0, 0.0),
+        (None, None) => (app.mouse_pressure, 0.0, 0.0, 0.0),
     };
     let (tilt_x, tilt_y, rotation) = to_canvas_pen(app.view.rotation, app.view.flip, tilt_x, tilt_y, barrel);
     Sample { x: c.x, y: c.y, pressure, tilt_x, tilt_y, time: t, rotation }
@@ -294,7 +298,10 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                 (c.x, c.y)
             };
             let to_s = |x: f32, y: f32| view.to_screen(rect, size, pos2(x, y));
-            crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
+            // a camera key's handle wins over the peg
+            if !crate::camera_path::input(app, ui, resp, &to_c, &to_s) {
+                crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
+            }
         }
         _ if mods.alt => {
             if resp.clicked()
@@ -333,7 +340,7 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                     Event::Touch { pos, force: f, phase, .. } => {
                         force = f.filter(|v| v.is_finite()).map(|v| v.clamp(0.0, 1.0));
                         if phase == TouchPhase::Start && !app.engine.is_stroking() && rect.contains(pos) {
-                            let s = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));
+                            let s = sample(app, rect, pos, force);
                             begin(app, s);
                             fed = true;
                         }
@@ -342,7 +349,7 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                         if !app.engine.is_stroking() && rect.contains(pos) && modifiers.shift && app.last_stroke_end.is_some() =>
                     {
                         // Shift+click: a straight line from where the last stroke ended.
-                        let to = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));
+                        let to = sample(app, rect, pos, force);
                         let (x0, y0) = app.last_stroke_end.unwrap_or((to.x, to.y));
                         let n = (((to.x - x0).hypot(to.y - y0)) / 2.0).ceil().clamp(1.0, 4000.0) as usize;
                         begin(app, Sample { x: x0, y: y0, ..to });
@@ -354,19 +361,19 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                         fed = true;
                     }
                     Event::PointerButton { pos, button: PointerButton::Primary, pressed: true, .. } if !app.engine.is_stroking() && rect.contains(pos) => {
-                        let s = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));
+                        let s = sample(app, rect, pos, force);
                         begin(app, s);
                         fed = true;
                     }
                     Event::PointerMoved(pos) if app.engine.is_stroking() && app.keyboard_pen.is_none_or(|k| !k.down) => {
-                        let s = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));
+                        let s = sample(app, rect, pos, force);
                         let _ = app.engine.stroke_to(s);
                         fed = true;
                     }
                     Event::PointerButton { pos, button: PointerButton::Primary, pressed: false, .. }
                         if app.engine.is_stroking() && app.keyboard_pen.is_none_or(|k| !k.down) =>
                     {
-                        let s = sample(app, rect, pos, force.unwrap_or(app.mouse_pressure));
+                        let s = sample(app, rect, pos, force);
                         let _ = app.engine.stroke_to(s);
                         end(app);
                     }
@@ -934,7 +941,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         crate::peg_transform::overlay(app, &painter, &|x, y| c.screen(x, y), pal.accent, pal.panel);
     }
     // camera frame
-    let cam = &app.engine.project.camera;
+    // while a camera key is dragged, the frame follows it
+    let preview = crate::camera_path::previewed(app);
+    let cam = preview.as_ref().unwrap_or(&app.engine.project.camera);
     if app.show_camera && (!cam.keys.is_empty() || !cam.shakes.is_empty()) {
         let (w, h) = (app.engine.project.width(), app.engine.project.height());
         let map = cam.output_to_canvas(app.frame, w, h);
@@ -951,6 +960,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             painter.text(*p0 + vec2(4.0, 3.0), egui::Align2::LEFT_TOP, tl!("Camera"), egui::FontId::proportional(12.0), col);
         }
     }
+    crate::camera_path::draw(app, &painter, &|x, y| c.screen(x, y), pal.accent);
     // the text box being typed floats over the canvas
     let (view, size) = (c.view, c.size);
     crate::text_tool::edit_box(app, ui.ctx(), rect, &|x, y| view.to_screen(rect, size, pos2(x, y)));

@@ -286,11 +286,16 @@ fn nearest(curve: &Curve, r: Rect, p: Pos2, within: f32) -> Option<usize> {
 /// A response-curve editor: returns whether the curve changed. `point` is the selected control
 /// point.
 pub fn curve_editor(ui: &mut Ui, curve: &mut Curve, point: &mut usize, name: &str) -> bool {
+    curve_editor_with_id(ui, curve_id(), curve, point, name)
+}
+
+/// [`curve_editor`] with its own widget id (another editor may be on screen at the same time).
+pub fn curve_editor_with_id(ui: &mut Ui, id: Id, curve: &mut Curve, point: &mut usize, name: &str) -> bool {
     let before = *curve;
     *point = (*point).min(curve.len().saturating_sub(1));
     let side = ui.available_width().clamp(120.0, 220.0);
     let (_, rect) = ui.allocate_space(vec2(side, side));
-    let resp = ui.interact(rect, curve_id(), Sense::click_and_drag());
+    let resp = ui.interact(rect, id, Sense::click_and_drag());
     if resp.clicked() || resp.drag_started() || resp.double_clicked() {
         resp.request_focus();
     }
