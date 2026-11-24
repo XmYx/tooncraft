@@ -58,6 +58,10 @@ hand a script can do.
 | `enable_effect`, `remove_effect`, `move_effect` | `layer`, `index` (+ `enabled`; `from` / `to` for `move_effect`) |
 | `set_opacity_key`, `remove_opacity_key` | `layer`, `frame` (+ `opacity` 0…1) |
 | `set_layer_matte` | `layer`, `matte` (`inside` / `outside`; absent: a normal layer) |
+| `set_layer_adjustment` | `layer`, `adjustment` (its effects act on everything below it) |
+| `add_layer_mask` | `layer`, `invert` (optional): an empty painted mask; painting goes into it |
+| `set_layer_mask` | `layer`, `enabled`, `invert`, `editing` (each optional) |
+| `remove_layer_mask` | `layer` |
 | `batch` | `label`, `commands` (at most 256, no batch inside): one undo step; if one fails, the ones before it are undone |
 | `add_layer` | `name`, optional `index` |
 | `delete_layer` / `rename_layer` / `move_layer` / `set_layer` | `layer` (+ `name`, `from`/`to`, `visible`/`locked`/`opacity`) |

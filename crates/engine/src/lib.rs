@@ -62,6 +62,10 @@ pub enum EngineError {
     Doc(#[from] DocError),
     #[error(transparent)]
     Raster(#[from] RasterError),
+    #[error("the layer has no mask")]
+    NoMask,
+    #[error("the layer already has a mask")]
+    HasMask,
     #[error("layer “{0}” is locked")]
     Locked(String),
     #[error("there is no drawing at frame {0}")]
@@ -289,6 +293,12 @@ impl Engine {
         self.check_unlocked(layer)?;
         if frame >= self.project.length() {
             return Err(DocError::NoFrame(frame).into());
+        }
+        // painting into the layer's mask: the one mask drawing on every frame
+        if let Some(m) = self.project.layer(layer)?.mask.filter(|m| m.editing)
+            && self.project.drawing(m.drawing).is_some()
+        {
+            return Ok((m.drawing, Vec::new()));
         }
         if let Some(d) = self.project.drawing_at(layer, frame) {
             return Ok((d, Vec::new()));
@@ -541,6 +551,8 @@ impl Engine {
 mod colour_art_tests;
 #[cfg(test)]
 mod history_tests;
+#[cfg(test)]
+mod layer_fx_tests;
 #[cfg(test)]
 mod layerops_tests;
 #[cfg(test)]
