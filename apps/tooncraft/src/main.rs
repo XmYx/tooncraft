@@ -145,6 +145,9 @@ mod unsaved_ui_tests;
 mod vector_ui_tests;
 mod video_dialog;
 mod view;
+mod views;
+#[cfg(test)]
+mod views_ui_tests;
 mod workspaces;
 
 use args::{Cli, Launch};

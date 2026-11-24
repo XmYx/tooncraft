@@ -471,7 +471,7 @@ Weight: 5
 | Customisable shortcuts | all | D | S | Through craft-keymap, saved per user |
 | Command search | TB CS | D | S | Find Command (Ctrl+Shift+P): by name or by key, keyboard or click, runs like the shortcut |
 | Custom tool palettes and radial menus | TV CS PD | D | S | The Tool Palette panel (`--panel palette`): named palettes of any registry commands as buttons, put together from the keyboard (add by search, reorder, remove, rename, delete), kept in the preferences; the radial menu (V, `--open radial`) rings a chosen palette's first 12 commands round the pointer, picked by pointer or arrows and Enter (`tool_palettes_ui_tests`) |
-| Second view of the same shot and a navigator | TV TB CS | M | M | |
+| Second view of the same shot and a navigator | TV TB CS | D | M | The Second View panel draws the same shot with its own pan and zoom (a stroke there is an ordinary undo step), and the Navigator panel shows the whole picture with the main view's frame: click or arrow keys move the main view (`views_ui_tests`, `--panel view2`, `--panel navigator`) |
 | Undo history panel | TV CS | D | S | A panel listing every step; click one to go there (undo or redo as needed) |
 | Preferences dialog | all | D | S | Edit ▸ Preferences: general, drawing, onion skin, sheet and export tabs, each with Restore Defaults; a damaged settings file gives the defaults |
 | Translated interface | all | P | M | craft-i18n catalogs are validated; English is the only shipped language |
@@ -529,7 +529,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Onion panel with a slider per step | TB | D | S | Also in the onion toggle's popover above the canvas |
 | Light table on the canvas | TB | D | S | |
 | Camera frame and safe areas | TB | D | S | |
-| Separate drawing, reference and perspective views | TB | M | M | One canvas |
+| Separate drawing, reference and perspective views | TB | D | M | The Second View panel has four looks: Shot (every layer), Drawing (the current layer alone), Camera (the camera's rendered picture, filmed off the UI thread) and Side (layers as lines at their depth with the camera's view cone; drag or Up/Down moves a layer in depth). Side is a flat side-on layout of the multiplane, not a free-orbit 3D view (`--second-view side`) |
 | Curve editor | TB | D | L | The Curves panel beside the timeline: value buttons, the graph with keys, other values faintly behind, an ease box with handles and typed values (`--panel curves`) |
 | Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
 | Library window for drawings | TB | D | L | The Drawing Library panel: the shot's reusable drawings with thumbnails, names and lengths; add the selected frames, insert as copies or linked, rename, reorder, remove; My Drawings keeps items in the user's folder for every shot |
