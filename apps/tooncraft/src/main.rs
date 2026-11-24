@@ -51,6 +51,7 @@ mod import_dialog;
 mod keys;
 mod layer_ops;
 mod layer_tree;
+mod layers_list;
 mod lipsync_panel;
 mod menus;
 #[cfg(test)]

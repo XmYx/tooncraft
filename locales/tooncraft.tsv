@@ -11,6 +11,7 @@ tooncraft	A layer below for colour that follows this layer's drawings and timing
 tooncraft	A new layer	
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
 tooncraft	A short bouncing-ball shot to try things on	
+tooncraft	A shot keeps at least one layer	
 tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
 tooncraft	About ToonCraft	
 tooncraft	Actual Size	
@@ -40,6 +41,7 @@ tooncraft	Add Three-Point Perspective
 tooncraft	Add Two-Point Perspective	
 tooncraft	Add a Peg for This Layer	
 tooncraft	Add a look	
+tooncraft	Add another kind of layer: a reference image or a sound	
 tooncraft	Add effect	
 tooncraft	Add light	
 tooncraft	Add or remove a marker on this frame	
@@ -223,6 +225,7 @@ tooncraft	Delete Palette
 tooncraft	Delete Peg	
 tooncraft	Delete frame	
 tooncraft	Delete frame (Shift+Delete)	
+tooncraft	Delete the current layer	
 tooncraft	Delete {name}	
 tooncraft	Depth	
 tooncraft	Deselect	
@@ -236,7 +239,6 @@ tooncraft	Distort
 tooncraft	Divide	
 tooncraft	Done	
 tooncraft	Don’t Save	
-tooncraft	Down	
 tooncraft	Drag around an area to fill it	
 tooncraft	Drag around the centre to turn the view; double-click puts it upright	
 tooncraft	Drag from start to end; inside the selection when there is one	
@@ -554,6 +556,7 @@ tooncraft	Layer above / below
 tooncraft	Layer below	
 tooncraft	Layer colour	
 tooncraft	Layer locked	
+tooncraft	Layer options	
 tooncraft	Layer properties copied	
 tooncraft	Layer {name}	
 tooncraft	Layer {n}	
@@ -947,6 +950,7 @@ tooncraft	Remove {name} key
 tooncraft	Removed {count} unused drawings	
 tooncraft	Rename	
 tooncraft	Rename Item	
+tooncraft	Rename Layer	
 tooncraft	Rename Layer…	
 tooncraft	Repaint	
 tooncraft	Repeat Selected Frames	
@@ -1172,6 +1176,7 @@ tooncraft	The drawings' own colours
 tooncraft	The flip set holds at most {n} frames	
 tooncraft	The last save of this shot was interrupted and there is no backup.	
 tooncraft	The last save was interrupted and the backup does not open: {error}	
+tooncraft	The layer already hangs from a peg	
 tooncraft	The layer has no other drawing	
 tooncraft	The picker in a window of its own	
 tooncraft	The selection is too detailed to keep; nothing changed	
@@ -1180,6 +1185,7 @@ tooncraft	The shot has no sound
 tooncraft	The shot's length in frames	
 tooncraft	The size changes around the centre; Canvas Size… keeps another part in place. Each change is one undo step.	
 tooncraft	The tool has no brush	
+tooncraft	There is no layer below	
 tooncraft	Thicken lines	
 tooncraft	This frame	
 tooncraft	This layer	
@@ -1240,7 +1246,6 @@ tooncraft	Unlock Layer
 tooncraft	Unlock Transparency	
 tooncraft	Unpin This Frame	
 tooncraft	Unsaved changes	
-tooncraft	Up	
 tooncraft	Update Marker	
 tooncraft	Update paint in this colour	
 tooncraft	Use brush {name}	

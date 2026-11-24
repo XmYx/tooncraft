@@ -388,21 +388,23 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         if li == app.layer {
             painter.rect_filled(row_rect, 0.0, pal.raised);
         }
+        // the layer's label colour as a bar at the row's left edge
+        if let Some(c) = layer.color {
+            painter.rect_filled(
+                Rect::from_min_max(pos2(area.left(), y + 1.0), pos2(area.left() + 3.0, y + ROW_H - 1.0)),
+                1.0,
+                Color32::from_rgb(c[0], c[1], c[2]),
+            );
+        }
         // name column: visibility toggle + name
-        let eye = Rect::from_min_size(pos2(area.left() + 4.0, y + 3.0), vec2(16.0, 16.0));
+        let eye = Rect::from_min_size(pos2(area.left() + 6.0, y + 3.0), vec2(16.0, 16.0));
         let eye_resp = ui.interact(eye, grid_id().with(("eye", layer.id)), Sense::click());
         let vis_label = tlf!("Show {layer}", layer = layer.name);
         eye_resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, true, layer.visible, vis_label.clone()));
         if eye_resp.clicked() {
             toggles.push((li, !layer.visible));
         }
-        let ec = if layer.visible { pal.text } else { pal.weak };
-        painter.circle_stroke(eye.center(), 5.5, Stroke::new(1.3, ec));
-        if layer.visible {
-            painter.circle_filled(eye.center(), 2.4, ec);
-        } else {
-            painter.line_segment([eye.left_bottom(), eye.right_top()], Stroke::new(1.3, ec));
-        }
+        crate::timeline_rows::paint_toggle(&painter, eye, crate::icons::Icon::Eye, layer.visible, pal.text, pal.weak);
         // lock toggle beside the eye
         let lock = Rect::from_min_size(pos2(eye.right() + 3.0, y + 3.0), vec2(16.0, 16.0));
         let lock_resp = ui.interact(lock, grid_id().with(("lock", layer.id)), Sense::click());
@@ -411,7 +413,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         if lock_resp.clicked() {
             locks.push((li, !layer.locked));
         }
-        crate::timeline_rows::paint_lock(&painter, lock, layer.locked, if layer.locked { pal.accent } else { pal.weak });
+        crate::timeline_rows::paint_toggle(&painter, lock, crate::icons::Icon::Lock, layer.locked, pal.accent, pal.weak);
         // include in onion skin, beside the lock
         let onion = Rect::from_min_size(pos2(lock.right() + 3.0, y + 3.0), vec2(16.0, 16.0));
         let onion_resp = ui.interact(onion, grid_id().with(("onion", layer.id)), Sense::click());
@@ -422,7 +424,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         if onion_resp.clicked() {
             onion_toggles.push(li);
         }
-        crate::timeline_rows::paint_onion(&painter, onion, included, if included { pal.text } else { pal.weak });
+        crate::timeline_rows::paint_toggle(&painter, onion, crate::icons::Icon::OnionInclude, included, pal.text, pal.weak);
         let name_rect = Rect::from_min_max(pos2(onion.right() + 4.0, y), pos2(area.left() + NAME_W - 4.0, y + ROW_H));
         let name_resp = ui.interact(name_rect, grid_id().with(("name", layer.id)), Sense::click());
         let name_label = tlf!("Layer {name}", name = layer.name);
@@ -468,7 +470,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
                         painter.circle_filled(pos2(r.left() + 6.0, r.center().y), 2.6, pal.bg);
                     }
                     if let Some(m) = app.engine.project.marks.get(&d) {
-                        painter.text(r.right_top() + vec2(-2.0, 1.0), Align2::RIGHT_TOP, m.letter(), FontId::proportional(9.5), pal.bg);
+                        crate::timeline_rows::paint_mark(&painter, r, *m, pal);
                     }
                 }
                 Cell::Hold => {
@@ -791,7 +793,6 @@ pub fn onion_span(app: &ToonApp) -> Option<(u32, u32)> {
 /// Thumbnails of the drawings keyed in the visible frames, a few new ones per UI frame, each
 /// cached until its drawing changes.
 fn refresh_thumbnails(app: &mut ToonApp, ctx: &egui::Context, from: u32, to: u32) {
-    let mut budget = 6;
     let mut ids = Vec::new();
     for l in &app.engine.project.layers {
         for f in from..to.min(app.engine.project.length()) {
@@ -800,6 +801,12 @@ fn refresh_thumbnails(app: &mut ToonApp, ctx: &egui::Context, from: u32, to: u32
             }
         }
     }
+    refresh_drawings(app, ctx, ids);
+}
+
+/// Make or refresh the thumbnails of `ids` (cached by the drawing's revision), a few a frame.
+pub fn refresh_drawings(app: &mut ToonApp, ctx: &egui::Context, ids: Vec<tooncraft_doc::DrawingId>) {
+    let mut budget = 6;
     for d in ids {
         let Some(s) = app.engine.project.drawing(d) else { continue };
         let rev = s.tiles().map(|(_, t)| t.revision()).max().unwrap_or(0) ^ (s.tile_count() as u64).rotate_left(40);
