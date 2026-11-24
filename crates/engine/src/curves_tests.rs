@@ -95,3 +95,52 @@ fn a_recorded_take_sets_its_keys_as_one_undo_step_and_refusals_change_nothing() 
     assert_eq!(e.project, before, "refused or empty takes change nothing");
     assert_eq!(e.undo_len(), depth, "and push no undo step");
 }
+
+#[test]
+fn cameras_and_cuts_are_undo_steps_and_removing_a_camera_renumbers_its_cuts() {
+    let mut e = Engine::new(Project::new("Cams", 100, 50, 24, 40).unwrap());
+    let key = |frame, x, camera| Command::SetCameraKey { frame, x, y: 25.0, zoom: 1.0, angle: 0.0, camera };
+    e.apply(Command::AddCamera { name: " Close ".into(), from: None }).unwrap();
+    e.apply(Command::AddCamera { name: "Wide".into(), from: Some(1) }).unwrap();
+    assert_eq!(e.undo_label(), Some("Add camera"));
+    assert_eq!(e.project.cameras.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), ["Close", "Wide"]);
+    e.apply(key(0, 30.0, 1)).unwrap();
+    e.apply(key(0, 70.0, 2)).unwrap();
+    assert!(e.project.camera.keys.is_empty(), "the main camera is untouched");
+    e.apply(Command::SetCameraCut { frame: 10, camera: 1 }).unwrap();
+    e.apply(Command::SetCameraCut { frame: 20, camera: 2 }).unwrap();
+    e.apply(Command::SetCameraCut { frame: 30, camera: 0 }).unwrap();
+    assert_eq!([5, 10, 25, 35].map(|f| e.project.camera_index_at(f)), [0, 1, 2, 0]);
+    let depth = e.undo_len();
+    e.apply(Command::RemoveCamera { camera: 1 }).unwrap();
+    assert_eq!(e.undo_len(), depth + 1);
+    assert_eq!(e.project.cameras.len(), 1);
+    assert_eq!(e.project.camera_cuts.iter().map(|c| (c.frame, c.camera)).collect::<Vec<_>>(), [(20, 1), (30, 0)], "its cut went, Wide moved down");
+    assert_eq!(e.project.camera_at(25).keys[0].x, 70.0);
+    e.undo().unwrap();
+    assert_eq!(e.project.camera_index_at(12), 1, "undo brings the camera and its cut back");
+    let before = e.project.clone();
+    let depth = e.undo_len();
+    for bad in [
+        key(0, 1.0, 9),
+        key(40, 1.0, 1),
+        Command::RemoveCamera { camera: 0 },
+        Command::RemoveCamera { camera: 5 },
+        Command::RenameCamera { camera: 0, name: "x".into() },
+        Command::SetCameraCut { frame: 3, camera: 3 },
+        Command::SetCameraCut { frame: 99, camera: 0 },
+        Command::AddCamera { name: "x".into(), from: Some(8) },
+        Command::RemoveCameraShake { index: 0, camera: 1 },
+        Command::SetCamera { enabled: false, camera: 4 },
+    ] {
+        assert!(e.apply(bad).is_err());
+    }
+    e.apply(Command::RemoveCameraCut { frame: 4 }).unwrap();
+    e.apply(Command::RemoveCameraKey { frame: 7, camera: 2 }).unwrap();
+    assert_eq!(e.project, before, "refusals and no-ops change nothing");
+    assert_eq!(e.undo_len(), depth, "and push no undo step");
+    for _ in 0..tooncraft_doc::camera::MAX_CAMERAS - 2 {
+        e.apply(Command::AddCamera { name: "More".into(), from: None }).unwrap();
+    }
+    assert!(e.apply(Command::AddCamera { name: "One too many".into(), from: None }).is_err());
+}

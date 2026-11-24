@@ -33,6 +33,7 @@ hand a script can do.
 | `shape` | `layer`, `frame`, `brush`, `shape` (line / rectangle / ellipse), `from`, `to`, `constrain` |
 | `fill_all_frames` | as `fill`, without `frame` |
 | `set_camera_key`, `remove_camera_key`, `set_camera` | `frame`, `x`, `y`, `zoom`, `angle` (degrees); `enabled` |
+| `add_camera`, `rename_camera`, `remove_camera`, `set_camera_cut`, `remove_camera_cut` | `add_camera`: `name`, optional `from` (a camera to copy); `rename_camera`: `camera`, `name`; `remove_camera`: `camera` (not 0; its cuts go, later cameras move down one); `set_camera_cut`: `frame`, `camera` (from that frame on, film through it); `remove_camera_cut`: `frame`. `set_camera_key`, `remove_camera_key`, `set_camera`, `add_camera_shake` and `remove_camera_shake` take an optional `camera` (0, the main camera, by default). At most 32 cameras besides the main one and 2000 cuts |
 | `import_boards` | `path` (a `.boardcraft` file), `frame` (start, default 0), `camera` (default true) |
 | `resize_canvas` | `width`, `height`, `anchor` ([x, y] in 0…1, default centre); drawings move, never resample |
 | `crop_canvas` | `x`, `y`, `width`, `height` |

@@ -20,6 +20,10 @@ fn sample() -> Project {
     p.tips.insert(7, std::sync::Arc::new(tooncraft_brush::Tip::new("leaf", 2, 2, vec![0, 255, 128, 64]).unwrap()));
     p.camera.enabled = true;
     p.camera.set(tooncraft_doc::CameraKey { frame: 2, x: 100.0, y: 80.0, zoom: 1.5, angle: 10.0 });
+    let mut close = tooncraft_doc::Camera { enabled: true, ..Default::default() };
+    close.set(tooncraft_doc::CameraKey { frame: 0, x: 120.0, y: 90.0, zoom: 3.0, angle: 0.0 });
+    p.cameras.push(tooncraft_doc::ShotCamera { name: "Close".into(), camera: close });
+    p.camera_cuts.push(tooncraft_doc::CameraCut { frame: 3, camera: 1 });
     p
 }
 

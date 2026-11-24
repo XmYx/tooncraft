@@ -286,7 +286,8 @@ pub fn shakes(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.separator();
     ui.label(tl!("Shakes"));
     let frame = app.frame;
-    let list = app.engine.project.camera.shakes.clone();
+    let camera = crate::camera_path::edited_index(app);
+    let list = crate::camera_path::edited(app).shakes.clone();
     let mut remove = None;
     for (i, s) in list.iter().enumerate() {
         ui.horizontal(|ui| {
@@ -297,12 +298,12 @@ pub fn shakes(app: &mut ToonApp, ui: &mut egui::Ui) {
         });
     }
     if let Some(index) = remove {
-        app.run(Command::RemoveCameraShake { index });
+        app.run(Command::RemoveCameraShake { index, camera });
     }
     if ui.button(tl!("Add Shake Here")).on_hover_text(tl!("Shake the camera for 12 frames from the current frame")).clicked() {
         let last = app.engine.project.length().saturating_sub(1);
         let shake = Shake { from: frame, to: (frame + 11).min(last), amplitude: 12.0, rotation: 1.0, frequency: 0.4, fade: 3, seed: frame };
-        app.run(Command::AddCameraShake { shake });
+        app.run(Command::AddCameraShake { shake, camera });
     }
 }
 

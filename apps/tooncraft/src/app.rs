@@ -311,6 +311,8 @@ pub struct ToonApp {
     pub show_camera: bool,
     /// A camera key being dragged on the canvas (see `camera_path`).
     pub camera_drag: Option<crate::camera_path::CameraDrag>,
+    /// The camera the Camera panel and the camera path edit (0: the main camera).
+    pub camera_edit: usize,
     pub peg_ui: crate::pegs::PegUi,
     pub transform_ui: crate::peg_transform::TransformUi,
     /// Record motion: armed, and the take in progress.
@@ -467,6 +469,7 @@ impl ToonApp {
             keys: crate::keys::Keys::new(!cfg!(test) && cli.screenshot.is_none()),
             show_camera: true,
             camera_drag: None,
+            camera_edit: 0,
             peg_ui: Default::default(),
             transform_ui: Default::default(),
             recorder: Default::default(),
@@ -556,6 +559,19 @@ impl ToonApp {
             app.tool = Tool::Transform;
             crate::motion_record::set_armed(&mut app, true);
         }
+        if cli.cameras {
+            let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+            let half = app.engine.project.length() / 2;
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.5, y: h * 0.5, zoom: 1.0, angle: 0.0, camera: 0 });
+            app.run(Command::AddCamera { name: tl!("Close").to_owned(), from: None });
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.3, y: h * 0.6, zoom: 2.2, angle: 0.0, camera: 1 });
+            app.run(Command::SetCameraCut { frame: half, camera: 1 });
+            app.camera_edit = 1;
+            if cli.frame.is_none() {
+                app.frame = half;
+            }
+            app.workspace.raise(Pane::Camera);
+        }
         if cli.light_table {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
@@ -568,9 +584,9 @@ impl ToonApp {
         if cli.camera_path {
             let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
             let last = app.engine.project.length().saturating_sub(1);
-            app.run(Command::SetCameraKey { frame: 0, x: w * 0.35, y: h * 0.45, zoom: 1.6, angle: 0.0 });
-            app.run(Command::SetCameraKey { frame: last / 2, x: w * 0.5, y: h * 0.35, zoom: 1.4, angle: 0.0 });
-            app.run(Command::SetCameraKey { frame: last, x: w * 0.65, y: h * 0.55, zoom: 1.2, angle: -6.0 });
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.35, y: h * 0.45, zoom: 1.6, angle: 0.0, camera: 0 });
+            app.run(Command::SetCameraKey { frame: last / 2, x: w * 0.5, y: h * 0.35, zoom: 1.4, angle: 0.0, camera: 0 });
+            app.run(Command::SetCameraKey { frame: last, x: w * 0.65, y: h * 0.55, zoom: 1.2, angle: -6.0, camera: 0 });
             app.tool = Tool::Transform;
         }
         if cli.rulers {

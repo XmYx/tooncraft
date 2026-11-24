@@ -947,8 +947,22 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     // camera frame
     // while a camera key is dragged, the frame follows it
     let preview = crate::camera_path::previewed(app);
-    let cam = preview.as_ref().unwrap_or(&app.engine.project.camera);
-    if app.show_camera && (!cam.keys.is_empty() || !cam.shakes.is_empty()) {
+    let filming = app.engine.project.camera_index_at(app.frame);
+    let edited = crate::camera_path::edited_index(app);
+    // the camera filming this frame; the edited one too, dimmed, when it is another
+    let mut frames = vec![filming];
+    if edited != filming {
+        frames.push(edited);
+    }
+    for index in frames {
+        let Some(own) = app.engine.project.camera_by_index(index) else { continue };
+        let cam = match (&preview, app.camera_drag) {
+            (Some(p), Some(d)) if d.camera == index => p,
+            _ => own,
+        };
+        if !app.show_camera || (cam.keys.is_empty() && cam.shakes.is_empty()) {
+            continue;
+        }
         let (w, h) = (app.engine.project.width(), app.engine.project.height());
         let map = cam.output_to_canvas(app.frame, w, h);
         let pts: Vec<Pos2> = [(0.0, 0.0), (w as f32, 0.0), (w as f32, h as f32), (0.0, h as f32)]
@@ -958,10 +972,15 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
                 c.screen(cx, cy)
             })
             .collect();
-        let col = if cam.enabled { pal.accent } else { pal.weak };
-        painter.add(Shape::closed_line(pts.clone(), Stroke::new(2.0, col)));
+        let col = if !cam.enabled || index != filming { pal.weak } else { pal.accent };
+        painter.add(Shape::closed_line(pts.clone(), Stroke::new(if index == filming { 2.0 } else { 1.0 }, col)));
         if let Some(p0) = pts.first() {
-            painter.text(*p0 + vec2(4.0, 3.0), egui::Align2::LEFT_TOP, tl!("Camera"), egui::FontId::proportional(12.0), col);
+            let name = if app.engine.project.camera_count() > 1 {
+                app.engine.project.camera_name(index, tl!("Main camera")).to_owned()
+            } else {
+                tl!("Camera").to_owned()
+            };
+            painter.text(*p0 + vec2(4.0, 3.0), egui::Align2::LEFT_TOP, name, egui::FontId::proportional(12.0), col);
         }
     }
     crate::camera_path::draw(app, &painter, &|x, y| c.screen(x, y), pal.accent);

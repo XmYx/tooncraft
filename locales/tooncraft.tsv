@@ -26,6 +26,7 @@ tooncraft	75 %
 tooncraft	8 frames	
 tooncraft	A copy of the clip starting at the current frame	
 tooncraft	A layer below for colour that follows this layer's drawings and timing	
+tooncraft	A new camera, starting as a copy of the one being edited	
 tooncraft	A new layer	
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
 tooncraft	A palette holds up to {n} commands	
@@ -41,6 +42,7 @@ tooncraft	Actual size
 tooncraft	Add	
 tooncraft	Add All to Palette	
 tooncraft	Add Area	
+tooncraft	Add Camera	
 tooncraft	Add Colour Layer	
 tooncraft	Add Concentric Ruler	
 tooncraft	Add Current Brush	
@@ -157,6 +159,8 @@ tooncraft	Calibration pad
 tooncraft	Camera	
 tooncraft	Camera key at frame {frame} moved	
 tooncraft	Camera move cancelled	
+tooncraft	Camera name	
+tooncraft	Camera {n}	
 tooncraft	Cancel	
 tooncraft	Cancel Distort	
 tooncraft	Cannot read this video: {reason}	
@@ -262,8 +266,10 @@ tooncraft	Curves
 tooncraft	Custom curve	
 tooncraft	Cut	
 tooncraft	Cut Frames	
+tooncraft	Cut Here	
 tooncraft	Cut Pixels	
 tooncraft	Cut the clip in two at the current frame	
+tooncraft	Cut to “{name}” at frame {n}	
 tooncraft	Dabs per step	
 tooncraft	Dark colour	
 tooncraft	Darken	
@@ -358,6 +364,7 @@ tooncraft	Edit Swatch…
 tooncraft	Edit palette	
 tooncraft	Edit swatch	
 tooncraft	Edit the curve of {source}	
+tooncraft	Editing	
 tooncraft	Effect stack	
 tooncraft	Effects	
 tooncraft	Effects on {layer}, frame {frame}	
@@ -467,6 +474,7 @@ tooncraft	Frame {n} added to the flip set ({count} frames)
 tooncraft	Frame {n} has no drawing	
 tooncraft	Frame {n} taken out of the flip set	
 tooncraft	Frame {n}, {tc}: {text}	
+tooncraft	Frame {n}: {name}	
 tooncraft	Frame {n}: {text}	
 tooncraft	Frames	
 tooncraft	Frames down the page, layers as columns	
@@ -476,6 +484,7 @@ tooncraft	Frames per second of the shot
 tooncraft	Frames {a}–{b}, {px} px	
 tooncraft	From	
 tooncraft	From frame {frame}, scaled to fit the canvas	
+tooncraft	From this frame on, film through “{name}”	
 tooncraft	Full HD, 24 fps	
 tooncraft	Full HD, 25 fps	
 tooncraft	Full HD, 30 fps	
@@ -599,6 +608,7 @@ tooncraft	Into
 tooncraft	Invert	
 tooncraft	Invert Layer Mask	
 tooncraft	Invert selection	
+tooncraft	Its cuts go with it	
 tooncraft	Its first {n} commands, on the radial menu's key	
 tooncraft	JPEG Sequence	
 tooncraft	JPEG Sequence…	
@@ -708,6 +718,7 @@ tooncraft	Loop playback
 tooncraft	Luminosity	
 tooncraft	Magic Wand	
 tooncraft	Magic wand	
+tooncraft	Main camera	
 tooncraft	Make a new peg and hang the current layer from it	
 tooncraft	Map layer	
 tooncraft	Mark As	
@@ -801,6 +812,7 @@ tooncraft	Next panel
 tooncraft	No Colour	
 tooncraft	No Mark	
 tooncraft	No command matches	
+tooncraft	No cuts: the main camera films the whole shot	
 tooncraft	No drawing files yet: save an item here to use it in other shots.	
 tooncraft	No drawing here to swap	
 tooncraft	No drawing on this frame	
@@ -1076,6 +1088,8 @@ tooncraft	Reload Library
 tooncraft	Remove	
 tooncraft	Remove All Rulers	
 tooncraft	Remove Area	
+tooncraft	Remove Camera	
+tooncraft	Remove Cut	
 tooncraft	Remove Key	
 tooncraft	Remove Layer Mask	
 tooncraft	Remove Marker	

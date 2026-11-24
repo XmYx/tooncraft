@@ -354,7 +354,7 @@ Weight: 4
 | Camera frame on the canvas, crop to it | all | D | S | |
 | Camera path editing on the canvas | TB PD | D | S | The camera centre's path over the shot with a square per key; with the Transform tool a key's square drags to move it and the current frame's cross drags to key the camera there (one undo step, Escape cancels; the camera frame follows); typed values in the Camera panel (`--camera-path`) |
 | Depth of field by layer depth | TB | M | M | |
-| Several cameras and camera cuts in a shot | TB | M | M | |
+| Several cameras and camera cuts in a shot | TB | D | M | Camera panel: add, rename and remove cameras (each with its own keys and shakes), pick the one to edit, Cut Here films the shot through it from the current frame; exports and Crop to Camera follow the cuts; cuts show on the timeline ruler; `add_camera`, `set_camera_cut`, a `camera` field on the camera commands |
 | Free 3D camera over a layered scene | TB | M | L | Depth trucks only |
 
 ## Effects and compositing

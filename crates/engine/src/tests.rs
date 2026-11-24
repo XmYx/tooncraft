@@ -318,7 +318,7 @@ proptest::proptest! {
                 16 => Command::SetLayerPeg { layer, peg: Some(tooncraft_doc::PegId(b as u64)) },
                 17 => Command::SetPegParent { peg: tooncraft_doc::PegId(a as u64), parent: Some(tooncraft_doc::PegId(b as u64)) },
                 18 => Command::DeletePeg { peg: tooncraft_doc::PegId(a as u64) },
-                19 => Command::AddCameraShake { shake: tooncraft_doc::Shake { from: a, to: b, amplitude: 5.0, rotation: 1.0, frequency: 0.3, fade: 1, seed: a } },
+                19 => Command::AddCameraShake { shake: tooncraft_doc::Shake { from: a, to: b, amplitude: 5.0, rotation: 1.0, frequency: 0.3, fade: 1, seed: a }, camera: 0 },
                 _ => Command::PurgeUnused,
             };
             let _ = e.apply(cmd);
@@ -507,12 +507,12 @@ fn camera_keys_undo_and_exports_use_them() {
     let mut e = engine();
     e.apply(Command::Stroke { layer: 0, frame: 0, brush: Brush { size: 30.0, ..ink() }, samples: circle(40.0, 40.0, 10.0) }).unwrap();
     let plain = tooncraft_doc::render_camera(&e.project, 0, RenderOptions::default());
-    e.apply(Command::SetCameraKey { frame: 0, x: 40.0, y: 40.0, zoom: 4.0, angle: 0.0 }).unwrap();
+    e.apply(Command::SetCameraKey { frame: 0, x: 40.0, y: 40.0, zoom: 4.0, angle: 0.0, camera: 0 }).unwrap();
     assert!(e.project.camera.enabled);
     let cam = tooncraft_doc::render_camera(&e.project, 0, RenderOptions::default());
     assert_ne!(plain, cam);
     assert!(cam.pixel(160, 120 - 40)[3] == 255 && cam.pixel(160, 120 - 40)[0] < 100, "the ring fills the view");
-    e.apply(Command::RemoveCameraKey { frame: 0 }).unwrap();
+    e.apply(Command::RemoveCameraKey { frame: 0, camera: 0 }).unwrap();
     assert!(e.project.camera.keys.is_empty());
     e.undo().unwrap();
     e.undo().unwrap();
@@ -703,8 +703,11 @@ fn pegs_move_layers_undo_save_and_fill_in_local_space() {
     assert!(e.apply(Command::SetPegParent { peg: body, parent: Some(PegId(2)) }).is_err(), "no loops");
     assert!(e.apply(Command::SetLayerPeg { layer: 0, peg: Some(PegId(9)) }).is_err());
     e.apply(Command::SetLayerDepth { layer: 0, depth: 2.0 }).unwrap();
-    e.apply(Command::AddCameraShake { shake: tooncraft_doc::Shake { from: 0, to: 5, amplitude: 4.0, rotation: 0.0, frequency: 0.4, fade: 0, seed: 3 } })
-        .unwrap();
+    e.apply(Command::AddCameraShake {
+        shake: tooncraft_doc::Shake { from: 0, to: 5, amplitude: 4.0, rotation: 0.0, frequency: 0.4, fade: 0, seed: 3 },
+        camera: 0,
+    })
+    .unwrap();
     let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
     assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap(), e.project);
     let json = serde_json::to_string(&key(1, 5.0)).unwrap();
@@ -787,7 +790,7 @@ fn canvas_resize_and_crop_move_drawings_without_resampling() {
     let mut e = engine();
     e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: circle(60.0, 60.0, 20.0) }).unwrap();
     e.apply(Command::AddPeg { name: "P".into(), parent: None }).unwrap();
-    e.apply(Command::SetCameraKey { frame: 0, x: 160.0, y: 120.0, zoom: 1.0, angle: 0.0 }).unwrap();
+    e.apply(Command::SetCameraKey { frame: 0, x: 160.0, y: 120.0, zoom: 1.0, angle: 0.0, camera: 0 }).unwrap();
     let before = e.project.clone();
     let at = |e: &Engine, x, y| e.pick_color(0, x, y);
     let ring = at(&e, 40, 60);
