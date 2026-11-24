@@ -886,7 +886,7 @@ impl ToonApp {
             resample,
             feather: self.sel.feather,
         };
-        if self.run(cmd) {
+        if crate::selection_tools::run_transform(self, cmd, None) {
             let t = tooncraft_engine::select::affine(&poly, dx, dy, scale.0, scale.1, angle);
             crate::selection_tools::map_rings(self, |p| t.apply(p.0, p.1));
         }

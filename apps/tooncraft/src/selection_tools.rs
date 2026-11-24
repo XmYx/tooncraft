@@ -40,6 +40,8 @@ pub struct State {
     /// Soft edge of the selection, pixels (0: hard): moving, erasing, copying and filling blend
     /// over this distance.
     pub feather: f32,
+    /// Move, scale, turn, flip and skew every drawing in the timeline's selected cells at once.
+    pub all_cells: bool,
 }
 
 impl State {
@@ -297,7 +299,7 @@ pub fn apply_skew(app: &mut ToonApp) {
         resample,
         feather: app.sel.feather,
     };
-    if app.run(cmd) {
+    if run_transform(app, cmd, None) {
         let t = tooncraft_raster::select::Affine::about_skewed(tooncraft_engine::select::pivot(&main), 0.0, 0.0, 1.0, 1.0, 0.0, (kx, ky));
         map_rings(app, |p| t.apply(p.0, p.1));
     }
@@ -383,6 +385,8 @@ pub fn options(app: &mut ToonApp, ui: &mut egui::Ui) {
         let n = app.sel.grow_by;
         grow(app, -n);
     }
+    let multi = ui.add_enabled(app.has_range(), egui::Checkbox::new(&mut app.sel.all_cells, tl!("All selected cells")));
+    multi.on_hover_text(tl!("Move, scale, turn, flip and skew every drawing in the timeline's selected cells together"));
     let l = ui.label(tl!("Feather"));
     ui.add(egui::DragValue::new(&mut app.sel.feather).range(0.0..=select::MAX_FEATHER).max_decimals(1).suffix(tl!(" px")))
         .labelled_by(l.id)
@@ -415,4 +419,51 @@ pub fn options(app: &mut ToonApp, ui: &mut egui::Ui) {
     } else if ui.add_enabled(has, egui::Button::new(tl!("Distort"))).on_hover_text(tl!("Drag the four corners freely (perspective), then Apply")).clicked() {
         start_distort(app);
     }
+}
+
+/// Run a selection transform: on the current drawing, or with "All selected cells" on and a
+/// block of cells selected, on every drawing in it (each drawing once, however long it is held;
+/// locked layers left out) as one undo step.
+pub fn run_transform(app: &mut ToonApp, cmd: Command, label: Option<&str>) -> bool {
+    let multi = app.sel.all_cells && app.has_range() && matches!(cmd, Command::TransformSelection { .. });
+    if !multi {
+        return match label {
+            Some(l) => app.run(Command::Batch { label: l.to_string(), commands: vec![cmd] }),
+            None => app.run(cmd),
+        };
+    }
+    let (l0, l1, f0, f1) = app.selection();
+    let mut seen = std::collections::HashSet::new();
+    let mut commands = Vec::new();
+    for l in l0..=l1 {
+        if app.engine.project.layers.get(l).is_none_or(|layer| layer.locked) {
+            continue;
+        }
+        for f in f0..=f1 {
+            if let Some(id) = app.engine.project.drawing_at(l, f)
+                && seen.insert(id)
+            {
+                let mut c = cmd.clone();
+                if let Command::TransformSelection { layer, frame, .. } = &mut c {
+                    *layer = l;
+                    *frame = f;
+                }
+                commands.push(c);
+            }
+        }
+    }
+    if commands.is_empty() {
+        app.set_status(tl!("No drawings in the selected cells to transform"));
+        return false;
+    }
+    if commands.len() > tooncraft_engine::MAX_BATCH {
+        app.set_status(tlf!("Select at most {n} drawings to transform at once", n = tooncraft_engine::MAX_BATCH));
+        return false;
+    }
+    let n = commands.len();
+    let ok = app.run(Command::Batch { label: label.map(str::to_string).unwrap_or_else(|| tl!("Transform drawings").to_string()), commands });
+    if ok {
+        app.set_status(tlf!("Transformed {n} drawings", n = n));
+    }
+    ok
 }

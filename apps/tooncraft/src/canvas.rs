@@ -591,7 +591,7 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
                 resample,
                 feather: app.sel.feather,
             };
-            x.applied = app.run(cmd);
+            x.applied = crate::selection_tools::run_transform(app, cmd, None);
             x.now = (dx, dy, sc, ang);
             let t = tooncraft_engine::select::affine(&x.base, dx, dy, sc, sc, ang);
             let mut rings = vec![x.base.iter().map(|p| t.apply(p.0, p.1)).collect::<Vec<_>>()];
