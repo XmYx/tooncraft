@@ -33,6 +33,8 @@ pub enum Tool {
     Gradient,
     /// Copy pixels from a point set with Alt+click.
     Clone,
+    /// Reshape vector lines: move points, change widths.
+    Contour,
     /// Push, twirl, pinch or bloat pixels.
     Liquify,
     Hand,
@@ -76,7 +78,7 @@ pub enum XformKind {
 }
 
 impl Tool {
-    pub const ALL: [Tool; 19] = [
+    pub const ALL: [Tool; 20] = [
         Tool::Pencil,
         Tool::Ink,
         Tool::Airbrush,
@@ -90,6 +92,7 @@ impl Tool {
         Tool::Shape,
         Tool::Gradient,
         Tool::Clone,
+        Tool::Contour,
         Tool::Liquify,
         Tool::Hand,
         Tool::Transform,
@@ -126,6 +129,7 @@ impl Tool {
             Tool::Shape => tl!("Shapes"),
             Tool::Gradient => tl!("Gradient"),
             Tool::Clone => tl!("Clone stamp"),
+            Tool::Contour => tl!("Contour"),
             Tool::Liquify => tl!("Liquify"),
             Tool::Hand => tl!("Hand"),
             Tool::Transform => tl!("Transform layer"),
@@ -152,6 +156,7 @@ impl Tool {
             Tool::Shape => "shape",
             Tool::Gradient => "gradient",
             Tool::Clone => "clone",
+            Tool::Contour => "contour",
             Tool::Liquify => "liquify",
             Tool::Hand => "hand",
             Tool::Transform => "transform",

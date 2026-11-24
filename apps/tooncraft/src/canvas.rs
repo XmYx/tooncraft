@@ -319,6 +319,12 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
             crate::draw_aids::gradient_input(app, at, resp);
         }
+        Tool::Contour => {
+            let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            let hover = resp.hover_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            let reach = 10.0 / app.view.zoom.max(0.01);
+            crate::contour_tool::input(app, at, hover, resp, mods.shift, reach);
+        }
         Tool::Liquify => {
             let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
             let hover = resp.hover_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
@@ -963,6 +969,9 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     crate::quick_mask::overlay(&painter, app, &|x, y| c.screen(x, y));
     draw_selection(&painter, app, &c, pal);
     crate::draw_aids::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    if app.tool == Tool::Contour {
+        crate::contour_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    }
     if app.tool == Tool::Liquify {
         crate::liquify_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
     }
