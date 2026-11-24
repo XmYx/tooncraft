@@ -159,9 +159,15 @@ fn dragging_the_pivot_moves_it_under_the_pointer() {
 #[test]
 fn a_layer_without_a_peg_gets_one_from_the_tool_options() {
     let mut h = harness(false);
+    let depth = h.state().engine.undo_len();
     h.get_by_label("Add a Peg for This Layer").click();
     h.run();
     h.run();
     assert_eq!(h.state().engine.project.layers[0].peg, Some(PegId(1)));
+    assert_eq!(h.state().engine.undo_len(), depth + 1, "one undo step");
+    h.state_mut().engine.undo().unwrap();
+    assert!(h.state().engine.project.pegs.is_empty() && h.state().engine.project.layers[0].peg.is_none());
+    h.state_mut().engine.redo().unwrap();
+    h.run();
     h.get(By::new().role(egui::Role::SpinButton).label("Rotation"));
 }
