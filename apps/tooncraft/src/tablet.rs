@@ -1,4 +1,4 @@
-//! Pen tablets: pressure, tilt and the eraser end, read beside winit (which drops them on Linux
+//! Pen tablets: pressure, tilt, barrel rotation and the eraser end, read beside winit (which drops them on Linux
 //! and macOS) through PhotoCraft's `photocraft-tablet` crate: XInput2 raw events on X11
 //! (including Xwayland), an AppKit event monitor on macOS. On Windows, winit reports pen force
 //! as touch force, which the canvas reads directly. Wayland-native windows get no pen data yet.
@@ -13,6 +13,8 @@ pub struct Pen {
     /// Tilt towards +x / +y, -1 … 1.
     pub tilt_x: f32,
     pub tilt_y: f32,
+    /// Barrel rotation in turns, 0 … 1 clockwise (pens with a rotating barrel; 0 otherwise).
+    pub rotation: f32,
     /// The eraser end is down.
     pub eraser: bool,
 }
@@ -37,7 +39,7 @@ impl Tablet {
             let callback = move |s: Option<photocraft_tablet::Sample>| {
                 let pen = s.map(|s| {
                     let s = s.sanitized();
-                    Pen { pressure: s.pressure, tilt_x: s.tilt_x / 90.0, tilt_y: s.tilt_y / 90.0, eraser: s.eraser }
+                    Pen { pressure: s.pressure, tilt_x: s.tilt_x / 90.0, tilt_y: s.tilt_y / 90.0, rotation: s.rotation / 360.0, eraser: s.eraser }
                 });
                 match latest.lock() {
                     Ok(mut g) => *g = pen,
