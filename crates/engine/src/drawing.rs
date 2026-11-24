@@ -56,12 +56,12 @@ fn samples_along(line: &[(f32, f32)], pressure: f32) -> Vec<Sample> {
         let n = ((w[1].0 - w[0].0).hypot(w[1].1 - w[0].1) / 2.0).ceil().clamp(1.0, 20_000.0) as usize;
         for k in 0..n {
             let t = k as f32 / n as f32;
-            out.push(Sample { x: w[0].0 + (w[1].0 - w[0].0) * t, y: w[0].1 + (w[1].1 - w[0].1) * t, pressure, tilt_x: 0.0, tilt_y: 0.0, time });
+            out.push(Sample { x: w[0].0 + (w[1].0 - w[0].0) * t, y: w[0].1 + (w[1].1 - w[0].1) * t, pressure, tilt_x: 0.0, tilt_y: 0.0, time, rotation: 0.0 });
             time += 0.002;
         }
     }
     if let Some(l) = line.last() {
-        out.push(Sample { x: l.0, y: l.1, pressure, tilt_x: 0.0, tilt_y: 0.0, time });
+        out.push(Sample { x: l.0, y: l.1, pressure, tilt_x: 0.0, tilt_y: 0.0, time, rotation: 0.0 });
     }
     out
 }

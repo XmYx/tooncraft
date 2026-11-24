@@ -31,8 +31,8 @@ impl Stabilizer {
                 let (dx, dy) = (raw.x - a.x, raw.y - a.y);
                 let d = (dx * dx + dy * dy).sqrt();
                 if d <= self.s.string {
-                    // The brush stays put, but pressure and tilt follow the pen.
-                    self.anchor = Some(Sample { pressure: raw.pressure, tilt_x: raw.tilt_x, tilt_y: raw.tilt_y, time: raw.time, ..a });
+                    // The brush stays put, but pressure, tilt and barrel rotation follow the pen.
+                    self.anchor = Some(Sample { pressure: raw.pressure, tilt_x: raw.tilt_x, tilt_y: raw.tilt_y, rotation: raw.rotation, time: raw.time, ..a });
                     return None;
                 }
                 let k = (d - self.s.string) / d;
