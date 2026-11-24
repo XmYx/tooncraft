@@ -9,6 +9,9 @@
 #![forbid(unsafe_code)]
 
 pub mod audio;
+pub mod auto_paint;
+#[cfg(test)]
+mod auto_paint_tests;
 mod boards;
 pub mod burnin;
 #[cfg(test)]

@@ -58,6 +58,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Grain texture, Grain from Image, Canvas weave, Speckle, Clouds | Descriptive | Use |
 | Wet mixing, Colour pickup, Watercolour, Smudge, Smear fade | Generic painting words | Use (common) |
 | Undo History, Step, Recent colours, Blur, Fine blur | Generic words | Use (common) |
+| Paint Like This Drawing, Next drawings | Our wording | Use |
 | Quick Mask | Generic selection term (common across painting tools) | Use (common) |
 | Contour (tool), Line width, Smooth Line, Use Current Colour, Delete Line | Generic drawing words | Use (common) |
 | All selected cells, Transform drawings | Descriptive | Use |

@@ -9,6 +9,7 @@ hand a script can do.
 |---|---|
 | `stroke` | `layer`, `frame`, `brush` (`kind`: pencil / ink / airbrush / chalk / eraser, `size`, `opacity`, `flow`, `hardness`, `spacing`, `grain`, `dynamics`, `smoothing`, `color`), `samples` (`x`, `y`, `pressure`, `tilt_x`, `tilt_y`, `time`, `rotation` in turns, optional) |
 | `fill` | `layer`, `frame`, `x`, `y`, `color`, `options` (`tolerance`, `gap`, `spread`), `reference` (`layer` / `all_layers` / `reference_layers`) |
+| `auto_paint` | `layer`, `from` (the painted drawing's frame), `frames` (the frames whose drawings to paint; each drawing once), optional `options`, `reference`: each enclosed empty area takes the colour the reference drawing has most under it; one undo step |
 | `new_drawing`, `duplicate_drawing`, `extend_hold`, `shorten_hold`, `clear_cell`, `clear_drawing` | `layer`, `frame` |
 | `insert_frame`, `delete_frame` | `frame`, optional `layer` (all layers when absent) |
 | `retime` | `layer`, `from`, `to`, `step` |
