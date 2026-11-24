@@ -397,9 +397,6 @@ fn inside(poly: &[(f32, f32)], x: f32, y: f32) -> bool {
     c
 }
 
-/// The select tool: drag outside the selection draws a new one (lasso or rectangle); drag inside
-/// moves it, a corner scales it, the knob rotates it — shown live (the transform is re-applied
-/// each frame as a single undo step) and committed on release.
 /// The zoom tool: a click zooms in about the pointer (Alt+click zooms out); a drag to the right
 /// zooms in smoothly about where it started, to the left out.
 fn view_zoom_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Response, size: egui::Vec2, out: bool) {
@@ -440,6 +437,9 @@ fn view_rotate_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::
     }
 }
 
+/// The select tool: drag outside the selection draws a new one (lasso or rectangle); drag inside
+/// moves it, a corner scales it, the knob rotates it — shown live (the transform is re-applied
+/// each frame as a single undo step) and committed on release.
 fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
     use crate::app::{SelectMode, Xform, XformKind};
     let Some(p) = resp.interact_pointer_pos() else { return };

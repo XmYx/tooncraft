@@ -2241,4 +2241,11 @@ impl eframe::App for ToonApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.draw(ui);
     }
+
+    fn on_exit(&mut self) {
+        // the active workspace keeps the panel changes made since the last switch
+        if let Err(e) = crate::workspaces::keep_current(self) {
+            log::warn!("workspace not kept: {e}");
+        }
+    }
 }

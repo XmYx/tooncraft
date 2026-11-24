@@ -241,3 +241,20 @@ fn the_colour_chips_swap_back_to_the_previous_colour() {
     h.run();
     assert_eq!(&h.state().color[..3], &[10, 20, 30]);
 }
+
+#[test]
+fn workspace_changes_made_before_quitting_are_kept() {
+    let dir = std::env::temp_dir().join(format!("tooncraft-workspace-exit-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let store = dir.join("workspace-edits.json");
+    let mut h = harness();
+    h.state_mut().workspaces = crate::workspaces::Workspaces::with_store(Some(store.clone()));
+    // Draw is changed and never switched away from
+    assert!(h.state_mut().workspace.close(Pane::Onion));
+    h.run();
+    let layout = h.state().workspace.layout.clone();
+    crate::workspaces::keep_current(h.state_mut()).expect("kept");
+    let next = crate::workspaces::Workspaces::with_store(Some(store));
+    assert_eq!(next.edit(Kind::Draw).map(|e| &e.layout), Some(&layout), "the next launch has the change");
+    let _ = std::fs::remove_dir_all(&dir);
+}

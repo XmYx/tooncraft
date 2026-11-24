@@ -105,6 +105,11 @@ impl Workspaces {
     /// With `persist`, edits are read from and written to the user's config folder.
     pub fn new(persist: bool) -> Self {
         let store = if persist { crate::keys::overrides_path().and_then(|p| p.parent().map(|d| d.join("workspace-edits.json"))) } else { None };
+        Self::with_store(store)
+    }
+
+    /// Edits kept in `store` (`None`: not saved).
+    pub(crate) fn with_store(store: Option<PathBuf>) -> Self {
         let edits = store.as_ref().and_then(|p| std::fs::read(p).ok()).filter(|b| b.len() < MAX_FILE).map(|b| parse(&b)).unwrap_or_default();
         Self { active: Some(Kind::Draw), edits, save_as: String::new(), store }
     }
@@ -160,6 +165,15 @@ pub fn switch(app: &mut ToonApp, kind: Kind) {
     if let Err(e) = app.workspaces.save() {
         app.set_status(tlf!("Could not keep the workspace: {error}", error = e));
     }
+}
+
+/// Keep the active workspace as it is now and write the edits (on exit, so changes made since
+/// the last switch are not lost).
+pub fn keep_current(app: &mut ToonApp) -> Result<(), String> {
+    let preference = app.preferences.prefs.vertical_sheet;
+    let layout = app.workspace.layout.clone();
+    app.workspaces.keep(&layout, app.tl.vertical, preference);
+    app.workspaces.save()
 }
 
 /// Use a workspace's preset without touching kept edits (launch options and screenshots).
