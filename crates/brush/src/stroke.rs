@@ -324,16 +324,25 @@ impl Stroke {
         }
         let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).clamp(1, MAX_THREADS);
         let per = jobs.len().div_ceil(threads).max(1);
+        let stamp_chunk = |chunk: &mut [(u32, i64, i64, Option<Arc<Tile>>, Vec<u16>, Vec<u8>)]| {
+            for (_, tx, ty, original, cov, px) in chunk.iter_mut() {
+                ctx.stamp(dab, bounds, (*tx, *ty), px, cov, original.as_deref());
+            }
+        };
+        // a chunk whose thread the system cannot start is stamped here afterwards: running out
+        // of threads must not end the stroke (or the app)
+        let mut started = vec![false; jobs.len().div_ceil(per)];
         std::thread::scope(|scope| {
-            for chunk in jobs.chunks_mut(per) {
-                let ctx = &ctx;
-                scope.spawn(move || {
-                    for (_, tx, ty, original, cov, px) in chunk.iter_mut() {
-                        ctx.stamp(dab, bounds, (*tx, *ty), px, cov, original.as_deref());
-                    }
-                });
+            for (chunk, ok) in jobs.chunks_mut(per).zip(started.iter_mut()) {
+                let work = &stamp_chunk;
+                *ok = !no_threads() && std::thread::Builder::new().name("tooncraft-dab".into()).spawn_scoped(scope, move || work(chunk)).is_ok();
             }
         });
+        for (chunk, ok) in jobs.chunks_mut(per).zip(started) {
+            if !ok {
+                stamp_chunk(chunk);
+            }
+        }
         for (index, _, _, _, cov, px) in jobs {
             if let Some(tile) = surface.tile_mut(index) {
                 tile.bytes_mut().copy_from_slice(&px);
@@ -565,6 +574,23 @@ thread_local! {
     static SERIAL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Tests: act as if the system could start no threads.
+    static NO_THREADS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn no_threads() -> bool {
+    #[cfg(test)]
+    {
+        NO_THREADS.with(|s| s.get())
+    }
+    #[cfg(not(test))]
+    {
+        false
+    }
+}
+
 fn serial() -> bool {
     #[cfg(test)]
     {
@@ -765,6 +791,22 @@ mod tests {
             s
         };
         assert_eq!(erase(false), erase(true));
+    }
+
+    #[test]
+    fn a_big_dab_is_stamped_here_when_no_thread_can_be_started() {
+        let brush = Brush { size: 700.0, ..Brush::preset(BrushKind::Airbrush) };
+        let pts: Vec<Sample> = (0..20).map(|i| Sample::at(300.0 + i as f32 * 40.0, 450.0, 0.8, i as f64 * 0.02)).collect();
+        let run = |no_threads: bool| {
+            super::NO_THREADS.with(|s| s.set(no_threads));
+            let mut s = Surface::new(1600, 900).unwrap();
+            paint(&mut s, brush, &pts);
+            super::NO_THREADS.with(|s| s.set(false));
+            s
+        };
+        let (fallback, threaded) = (run(true), run(false));
+        assert!(!fallback.is_empty(), "the stroke still painted");
+        assert_eq!(fallback, threaded);
     }
 
     #[test]
