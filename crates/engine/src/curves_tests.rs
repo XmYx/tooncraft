@@ -71,6 +71,51 @@ fn curve_commands_read_from_json_lines() {
 }
 
 #[test]
+fn poses_are_saved_applied_renamed_and_removed_as_undo_steps() {
+    let (mut e, arm) = engine_with_keys();
+    e.apply(Command::AddPeg { name: "Hand".into(), parent: Some(arm) }).unwrap();
+    let hand = PegId(2);
+    e.apply(Command::SetPegKey { peg: hand, frame: 10, x: 0.0, y: 0.0, angle: 45.0, scale_x: 1.0, scale_y: 1.0, skew: 0.0, ease: Ease::Linear }).unwrap();
+    e.apply(Command::SavePose { peg: arm, frame: 10, name: "Reach".into() }).unwrap();
+    assert_eq!(e.undo_label(), Some("Save pose"));
+    assert_eq!(e.project.poses[0].keys.iter().map(|(id, _)| *id).collect::<Vec<_>>(), [arm, hand], "the arm and the hand below it");
+    let depth = e.undo_len();
+    e.apply(Command::ApplyPose { index: 0, frame: 30 }).unwrap();
+    assert_eq!(e.undo_len(), depth + 1, "applying is one undo step");
+    assert_eq!(e.undo_label(), Some("Apply pose"));
+    let at30 = |e: &Engine, id| e.project.peg(id).map(|p| p.at(30));
+    assert_eq!(at30(&e, arm).map(|k| (k.frame, k.x)), Some((30, 50.0)));
+    assert_eq!(at30(&e, hand).map(|k| k.angle), Some(45.0));
+    e.apply(Command::RenamePose { index: 0, name: "  Reach up ".into() }).unwrap();
+    assert_eq!(e.project.poses[0].name, "Reach up");
+    e.undo().unwrap();
+    e.undo().unwrap();
+    assert_eq!(at30(&e, hand).map(|k| k.angle), Some(45.0), "a hold: the hand keeps its last key");
+    assert!(!e.project.peg(arm).is_some_and(|p| p.has_key(30)), "undo takes the pose's keys back");
+    let before = e.project.clone();
+    let depth = e.undo_len();
+    for bad in [
+        Command::SavePose { peg: PegId(9), frame: 0, name: "x".into() },
+        Command::SavePose { peg: arm, frame: 40, name: "x".into() },
+        Command::ApplyPose { index: 3, frame: 0 },
+        Command::ApplyPose { index: 0, frame: 40 },
+        Command::RenamePose { index: 3, name: "x".into() },
+        Command::RemovePose { index: 3 },
+    ] {
+        assert!(e.apply(bad).is_err());
+    }
+    assert_eq!(e.project, before, "refusals change nothing");
+    assert_eq!(e.undo_len(), depth);
+    // a pose whose pegs are all gone is refused
+    e.apply(Command::RemovePose { index: 0 }).unwrap();
+    assert!(e.project.poses.is_empty());
+    e.project.poses.push(tooncraft_doc::pose::Pose { name: "Lost".into(), keys: vec![(PegId(77), tooncraft_doc::PegKey::rest(0))] });
+    let before = e.project.clone();
+    assert!(e.apply(Command::ApplyPose { index: 0, frame: 1 }).is_err());
+    assert_eq!(e.project, before);
+}
+
+#[test]
 fn a_recorded_take_sets_its_keys_as_one_undo_step_and_refusals_change_nothing() {
     let (mut e, peg) = engine_with_keys();
     let depth = e.undo_len();
@@ -94,4 +139,53 @@ fn a_recorded_take_sets_its_keys_as_one_undo_step_and_refusals_change_nothing() 
     e.apply(Command::SetPegKeys { peg, keys: vec![] }).unwrap();
     assert_eq!(e.project, before, "refused or empty takes change nothing");
     assert_eq!(e.undo_len(), depth, "and push no undo step");
+}
+
+#[test]
+fn cameras_and_cuts_are_undo_steps_and_removing_a_camera_renumbers_its_cuts() {
+    let mut e = Engine::new(Project::new("Cams", 100, 50, 24, 40).unwrap());
+    let key = |frame, x, camera| Command::SetCameraKey { frame, x, y: 25.0, zoom: 1.0, angle: 0.0, camera };
+    e.apply(Command::AddCamera { name: " Close ".into(), from: None }).unwrap();
+    e.apply(Command::AddCamera { name: "Wide".into(), from: Some(1) }).unwrap();
+    assert_eq!(e.undo_label(), Some("Add camera"));
+    assert_eq!(e.project.cameras.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), ["Close", "Wide"]);
+    e.apply(key(0, 30.0, 1)).unwrap();
+    e.apply(key(0, 70.0, 2)).unwrap();
+    assert!(e.project.camera.keys.is_empty(), "the main camera is untouched");
+    e.apply(Command::SetCameraCut { frame: 10, camera: 1 }).unwrap();
+    e.apply(Command::SetCameraCut { frame: 20, camera: 2 }).unwrap();
+    e.apply(Command::SetCameraCut { frame: 30, camera: 0 }).unwrap();
+    assert_eq!([5, 10, 25, 35].map(|f| e.project.camera_index_at(f)), [0, 1, 2, 0]);
+    let depth = e.undo_len();
+    e.apply(Command::RemoveCamera { camera: 1 }).unwrap();
+    assert_eq!(e.undo_len(), depth + 1);
+    assert_eq!(e.project.cameras.len(), 1);
+    assert_eq!(e.project.camera_cuts.iter().map(|c| (c.frame, c.camera)).collect::<Vec<_>>(), [(20, 1), (30, 0)], "its cut went, Wide moved down");
+    assert_eq!(e.project.camera_at(25).keys[0].x, 70.0);
+    e.undo().unwrap();
+    assert_eq!(e.project.camera_index_at(12), 1, "undo brings the camera and its cut back");
+    let before = e.project.clone();
+    let depth = e.undo_len();
+    for bad in [
+        key(0, 1.0, 9),
+        key(40, 1.0, 1),
+        Command::RemoveCamera { camera: 0 },
+        Command::RemoveCamera { camera: 5 },
+        Command::RenameCamera { camera: 0, name: "x".into() },
+        Command::SetCameraCut { frame: 3, camera: 3 },
+        Command::SetCameraCut { frame: 99, camera: 0 },
+        Command::AddCamera { name: "x".into(), from: Some(8) },
+        Command::RemoveCameraShake { index: 0, camera: 1 },
+        Command::SetCamera { enabled: false, camera: 4 },
+    ] {
+        assert!(e.apply(bad).is_err());
+    }
+    e.apply(Command::RemoveCameraCut { frame: 4 }).unwrap();
+    e.apply(Command::RemoveCameraKey { frame: 7, camera: 2 }).unwrap();
+    assert_eq!(e.project, before, "refusals and no-ops change nothing");
+    assert_eq!(e.undo_len(), depth, "and push no undo step");
+    for _ in 0..tooncraft_doc::camera::MAX_CAMERAS - 2 {
+        e.apply(Command::AddCamera { name: "More".into(), from: None }).unwrap();
+    }
+    assert!(e.apply(Command::AddCamera { name: "One too many".into(), from: None }).is_err());
 }

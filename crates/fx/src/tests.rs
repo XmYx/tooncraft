@@ -256,6 +256,44 @@ fn any_kind() -> impl Strategy<Value = EffectKind> {
             amount_y,
             brightness
         }),
+        (0u8..4, (f(), f(), f(), f()), (f(), any::<u32>(), f(), f()), (f(), f(), f()), (col(), f(), any::<u32>())).prop_map(
+            |(st, (x, y, width, height), (rate, life, speed, angle), (spread, gravity, size), (colour, opacity, seed))| EffectKind::Particles {
+                style: [ParticleStyle::Rain, ParticleStyle::Snow, ParticleStyle::Sparks, ParticleStyle::Dust][st as usize % 4],
+                x,
+                y,
+                width,
+                height,
+                rate,
+                life,
+                speed,
+                angle,
+                spread,
+                gravity,
+                size,
+                colour,
+                opacity,
+                seed
+            }
+        ),
+        (any::<u64>(), col(), f(), f(), f(), f(), any::<bool>()).prop_map(|(layer, colour, amount, offset_x, offset_y, softness, highlight)| {
+            EffectKind::MatteTone { layer, colour, amount, offset_x, offset_y, softness, highlight }
+        }),
+        (proptest::option::of(any::<u64>()), f(), f(), f(), f(), col())
+            .prop_map(|(normals, angle, elevation, depth, intensity, colour)| EffectKind::NormalLight { normals, angle, elevation, depth, intensity, colour }),
+        (f(), any::<u32>()).prop_map(|(shutter, samples)| EffectKind::MotionBlur { shutter, samples }),
+        (any::<u32>(), any::<u32>(), f()).prop_map(|(count, step, fade)| EffectKind::Trails { count, step, fade }),
+        f().prop_map(|amount| EffectKind::FrameBlend { amount }),
+        (f(), f()).prop_map(|(speed, offset)| EffectKind::TimeRemap { speed, offset }),
+        (0u8..4, 0u32..20, any::<u32>(), any::<bool>(), f(), f(), f(), f()).prop_map(|(st, start, length, out, angle, x, y, size)| EffectKind::Transition {
+            style: [TransitionStyle::Dissolve, TransitionStyle::Wipe, TransitionStyle::Iris, TransitionStyle::Push][st as usize % 4],
+            start,
+            length,
+            out,
+            angle,
+            x,
+            y,
+            size
+        }),
         (col(), col(), f()).prop_map(|(dark, light, amount)| EffectKind::GradientMap { dark, light, amount }),
         any::<u32>().prop_map(|levels| EffectKind::Posterize { levels }),
         f().prop_map(|level| EffectKind::Threshold { level }),

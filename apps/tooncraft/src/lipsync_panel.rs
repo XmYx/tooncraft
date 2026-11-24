@@ -71,6 +71,20 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         ui.end_row();
     });
     ui.data_mut(|d| d.insert_temp(egui::Id::unique("lipsync-settings"), (st.settings.silence, st.settings.min_hold)));
+    let line_id = egui::Id::unique("lipsync-dialogue-line");
+    let mut line: String = ui.data(|d| d.get_temp(line_id)).unwrap_or_default();
+    let l = ui.label(tl!("Line of dialogue"));
+    ui.add(egui::TextEdit::multiline(&mut line).desired_rows(2).desired_width(f32::INFINITY).hint_text(tl!("Type the line as it is spoken"))).labelled_by(l.id);
+    ui.data_mut(|d| d.insert_temp(line_id, line.clone()));
+    let can_say = !layer.mouth_chart.is_empty() && !tooncraft_lipsync::text::line_mouths(&line).is_empty();
+    if ui
+        .add_enabled(can_say, egui::Button::new(tl!("Mouths from the Typed Line")))
+        .on_hover_text(tl!("Spreads the line's mouths over the voiced frames of the sound, or holds each for the frames above when the shot has no sound"))
+        .clicked()
+        && app.run(Command::LipSyncText { layer: li, from: 0, text: line, settings: st.settings })
+    {
+        app.set_status(tl!("Mouths keyed from the line; edit them in the exposure sheet"));
+    }
     ui.horizontal_wrapped(|ui| {
         let ready = !layer.mouth_chart.is_empty() && !app.engine.project.sounds.is_empty();
         if ui.add_enabled(ready, egui::Button::new(tl!("Detect Mouths from Sound"))).clicked()
