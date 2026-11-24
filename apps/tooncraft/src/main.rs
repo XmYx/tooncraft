@@ -63,6 +63,7 @@ mod menus;
 mod menus_ui_tests;
 mod onion_popover;
 mod panel_chrome;
+mod panel_views;
 mod panels;
 #[cfg(test)]
 mod panels_ui_tests;
