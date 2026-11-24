@@ -1,0 +1,1 @@
+- Effects: particles (rain, snow, sparks, dust), tone from a matte, and light from normals.
