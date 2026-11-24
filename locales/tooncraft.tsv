@@ -1247,6 +1247,7 @@ tooncraft	Show this window at start
 tooncraft	Show {category} brushes	
 tooncraft	Show {layer}	
 tooncraft	Show {name} here	
+tooncraft	Show {panel}	
 tooncraft	Shows the item's own drawings: drawing on one changes every linked use	
 tooncraft	Shrink	
 tooncraft	Shrink Selection	

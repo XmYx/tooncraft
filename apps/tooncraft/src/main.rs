@@ -57,6 +57,8 @@ mod history_panel;
 mod history_ui_tests;
 mod icons;
 mod import_dialog;
+#[cfg(test)]
+mod keyboard_reach_ui_tests;
 mod keys;
 mod layer_fx;
 mod layer_ops;
