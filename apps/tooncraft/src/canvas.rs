@@ -543,6 +543,7 @@ fn select_input(app: &mut ToonApp, rect: Rect, resp: &egui::Response) {
                 skew_x: 0.0,
                 skew_y: 0.0,
                 resample,
+                feather: app.sel.feather,
             };
             x.applied = app.run(cmd);
             x.now = (dx, dy, sc, ang);
@@ -861,10 +862,15 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
     }
-    let blended = p
-        .layers
-        .iter()
-        .any(|l| (l.blend != tooncraft_doc::BlendMode::Normal || l.clip || tooncraft_fx::is_active(&l.effects) || l.matte.is_some()) && p.effective(l).0);
+    let blended = p.layers.iter().any(|l| {
+        (l.blend != tooncraft_doc::BlendMode::Normal
+            || l.clip
+            || tooncraft_fx::is_active(&l.effects)
+            || l.matte.is_some()
+            || l.mask.is_some_and(|m| m.enabled)
+            || l.adjustment)
+            && p.effective(l).0
+    });
     if blended {
         // A blend mode needs what is below it, and effects reach past their tiles: composite the
         // layers on the CPU and show that as tiles. Frames are cached per project version, and

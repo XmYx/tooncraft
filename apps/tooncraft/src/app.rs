@@ -256,6 +256,8 @@ pub struct ToonApp {
     pub scene_presets: crate::scene_presets::State,
     /// The import options, after images were picked.
     pub import_dialog: Option<crate::import_dialog::Dialog>,
+    /// File ▸ Import Video's window, while it is open.
+    pub video_dialog: Option<crate::video_dialog::Dialog>,
     /// The canvas pixel under the pointer, for the status line.
     pub pointer: Option<(i64, i64)>,
     /// Frames chosen for flipping (in order of the shot, at most [`MAX_FLIP`]).
@@ -430,6 +432,7 @@ impl ToonApp {
             export_memory: Default::default(),
             find: Default::default(),
             import_dialog: None,
+            video_dialog: None,
             scene_presets: crate::scene_presets::State::new(!cfg!(test) && cli.screenshot.is_none()),
             flip: Vec::new(),
             pointer: None,
@@ -501,6 +504,7 @@ impl ToonApp {
             Some("canvas-size") => app.canvas_ui.resize = Some((app.engine.project.width(), app.engine.project.height(), (1, 1))),
             Some("colour-picker") => app.colour.window = true,
             Some("icons") => app.show_icons = true,
+            Some("import-video") => app.video_dialog = Some(crate::video_dialog::Dialog::new(None)),
             Some("radial") => crate::tool_palettes::open_radial(&mut app, ctx),
             _ => {}
         }
@@ -769,6 +773,7 @@ impl ToonApp {
             skew_x: 0.0,
             skew_y: 0.0,
             resample,
+            feather: self.sel.feather,
         };
         if self.run(cmd) {
             let t = tooncraft_engine::select::affine(&poly, dx, dy, scale.0, scale.1, angle);
@@ -779,7 +784,7 @@ impl ToonApp {
     pub fn delete_selected_pixels(&mut self) {
         if let Some(poly) = self.selection.clone() {
             let (layer, frame, rings) = (self.layer, self.frame, crate::selection_tools::extra_rings(self));
-            self.run(Command::ClearSelection { layer, frame, polygon: poly, rings });
+            self.run(Command::ClearSelection { layer, frame, polygon: poly, rings, feather: self.sel.feather });
         }
     }
 
@@ -790,7 +795,7 @@ impl ToonApp {
     }
 
     pub fn copy_pixels(&mut self, cut: bool) {
-        let Some(mask) = crate::selection_tools::mask(self) else { return };
+        let Some(mask) = crate::selection_tools::soft_mask(self) else { return };
         let Some(s) = self.engine.project.drawing_at(self.layer, self.frame).and_then(|d| self.engine.project.drawing(d)) else { return };
         let img = tooncraft_raster::select::copy(s, &mask);
         self.pixel_clipboard = Some((img.to_straight(), img.width, img.height, (mask.x as f32, mask.y as f32)));
@@ -1315,7 +1320,11 @@ impl ToonApp {
                 crate::menus::context(ui, self, &["file.new", "file.open"]);
                 crate::start_screen::menu(self, ui);
                 ui.separator();
-                crate::menus::context(ui, self, &["file.save", "file.save_as", "file.save_version", crate::menus::SEP, "file.import_images"]);
+                crate::menus::context(
+                    ui,
+                    self,
+                    &["file.save", "file.save_as", "file.save_version", crate::menus::SEP, "file.import_images", "file.import_video"],
+                );
                 ui.menu_button(tl!("Import from Other Apps"), |ui| {
                     if ui.button(tl!("Layers from PSD or OpenRaster…")).clicked()
                         && let Some(f) = rfd::FileDialog::new().add_filter(tl!("Layered images"), &["psd", "psb", "ora"]).pick_file()
@@ -1693,6 +1702,7 @@ impl ToonApp {
         crate::command_search::window(self, ctx);
         crate::icons::reference_window(ctx, &mut self.show_icons);
         crate::import_dialog::window(self, ctx);
+        crate::video_dialog::window(self, ctx);
         crate::export_dialog::window(self, ctx);
         crate::colour_tools::picker_window(self, ctx);
         crate::preferences::window(self, ctx);

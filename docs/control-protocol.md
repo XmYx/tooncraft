@@ -18,6 +18,7 @@ hand a script can do.
 | `reverse`, `cycle` | `layer`, `from`, `to` (+ `times` for `cycle`) |
 | `import_images` | `paths`, `frame`, `hold`, `name` |
 | `import_layers`, `import_gif` | `path` (PSD / PSB / OpenRaster, or GIF), `frame` |
+| `import_video` | `path` (MP4 or QuickTime, H.264 or H.265), `frame` (default 0), `options` (`from_seconds`, `every`, `max_frames` (0 = as many as fit), `reference` (default true: bottom, locked, half opacity), `grow` (default true: lengthen the shot to fit)) |
 | `import_sheet` | `path` (an XDTS sheet; drawings are read from the folders beside it) |
 | `set_sound` | `path` (replaces every clip with this file; absent removes all sound), `offset` frames |
 | `add_sound`, `remove_sound`, `move_sound` | `path`, `offset`, `track`; `index`; `offset` and `index` (default 0) |
@@ -27,7 +28,7 @@ hand a script can do.
 | `lip_sync` | `layer`, `from`, `settings` (`silence` 0…1, `min_hold` frames) |
 | `import_mouth_sheet` | `layer`, `path`, `from` |
 | `set_audio_track` | `track`, optional `name`, `muted`, `solo`, `volume` |
-| `transform_selection` | `layer`, `frame`, `polygon`, `dx`, `dy`, `scale_x`, `scale_y`, `angle` (radians) |
+| `transform_selection` | `layer`, `frame`, `polygon`, `dx`, `dy`, `scale_x`, `scale_y`, `angle` (radians); optional `feather` (soft edge, pixels, up to 64; also on `distort_selection`, `clear_selection` and `gradient`) |
 | `clear_selection`, `paste_pixels` | `polygon`; or `x`, `y`, `width`, `height`, `rgba` |
 | `shape` | `layer`, `frame`, `brush`, `shape` (line / rectangle / ellipse), `from`, `to`, `constrain` |
 | `fill_all_frames` | as `fill`, without `frame` |
@@ -57,6 +58,10 @@ hand a script can do.
 | `enable_effect`, `remove_effect`, `move_effect` | `layer`, `index` (+ `enabled`; `from` / `to` for `move_effect`) |
 | `set_opacity_key`, `remove_opacity_key` | `layer`, `frame` (+ `opacity` 0…1) |
 | `set_layer_matte` | `layer`, `matte` (`inside` / `outside`; absent: a normal layer) |
+| `set_layer_adjustment` | `layer`, `adjustment` (its effects act on everything below it) |
+| `add_layer_mask` | `layer`, `invert` (optional): an empty painted mask; painting goes into it |
+| `set_layer_mask` | `layer`, `enabled`, `invert`, `editing` (each optional) |
+| `remove_layer_mask` | `layer` |
 | `batch` | `label`, `commands` (at most 256, no batch inside): one undo step; if one fails, the ones before it are undone |
 | `add_layer` | `name`, optional `index` |
 | `delete_layer` / `rename_layer` / `move_layer` / `set_layer` | `layer` (+ `name`, `from`/`to`, `visible`/`locked`/`opacity`) |
@@ -84,6 +89,6 @@ Example:
 `--prores <file.mov> [--alpha]`, `--prores-layers <dir>` (ProRes 4444 with alpha per layer), `--wav <file>` (the sound mix), `--mouth-sheet <file> [--layer N]` (a mouth sheet; `.dat` writes switch data), `--psd <file> [--frame N]`, `--ora <file> [--frame N]`,
 `--layers <dir>` (PNG sequence per layer) or `--levels <dir>` (XDTS sheet and drawing folders).
 `tooncraft-cli bench --effects [shot.toon] [--size WxH] [--frames N] [--threads N]` prints the effect
-costs recorded in [performance.md](performance.md). `tooncraft-cli import`, `import-layers`, `import-gif`, `import-sheet` and `set-sound` bring work in.
+costs recorded in [performance.md](performance.md). `tooncraft-cli import`, `import-layers`, `import-gif`, `import-video`, `import-sheet` and `set-sound` bring work in.
 
 An MCP server on craft-control is planned (see [roadmap.md](roadmap.md)).

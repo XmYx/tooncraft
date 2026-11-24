@@ -222,7 +222,7 @@ pub fn gradient_input(app: &mut ToonApp, at: Option<(f32, f32)>, resp: &egui::Re
         let (start, end) = two_colours(app);
         let stops = app.aids.gradient_stops.clone();
         let (layer, frame, kind, area, area_rings) = (app.layer, app.frame, app.aids.gradient, app.selection.clone(), crate::selection_tools::extra_rings(app));
-        app.run(Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, stops });
+        app.run(Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, stops, feather: app.sel.feather });
     }
 }
 

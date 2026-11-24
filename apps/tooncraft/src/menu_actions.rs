@@ -66,6 +66,7 @@ fn transform(app: &mut ToonApp, scale: (f32, f32), angle: f32, label: &str) {
         skew_x: 0.0,
         skew_y: 0.0,
         resample,
+        feather: 0.0,
     };
     if app.run(Command::Batch { label: label.into(), commands: vec![cmd] }) {
         app.set_status(label.to_string());
@@ -123,6 +124,7 @@ pub fn fill_selection(app: &mut ToonApp) {
         area: Some(area),
         area_rings,
         stops: Vec::new(),
+        feather: app.sel.feather,
     };
     app.run(Command::Batch { label: tl!("Fill selection").to_string(), commands: vec![cmd] });
 }
