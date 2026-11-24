@@ -269,7 +269,8 @@ fn source_strings() -> Result<Vec<String>, String> {
     let mut out = std::collections::BTreeSet::new();
     for f in files.iter().filter(|f| f.extension().is_some_and(|e| e == "rs")) {
         let text = std::fs::read_to_string(f).map_err(|e| e.to_string())?;
-        for marker in ["tl!(\"", "tlf!(\""] {
+        // tlm! marks a source text in a static table (the command registry) that is translated when shown
+        for marker in ["tl!(\"", "tlf!(\"", "tlm!(\""] {
             for piece in text.split(marker).skip(1) {
                 let mut s = String::new();
                 let mut esc = false;
