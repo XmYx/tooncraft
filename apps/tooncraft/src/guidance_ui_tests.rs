@@ -296,6 +296,28 @@ fn the_export_dialog_offers_each_formats_options() {
 }
 
 #[test]
+fn the_sheet_and_frames_print_to_pdf_on_the_chosen_paper() {
+    let mut h = harness();
+    crate::export_dialog::open(h.state_mut(), "frames-pdf");
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Paper"));
+    h.get(By::new().role(egui::Role::ComboBox).label("Frames per page"));
+    assert!(h.query_by_label("Include the paper").is_none(), "printing is always on paper");
+    click(&mut h, "Cancel");
+    crate::export_dialog::open(h.state_mut(), "sheet-pdf");
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Paper"));
+    assert!(h.query_by_label("Frames per page").is_none(), "the sheet has no frames per page");
+    click(&mut h, "Cancel");
+    // what the Export button writes
+    let app = h.state_mut();
+    app.print = (tooncraft_interop::sheet_pdf::Paper::Letter, 2);
+    assert!(app.sheet_pdf(tooncraft_interop::sheet_pdf::Paper::A4).unwrap().starts_with(b"%PDF-"));
+    assert!(app.frames_pdf(0, 2).unwrap().starts_with(b"%PDF-"));
+    assert!(app.frames_pdf(0, 99_999).is_err(), "past the end of the shot");
+}
+
+#[test]
 fn layouts_and_colour_chips() {
     let mut h = harness();
     click(&mut h, "Window");

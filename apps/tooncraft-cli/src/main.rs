@@ -8,6 +8,7 @@
 //! tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   apply JSON-lines commands, then save
 //! tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
 //! tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
+//! tooncraft-cli export <file.toon> (--sheet-pdf <file.pdf> | --frames-pdf <file.pdf> [--per-page 1|2|4|6|9|12] [--range A..B]) [--paper a4|letter]
 //! tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
 //! tooncraft-cli check <file.toon>                          interrupted saves, backup, load check
 //! tooncraft-cli bench [--json]                             stroke latency, fill, compositing, save
@@ -36,6 +37,7 @@ const USAGE: &str = "usage:
   tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   (text commands use the fonts given, by file name)
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
   tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--sheet-pdf <file.pdf> | --frames-pdf <file.pdf> [--per-page 1|2|4|6|9|12] [--range A..B]) [--paper a4|letter]
   tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
   tooncraft-cli check <file.toon>
   tooncraft-cli scrub <file.toon>          step through every frame; time and memory (TOONCRAFT_PAGE_BUDGET_MB)
@@ -78,6 +80,10 @@ impl Args {
                         | "webp-frame"
                         | "tga"
                         | "tiff"
+                        | "sheet-pdf"
+                        | "paper"
+                        | "frames-pdf"
+                        | "per-page"
                         | "psd-frames"
                         | "quality"
                         | "prores-layers"
@@ -183,6 +189,15 @@ fn range(a: &Args, p: &Project) -> Result<ExportOptions, String> {
         o.paper = false;
     }
     Ok(o)
+}
+
+/// `--paper a4|letter` (A4 when not given).
+fn print_paper(a: &Args) -> Result<tooncraft_interop::sheet_pdf::Paper, String> {
+    match a.flag("paper").unwrap_or("a4") {
+        "a4" | "A4" => Ok(tooncraft_interop::sheet_pdf::Paper::A4),
+        "letter" | "Letter" => Ok(tooncraft_interop::sheet_pdf::Paper::Letter),
+        other => Err(format!("unknown paper {other:?}: use a4 or letter")),
+    }
 }
 
 fn webp_options(a: &Args) -> Result<export::WebpOptions, String> {
@@ -323,6 +338,21 @@ fn run() -> Result<(), String> {
                 let bytes = tooncraft_interop::psd::export_frame(&e.project, frame).map_err(|e| e.to_string())?;
                 std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
                 println!("wrote {file}");
+            } else if let Some(file) = rest.flag("frames-pdf") {
+                let paper = print_paper(&rest)?;
+                let per_page = num(rest.flag("per-page"), 4)?;
+                let labels = tooncraft_interop::sheet_pdf::Labels::default();
+                let bytes = tooncraft_interop::sheet_pdf::frames(&e.project, paper, o.start, o.end, per_page, epaint_default_fonts::UBUNTU_LIGHT, &labels)
+                    .map_err(|e| e.to_string())?;
+                std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
+                println!("wrote {file} ({} frames, {per_page} to a page)", o.end - o.start);
+            } else if let Some(file) = rest.flag("sheet-pdf") {
+                let paper = print_paper(&rest)?;
+                let labels = tooncraft_interop::sheet_pdf::Labels::default();
+                let bytes = tooncraft_interop::sheet_pdf::export(&e.project, paper, epaint_default_fonts::UBUNTU_LIGHT, &labels).map_err(|e| e.to_string())?;
+                std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
+                let (_, _, pages) = tooncraft_interop::sheet_pdf::layout(&e.project, paper);
+                println!("wrote {file} ({pages} pages)");
             } else if let Some(dir) = rest.flag("levels") {
                 let files = tooncraft_interop::levels::export(&e.project, Path::new(dir)).map_err(|e| e.to_string())?;
                 println!("wrote an XDTS sheet and {} drawings to {dir}", files.len().saturating_sub(1));

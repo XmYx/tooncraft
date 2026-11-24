@@ -32,6 +32,7 @@ tooncraft	A short bouncing-ball shot to try things on
 tooncraft	A shot keeps at least one layer	
 tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
 tooncraft	A window of its own	
+tooncraft	A4	
 tooncraft	About ToonCraft	
 tooncraft	Across	
 tooncraft	Actual Size	
@@ -366,6 +367,8 @@ tooncraft	Exported {count} files to {folder}
 tooncraft	Exported {count} frames to {folder}	
 tooncraft	Exported {file}	
 tooncraft	Export…	
+tooncraft	Exposure Sheet to Print (PDF)	
+tooncraft	Exposure Sheet to Print (PDF)…	
 tooncraft	Exposure emptied	
 tooncraft	Exposure sheet	
 tooncraft	Exposure sheet: the sheet down the right side, layers as columns	
@@ -450,8 +453,11 @@ tooncraft	Frame {n}: {text}
 tooncraft	Frames	
 tooncraft	Frames down the page, layers as columns	
 tooncraft	Frames either side for Play Around	
+tooncraft	Frames per page	
 tooncraft	Frames per second	
 tooncraft	Frames per second of the shot	
+tooncraft	Frames to Print (PDF)	
+tooncraft	Frames to Print (PDF)…	
 tooncraft	Frames {a}–{b}, {px} px	
 tooncraft	From	
 tooncraft	Full HD, 24 fps	
@@ -774,6 +780,7 @@ tooncraft	No earlier drawing on this layer
 tooncraft	No earlier marker	
 tooncraft	No effects on this layer.	
 tooncraft	No font is available	
+tooncraft	No font to print with	
 tooncraft	No in and out range is set	
 tooncraft	No later drawing on this layer	
 tooncraft	No later marker	
@@ -795,6 +802,7 @@ tooncraft	None
 tooncraft	Normal	
 tooncraft	Not a matte	
 tooncraft	Note for frame {n}	
+tooncraft	Notes	
 tooncraft	Nothing copied yet	
 tooncraft	Nothing is selected	
 tooncraft	Nothing to redo	
@@ -1351,6 +1359,7 @@ tooncraft	Turn
 tooncraft	Type a frame number to go there	
 tooncraft	Type the text; Ctrl+Enter places it, Escape drops it	
 tooncraft	UHD, 24 fps	
+tooncraft	US Letter	
 tooncraft	Undid {action}	
 tooncraft	Undo	
 tooncraft	Undo / redo	
@@ -1427,6 +1436,7 @@ tooncraft	drawing {id}, {name}
 tooncraft	drawing {n}	
 tooncraft	first frame	
 tooncraft	fps	
+tooncraft	frames	
 tooncraft	hold	
 tooncraft	locked	
 tooncraft	name	
