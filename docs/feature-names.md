@@ -70,6 +70,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Mask shape, Drawn shape, Use the Selection as the Shape, Lens flare, Rays, Ghosts, Displace by layer, Map layer, By brightness | Generic compositing and photography terms and our wording | Use (common) |
 | Layer Mask, Add / Remove Layer Mask, Paint on Layer Mask, Use Layer Mask, Invert Layer Mask, Adjustment Layer | Generic image-editing terms | Use (common) |
 | Reference Layer, Reference layers, Look at | Generic animation and paint terms | Use (common) |
+| Motion blur from movement, Shutter, Trails, Frame blending, Time remap, Transition, Dissolve, Wipe, Iris, Push | Generic film and compositing terms | Use (common) |
 | Matte, Keep inside / Keep outside, Colour key, Result blend, Strength, Key opacity here | Generic compositing terms and our wording | Use (common) |
 | Audio track, Clip, Trim start, Fade in / out, Mute, Solo, Export Sound Mix | Generic audio-editing terms | Use (common) |
 | Lip Sync, Mouth chart, Detect Mouths from Sound, Mouth sheet | Generic animation terms and our wording | Use (common) |

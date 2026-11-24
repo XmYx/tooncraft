@@ -38,8 +38,31 @@ pub fn effect_name(k: &EffectKind) -> String {
         EffectKind::Smooth { .. } => tl!("Smooth lines"),
         EffectKind::LensFlare { .. } => tl!("Lens flare"),
         EffectKind::Displace { .. } => tl!("Displace by layer"),
+        EffectKind::MotionBlur { .. } => tl!("Motion blur from movement"),
+        EffectKind::Trails { .. } => tl!("Trails"),
+        EffectKind::FrameBlend { .. } => tl!("Frame blending"),
+        EffectKind::TimeRemap { .. } => tl!("Time remap"),
+        EffectKind::Transition { .. } => tl!("Transition"),
     }
     .to_string()
+}
+
+fn transition_name(s: tooncraft_fx::TransitionStyle) -> String {
+    use tooncraft_fx::TransitionStyle as T;
+    match s {
+        T::Dissolve => tl!("Dissolve"),
+        T::Wipe => tl!("Wipe"),
+        T::Iris => tl!("Iris"),
+        T::Push => tl!("Push"),
+    }
+    .to_string()
+}
+
+fn count(ui: &mut egui::Ui, label: &str, v: &mut u32, range: std::ops::RangeInclusive<u32>) -> bool {
+    let l = ui.label(label);
+    let r = ui.add(egui::DragValue::new(v).range(range)).labelled_by(l.id).changed();
+    ui.end_row();
+    r
 }
 
 fn mask_shape_name(s: MaskShape) -> String {
@@ -265,6 +288,46 @@ fn params(ui: &mut egui::Ui, id: usize, k: &mut EffectKind, cx: &ParamContext) -
             ch |= num(ui, tl!("Across"), amount_x, -200.0..=200.0, 0.1);
             ch |= num(ui, tl!("Down"), amount_y, -200.0..=200.0, 0.1);
             ch |= check(ui, tl!("By brightness"), brightness);
+        }
+        EffectKind::MotionBlur { shutter, samples } => {
+            ch |= num(ui, tl!("Shutter (frames)"), shutter, 0.0..=2.0, 0.01);
+            ch |= count(ui, tl!("Samples"), samples, 2..=tooncraft_fx::MAX_BLUR_SAMPLES);
+        }
+        EffectKind::Trails { count: n, step, fade } => {
+            ch |= count(ui, tl!("Copies"), n, 1..=tooncraft_fx::MAX_TRAILS);
+            ch |= count(ui, tl!("Frames apart"), step, 1..=24);
+            ch |= num(ui, tl!("Fade"), fade, 0.0..=1.0, 0.005);
+        }
+        EffectKind::FrameBlend { amount } => ch |= num(ui, tl!("Mix of the next frame"), amount, 0.0..=1.0, 0.005),
+        EffectKind::TimeRemap { speed, offset } => {
+            ch |= num(ui, tl!("Speed"), speed, -8.0..=8.0, 0.01);
+            ch |= num(ui, tl!("Start at frame"), offset, -100_000.0..=100_000.0, 0.1);
+        }
+        EffectKind::Transition { style, start, length, out, angle, x, y, size } => {
+            let l = ui.label(tl!("Style"));
+            egui::ComboBox::from_id_salt(("fx-transition", id))
+                .selected_text(transition_name(*style))
+                .show_ui(ui, |ui| {
+                    use tooncraft_fx::TransitionStyle as T;
+                    for s in [T::Dissolve, T::Wipe, T::Iris, T::Push] {
+                        ch |= ui.selectable_value(style, s, transition_name(s)).changed();
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+            ui.end_row();
+            // frames are shown 1-based
+            let mut first = start.saturating_add(1);
+            if count(ui, tl!("First frame"), &mut first, 1..=u32::MAX) {
+                *start = first.saturating_sub(1);
+                ch = true;
+            }
+            ch |= count(ui, tl!("Frames"), length, 1..=10_000);
+            ch |= check(ui, tl!("Out (the layer leaves)"), out);
+            ch |= num(ui, tl!("Angle"), angle, -3600.0..=3600.0, 0.5);
+            ch |= num(ui, tl!("Centre X"), x, -65536.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Centre Y"), y, -65536.0..=65536.0, 1.0);
+            ch |= num(ui, tl!("Distance"), size, 1.0..=65536.0, 1.0);
         }
     });
     ch
@@ -494,6 +557,10 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         selection: app.selection.clone(),
     };
     if let Some(mut k) = pick {
+        // a transition starts at the current frame
+        if let EffectKind::Transition { start, .. } = &mut k {
+            *start = app.frame;
+        }
         // a displacement starts on the nearest other layer
         if let EffectKind::Displace { layer, .. } = &mut k
             && let Some((id, _)) = cx.layers.first()

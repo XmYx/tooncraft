@@ -21,6 +21,7 @@ mod distance;
 mod look;
 mod par;
 mod shape;
+mod time;
 
 use serde::{Deserialize, Serialize};
 use tooncraft_raster::{BlendMode, RgbaImage};
@@ -49,6 +50,25 @@ pub enum MaskShape {
     /// A closed polygon drawn on the canvas (the mask's `points`).
     Drawn,
 }
+
+/// How a transition brings a layer in (or takes it out).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TransitionStyle {
+    #[default]
+    Dissolve,
+    /// An edge sweeping across at the transition's angle.
+    Wipe,
+    /// A circle opening from the centre.
+    Iris,
+    /// Sliding in along the angle.
+    Push,
+}
+
+/// Most samples of a motion blur.
+pub const MAX_BLUR_SAMPLES: u32 = 16;
+/// Most copies a trail leaves.
+pub const MAX_TRAILS: u32 = 16;
 
 /// Most points of a drawn mask shape.
 pub const MAX_MASK_POINTS: usize = 1024;
@@ -136,6 +156,22 @@ pub enum EffectKind {
     /// `amount_x` pixels, green down by up to `amount_y` (mid grey: no move), or with
     /// `brightness` its brightness moves both. Where that layer is transparent nothing moves.
     Displace { layer: u64, amount_x: f32, amount_y: f32, brightness: bool },
+    /// Blur from the layer's own movement (its peg and the camera): the drawing is drawn at
+    /// `samples` (2…16) points of a shutter open for `shutter` frames (0…2) around the frame
+    /// and averaged.
+    MotionBlur { shutter: f32, samples: u32 },
+    /// Copies of the layer's last `count` (1…16) pictures, `step` frames apart (1…24), each
+    /// `fade` (0…1) as strong as the one after it, under the layer.
+    Trails { count: u32, step: u32, fade: f32 },
+    /// Mix `amount` (0…1) of the next frame's picture into this one (smooths a change).
+    FrameBlend { amount: f32 },
+    /// Show the layer's frame `offset + speed × frame` (rounded, held at the shot's ends):
+    /// slow motion, fast motion, reversed or held. Key `speed` and `offset` to ramp.
+    TimeRemap { speed: f32, offset: f32 },
+    /// Bring the layer in (or, with `out`, take it out) over `length` frames from `start`:
+    /// dissolve, wipe or push along `angle` degrees across `size` pixels, or an iris opening
+    /// to radius `size` from `x`, `y`.
+    Transition { style: TransitionStyle, start: u32, length: u32, out: bool, angle: f32, x: f32, y: f32, size: f32 },
 }
 
 impl EffectKind {
@@ -189,6 +225,20 @@ impl EffectKind {
                 ghosts: 4,
             },
             EffectKind::Displace { layer: 0, amount_x: 8.0, amount_y: 8.0, brightness: false },
+            EffectKind::MotionBlur { shutter: 0.5, samples: 8 },
+            EffectKind::Trails { count: 4, step: 1, fade: 0.6 },
+            EffectKind::FrameBlend { amount: 0.5 },
+            EffectKind::TimeRemap { speed: 0.5, offset: 0.0 },
+            EffectKind::Transition {
+                style: TransitionStyle::Wipe,
+                start: 0,
+                length: 12,
+                out: false,
+                angle: 0.0,
+                x: w / 2.0,
+                y: h / 2.0,
+                size: w.hypot(h) / 2.0,
+            },
         ]
     }
 
@@ -222,6 +272,11 @@ impl EffectKind {
             EffectKind::Smooth { .. } => "smooth",
             EffectKind::LensFlare { .. } => "lens_flare",
             EffectKind::Displace { .. } => "displace",
+            EffectKind::MotionBlur { .. } => "motion_blur",
+            EffectKind::Trails { .. } => "trails",
+            EffectKind::FrameBlend { .. } => "frame_blend",
+            EffectKind::TimeRemap { .. } => "time_remap",
+            EffectKind::Transition { .. } => "transition",
         }
     }
 
@@ -241,6 +296,12 @@ impl EffectKind {
             EffectKind::Displace { layer, .. } => Some(*layer),
             _ => None,
         }
+    }
+
+    /// Does the compositor work this effect out from the layer at other frames or other
+    /// transforms (motion blur, trails, frame blending, time remap)? Its pixel pass does nothing.
+    pub fn is_time(&self) -> bool {
+        matches!(self, EffectKind::MotionBlur { .. } | EffectKind::Trails { .. } | EffectKind::FrameBlend { .. } | EffectKind::TimeRemap { .. })
     }
 
     /// Does this effect make pixels of its own, so it runs on a layer even where the layer has no
@@ -347,6 +408,20 @@ impl EffectKind {
             Displace { layer, amount_x, amount_y, brightness } => {
                 Displace { layer, amount_x: c(amount_x, -200.0, 200.0, 0.0), amount_y: c(amount_y, -200.0, 200.0, 0.0), brightness }
             }
+            MotionBlur { shutter, samples } => MotionBlur { shutter: c(shutter, 0.0, 2.0, 0.0), samples: samples.clamp(2, MAX_BLUR_SAMPLES) },
+            Trails { count, step, fade } => Trails { count: count.clamp(1, MAX_TRAILS), step: step.clamp(1, 24), fade: c(fade, 0.0, 1.0, 0.5) },
+            FrameBlend { amount } => FrameBlend { amount: c(amount, 0.0, 1.0, 0.0) },
+            TimeRemap { speed, offset } => TimeRemap { speed: c(speed, -8.0, 8.0, 1.0), offset: c(offset, -100_000.0, 100_000.0, 0.0) },
+            Transition { style, start, length, out, angle, x, y, size } => Transition {
+                style,
+                start,
+                length: length.clamp(1, 10_000),
+                out,
+                angle: c(angle, -3600.0, 3600.0, 0.0),
+                x: c(x, -65536.0, 65536.0, 0.0),
+                y: c(y, -65536.0, 65536.0, 0.0),
+                size: c(size, 1.0, 65536.0, 1.0),
+            },
         }
     }
 
@@ -421,6 +496,10 @@ impl EffectKind {
             (Displace { layer, amount_x: ax, amount_y: ay, brightness }, Displace { amount_x: bx, amount_y: by, .. }) => {
                 Displace { layer: *layer, amount_x: l(*ax, *bx), amount_y: l(*ay, *by), brightness: *brightness }
             }
+            (MotionBlur { shutter: a, samples }, MotionBlur { shutter: b, .. }) => MotionBlur { shutter: l(*a, *b), samples: *samples },
+            (Trails { count, step, fade: a }, Trails { fade: b, .. }) => Trails { count: *count, step: *step, fade: l(*a, *b) },
+            (FrameBlend { amount: a }, FrameBlend { amount: b }) => FrameBlend { amount: l(*a, *b) },
+            (TimeRemap { speed: a, offset: ao }, TimeRemap { speed: b, offset: bo }) => TimeRemap { speed: l(*a, *b), offset: l(*ao, *bo) },
             (ColourKey { colour: ac, tolerance: at, softness: asf }, ColourKey { colour: bc, tolerance: bt, softness: bs }) => {
                 ColourKey { colour: lc(*ac, *bc), tolerance: l(*at, *bt), softness: l(*asf, *bs) }
             }
@@ -580,6 +659,11 @@ pub fn source_layers(effects: &[Effect]) -> Vec<u64> {
     out
 }
 
+/// The enabled time effects of a stack at `frame` (see [`EffectKind::is_time`]), in order.
+pub fn time_effects(effects: &[Effect], frame: u32) -> Vec<EffectKind> {
+    effects.iter().take(MAX_EFFECTS).filter(|e| e.enabled && e.kind.is_time()).map(|e| e.at(frame).sanitized()).collect()
+}
+
 /// Does an enabled effect make pixels of its own (see [`EffectKind::generates`])?
 pub fn generates(effects: &[Effect]) -> bool {
     effects.iter().take(MAX_EFFECTS).any(|e| e.enabled && e.kind.generates())
@@ -630,6 +714,9 @@ pub fn reach(kind: &EffectKind) -> Option<u32> {
         EffectKind::Turbulence { amount, .. } => Some(r(*amount)),
         EffectKind::Smooth { radius } => Some(r(radius * 3.0)),
         EffectKind::LensFlare { .. } => None,
+        EffectKind::MotionBlur { .. } | EffectKind::Trails { .. } | EffectKind::FrameBlend { .. } | EffectKind::TimeRemap { .. } => Some(0),
+        EffectKind::Transition { style: TransitionStyle::Push, .. } => None,
+        EffectKind::Transition { .. } => Some(0),
         EffectKind::Displace { amount_x, amount_y, .. } => Some(r(amount_x.abs().max(amount_y.abs()))),
     }
 }
@@ -744,6 +831,13 @@ fn apply_at(img: &mut RgbaImage, origin: (u32, u32), kind: &EffectKind, frame: u
                 look::displace_by(img, map, *amount_x, *amount_y, *brightness)
             }
         }
+        // worked out by the compositor from other frames
+        EffectKind::MotionBlur { .. } | EffectKind::Trails { .. } | EffectKind::FrameBlend { .. } | EffectKind::TimeRemap { .. } => {}
+        EffectKind::Transition { style, start, length, out, angle, x, y, size } => time::apply(
+            img,
+            origin,
+            &time::Transition { style: *style, shown: time::shown(*start, *length, *out, frame), angle: *angle, centre: (*x, *y), size: *size },
+        ),
     }
 }
 

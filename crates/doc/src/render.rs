@@ -141,7 +141,7 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
             }
         }
     }
-    layers(p, frame, &mut img, (x, y), o, |li| Some(map(li, frame)));
+    layers(p, frame, &mut img, (x, y), o, |li, f| Some(map(li, f)));
     img
 }
 
@@ -149,7 +149,7 @@ pub fn render_region(p: &Project, frame: u32, rect: (u32, u32, u32, u32), o: Ren
 /// layer, `Some(None)`: drawn as is). Layers a matte clips are composited on their own and cut
 /// by the matte; the matte itself is not drawn. A layer with clipping layers above it is
 /// composited with them as a group (see [`crate::Layer::clip`]).
-fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: RenderOptions, map: impl Fn(usize) -> Option<Option<Affine>>) {
+fn layers(p: &Project, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: RenderOptions, map: impl Fn(usize, u32) -> Option<Option<Affine>>) {
     let only = o.only_layer;
     let owners = p.matte_owners();
     let (w, h) = (img.width, img.height);
@@ -232,25 +232,32 @@ fn draw_layer(
     o: RenderOptions,
     mode: BlendMode,
     opacity: f32,
-    map: &impl Fn(usize) -> Option<Option<Affine>>,
+    map: &impl Fn(usize, u32) -> Option<Option<Affine>>,
 ) {
     let Some(layer) = p.layers.get(li) else { return };
     let drawing = layer.drawing_at(frame).and_then(|d| p.drawing(d));
-    let Some(t) = map(li) else { return };
+    let Some(t) = map(li, frame) else { return };
     let fx = o.effects && tooncraft_fx::is_active(&layer.effects);
     let mask = layer.mask.filter(|m| m.enabled).and_then(|m| p.drawing(m.drawing).map(|s| (m, s)));
-    // a lens flare lights the picture even where its layer has no drawing
-    if drawing.is_none() && !(fx && tooncraft_fx::generates(&layer.effects)) {
+    let time = if fx { tooncraft_fx::time_effects(&layer.effects, frame) } else { Vec::new() };
+    // a lens flare lights the picture even where its layer has no drawing; time effects draw
+    // other frames
+    if drawing.is_none() && time.is_empty() && !(fx && tooncraft_fx::generates(&layer.effects)) {
         return;
     }
     if fx || mask.is_some() {
         // the whole canvas here (see the top of `render_region`); the effects run on the drawn
         // part plus the stack's reach, which gives the same pixels for far less work
         let (w, h) = (dst.width, dst.height);
-        let mut top = RgbaImage::transparent(w, h);
-        if let Some(s) = drawing {
-            draw(s, &mut top, origin, t.as_ref(), 1.0, None);
-        }
+        let top = if time.is_empty() {
+            let mut top = RgbaImage::transparent(w, h);
+            if let Some(s) = drawing {
+                draw(s, &mut top, origin, t.as_ref(), 1.0, None);
+            }
+            top
+        } else {
+            time_picture(p, li, frame, origin, (w, h), &time, map)
+        };
         let reach = if fx { tooncraft_fx::stack_reach(&layer.effects, frame) } else { Some(0) };
         let (cx, cy, cx1, cy1) = match (reach, top.opaque_bounds()) {
             (Some(r), Some((x0, y0, x1, y1))) => (x0.saturating_sub(r), y0.saturating_sub(r), x1.saturating_add(r).min(w), y1.saturating_add(r).min(h)),
@@ -282,6 +289,115 @@ fn draw_layer(
     }
 }
 
+/// Layer `li`'s picture at `frame` with its time effects (`time`, in stack order): time remap
+/// picks the frame shown, then frame blending mixes in the next frame, motion blur averages the
+/// drawing along its movement, and trails lay earlier pictures under it.
+fn time_picture(
+    p: &Project,
+    li: usize,
+    frame: u32,
+    origin: (u32, u32),
+    (w, h): (u32, u32),
+    time: &[tooncraft_fx::EffectKind],
+    map: &impl Fn(usize, u32) -> Option<Option<Affine>>,
+) -> RgbaImage {
+    use tooncraft_fx::EffectKind as K;
+    let last = p.length().saturating_sub(1);
+    let Some(layer) = p.layers.get(li) else { return RgbaImage::transparent(w, h) };
+    // the drawing shown at `f`, through its transform there
+    let picture = |f: u32| {
+        let mut img = RgbaImage::transparent(w, h);
+        if let (Some(s), Some(t)) = (layer.drawing_at(f).and_then(|d| p.drawing(d)), map(li, f)) {
+            draw(s, &mut img, origin, t.as_ref(), 1.0, None);
+        }
+        img
+    };
+    let mut shown = frame;
+    for k in time {
+        if let K::TimeRemap { speed, offset } = k {
+            let f = (offset + speed * frame as f32).round();
+            shown = if f.is_finite() { f.clamp(0.0, last as f32) as u32 } else { frame };
+        }
+    }
+    let mut img = picture(shown);
+    for k in time {
+        match k {
+            K::FrameBlend { amount } if shown < last && *amount > 0.0 => {
+                let next = picture(shown + 1);
+                for (a, b) in img.data.iter_mut().zip(&next.data) {
+                    *a = (*a as f32 + (*b as f32 - *a as f32) * amount).round().clamp(0.0, 255.0) as u8;
+                }
+            }
+            K::MotionBlur { shutter, samples } if *shutter > 0.0 => {
+                if let Some(blurred) = motion_blur(p, li, shown, origin, (w, h), *shutter, *samples, map) {
+                    img = blurred;
+                }
+            }
+            K::Trails { count, step, fade } => {
+                let mut under = RgbaImage::transparent(w, h);
+                // furthest first, so nearer copies sit on top
+                for i in (1..=(*count).min(tooncraft_fx::MAX_TRAILS)).rev() {
+                    let Some(f) = shown.checked_sub(step.saturating_mul(i)) else { continue };
+                    under.composite(&picture(f), BlendMode::Normal, fade.powi(i as i32));
+                }
+                under.over_image(&img);
+                img = under;
+            }
+            _ => {}
+        }
+    }
+    img
+}
+
+/// `a` and `b` mixed `t` of the way, entry by entry (`None`: the identity).
+fn lerp_affine(a: Option<Affine>, b: Option<Affine>, t: f32) -> Affine {
+    let (a, b) = (a.unwrap_or(Affine::IDENTITY), b.unwrap_or(Affine::IDENTITY));
+    let l = |x: f32, y: f32| x + (y - x) * t;
+    Affine { a: l(a.a, b.a), b: l(a.b, b.b), c: l(a.c, b.c), d: l(a.d, b.d), tx: l(a.tx, b.tx), ty: l(a.ty, b.ty) }
+}
+
+/// Layer `li`'s drawing at `frame` averaged over `samples` transforms of a shutter `shutter`
+/// frames wide around the frame (each between this frame's transform and the next or the
+/// previous one's). `None` when the layer does not move there.
+#[allow(clippy::too_many_arguments)]
+fn motion_blur(
+    p: &Project,
+    li: usize,
+    frame: u32,
+    origin: (u32, u32),
+    (w, h): (u32, u32),
+    shutter: f32,
+    samples: u32,
+    map: &impl Fn(usize, u32) -> Option<Option<Affine>>,
+) -> Option<RgbaImage> {
+    let s = p.layers.get(li)?.drawing_at(frame).and_then(|d| p.drawing(d))?;
+    let now = map(li, frame)?;
+    let next = if frame + 1 < p.length() { map(li, frame + 1).unwrap_or(now) } else { now };
+    let prev = frame.checked_sub(1).and_then(|f| map(li, f)).unwrap_or(now);
+    let id = |t: Option<Affine>| t.unwrap_or(Affine::IDENTITY);
+    let same = |a: Affine, b: Affine| [a.a - b.a, a.b - b.b, a.c - b.c, a.d - b.d, a.tx - b.tx, a.ty - b.ty].iter().all(|d| d.abs() < 1e-4);
+    if same(id(next), id(now)) && same(id(prev), id(now)) {
+        return None;
+    }
+    let n = samples.clamp(2, tooncraft_fx::MAX_BLUR_SAMPLES);
+    let mut sum = vec![0u32; (w as usize) * (h as usize) * 4];
+    let mut one = RgbaImage::transparent(w, h);
+    for i in 0..n {
+        let at = -shutter / 2.0 + shutter * i as f32 / (n - 1) as f32;
+        let t = if at >= 0.0 { lerp_affine(now, next, at.min(1.0)) } else { lerp_affine(now, prev, (-at).min(1.0)) };
+        one.data.fill(0);
+        draw(s, &mut one, origin, non_identity(t).as_ref(), 1.0, None);
+        for (acc, v) in sum.iter_mut().zip(&one.data) {
+            *acc += *v as u32;
+        }
+    }
+    let mut out = RgbaImage::transparent(w, h);
+    for (o, acc) in out.data.iter_mut().zip(&sum) {
+        *o = ((*acc + n / 2) / n).min(255) as u8;
+    }
+    Some(out)
+}
+
 /// Scale `img`'s pixels by `keep(shape pixel)` (0…255); `shape` is the same size.
 fn keep_by(img: &mut RgbaImage, shape: &RgbaImage, keep: impl Fn([u8; 4]) -> u8) {
     for (d, s) in img.data.as_chunks_mut::<4>().0.iter_mut().zip(shape.data.as_chunks::<4>().0.iter()) {
@@ -303,13 +419,13 @@ fn adjust(
     origin: (u32, u32),
     o: RenderOptions,
     opacity: f32,
-    map: &impl Fn(usize) -> Option<Option<Affine>>,
+    map: &impl Fn(usize, u32) -> Option<Option<Affine>>,
 ) {
     let Some(layer) = p.layers.get(li) else { return };
     if !o.effects || !tooncraft_fx::is_active(&layer.effects) {
         return;
     }
-    let Some(t) = map(li) else { return };
+    let Some(t) = map(li, frame) else { return };
     let (w, h) = (target.width, target.height);
     let mut adjusted = target.clone();
     let sources = source_images(p, li, frame, origin, (w, h), (0, 0, w, h), map);
@@ -344,7 +460,7 @@ fn source_images(
     origin: (u32, u32),
     size: (u32, u32),
     part: (u32, u32, u32, u32),
-    map: &impl Fn(usize) -> Option<Option<Affine>>,
+    map: &impl Fn(usize, u32) -> Option<Option<Affine>>,
 ) -> Vec<(u64, RgbaImage)> {
     let Some(layer) = p.layers.get(li) else { return Vec::new() };
     tooncraft_fx::source_layers(&layer.effects)
@@ -352,7 +468,7 @@ fn source_images(
         .filter_map(|id| {
             let si = p.layer_index(crate::LayerId(id)).filter(|si| *si != li)?;
             let s = p.layers.get(si)?.drawing_at(frame).and_then(|d| p.drawing(d))?;
-            let t = map(si)?;
+            let t = map(si, frame)?;
             let mut img = RgbaImage::transparent(size.0, size.1);
             draw(s, &mut img, origin, t.as_ref(), 1.0, None);
             Some((id, if part == (0, 0, size.0, size.1) { img } else { img.crop(part.0, part.1, part.2, part.3) }))
@@ -362,7 +478,15 @@ fn source_images(
 
 /// Cut `img` by the matte layer `m`: keep what is inside its drawing (or outside it), scaled by
 /// its opacity. A hidden matte cuts nothing.
-fn apply_matte(p: &Project, m: usize, frame: u32, img: &mut RgbaImage, origin: (u32, u32), o: RenderOptions, map: &impl Fn(usize) -> Option<Option<Affine>>) {
+fn apply_matte(
+    p: &Project,
+    m: usize,
+    frame: u32,
+    img: &mut RgbaImage,
+    origin: (u32, u32),
+    o: RenderOptions,
+    map: &impl Fn(usize, u32) -> Option<Option<Affine>>,
+) {
     let Some(ml) = p.layers.get(m) else { return };
     let (visible, opacity) = p.effective_at(ml, frame);
     let Some(mode) = ml.matte else { return };
@@ -392,7 +516,12 @@ fn uses_effects(p: &Project, frame: u32, o: RenderOptions) -> bool {
             Some(only) => only == li || owner == Some(li),
             None => p.effective(l).0,
         };
-        shown && tooncraft_fx::is_active(&l.effects) && (l.drawing_at(frame).is_some() || l.adjustment || tooncraft_fx::generates(&l.effects))
+        shown
+            && tooncraft_fx::is_active(&l.effects)
+            && (l.drawing_at(frame).is_some()
+                || l.adjustment
+                || tooncraft_fx::generates(&l.effects)
+                || !tooncraft_fx::time_effects(&l.effects, frame).is_empty())
     })
 }
 
@@ -405,10 +534,10 @@ pub fn render_camera(p: &Project, frame: u32, o: RenderOptions) -> RgbaImage {
     }
     let (w, h) = (p.width(), p.height());
     let mut out = background(p, (0, 0), w, h, o.paper);
-    layers(p, frame, &mut out, (0, 0), o, |li| {
+    layers(p, frame, &mut out, (0, 0), o, |li, f| {
         let depth = p.layers.get(li).map(|l| l.depth).unwrap_or(0.0);
-        let cam = p.camera.layer_map(frame, w, h, depth)?;
-        Some(Some(p.layer_transform(li, frame).then(&cam)))
+        let cam = p.camera.layer_map(f, w, h, depth)?;
+        Some(Some(p.layer_transform(li, f).then(&cam)))
     });
     out
 }
@@ -809,5 +938,48 @@ mod tests {
         // a half turn about the centre (32, 32) takes (5, 5) to (59, 59)
         p.light_table.pins[0].shift = crate::PinShift { x: 0, y: 0, turn: 1800 };
         assert!(render_frame(&p, 1, o).pixel(58, 58)[3] > 0);
+    }
+
+    #[test]
+    fn time_effects_read_other_frames() {
+        use tooncraft_fx::{Effect, EffectKind as K};
+        let o = RenderOptions { paper: false, ..Default::default() };
+        // the dot (10…14, 10…14) moves 40 px a frame on a peg
+        let (mut p, _) = dot_project();
+        let peg = p.add_peg("Body", None).unwrap();
+        p.layers[0].peg = Some(peg);
+        let k = |frame, x| crate::PegKey { x, ease: crate::Ease::Linear, ..crate::PegKey::rest(frame) };
+        p.peg_mut(peg).unwrap().set_key(k(0, 0.0));
+        p.peg_mut(peg).unwrap().set_key(k(3, 120.0));
+        let sharp = render_frame(&p, 1, o);
+        assert_eq!(sharp.pixel(52, 12)[3], 255);
+        p.layers[0].effects = vec![Effect::new(K::MotionBlur { shutter: 1.0, samples: 8 })];
+        let blurred = render_frame(&p, 1, o);
+        assert!(
+            blurred.pixel(52, 12)[3] < 255 && blurred.pixel(43, 12)[3] > 0 && blurred.pixel(32, 12)[3] > 0,
+            "smeared along the move: {:?}",
+            blurred.pixel(43, 12)
+        );
+        assert_eq!(blurred.pixel(52, 30)[3], 0, "not across it");
+        // trails: the frame-0 dot shows faded under frame 1
+        p.layers[0].effects = vec![Effect::new(K::Trails { count: 2, step: 1, fade: 0.5 })];
+        let t = render_frame(&p, 1, o);
+        assert_eq!(t.pixel(52, 12)[3], 255);
+        let ghost = t.pixel(12, 12)[3];
+        assert!(ghost > 100 && ghost < 150, "half strength at the old place: {ghost}");
+        // time remap at half speed: frame 2 shows frame 1
+        p.layers[0].effects = vec![Effect::new(K::TimeRemap { speed: 0.5, offset: 0.0 })];
+        assert_eq!(render_frame(&p, 2, o).pixel(52, 12)[3], 255);
+        assert_eq!(render_frame(&p, 2, o).pixel(92, 12)[3], 0);
+        // frame blending mixes the next frame in
+        p.layers[0].effects = vec![Effect::new(K::FrameBlend { amount: 0.5 })];
+        let b = render_frame(&p, 1, o);
+        assert!(b.pixel(52, 12)[3] > 100 && b.pixel(92, 12)[3] > 100 && b.pixel(52, 12)[3] < 200);
+        // a wipe in over frames 0..4: hidden at the start, there at the end
+        p.layers[0].peg = None;
+        let wipe = K::Transition { style: tooncraft_fx::TransitionStyle::Iris, start: 0, length: 4, out: false, angle: 0.0, x: 12.0, y: 12.0, size: 8.0 };
+        p.layers[0].effects = vec![Effect::new(wipe)];
+        assert!(render_frame(&p, 0, o).pixel(10, 10)[3] < 255, "still opening");
+        assert_eq!(render_frame(&p, 3, o).pixel(10, 10)[3], 255, "open");
     }
 }

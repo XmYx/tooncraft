@@ -304,6 +304,8 @@ tooncraft	Direction
 tooncraft	Discard	
 tooncraft	Displace by layer	
 tooncraft	Display	
+tooncraft	Dissolve	
+tooncraft	Distance	
 tooncraft	Distance from the drawing plane for the camera: above 0 is further away, below 0 nearer	
 tooncraft	Distort	
 tooncraft	Divide	
@@ -406,6 +408,7 @@ tooncraft	Export…
 tooncraft	Exposure emptied	
 tooncraft	Exposure sheet	
 tooncraft	Exposure sheet: the sheet down the right side, layers as columns	
+tooncraft	Fade	
 tooncraft	Fade in	
 tooncraft	Fade other layers	
 tooncraft	Fade out	
@@ -479,6 +482,7 @@ tooncraft	Format
 tooncraft	Four ways	
 tooncraft	Four-way	
 tooncraft	Frame	
+tooncraft	Frame blending	
 tooncraft	Frame rate	
 tooncraft	Frame ruler	
 tooncraft	Frame {frame} / {total}	
@@ -489,6 +493,7 @@ tooncraft	Frame {n} taken out of the flip set
 tooncraft	Frame {n}, {tc}: {text}	
 tooncraft	Frame {n}: {text}	
 tooncraft	Frames	
+tooncraft	Frames apart	
 tooncraft	Frames down the page, layers as columns	
 tooncraft	Frames either side for Play Around	
 tooncraft	Frames per second	
@@ -624,6 +629,7 @@ tooncraft	Into
 tooncraft	Invert	
 tooncraft	Invert Layer Mask	
 tooncraft	Invert selection	
+tooncraft	Iris	
 tooncraft	Its first {n} commands, on the radial menu's key	
 tooncraft	JPEG Sequence	
 tooncraft	JPEG Sequence…	
@@ -765,10 +771,12 @@ tooncraft	Mirror four ways
 tooncraft	Mirror left and right	
 tooncraft	Mirror top and bottom	
 tooncraft	Mirror view	
+tooncraft	Mix of the next frame	
 tooncraft	More	
 tooncraft	More Onion Settings…	
 tooncraft	More than one, with position jitter, makes a spray	
 tooncraft	Motion blur	
+tooncraft	Motion blur from movement	
 tooncraft	Motion path	
 tooncraft	Mouse pressure	
 tooncraft	Mouth chart of {layer}	
@@ -933,6 +941,7 @@ tooncraft	Original colours
 tooncraft	Other consonants	
 tooncraft	Other values	
 tooncraft	Out	
+tooncraft	Out (the layer leaves)	
 tooncraft	Outline	
 tooncraft	Outline and fill	
 tooncraft	Outline colour	
@@ -1056,6 +1065,7 @@ tooncraft	ProRes 4444 with Alpha (MOV)
 tooncraft	ProRes 4444 with Alpha (MOV)…	
 tooncraft	Pucker (U W Q)	
 tooncraft	Purge Unused Drawings	
+tooncraft	Push	
 tooncraft	Put the current layer in a new folder inside its folder	
 tooncraft	Put this brush's own settings back (the colour stays)	
 tooncraft	Put this tab's settings back	
@@ -1177,6 +1187,7 @@ tooncraft	Rulers on: strokes started near a grid line follow it; right-click Rul
 tooncraft	S-curve	
 tooncraft	Safe Areas	
 tooncraft	Safe area	
+tooncraft	Samples	
 tooncraft	Saturation	
 tooncraft	Saturation and brightness	
 tooncraft	Saturation jitter	
@@ -1280,6 +1291,7 @@ tooncraft	Show {panel}
 tooncraft	Shows the item's own drawings: drawing on one changes every linked use	
 tooncraft	Shrink	
 tooncraft	Shrink Selection	
+tooncraft	Shutter (frames)	
 tooncraft	Side	
 tooncraft	Side look: {layer} at depth {depth}	
 tooncraft	Silence below	
@@ -1335,6 +1347,7 @@ tooncraft	Start
 tooncraft	Start (now)	
 tooncraft	Start Sound Here	
 tooncraft	Start at	
+tooncraft	Start at frame	
 tooncraft	Starts at frame	
 tooncraft	Steady line (px)	
 tooncraft	Step by	
@@ -1357,6 +1370,7 @@ tooncraft	Stroke selection
 tooncraft	Strokes follow rulers	
 tooncraft	Strokes only recolour paint that is already on the layer	
 tooncraft	Strokes started near a ruler follow it; right-click to add rulers and choose grid snapping	
+tooncraft	Style	
 tooncraft	Subtract	
 tooncraft	Swap Drawing	
 tooncraft	Swap colours	
@@ -1429,6 +1443,7 @@ tooncraft	Threshold
 tooncraft	Thumbnails	
 tooncraft	Tilt	
 tooncraft	Time	
+tooncraft	Time remap	
 tooncraft	Timecode	
 tooncraft	Timeline	
 tooncraft	Timeline options	
@@ -1461,11 +1476,13 @@ tooncraft	Top and bottom
 tooncraft	Touching only	
 tooncraft	Track	
 tooncraft	Track {n}	
+tooncraft	Trails	
 tooncraft	Transform	
 tooncraft	Transform Selection	
 tooncraft	Transform cancelled	
 tooncraft	Transform layer	
 tooncraft	Transform selection	
+tooncraft	Transition	
 tooncraft	Trim start	
 tooncraft	Turbulence	
 tooncraft	Turn	
@@ -1531,6 +1548,7 @@ tooncraft	Width
 tooncraft	Width and height must be more than zero	
 tooncraft	Window	
 tooncraft	Window puts it back	
+tooncraft	Wipe	
 tooncraft	With its opacity, to the palette shown (on Basic, a new shot palette)	
 tooncraft	Workspace	
 tooncraft	Wrote {file}	
