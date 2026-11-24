@@ -10,6 +10,8 @@
 mod i18n;
 mod app;
 mod args;
+#[cfg(test)]
+mod auto_paint_ui_tests;
 mod brush_editor;
 mod brush_library;
 mod brush_presets;

@@ -46,6 +46,8 @@ pub struct DrawAids {
     pub gradient: GradientKind,
     pub gradient_to_transparent: bool,
     pub gradient_drag: Option<((f32, f32), (f32, f32))>,
+    /// How many following drawings Paint Like This Drawing goes through (without a cell range).
+    pub auto_paint_count: u32,
     /// The clone stamp tool's settings and stroke.
     pub clone: crate::clone_tool::CloneTool,
     /// The gradient's own stops (from a gradient swatch or the stop editor); empty: the
@@ -76,6 +78,7 @@ impl Default for DrawAids {
             gradient: GradientKind::Linear,
             gradient_to_transparent: true,
             gradient_drag: None,
+            auto_paint_count: 6,
             clone: Default::default(),
             gradient_stops: Vec::new(),
             snap_grid: false,

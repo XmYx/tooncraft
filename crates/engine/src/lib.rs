@@ -9,6 +9,9 @@
 #![forbid(unsafe_code)]
 
 pub mod audio;
+pub mod auto_paint;
+#[cfg(test)]
+mod auto_paint_tests;
 mod boards;
 pub mod burnin;
 #[cfg(test)]
@@ -575,6 +578,19 @@ impl Engine {
         let n = all.len();
         self.push(Entry { label: "Fill all frames".into(), parts: all });
         Ok(n)
+    }
+
+    /// The undo parts of one fill (`None`: nothing filled), without pushing an undo step.
+    pub(crate) fn fill_parts_for(
+        &mut self,
+        layer: usize,
+        frame: u32,
+        at: (u32, u32),
+        color: [u8; 4],
+        options: FillOptions,
+        reference: FillReference,
+    ) -> Result<Option<Vec<Part>>> {
+        self.fill_parts(layer, frame, at.0, at.1, color, options, reference)
     }
 
     fn fill_parts(
