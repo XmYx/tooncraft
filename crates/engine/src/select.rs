@@ -99,11 +99,26 @@ pub fn wand(e: &Engine, layer: usize, frame: u32, x: u32, y: u32, tolerance: u8,
 /// it is.
 #[allow(clippy::too_many_arguments)]
 pub fn wand_with(e: &Engine, layer: usize, frame: u32, x: u32, y: u32, tolerance: u8, all_layers: bool, contiguous: bool) -> Option<Mask> {
+    let reference = if all_layers { crate::FillReference::AllLayers } else { crate::FillReference::Layer };
+    wand_looking_at(e, layer, frame, (x, y), tolerance, reference, contiguous)
+}
+
+/// [`wand_with`] looking at the picture `reference` gives (this layer, all visible layers, or the
+/// reference layers and this one).
+pub fn wand_looking_at(
+    e: &Engine,
+    layer: usize,
+    frame: u32,
+    (x, y): (u32, u32),
+    tolerance: u8,
+    reference: crate::FillReference,
+    contiguous: bool,
+) -> Option<Mask> {
     let (w, h) = (e.project.width(), e.project.height());
     if x >= w || y >= h || w as u64 * h as u64 > select::MAX_SELECTION_PIXELS {
         return None;
     }
-    let opts = tooncraft_doc::RenderOptions { paper: false, only_layer: (!all_layers).then_some(layer), effects: false, ..Default::default() };
+    let opts = reference.render_options(layer);
     let img = tooncraft_doc::render_region(&e.project, frame, (0, 0, w, h), opts);
     if !contiguous {
         let seed = img.pixel(x, y);

@@ -673,7 +673,6 @@ tooncraft	Lock transparency
 tooncraft	Lock {layer}	
 tooncraft	Lock {name}	
 tooncraft	Look at	
-tooncraft	Look at all visible layers	
 tooncraft	Loop	
 tooncraft	Loop in	
 tooncraft	Loop out	
@@ -1021,7 +1020,10 @@ tooncraft	Redo up to here
 tooncraft	Redo {action}	
 tooncraft	Reference	
 tooncraft	Reference Image…	
+tooncraft	Reference Layer	
 tooncraft	Reference image added under the drawing, locked	
+tooncraft	Reference layer	
+tooncraft	Reference layers	
 tooncraft	Reload	
 tooncraft	Reload Library	
 tooncraft	Remove	
@@ -1287,6 +1289,7 @@ tooncraft	The canvas stays in its place
 tooncraft	The current layer, from this frame	
 tooncraft	The current tool is not a brush of this kind	
 tooncraft	The drawings' own colours	
+tooncraft	The fill bucket and the magic wand look at this layer when set to look at reference layers	
 tooncraft	The flip set holds at most {n} frames	
 tooncraft	The last save of this shot was interrupted and there is no backup.	
 tooncraft	The last save was interrupted and the backup does not open: {error}	
@@ -1295,6 +1298,7 @@ tooncraft	The layer already has a mask
 tooncraft	The layer has no mask	
 tooncraft	The layer has no other drawing	
 tooncraft	The layer is locked	
+tooncraft	The layers marked Reference layer, and this one	
 tooncraft	The other tools of this group	
 tooncraft	The picker in a window of its own	
 tooncraft	The selection is too detailed to keep; nothing changed	

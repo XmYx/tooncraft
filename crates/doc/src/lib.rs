@@ -187,6 +187,10 @@ pub struct Layer {
     /// target), where its drawing has paint, or everywhere when it has no drawing at that frame.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub adjustment: bool,
+    /// A reference layer: the fill bucket and the magic wand look at it when they are set to
+    /// look at reference layers (whatever layer they paint or select on).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub reference: bool,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
 }
@@ -694,6 +698,7 @@ impl Project {
                 colour_pairs: Vec::new(),
                 mask: None,
                 adjustment: false,
+                reference: false,
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );
