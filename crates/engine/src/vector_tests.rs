@@ -167,3 +167,47 @@ fn pen_strokes_on_a_vector_layer_become_vector_lines_and_the_eraser_cuts_them() 
     assert_eq!(e.undo_label(), Some("Erase to crossings"));
     assert!(e.pick_color(0, 157, 50)[0] > 100 && e.pick_color(0, 100, 50)[0] < 100);
 }
+
+#[test]
+fn a_paged_load_keeps_vector_drawings_paged() {
+    use tooncraft_doc::paging::PageFile;
+    let mut e = Engine::new(Project::new("P", 400, 400, 24, 40).unwrap());
+    e.apply(Command::SetLayerVector { layer: 0, vector: true }).unwrap();
+    for f in 0..40u32 {
+        let y = 20.0 + f as f32 * 9.0;
+        e.apply(Command::VectorStroke {
+            layer: 0,
+            frame: f,
+            color: [0, 0, 0, 255],
+            points: vec![VPoint::new(10.0, y, 30.0), VPoint::new(390.0, y + 5.0, 30.0)],
+            tolerance: 0.6,
+        })
+        .unwrap();
+    }
+    let all = e.project.memory_bytes();
+    let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
+    let file = PageFile::create(None).unwrap();
+    let paged = tooncraft_format::from_bytes_with(&bytes, Some((&file, all / 8))).unwrap();
+    assert_eq!(paged.vectors.len(), 40, "every vector drawing's lines are read");
+    assert!(paged.paged_count() > 0 && paged.memory_bytes() <= all / 8, "{} > {}", paged.memory_bytes(), all / 8);
+}
+
+#[test]
+fn duplicate_copies_the_lines_and_purge_drops_them_with_undo() {
+    let mut e = engine();
+    line(&mut e, &[(20.0, 100.0), (180.0, 100.0)], 4.0).unwrap();
+    let src = e.project.drawing_at(0, 0).unwrap();
+    e.apply(Command::DuplicateDrawing { layer: 0, frame: 0 }).unwrap();
+    let copy = e.project.drawing_at(0, 1).unwrap();
+    assert_ne!(copy, src);
+    assert_eq!(e.project.vectors.get(&copy), e.project.vectors.get(&src));
+    e.undo().unwrap();
+    assert!(!e.project.vectors.contains_key(&copy), "undo takes the copy's lines away");
+    e.redo().unwrap();
+    // expose nothing but blanks, then purge: the lines go with their drawings, and come back
+    e.apply(Command::ClearRange { layers: vec![0], from: 0, to: 9, shift: false }).unwrap();
+    e.apply(Command::PurgeUnused).unwrap();
+    assert!(e.project.vectors.is_empty());
+    e.undo().unwrap();
+    assert_eq!(e.project.vectors.len(), 2);
+}

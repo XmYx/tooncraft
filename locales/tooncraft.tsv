@@ -23,6 +23,7 @@ tooncraft	Add Current Brush
 tooncraft	Add Current Colour	
 tooncraft	Add Curve Ruler	
 tooncraft	Add Ellipse Ruler	
+tooncraft	Add Frames to Library	
 tooncraft	Add Inbetweens	
 tooncraft	Add Layer Above	
 tooncraft	Add Marker	
@@ -35,6 +36,7 @@ tooncraft	Add Sound…
 tooncraft	Add Straight Ruler	
 tooncraft	Add Three-Point Perspective	
 tooncraft	Add Two-Point Perspective	
+tooncraft	Add a Peg for This Layer	
 tooncraft	Add a look	
 tooncraft	Add effect	
 tooncraft	Add light	
@@ -120,6 +122,7 @@ tooncraft	Choose a layer
 tooncraft	Choose frames to flip first (Ctrl+Alt+Enter on each)	
 tooncraft	Choose keys to ease them	
 tooncraft	Choose…	
+tooncraft	Chosen: {name}	
 tooncraft	Cinema 2K, 24 fps	
 tooncraft	Cinema 4K, 24 fps	
 tooncraft	Clean ink	
@@ -217,19 +220,23 @@ tooncraft	Don’t Save
 tooncraft	Down	
 tooncraft	Drag around an area to fill it	
 tooncraft	Drag from start to end; inside the selection when there is one	
+tooncraft	Drag further from the pivot to scale or turn	
 tooncraft	Drag inside to move, corners to scale, the top knob to rotate	
 tooncraft	Drag the four corners freely (perspective), then Apply	
+tooncraft	Drag to move, a corner to scale, the knob to turn, the cross to move the pivot	
 tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates	
 tooncraft	Draw the peg's other values faintly, each scaled to fit, to compare their timing	
 tooncraft	Drawing	
 tooncraft	Drawing (standard)	
 tooncraft	Drawing Layer	
+tooncraft	Drawing Library	
 tooncraft	Drawing at frame {n}: {mark}	
 tooncraft	Drawing duplicated	
 tooncraft	Drawing names	
 tooncraft	Drawing thumbnails in the cells	
 tooncraft	Drawing {id}	
 tooncraft	Drawing {id}, {name}	
+tooncraft	Drawing {n}	
 tooncraft	Drawings	
 tooncraft	Drawings are moved, never resampled; paint outside the new canvas is cut (undo brings it back).	
 tooncraft	Drawings no frame shows	
@@ -448,6 +455,8 @@ tooncraft	Input white
 tooncraft	Insert	
 tooncraft	Insert Frame	
 tooncraft	Insert Frame in All Layers	
+tooncraft	Insert Item	
+tooncraft	Insert Item Linked	
 tooncraft	Insert frame	
 tooncraft	Insert frame (Insert)	
 tooncraft	Intensity	
@@ -537,6 +546,7 @@ tooncraft	Loop a few frames either side of this one, to check an inbetween
 tooncraft	Loop playback	
 tooncraft	Luminosity	
 tooncraft	Magic Wand	
+tooncraft	Make a new peg and hang the current layer from it	
 tooncraft	Mark Drawing	
 tooncraft	Marker	
 tooncraft	Marker added at frame {n}	
@@ -570,6 +580,8 @@ tooncraft	Mouth chart of {layer}
 tooncraft	Mouth sheet	
 tooncraft	Mouths keyed from the sound; edit them in the exposure sheet	
 tooncraft	Move / scale / rotate the selection	
+tooncraft	Move Item Down	
+tooncraft	Move Item Up	
 tooncraft	Move Layer Down	
 tooncraft	Move Layer Up	
 tooncraft	Move X	
@@ -600,7 +612,9 @@ tooncraft	New drawing
 tooncraft	New drawing (Shift+N)	
 tooncraft	New drawings between this drawing and the next, placed along the spacing	
 tooncraft	New grain every frame	
+tooncraft	New item	
 tooncraft	New layer above the current one	
+tooncraft	New name	
 tooncraft	New shot	
 tooncraft	New shot frame rate	
 tooncraft	New shot height	
@@ -618,6 +632,7 @@ tooncraft	No Mark
 tooncraft	No command matches	
 tooncraft	No drawing here to swap	
 tooncraft	No drawings have names yet	
+tooncraft	No drawings yet: select frames on the timeline and add them.	
 tooncraft	No earlier drawing on this layer	
 tooncraft	No earlier marker	
 tooncraft	No effects on this layer.	
@@ -648,6 +663,7 @@ tooncraft	Offset X
 tooncraft	Offset Y	
 tooncraft	On fours	
 tooncraft	On ones	
+tooncraft	On the current layer at the current frame, as new drawings	
 tooncraft	On threes	
 tooncraft	On top	
 tooncraft	On twos	
@@ -722,6 +738,7 @@ tooncraft	Paste frames, moving later frames right
 tooncraft	Pasted	
 tooncraft	Peg	
 tooncraft	Peg {n}	
+tooncraft	Peg “{name}”	
 tooncraft	Pegs	
 tooncraft	Pen down: arrow keys draw, Enter lifts	
 tooncraft	Pen lifted	
@@ -835,6 +852,7 @@ tooncraft	Remove Sound
 tooncraft	Remove Unused Drawings	
 tooncraft	Remove clip {n}	
 tooncraft	Remove clip {n} volume key	
+tooncraft	Remove from Library	
 tooncraft	Remove from Palette	
 tooncraft	Remove opacity key	
 tooncraft	Remove point	
@@ -845,6 +863,7 @@ tooncraft	Remove {name} from favourites
 tooncraft	Remove {name} key	
 tooncraft	Removed {count} unused drawings	
 tooncraft	Rename	
+tooncraft	Rename Item	
 tooncraft	Rename Layer…	
 tooncraft	Repaint	
 tooncraft	Repeat Selected Frames	
@@ -959,6 +978,7 @@ tooncraft	Show this window at start
 tooncraft	Show {category} brushes	
 tooncraft	Show {layer}	
 tooncraft	Show {name} here	
+tooncraft	Shows the item's own drawings: drawing on one changes every linked use	
 tooncraft	Shrink	
 tooncraft	Shrink Selection	
 tooncraft	Silence below	
@@ -1055,6 +1075,7 @@ tooncraft	Thicken lines
 tooncraft	This frame	
 tooncraft	This layer	
 tooncraft	This layer gets its own steps, opacity and colours; the others keep the shot's	
+tooncraft	This layer hangs from no peg: add one from the tool options	
 tooncraft	Three-way	
 tooncraft	Threshold	
 tooncraft	Thumbnails	
@@ -1086,6 +1107,8 @@ tooncraft	Touching only
 tooncraft	Track	
 tooncraft	Track {n}	
 tooncraft	Transform Selection	
+tooncraft	Transform cancelled	
+tooncraft	Transform layer	
 tooncraft	Trim start	
 tooncraft	Turbulence	
 tooncraft	Type a frame number to go there	
@@ -1175,6 +1198,7 @@ tooncraft	{key} was taken from “{command}”
 tooncraft	{layer}, frame {frame}	
 tooncraft	{layer}, frame {frame}: {cell}	
 tooncraft	{name} (missing)	
+tooncraft	{name} ({n} frames)	
 tooncraft	{name} and {n} more	
 tooncraft	{name} curve: {count} keys	
 tooncraft	{name} is a favourite	
@@ -1191,3 +1215,4 @@ tooncraft	{tool} selected
 tooncraft	{tool}; right-click or hold for the other tools of the group	
 tooncraft	{w}×{h} · {fps} fps	
 tooncraft	“{layer}” hangs from	
+tooncraft	“{layer}” hangs from no peg	

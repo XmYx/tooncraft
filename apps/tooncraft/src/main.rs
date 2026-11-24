@@ -29,6 +29,9 @@ mod dock;
 mod draw_aids;
 #[cfg(test)]
 mod drawaids_ui_tests;
+mod drawing_library;
+#[cfg(test)]
+mod drawing_library_ui_tests;
 mod effects_panel;
 mod export_dialog;
 mod frame_cache;
@@ -50,6 +53,9 @@ mod menus_ui_tests;
 mod panels;
 #[cfg(test)]
 mod panels_ui_tests;
+mod peg_transform;
+#[cfg(test)]
+mod peg_transform_ui_tests;
 mod pegs;
 mod pipeline;
 mod preferences;

@@ -173,6 +173,8 @@ struct ProjectJson {
     palettes: Vec<tooncraft_doc::palette::Palette>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     vectors: Vec<VectorEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    library: Vec<tooncraft_doc::library::Item>,
     #[serde(default, skip_serializing_if = "no_rulers")]
     rulers: tooncraft_doc::rulers::Rulers,
 }
@@ -244,6 +246,7 @@ pub fn to_bytes(p: &Project) -> Result<Vec<u8>> {
             symmetry: p.symmetry,
             palettes: p.palettes.clone(),
             vectors: p.vectors.iter().map(|(d, v)| VectorEntry { drawing: *d, strokes: v.clone() }).collect(),
+            library: p.library.clone(),
             rulers: p.rulers.clone(),
             camera: p.camera.clone(),
             folders: p.folders.clone(),
@@ -408,12 +411,16 @@ fn decode(bytes: &[u8], paging: Option<(&std::sync::Arc<tooncraft_doc::paging::P
             p.page_out(file, &none, budget / 2)?;
         }
     }
+    let ids: std::collections::BTreeSet<DrawingId> = p.drawing_ids().collect();
+    p.library = tooncraft_doc::library::sanitize_all(pj.library, |d| ids.contains(&d));
     p.camera = pj.camera.sanitized(p.width(), p.height());
     p.set_pegs(pj.pegs);
     // vector strokes only for drawings that exist, sanitized, within one budget for the shot
+    // (the id set, not `drawing()`: that would read paged drawings back into memory)
+    let ids: std::collections::BTreeSet<DrawingId> = p.drawing_ids().collect();
     let mut points = 0usize;
     for v in pj.vectors {
-        if p.drawing(v.drawing).is_none() || p.vectors.contains_key(&v.drawing) {
+        if !ids.contains(&v.drawing) || p.vectors.contains_key(&v.drawing) {
             continue;
         }
         let d = v.strokes.sanitized();
