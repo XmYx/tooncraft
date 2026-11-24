@@ -155,13 +155,13 @@ fn the_swatch_menu_opens_from_the_keyboard() {
     h.key_press(Key::Enter);
     h.run();
     assert!(h.state().colour.edit.is_none());
-    // the Menu key, then Remove from Palette
+    // the Menu key, then Delete Swatch
     let swatch = By::new().role(egui::Role::Button).label("Swatch skin, #FAD2BE");
     h.get(swatch).focus();
     h.run();
     h.key_press(Key::Menu);
     h.run();
-    h.get_by_label("Remove from Palette").focus();
+    h.get_by_label("Delete Swatch").focus();
     h.run();
     h.key_press(Key::Enter);
     h.run();

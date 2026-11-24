@@ -737,26 +737,19 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
     if !app.engine.is_stroking() {
         let at: Option<Pos2> = ui.data(|d| d.get_temp(menu_at));
-        // from the keyboard: Shift+F10 or the Menu key on the focused canvas; colour is picked at the
-        // keyboard pen, or the canvas centre
+        let at = at.map(|p| to_picture(app, rect, p)).map(|c| (c.x, c.y));
+        // from the keyboard: Shift+F10 or the Menu key on the focused canvas. It is the selection's
+        // menu when there is one; otherwise colour is picked at the keyboard pen, or the canvas centre
         let launch = crate::context_menus::launch_now(ui.ctx(), "canvas") || crate::context_menus::launch_now(ui.ctx(), "selection");
         let now = launch || resp.has_focus() && crate::timeline::menu_key(ui);
         let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
-        let kat = app.keyboard_pen.map(|k| app.view.to_screen(rect, size, pos2(k.x, k.y))).or(Some(rect.center()));
-        crate::timeline::keyboard_menu(ui, &resp, now, |ui| {
-            crate::context_menus::canvas(app, ui, &mut |app| {
-                if let Some(p) = kat {
-                    pick(app, rect, p);
-                }
-            })
-        });
-        resp.context_menu(|ui| {
-            crate::context_menus::canvas(app, ui, &mut |app| {
-                if let Some(p) = at {
-                    pick(app, rect, p);
-                }
-            })
-        });
+        let kat = match (app.selection.is_some(), app.keyboard_pen) {
+            (true, _) => None,
+            (false, Some(k)) => Some((k.x, k.y)),
+            (false, None) => Some((size.x / 2.0, size.y / 2.0)),
+        };
+        crate::timeline::keyboard_menu(ui, &resp, now, |ui| crate::context_menus::canvas(app, ui, kat));
+        resp.context_menu(|ui| crate::context_menus::canvas(app, ui, at));
     }
     // ----- drawing -----
     let pal = crate::theme::palette(app.light_theme);

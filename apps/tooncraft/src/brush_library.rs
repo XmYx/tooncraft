@@ -319,6 +319,9 @@ pub fn panel(app: &mut ToonApp, ui: &mut Ui) {
                     r.request_focus();
                     use_brush(app, id);
                 }
+                // right-click, or the Menu key / Shift+F10 on the focused row
+                let launch = if selected { "brush" } else { "" };
+                crate::context_menus::attach(ui, &r, launch, |ui| crate::context_menus::brush_preset(app, ui, id));
                 if r.has_focus() {
                     app.library.selected = Some(id.clone());
                     ui.scroll_to_rect(rect, None);

@@ -227,6 +227,8 @@ pub struct ToonApp {
     pub stroke_start: Option<Instant>,
     pub light_theme: bool,
     pub renaming: Option<(usize, String)>,
+    /// What the open right-click menu acts on, and a rename typed from a menu.
+    pub menus: crate::menu_commands::State,
     pub new_shot: Option<NewShot>,
     /// Preferences and their window.
     pub preferences: crate::preferences::State,
@@ -404,6 +406,7 @@ impl ToonApp {
             stroke_start: None,
             light_theme: cli.light,
             renaming: None,
+            menus: Default::default(),
             new_shot: None,
             scene_form: None,
             preferences: crate::preferences::State::new(!cfg!(test) && cli.screenshot.is_none()),
@@ -1260,6 +1263,7 @@ impl ToonApp {
         let ctx = ui.ctx().clone();
         self.textures.begin_frame();
         self.shortcuts(&ctx);
+        crate::context_menus::rename_window(self, &ctx);
         egui::Panel::top("menu").show(ui, |ui| self.menu_bar(ui));
         egui::Panel::top("top-bar").show(ui, |ui| crate::top_bar::show(self, ui));
         egui::Panel::top("tool-options").show(ui, |ui| crate::panels::tool_options(self, ui));

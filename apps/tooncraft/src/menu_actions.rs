@@ -15,11 +15,6 @@ use crate::dock::Pane;
 /// `Ok` when a command can run now, or the reason it cannot (translated).
 pub type Enabled = Result<(), String>;
 
-/// Onion ranges offered on the ruler (steps on each side).
-pub const ONION_RANGES: [u8; 4] = [1, 2, 3, 5];
-/// Layer opacities offered in the layer menu, in percent.
-pub const OPACITIES: [u8; 5] = [100, 75, 50, 25, 10];
-
 /// A drawing is shown on the current cell.
 pub fn has_drawing(app: &ToonApp) -> Enabled {
     if app.engine.project.drawing_at(app.layer, app.frame).is_none() { Err(tl!("No drawing on this frame").to_string()) } else { Ok(()) }
@@ -90,6 +85,17 @@ pub fn rotate_90(app: &mut ToonApp, clockwise: bool) {
     transform(app, (1.0, 1.0), angle, label);
 }
 
+/// Take the colour of the picture at a canvas point (as the picker tool does).
+pub fn pick_colour_at(app: &mut ToonApp, x: f32, y: f32) {
+    let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+    if !(x >= 0.0 && y >= 0.0 && x < w && y < h) {
+        return;
+    }
+    let col = app.engine.pick_color(app.frame, x as u32, y as u32);
+    app.color = [col[0], col[1], col[2], 255];
+    app.set_status(tlf!("Picked #{hex}", hex = format!("{:02X}{:02X}{:02X}", col[0], col[1], col[2])));
+}
+
 // ----- selection -----
 
 pub fn can_paint_selection(app: &ToonApp) -> Enabled {
@@ -124,6 +130,22 @@ pub fn stroke_selection(app: &mut ToonApp) {
         .map(|points| Command::PathShape { layer, frame, brush, points, closed: true, curve: false, outline: true, fill: None })
         .collect();
     app.run(Command::Batch { label: tl!("Stroke selection").to_string(), commands });
+}
+
+/// Keep the drawing at the cursor, with its timing, as a drawing-library item.
+pub fn save_cell_to_library(app: &mut ToonApp) {
+    if let Err(why) = has_drawing(app) {
+        app.set_status(why);
+        return;
+    }
+    let (layer, frame) = (app.layer, app.frame);
+    let (from, to) =
+        app.engine.project.layers.get(layer).and_then(|l| l.exposure_range(frame)).map(|(a, b)| (a, b.saturating_sub(1).max(a))).unwrap_or((frame, frame));
+    let name = tlf!("Drawing {n}", n = app.engine.project.library.len() + 1);
+    if app.run(Command::SaveToLibrary { layer, from, to, name: name.clone() }) {
+        app.workspace.raise(Pane::Drawings);
+        app.set_status(tlf!("Saved to the library as {name}", name = name));
+    }
 }
 
 // ----- timeline cell -----
@@ -249,6 +271,22 @@ pub fn duplicate_swatch(app: &mut ToonApp, swatch: usize) {
     let Some(s) = p.swatches.get(swatch).cloned() else { return };
     p.swatches.insert(swatch + 1, s);
     app.run(Command::SetPalettes { palettes: v });
+}
+
+/// Remove swatch `swatch` from the palette shown.
+pub fn delete_swatch(app: &mut ToonApp, swatch: usize) {
+    if let Err(why) = can_edit_swatch(app) {
+        app.set_status(why);
+        return;
+    }
+    let palette = app.colour.current - 1;
+    let mut v = app.engine.project.palettes.clone();
+    if let Some(p) = v.get_mut(palette)
+        && swatch < p.swatches.len()
+    {
+        p.swatches.remove(swatch);
+        app.run(Command::SetPalettes { palettes: v });
+    }
 }
 
 /// Select the pixels of the current drawing in `rgb` (within the wand's tolerance).

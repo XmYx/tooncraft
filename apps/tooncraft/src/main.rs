@@ -55,6 +55,7 @@ mod lipsync_panel;
 mod menu_actions;
 #[cfg(test)]
 mod menu_actions_tests;
+mod menu_commands;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;

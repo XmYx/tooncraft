@@ -323,6 +323,16 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         app.frame = f.clamp(0, len as i64 - 1) as u32;
         app.playback.stop();
     }
+    // right-click (or the Menu key on the focused ruler): loop, onion range and Go To Frame
+    let ruler_at = grid_id().with("ruler-menu-at");
+    if ruler_resp.secondary_clicked()
+        && let Some(p) = ruler_resp.interact_pointer_pos()
+    {
+        let f = (first as i64 + ((p.x - frames_area.left()) / CELL_W).floor() as i64).clamp(0, i64::from(app.engine.project.length().saturating_sub(1)));
+        ui.data_mut(|d| d.insert_temp(ruler_at, f as u32));
+    }
+    let menu_frame: u32 = ui.data(|d| d.get_temp(ruler_at)).unwrap_or(app.frame);
+    crate::context_menus::attach(ui, &ruler_resp, "ruler", |ui| crate::context_menus::ruler(app, ui, menu_frame));
     // the in and out range: a band along the top of the ruler, with a draggable handle at each end
     crate::timeline_ruler::show(app, ui, &painter, ruler, frames_area.left(), first, visible_cols, CELL_W, pal.playhead);
     // the onion skin's reach, under the ruler: before in its tint, after in its tint
@@ -669,7 +679,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         resp.context_menu(|ui| crate::context_menus::cell(app, ui, li, f));
     }
     for (li, resp) in layer_menus {
-        resp.context_menu(|ui| crate::context_menus::layer(app, ui, li));
+        let launch = if li == app.layer { "layer" } else { "" };
+        crate::context_menus::attach(ui, &resp, launch, |ui| crate::context_menus::layer(app, ui, li));
     }
     ui.allocate_rect(area, Sense::hover());
 }

@@ -177,7 +177,8 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         resp.context_menu(|ui| crate::context_menus::cell(app, ui, li, f));
     }
     for (li, resp) in layer_menus {
-        resp.context_menu(|ui| crate::context_menus::layer(app, ui, li));
+        let launch = if li == app.layer { "layer" } else { "" };
+        crate::context_menus::attach(ui, &resp, launch, |ui| crate::context_menus::layer(app, ui, li));
     }
     ui.allocate_rect(area, Sense::hover());
 }
