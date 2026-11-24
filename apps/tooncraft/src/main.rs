@@ -16,9 +16,14 @@ mod brush_presets;
 mod camera_path;
 #[cfg(test)]
 mod camera_path_ui_tests;
+#[cfg(test)]
+mod cameras_ui_tests;
 mod canvas;
 mod canvas_header;
 mod canvas_tools;
+mod clone_tool;
+#[cfg(test)]
+mod clone_ui_tests;
 mod color;
 mod colour_layers_ui;
 #[cfg(test)]
@@ -51,11 +56,15 @@ mod fx_ui_tests;
 #[cfg(test)]
 mod gaps_ui_tests;
 #[cfg(test)]
+mod gradient_swatch_ui_tests;
+#[cfg(test)]
 mod guidance_ui_tests;
 mod history_panel;
 #[cfg(test)]
 mod history_ui_tests;
 mod icons;
+#[cfg(test)]
+mod ik_ui_tests;
 mod import_dialog;
 #[cfg(test)]
 mod keyboard_reach_ui_tests;
@@ -67,6 +76,7 @@ mod layer_ops;
 mod layer_tree;
 mod layers_list;
 mod lipsync_panel;
+mod macro_ui;
 mod menu_actions;
 #[cfg(test)]
 mod menu_actions_tests;
@@ -90,7 +100,12 @@ mod pegs;
 #[cfg(test)]
 mod pen_ui_tests;
 mod pipeline;
+#[cfg(test)]
+mod poses_ui_tests;
 mod preferences;
+mod reference_viewer;
+#[cfg(test)]
+mod reference_viewer_ui_tests;
 mod rulers_ui;
 #[cfg(test)]
 mod rulers_ui_tests;
@@ -136,6 +151,8 @@ mod tool_options;
 mod tool_palettes;
 #[cfg(test)]
 mod tool_palettes_ui_tests;
+#[cfg(test)]
+mod tool_properties_ui_tests;
 mod tool_rail;
 mod top_bar;
 #[cfg(test)]

@@ -18,6 +18,7 @@ pub fn run(a: &mut ToonApp, _: &egui::Context, id: &'static str) {
     let (m, adjustment) = (layer.mask, layer.adjustment);
     let cmd = match (id, m) {
         ("layer.adjustment", _) => Command::SetLayerAdjustment { layer: li, adjustment: !adjustment },
+        ("layer.reference", _) => Command::SetLayerReference { layer: li, reference: !layer.reference },
         ("layer.mask_add", None) => Command::AddLayerMask { layer: li, invert: false },
         ("layer.mask_edit", Some(m)) => Command::SetLayerMask { layer: li, enabled: Some(true), invert: None, editing: Some(!m.editing) },
         ("layer.mask_enabled", Some(m)) => Command::SetLayerMask { layer: li, enabled: Some(!m.enabled), invert: None, editing: None },
@@ -41,6 +42,9 @@ pub fn no_mask(a: &ToonApp) -> Enabled {
 }
 pub fn is_adjustment(a: &ToonApp) -> bool {
     a.engine.project.layers.get(a.layer).is_some_and(|l| l.adjustment)
+}
+pub fn is_reference(a: &ToonApp) -> bool {
+    a.engine.project.layers.get(a.layer).is_some_and(|l| l.reference)
 }
 pub fn is_editing(a: &ToonApp) -> bool {
     mask(a).is_some_and(|m| m.editing)
@@ -86,6 +90,14 @@ pub fn section(app: &mut ToonApp, ui: &mut egui::Ui) {
             }
         }
     });
+    let mut reference = app.engine.project.layers.get(app.layer).is_some_and(|l| l.reference);
+    if ui
+        .checkbox(&mut reference, tl!("Reference layer"))
+        .on_hover_text(tl!("The fill bucket and the magic wand look at this layer when set to look at reference layers"))
+        .changed()
+    {
+        run(app, &ctx, "layer.reference");
+    }
     if m.is_some_and(|m| m.editing) {
         ui.weak(tl!("Painting the layer mask: paint hides, the eraser brings the layer back"));
     }
@@ -131,4 +143,34 @@ pub fn launch(app: &mut ToonApp, id: &str) -> bool {
         }
         _ => false,
     }
+}
+
+/// The name of what a fill or wand looks at.
+pub fn reference_name(r: tooncraft_engine::FillReference) -> String {
+    use tooncraft_engine::FillReference as R;
+    match r {
+        R::Layer => tl!("This layer"),
+        R::AllLayers => tl!("All visible layers"),
+        R::ReferenceLayers => tl!("Reference layers"),
+    }
+    .to_string()
+}
+
+/// The "Look at" choice of a tool that reads the picture (fill bucket, magic wand): each tool
+/// keeps its own.
+pub fn reference_picker(ui: &mut egui::Ui, salt: &str, value: &mut tooncraft_engine::FillReference) {
+    use tooncraft_engine::FillReference as R;
+    let l = ui.label(tl!("Look at"));
+    egui::ComboBox::from_id_salt(salt)
+        .selected_text(reference_name(*value))
+        .show_ui(ui, |ui| {
+            for r in [R::AllLayers, R::Layer, R::ReferenceLayers] {
+                let item = ui.selectable_value(value, r, reference_name(r));
+                if r == R::ReferenceLayers {
+                    item.on_hover_text(tl!("The layers marked Reference layer, and this one"));
+                }
+            }
+        })
+        .response
+        .labelled_by(l.id);
 }

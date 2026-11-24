@@ -206,6 +206,7 @@ pub static ALL: &[Cmd] = &[
     tool!("tool.select", "Select", Select, "S"),
     tool!("tool.shape", "Shapes", Shape, "U"),
     tool!("tool.gradient", "Gradient", Gradient, "G"),
+    when(cmd("tool.clone", tlm!("Clone stamp"), Some(Icon::CloneStamp), G::Tool, Remap("J"), pick_tool), not_stroking),
     tool!("tool.hand", "Hand", Hand, "H"),
     tool!("tool.transform", "Transform layer", Transform, "Q"),
     tool!("tool.text", "Text", Text, "T"),
@@ -352,6 +353,13 @@ pub static ALL: &[Cmd] = &[
         a.engine.redo_label().map(|l| tlf!("Redo {action}", action = l))
     }),
     cmd("edit.history", tlm!("Undo History"), Some(Icon::History), G::Edit, NoKey, |a, _, _| a.workspace.raise(Pane::History)),
+    named(
+        toggle(when(cmd("edit.record_macro", tlm!("Record Macro"), None, G::Edit, NoKey, |a, _, _| crate::macro_ui::toggle(a)), not_stroking), |a| {
+            a.engine.is_recording()
+        }),
+        |a| a.engine.is_recording().then(|| tlf!("Stop Recording and Save Macro… ({n} steps)", n = a.engine.recorded_steps())),
+    ),
+    when(cmd("edit.play_macro", tlm!("Play Macro…"), None, G::Edit, NoKey, |a, _, _| crate::macro_ui::open(a)), not_stroking),
     cmd("edit.cut", tlm!("Cut"), Some(Icon::Cut), G::Edit, Fixed("Ctrl+X"), |a, _, _| {
         if a.selection.is_some() {
             a.copy_pixels(true);
@@ -496,6 +504,7 @@ pub static ALL: &[Cmd] = &[
     when(cmd("layer.add_peg", tlm!("Add Peg"), Some(Icon::Peg), G::Layer, NoKey, mc::run_layer), mc::can_add_peg),
     when(cmd("layer.move_up", tlm!("Move Layer Up"), None, G::Layer, NoKey, mc::run_layer), mc::not_top),
     when(cmd("layer.move_down", tlm!("Move Layer Down"), None, G::Layer, NoKey, mc::run_layer), mc::not_bottom),
+    toggle(cmd("layer.reference", tlm!("Reference Layer"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::is_reference),
     toggle(cmd("layer.adjustment", tlm!("Adjustment Layer"), Some(Icon::Effects), G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::is_adjustment),
     when(cmd("layer.mask_add", tlm!("Add Layer Mask"), None, G::Layer, NoKey, crate::layer_fx::run), crate::layer_fx::no_mask),
     toggle(
@@ -691,8 +700,8 @@ mod tests {
         ] {
             assert!(get(id).is_some_and(|c| matches!(c.key, Key::Remap(_))), "{id}");
         }
-        // 51, then the zoom and rotate-view tools, then the radial menu
-        assert_eq!(remappable().count(), 54);
+        // 51, then the zoom and rotate-view tools, then the radial menu, then the clone stamp
+        assert_eq!(remappable().count(), 55);
     }
 
     #[test]

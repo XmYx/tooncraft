@@ -670,6 +670,16 @@ fn lip_sync_panel_builds_a_chart_and_keys_mouths_from_sound() {
     let p = &h.state().engine.project;
     let open = p.layers[0].mouth_chart[&tooncraft_lipsync::Mouth::Open];
     assert_eq!(p.drawing_at(0, 12), Some(open), "the vowel opens the mouth");
+    // the typed line: its vowels open the mouth over the voice too
+    assert!(egui_kittest::kittest::NodeT::accesskit_node(&h.get_by_label("Mouths from the Typed Line")).is_disabled(), "nothing typed yet");
+    h.get_by_label("Line of dialogue").click();
+    h.run();
+    h.get_by_label("Line of dialogue").type_text("aaah");
+    h.run();
+    h.get_by_label("Mouths from the Typed Line").click();
+    h.run();
+    assert_eq!(h.state().engine.undo_label(), Some("Lip sync from dialogue"));
+    assert_eq!(h.state().engine.project.drawing_at(0, 12), Some(open));
 }
 
 #[test]

@@ -107,7 +107,7 @@ pub fn render(v: &VDrawing, w: u32, h: u32) -> Result<Surface> {
                 continue;
             }
             last = Some(p);
-            dabs.push(Dab { x: p.x, y: p.y, radius: r, alpha: 1.0, angle: 0.0, roundness: 1.0, pressure: 1.0, color: None });
+            dabs.push(Dab { x: p.x, y: p.y, radius: r, alpha: 1.0, angle: 0.0, roundness: 1.0, pressure: 1.0, color: None, cell: 0, along: 0.0 });
             dabs_left -= 1;
         }
         stroke.add(&mut surface, &dabs);

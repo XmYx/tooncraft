@@ -9,6 +9,7 @@
 use std::time::Instant;
 
 use egui::{Color32, Pos2, Stroke};
+use tooncraft_doc::palette::{MAX_STOPS, Stop, sanitize_stops};
 use tooncraft_doc::symmetry::SymmetryMode;
 use tooncraft_engine::Command;
 use tooncraft_engine::drawing::GradientKind;
@@ -45,6 +46,11 @@ pub struct DrawAids {
     pub gradient: GradientKind,
     pub gradient_to_transparent: bool,
     pub gradient_drag: Option<((f32, f32), (f32, f32))>,
+    /// The clone stamp tool's settings and stroke.
+    pub clone: crate::clone_tool::CloneTool,
+    /// The gradient's own stops (from a gradient swatch or the stop editor); empty: the
+    /// current colour to white or to transparent.
+    pub gradient_stops: Vec<Stop>,
     pub snap_grid: bool,
     pub hold_straighten: bool,
     /// The ruler handle being dragged (ruler, handle, the rulers as they were at the press, so
@@ -70,6 +76,8 @@ impl Default for DrawAids {
             gradient: GradientKind::Linear,
             gradient_to_transparent: true,
             gradient_drag: None,
+            clone: Default::default(),
+            gradient_stops: Vec::new(),
             snap_grid: false,
             hold_straighten: true,
             ruler_drag: None,
@@ -214,10 +222,10 @@ pub fn gradient_input(app: &mut ToonApp, at: Option<(f32, f32)>, resp: &egui::Re
     if resp.drag_stopped()
         && let Some((from, to)) = app.aids.gradient_drag.take()
     {
-        let start = app.color;
-        let end = if app.aids.gradient_to_transparent { [start[0], start[1], start[2], 0] } else { [255, 255, 255, 255] };
+        let (start, end) = two_colours(app);
+        let stops = app.aids.gradient_stops.clone();
         let (layer, frame, kind, area, area_rings) = (app.layer, app.frame, app.aids.gradient, app.selection.clone(), crate::selection_tools::extra_rings(app));
-        app.run(Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, feather: app.sel.feather });
+        app.run(Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, stops, feather: app.sel.feather });
     }
 }
 
@@ -343,20 +351,26 @@ pub fn brush_options(app: &mut ToonApp, ui: &mut egui::Ui) {
         ui.separator();
     }
     let mut sym = app.engine.project.symmetry;
-    let l = ui.label(tl!("Symmetry"));
-    egui::ComboBox::from_id_salt("symmetry")
-        .selected_text(symmetry_name(sym.mode))
-        .show_ui(ui, |ui| {
-            for m in [SymmetryMode::Off, SymmetryMode::Vertical, SymmetryMode::Horizontal, SymmetryMode::Both, SymmetryMode::Radial, SymmetryMode::RadialMirror]
-            {
-                ui.selectable_value(&mut sym.mode, m, symmetry_name(m));
-            }
-        })
-        .response
-        .labelled_by(l.id);
+    // label and control stay together when the row wraps (the Tool Properties panel)
+    ui.horizontal(|ui| {
+        let l = ui.label(tl!("Symmetry"));
+        egui::ComboBox::from_id_salt("symmetry")
+            .selected_text(symmetry_name(sym.mode))
+            .show_ui(ui, |ui| {
+                for m in
+                    [SymmetryMode::Off, SymmetryMode::Vertical, SymmetryMode::Horizontal, SymmetryMode::Both, SymmetryMode::Radial, SymmetryMode::RadialMirror]
+                {
+                    ui.selectable_value(&mut sym.mode, m, symmetry_name(m));
+                }
+            })
+            .response
+            .labelled_by(l.id);
+    });
     if matches!(sym.mode, SymmetryMode::Radial | SymmetryMode::RadialMirror) {
-        let l = ui.label(tl!("Copies"));
-        ui.add(egui::DragValue::new(&mut sym.spokes).range(2..=32)).labelled_by(l.id);
+        ui.horizontal(|ui| {
+            let l = ui.label(tl!("Copies"));
+            ui.add(egui::DragValue::new(&mut sym.spokes).range(2..=32)).labelled_by(l.id);
+        });
     }
     if sym != app.engine.project.symmetry {
         app.run(Command::SetSymmetry { symmetry: sym });
@@ -396,11 +410,38 @@ pub fn shape_options(app: &mut ToonApp, ui: &mut egui::Ui) {
     }
 }
 
+/// The two-colour gradient: the current colour to transparent, or to white.
+fn two_colours(app: &ToonApp) -> ([u8; 4], [u8; 4]) {
+    let start = app.color;
+    let end = if app.aids.gradient_to_transparent { [start[0], start[1], start[2], 0] } else { [255, 255, 255, 255] };
+    (start, end)
+}
+
+/// The stops the gradient tool paints with: its own, or the two-colour ones.
+pub fn gradient_stops(app: &ToonApp) -> Vec<Stop> {
+    if app.aids.gradient_stops.len() >= 2 {
+        return app.aids.gradient_stops.clone();
+    }
+    let (start, end) = two_colours(app);
+    vec![Stop { at: 0.0, rgba: start }, Stop { at: 1.0, rgba: end }]
+}
+
 /// The gradient tool's options.
 pub fn gradient_options(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.selectable_value(&mut app.aids.gradient, GradientKind::Linear, tl!("Linear"));
     ui.selectable_value(&mut app.aids.gradient, GradientKind::Radial, tl!("Radial"));
-    ui.checkbox(&mut app.aids.gradient_to_transparent, tl!("Fade to transparent"));
+    if app.aids.gradient_stops.is_empty() {
+        ui.checkbox(&mut app.aids.gradient_to_transparent, tl!("Fade to transparent"));
+        if ui.button(tl!("Edit Stops")).on_hover_text(tl!("Set the gradient's colours and where they sit")).clicked() {
+            app.aids.gradient_stops = gradient_stops(app);
+        }
+    } else {
+        stop_editor(app, ui);
+    }
+    if ui.button(tl!("Add Gradient to Palette")).on_hover_text(tl!("As a gradient swatch in the palette shown")).clicked() {
+        let stops = gradient_stops(app);
+        crate::colour_tools::add_gradient(app, stops);
+    }
     ui.checkbox(&mut app.aids.snap_grid, tl!("Snap to grid"));
     ui.label(tl!("Drag from start to end; inside the selection when there is one"));
 }
@@ -439,4 +480,46 @@ pub fn line_style_options(app: &mut ToonApp, ui: &mut egui::Ui) {
         })
         .response
         .labelled_by(l.id);
+}
+
+/// The gradient's stops: a preview strip, then each stop's colour and position.
+fn stop_editor(app: &mut ToonApp, ui: &mut egui::Ui) {
+    crate::colour_tools::gradient_strip(ui, &app.aids.gradient_stops, egui::vec2(120.0, 16.0), tl!("Gradient preview").to_string());
+    let mut remove = None;
+    let can_remove = app.aids.gradient_stops.len() > 2;
+    for (i, s) in app.aids.gradient_stops.iter_mut().enumerate() {
+        ui.horizontal(|ui| {
+            let mut c = egui::Color32::from_rgba_unmultiplied(s.rgba[0], s.rgba[1], s.rgba[2], s.rgba[3]);
+            let l = ui.label(tlf!("Stop {n}", n = i + 1));
+            if ui.color_edit_button_srgba(&mut c).labelled_by(l.id).changed() {
+                s.rgba = c.to_srgba_unmultiplied();
+            }
+            let mut pct = (s.at * 100.0).round();
+            if ui.add(egui::DragValue::new(&mut pct).range(0.0..=100.0).suffix(" %")).labelled_by(l.id).changed() {
+                s.at = (pct / 100.0).clamp(0.0, 1.0);
+            }
+            if ui.add_enabled(can_remove, egui::Button::new(tl!("Remove"))).clicked() {
+                remove = Some(i);
+            }
+        });
+    }
+    if let Some(i) = remove {
+        app.aids.gradient_stops.remove(i);
+    }
+    ui.horizontal(|ui| {
+        if ui
+            .add_enabled(app.aids.gradient_stops.len() < MAX_STOPS, egui::Button::new(tl!("Add Stop")))
+            .on_hover_text(tl!("The current colour, half way"))
+            .clicked()
+        {
+            app.aids.gradient_stops.push(Stop { at: 0.5, rgba: app.color });
+        }
+        if ui.button(tl!("Two Colours")).on_hover_text(tl!("Back to the current colour and white or transparent")).clicked() {
+            app.aids.gradient_stops.clear();
+        }
+    });
+    // keep them in order once nothing is being dragged
+    if ui.ctx().dragged_id().is_none() {
+        app.aids.gradient_stops = sanitize_stops(std::mem::take(&mut app.aids.gradient_stops));
+    }
 }

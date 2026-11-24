@@ -20,6 +20,8 @@ const MAX_PATH: u32 = 10_000;
 pub struct CameraDrag {
     /// The key being moved (or made, at the current frame).
     pub key: CameraKey,
+    /// Which camera it belongs to.
+    pub camera: usize,
     /// Canvas pixels where it began and where the pointer is now.
     pub from: (f32, f32),
     pub to: (f32, f32),
@@ -34,16 +36,27 @@ impl CameraDrag {
     }
 }
 
+/// The camera being edited (the Camera panel's pick), kept to one that exists.
+pub fn edited_index(app: &ToonApp) -> usize {
+    app.camera_edit.min(app.engine.project.camera_count() - 1)
+}
+
+/// The camera being edited.
+pub fn edited(app: &ToonApp) -> &Camera {
+    let p = &app.engine.project;
+    p.camera_by_index(edited_index(app)).unwrap_or(&p.camera)
+}
+
 /// Whether the path shows: the camera frame is shown and the camera has keys.
 pub fn visible(app: &ToonApp) -> bool {
-    app.show_camera && !app.engine.project.camera.keys.is_empty() && !app.playback.playing
+    app.show_camera && !edited(app).keys.is_empty() && !app.playback.playing
 }
 
 /// The camera with a drag's key in place (what the canvas shows while dragging).
 pub fn previewed(app: &ToonApp) -> Option<Camera> {
     let d = app.camera_drag?;
     let p = &app.engine.project;
-    let mut cam = p.camera.clone();
+    let mut cam = p.camera_by_index(d.camera)?.clone();
     cam.set(d.moved().sanitized(p.width(), p.height()));
     Some(cam)
 }
@@ -53,7 +66,7 @@ pub fn path(app: &ToonApp) -> Vec<(u32, f32, f32)> {
     let p = &app.engine.project;
     let (w, h) = (p.width(), p.height());
     let preview = previewed(app);
-    let cam = preview.as_ref().unwrap_or(&p.camera);
+    let cam = preview.as_ref().unwrap_or(edited(app));
     cam.sweep(p.length().min(MAX_PATH), w, h).into_iter().map(|k| (k.frame, k.x, k.y)).collect()
 }
 
@@ -73,12 +86,13 @@ fn grab(app: &ToonApp, at: Pos2, screen: &dyn Fn(f32, f32) -> Pos2) -> Option<Ca
     let p = &app.engine.project;
     let (w, h) = (p.width(), p.height());
     // the current frame first, so its key wins over a neighbour drawn under it
-    let here = p.camera.at(app.frame, w, h);
+    let cam = edited(app);
+    let here = cam.at(app.frame, w, h);
     if screen(here.x, here.y).distance(at) <= PICK {
-        let keyed = p.camera.keys.iter().find(|k| k.frame == app.frame).copied();
+        let keyed = cam.keys.iter().find(|k| k.frame == app.frame).copied();
         return Some(keyed.unwrap_or(CameraKey { frame: app.frame, ..here }));
     }
-    p.camera.keys.iter().map(|k| (screen(k.x, k.y).distance(at), *k)).filter(|(d, _)| *d <= PICK).min_by(|a, b| a.0.total_cmp(&b.0)).map(|(_, k)| k)
+    cam.keys.iter().map(|k| (screen(k.x, k.y).distance(at), *k)).filter(|(d, _)| *d <= PICK).min_by(|a, b| a.0.total_cmp(&b.0)).map(|(_, k)| k)
 }
 
 /// Pointer input with the Transform tool. Returns whether a camera handle took it (then the peg
@@ -91,7 +105,7 @@ pub fn input(app: &mut ToonApp, ui: &Ui, resp: &egui::Response, canvas: &dyn Fn(
         let Some(p) = ui.input(|i| i.pointer.press_origin()).or(resp.interact_pointer_pos()) else { return false };
         let Some(key) = grab(app, p, screen) else { return false };
         let at = canvas(p);
-        app.camera_drag = Some(CameraDrag { key, from: at, to: at, changes: app.engine.changes() });
+        app.camera_drag = Some(CameraDrag { key, camera: edited_index(app), from: at, to: at, changes: app.engine.changes() });
     }
     if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
         app.camera_drag = None;
@@ -120,7 +134,7 @@ fn finish(app: &mut ToonApp, d: &CameraDrag) {
         return;
     }
     let k = d.moved();
-    app.run(Command::SetCameraKey { frame: k.frame, x: k.x, y: k.y, zoom: k.zoom, angle: k.angle });
+    app.run(Command::SetCameraKey { frame: k.frame, x: k.x, y: k.y, zoom: k.zoom, angle: k.angle, camera: d.camera });
     app.set_status(tlf!("Camera key at frame {frame} moved", frame = k.frame + 1));
 }
 
@@ -136,7 +150,7 @@ pub fn draw(app: &ToonApp, painter: &egui::Painter, screen: &dyn Fn(f32, f32) ->
         painter.add(egui::Shape::line(line, Stroke::new(1.5, col.gamma_multiply(0.7))));
     }
     let preview = previewed(app);
-    let keys = &preview.as_ref().unwrap_or(&app.engine.project.camera).keys;
+    let keys = &preview.as_ref().unwrap_or(edited(app)).keys;
     for k in keys {
         let r = egui::Rect::from_center_size(screen(k.x, k.y), vec2(9.0, 9.0));
         painter.rect_filled(r, 1.0, col);

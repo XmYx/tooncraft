@@ -130,7 +130,7 @@ pub(crate) fn to_canvas_pen(view_rotation: f32, flip: bool, tilt_x: f32, tilt_y:
 fn begin(app: &mut ToonApp, s: Sample) {
     let mut brush = app.brush();
     // Flipping the pen to its eraser end erases with the eraser's settings.
-    if app.tablet.pen().is_some_and(|p| p.eraser) {
+    if app.tablet.eraser_end() {
         brush = tooncraft_brush::Brush { color: brush.color, ..app.brushes[4] };
     }
     match app.engine.begin_stroke(app.layer, app.frame, brush) {
@@ -160,6 +160,8 @@ fn end(app: &mut ToonApp) {
 fn touch_gestures(app: &mut ToonApp, ui: &egui::Ui, events: &[Event], rect: Rect) -> Vec<usize> {
     use tooncraft_engine::touch::{Gesture, Phase};
     let now = ui.input(|i| i.time);
+    // only a real tablet reading: with Windows Ink the pen itself arrives as touches, and the
+    // pointer hooks do not say which touch is the pen, so those touches must still draw
     if app.tablet.pen().is_some() {
         app.touch.pen_seen(now);
     }
@@ -203,6 +205,35 @@ fn touch_gestures(app: &mut ToonApp, ui: &egui::Ui, events: &[Event], rect: Rect
     rejected
 }
 
+/// Pen side buttons (Preferences ▸ Pen): while the pen is near, a press of a mapped button over
+/// the canvas runs its command. Returns, per button, whether it is mapped right now (so the
+/// middle button does not also pan and the right one does not open the menu).
+fn side_buttons(app: &mut ToonApp, ui: &egui::Ui, events: &[Event], hovered: bool) -> [bool; 2] {
+    use crate::tablet::{SideButton, side_button_command};
+    let near = app.tablet.pen_near();
+    let buttons = app.preferences.prefs.pen_buttons.clone();
+    let mapped = SideButton::ALL.map(|b| near && side_button_command(&buttons, b).is_some());
+    let mut pressed: Vec<SideButton> = app.tablet.take_press().into_iter().collect();
+    for e in events {
+        if let Event::PointerButton { button, pressed: true, .. } = e {
+            match button {
+                PointerButton::Middle => pressed.push(SideButton::Lower),
+                PointerButton::Secondary => pressed.push(SideButton::Upper),
+                _ => {}
+            }
+        }
+    }
+    if !hovered || !near || app.engine.is_stroking() {
+        return mapped;
+    }
+    for b in pressed {
+        if let Some(id) = side_button_command(&buttons, b) {
+            crate::commands::run(app, ui.ctx(), id);
+        }
+    }
+    mapped
+}
+
 fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Response) {
     let size = vec2(app.engine.project.width() as f32, app.engine.project.height() as f32);
     let (events, mods, hover, space, scroll, zoom, multi) =
@@ -227,8 +258,10 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
             app.view.rotate(m.rotation_delta);
         }
     }
+    // a pen side button mapped to a command runs it instead of panning or opening the menu
+    let mapped = side_buttons(app, ui, &events, hovered);
     let panning = space || app.tool == Tool::Hand;
-    if resp.dragged_by(PointerButton::Middle) || (panning && resp.dragged_by(PointerButton::Primary)) {
+    if (resp.dragged_by(PointerButton::Middle) && !mapped[0]) || (panning && resp.dragged_by(PointerButton::Primary)) {
         app.view.pan += resp.drag_delta();
         ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
         return;
@@ -282,6 +315,11 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
         Tool::Gradient => {
             let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
             crate::draw_aids::gradient_input(app, at, resp);
+        }
+        Tool::Clone => {
+            let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            let hover = resp.hover_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
+            crate::clone_tool::input(app, at, hover, resp, mods.alt);
         }
         Tool::Text => {
             let at = resp.interact_pointer_pos().map(|p| to_canvas(app, rect, p)).map(|c| (c.x, c.y));
@@ -831,7 +869,12 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
             (false, None) => Some((size.x / 2.0, size.y / 2.0)),
         };
         crate::timeline::keyboard_menu(ui, &resp, now, |ui| crate::context_menus::canvas(app, ui, kat));
-        resp.context_menu(|ui| crate::context_menus::canvas(app, ui, at));
+        // a pen's upper side button mapped to a command does not also open the menu
+        let upper_mapped =
+            app.tablet.pen_near() && crate::tablet::side_button_command(&app.preferences.prefs.pen_buttons, crate::tablet::SideButton::Upper).is_some();
+        if !upper_mapped {
+            resp.context_menu(|ui| crate::context_menus::canvas(app, ui, at));
+        }
     }
     // ----- drawing -----
     let pal = crate::theme::palette(app.light_theme);
@@ -843,6 +886,9 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
     draw_selection(&painter, app, &c, pal);
     crate::draw_aids::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    if app.tool == Tool::Clone {
+        crate::clone_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    }
     crate::rulers_ui::overlay(&painter, app, &|x, y| c.screen(x, y));
     crate::text_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
     // the bucket's gap-closing reach, as a ring around the pointer
@@ -869,8 +915,22 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     // camera frame
     // while a camera key is dragged, the frame follows it
     let preview = crate::camera_path::previewed(app);
-    let cam = preview.as_ref().unwrap_or(&app.engine.project.camera);
-    if app.show_camera && (!cam.keys.is_empty() || !cam.shakes.is_empty()) {
+    let filming = app.engine.project.camera_index_at(app.frame);
+    let edited = crate::camera_path::edited_index(app);
+    // the camera filming this frame; the edited one too, dimmed, when it is another
+    let mut frames = vec![filming];
+    if edited != filming {
+        frames.push(edited);
+    }
+    for index in frames {
+        let Some(own) = app.engine.project.camera_by_index(index) else { continue };
+        let cam = match (&preview, app.camera_drag) {
+            (Some(p), Some(d)) if d.camera == index => p,
+            _ => own,
+        };
+        if !app.show_camera || (cam.keys.is_empty() && cam.shakes.is_empty()) {
+            continue;
+        }
         let (w, h) = (app.engine.project.width(), app.engine.project.height());
         let map = cam.output_to_canvas(app.frame, w, h);
         let pts: Vec<Pos2> = [(0.0, 0.0), (w as f32, 0.0), (w as f32, h as f32), (0.0, h as f32)]
@@ -880,10 +940,15 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
                 c.screen(cx, cy)
             })
             .collect();
-        let col = if cam.enabled { pal.accent } else { pal.weak };
-        painter.add(Shape::closed_line(pts.clone(), Stroke::new(2.0, col)));
+        let col = if !cam.enabled || index != filming { pal.weak } else { pal.accent };
+        painter.add(Shape::closed_line(pts.clone(), Stroke::new(if index == filming { 2.0 } else { 1.0 }, col)));
         if let Some(p0) = pts.first() {
-            painter.text(*p0 + vec2(4.0, 3.0), egui::Align2::LEFT_TOP, tl!("Camera"), egui::FontId::proportional(12.0), col);
+            let name = if app.engine.project.camera_count() > 1 {
+                app.engine.project.camera_name(index, tl!("Main camera")).to_owned()
+            } else {
+                tl!("Camera").to_owned()
+            };
+            painter.text(*p0 + vec2(4.0, 3.0), egui::Align2::LEFT_TOP, name, egui::FontId::proportional(12.0), col);
         }
     }
     crate::camera_path::draw(app, &painter, &|x, y| c.screen(x, y), pal.accent);
@@ -916,9 +981,9 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     }
 }
 
-/// The paper and the layers seen through `c`, with the light table and onion skin; with `only`,
-/// that layer's drawing (and its onion skin) alone. Returns the paper's screen corners.
-/// Paper and layers; `aids` adds the light table and the onion skin (off for a thumbnail).
+/// The paper and the layers seen through `c`; with `only`, that layer's drawing (and its onion
+/// skin) alone; `aids` adds the light table and the onion skin (off for a thumbnail). Returns the
+/// paper's screen corners.
 fn paint_layers(app: &mut ToonApp, ctx: &egui::Context, c: &Ctx, only: Option<usize>, aids: bool) -> [Pos2; 4] {
     let size = c.size;
     let corners = [c.screen(0.0, 0.0), c.screen(size.x, 0.0), c.screen(size.x, size.y), c.screen(0.0, size.y)];
