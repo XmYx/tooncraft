@@ -97,6 +97,8 @@ mod status_strip;
 mod swatch_ui_tests;
 mod tablet;
 #[cfg(test)]
+mod tc3_anim_ui_tests;
+#[cfg(test)]
 mod tcui_time_ui_tests;
 mod text_tool;
 #[cfg(test)]

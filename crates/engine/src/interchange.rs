@@ -266,7 +266,16 @@ fn name_of(path: &str) -> String {
 
 /// The changes of a video import, once the pictures are decoded and the room is checked.
 #[allow(clippy::too_many_arguments)]
-fn place_video(e: &mut Engine, kept: Vec<(u32, Surface)>, last: u32, info: &tooncraft_interop::video::VideoInfo, o: &VideoImport, room: u32, fps: f64, name: &str) -> Result<()> {
+fn place_video(
+    e: &mut Engine,
+    kept: Vec<(u32, Surface)>,
+    last: u32,
+    info: &tooncraft_interop::video::VideoInfo,
+    o: &VideoImport,
+    room: u32,
+    fps: f64,
+    name: &str,
+) -> Result<()> {
     // the last picture is held for its own length
     let tail = if info.fps > 0.0 { (fps * o.every.max(1) as f64 / info.fps).round().max(1.0) as u32 } else { 1 };
     let end = last.saturating_add(tail).min(room);
