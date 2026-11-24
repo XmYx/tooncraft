@@ -43,6 +43,8 @@ tooncraft	Add a Peg for This Layer
 tooncraft	Add a look	
 tooncraft	Add effect	
 tooncraft	Add light	
+tooncraft	Add or remove a marker on this frame	
+tooncraft	Add or remove this frame from the flip set	
 tooncraft	Add point	
 tooncraft	Add the effects saved in a .toonfx file to this layer	
 tooncraft	Add to or Remove from Flip Set	
@@ -85,6 +87,7 @@ tooncraft	Before
 tooncraft	Before, step {n}	
 tooncraft	Behind	
 tooncraft	Bicubic (sharp)	
+tooncraft	Bigger brush	
 tooncraft	Bilinear (smooth)	
 tooncraft	Black and white	
 tooncraft	Blank frame: drawing here starts a new drawing.	
@@ -140,6 +143,7 @@ tooncraft	Clear In and Out
 tooncraft	Clear Recent Shots	
 tooncraft	Clear frame	
 tooncraft	Clear frame (Delete)	
+tooncraft	Clear frame / erase selection	
 tooncraft	Clear {mouth}	
 tooncraft	Click an area to select the pixels like it	
 tooncraft	Click the canvas to pick a colour (Alt+click with any brush)	
@@ -327,9 +331,11 @@ tooncraft	Filled
 tooncraft	Film	
 tooncraft	Find	
 tooncraft	Find Command	
-tooncraft	Find Command…	
+tooncraft	Find a command	
+tooncraft	Find brush	
 tooncraft	Fine liner	
 tooncraft	Finish the line where the pen lifts	
+tooncraft	Finish the stroke first	
 tooncraft	First / last frame	
 tooncraft	First Frame	
 tooncraft	First frame	
@@ -345,6 +351,8 @@ tooncraft	Flip Vertically
 tooncraft	Flip horizontally	
 tooncraft	Flip the view to check the drawing (M); the drawing does not change	
 tooncraft	Flip to Next Chosen Frame	
+tooncraft	Flip to the next chosen frame	
+tooncraft	Flip to the previous chosen frame	
 tooncraft	Flip vertically	
 tooncraft	Flow	
 tooncraft	Flow jitter	
@@ -441,7 +449,9 @@ tooncraft	Hold One Frame Shorter
 tooncraft	Hold each drawing of the layer until the next one	
 tooncraft	Hold each for	
 tooncraft	Hold each mouth at least	
+tooncraft	Hold one frame longer	
 tooncraft	Hold one frame longer / shorter	
+tooncraft	Hold one frame shorter	
 tooncraft	Hold the pen still at the end of a stroke to turn it into a clean line or ellipse	
 tooncraft	Hold to straighten	
 tooncraft	Hold −	
@@ -489,7 +499,7 @@ tooncraft	Insert frame (Insert)
 tooncraft	Intensity	
 tooncraft	Into	
 tooncraft	Invert	
-tooncraft	Invert Selection	
+tooncraft	Invert selection	
 tooncraft	JPEG Sequence	
 tooncraft	JPEG Sequence…	
 tooncraft	Jitter	
@@ -529,7 +539,9 @@ tooncraft	Lasso fill
 tooncraft	Last Frame	
 tooncraft	Last frame	
 tooncraft	Layer	
+tooncraft	Layer above	
 tooncraft	Layer above / below	
+tooncraft	Layer below	
 tooncraft	Layer colour	
 tooncraft	Layer locked	
 tooncraft	Layer properties copied	
@@ -668,6 +680,8 @@ tooncraft	Next Key Drawing
 tooncraft	Next Marker	
 tooncraft	Next drawing	
 tooncraft	Next frame	
+tooncraft	Next key drawing	
+tooncraft	Next marker	
 tooncraft	Next panel	
 tooncraft	No Colour	
 tooncraft	No Mark	
@@ -698,7 +712,10 @@ tooncraft	Normal
 tooncraft	Not a matte	
 tooncraft	Note for frame {n}	
 tooncraft	Nothing copied yet	
+tooncraft	Nothing is selected	
+tooncraft	Nothing to redo	
 tooncraft	Nothing to select there	
+tooncraft	Nothing to undo	
 tooncraft	Now showing drawing {id}	
 tooncraft	Nudge the selection (Shift: 10 px)	
 tooncraft	OK	
@@ -852,6 +869,8 @@ tooncraft	Previous Marker
 tooncraft	Previous colour #{hex}	
 tooncraft	Previous drawing	
 tooncraft	Previous frame	
+tooncraft	Previous key drawing	
+tooncraft	Previous marker	
 tooncraft	ProRes 422 HQ (MOV)	
 tooncraft	ProRes 422 HQ (MOV)…	
 tooncraft	ProRes 4444 with Alpha (MOV)	
@@ -966,7 +985,6 @@ tooncraft	Save Preset…
 tooncraft	Save Stack…	
 tooncraft	Save Workspace	
 tooncraft	Save as Preset	
-tooncraft	Save as shot_v002, shot_v003 … next to the current file (Ctrl+Alt+S)	
 tooncraft	Save new version	
 tooncraft	Save the shot (Ctrl+S)	
 tooncraft	Save the shot before quitting?	
@@ -995,6 +1013,7 @@ tooncraft	Select frames
 tooncraft	Select tool, select all	
 tooncraft	Selected frames	
 tooncraft	Selected {n} pixels	
+tooncraft	Selection	
 tooncraft	Set In	
 tooncraft	Set Key	
 tooncraft	Set Name	
@@ -1027,8 +1046,10 @@ tooncraft	Show onion skin
 tooncraft	Show pinned frames	
 tooncraft	Show the camera frame	
 tooncraft	Show the drawings before and after this one (O); right-click for its settings	
+tooncraft	Show the next drawing of the layer here	
 tooncraft	Show the pinned drawings under this one	
 tooncraft	Show the position as HH:MM:SS:FF instead of a frame number	
+tooncraft	Show the previous drawing of the layer here	
 tooncraft	Show the sheet down the page: layers as columns, frames as rows	
 tooncraft	Show the start window when opening with no shot	
 tooncraft	Show this drawing at the current frame, leaving the frames after it as they are	
@@ -1054,6 +1075,7 @@ tooncraft	Slow end (1s to 3s)
 tooncraft	Slow start (3s to 1s)	
 tooncraft	Small	
 tooncraft	Smaller / bigger brush	
+tooncraft	Smaller brush	
 tooncraft	Smallest size	
 tooncraft	Smear fade	
 tooncraft	Smooth lines	
@@ -1139,7 +1161,9 @@ tooncraft	The picker in a window of its own
 tooncraft	The selection is too detailed to keep; nothing changed	
 tooncraft	The sheet down the right side, layers as columns	
 tooncraft	The shot has as many palettes as it can hold	
+tooncraft	The shot has no sound	
 tooncraft	The size changes around the centre; Canvas Size… keeps another part in place. Each change is one undo step.	
+tooncraft	The tool has no brush	
 tooncraft	Thicken lines	
 tooncraft	This frame	
 tooncraft	This layer	
@@ -1241,6 +1265,8 @@ tooncraft	Zoom In
 tooncraft	Zoom Out	
 tooncraft	Zoom blur	
 tooncraft	Zoom in / out	
+tooncraft	Zoom the timeline in	
+tooncraft	Zoom the timeline out	
 tooncraft	a command or a key, like Ctrl+Z	
 tooncraft	a name or a key	
 tooncraft	and	
@@ -1263,6 +1289,7 @@ tooncraft	stroke {ms} ms
 tooncraft	the file is too large	
 tooncraft	to	
 tooncraft	x {x}  y {y}	
+tooncraft	{command}: {reason}	
 tooncraft	{done} steps, {undone} to redo	
 tooncraft	{drawings} drawings ({unused} not exposed)	
 tooncraft	{drawing} (held)	
