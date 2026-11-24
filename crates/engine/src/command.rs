@@ -389,6 +389,12 @@ pub enum Command {
         #[serde(default)]
         ease: Ease,
     },
+    /// Set (or replace) several keys of one peg as one undo step: a recorded take. Refused whole
+    /// when a key lies past the end of the shot or there are more than a peg can hold.
+    SetPegKeys {
+        peg: PegId,
+        keys: Vec<PegKey>,
+    },
     RemovePegKey {
         peg: PegId,
         frame: u32,
@@ -1406,6 +1412,28 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
             frame_ok(e, frame)?;
             pegs(e, "Peg key", |p| {
                 p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?.set_key(PegKey { frame, x, y, angle, scale_x, scale_y, skew, ease });
+                Ok(())
+            })
+        }
+        Command::SetPegKeys { peg, keys } => {
+            if keys.len() > tooncraft_doc::peg::MAX_PEG_KEYS {
+                return Err(DocError::TooManyPegKeys.into());
+            }
+            if let Some(k) = keys.iter().find(|k| k.frame >= e.project.length()) {
+                return Err(DocError::NoFrame(k.frame).into());
+            }
+            if keys.is_empty() {
+                return Ok(());
+            }
+            pegs(e, "Record motion", |p| {
+                let pg = p.peg_mut(peg).ok_or(DocError::NoPeg(peg.0))?;
+                let new = keys.iter().filter(|k| !pg.has_key(k.frame)).map(|k| k.frame).collect::<std::collections::BTreeSet<_>>().len();
+                if pg.keys.len() + new > tooncraft_doc::peg::MAX_PEG_KEYS {
+                    return Err(DocError::TooManyPegKeys);
+                }
+                for k in keys {
+                    pg.set_key(k);
+                }
                 Ok(())
             })
         }
