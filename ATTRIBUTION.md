@@ -27,6 +27,8 @@ Celsys, Savage Interactive or any other vendor.
 | `docs/images/tooncraft-time.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --frame 7 --layout timing --loop 4..14 --screenshot`) of the built-in demo shot | MIT OR Apache-2.0 | README |
 | `docs/images/tooncraft-sheet.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --frame 7 --layout sheet --screenshot`) of the built-in demo shot | MIT OR Apache-2.0 | README |
 | `docs/images/tooncraft-cell-menu.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --frame 7 --context-menu cell --screenshot`) of the built-in demo shot | MIT OR Apache-2.0 | README |
+| `docs/images/tooncraft-onion.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --frame 7 --context-menu onion --screenshot`) of the built-in demo shot | MIT OR Apache-2.0 | README |
+| `docs/images/tooncraft-tool-flyout.png` | ToonCraft contributors | Original work: ToonCraft screenshot (`--demo --frame 7 --context-menu tool --screenshot`) of the built-in demo shot | MIT OR Apache-2.0 | README |
 
 Code-drawn content (the demo shot *Bouncing ball*, the tool icons in `apps/tooncraft/src/icons.rs`
 the built-in brush settings in `crates/engine/src/library.rs` and the built-in grain textures Paper,
