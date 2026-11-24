@@ -136,6 +136,15 @@ fn mirror_sample(m: &tooncraft_doc::symmetry::Mirror, s: Sample) -> Sample {
     Sample { x, y, tilt_x: tx, tilt_y: ty, ..s }
 }
 
+/// Commands applied as one step; see [`Engine::begin_group`].
+#[must_use = "a group ends with end_group or abandon_group"]
+pub struct Group {
+    before: Project,
+    undo: Vec<Entry>,
+    redo: Vec<Entry>,
+    changes: u64,
+}
+
 /// A project with its history.
 pub struct Engine {
     pub project: Project,
@@ -263,6 +272,34 @@ impl Engine {
             self.redo()?;
         }
         Ok(self.undo.len())
+    }
+
+    /// Start a group: what is applied until [`Engine::end_group`] becomes one undo step, and
+    /// [`Engine::abandon_group`] puts the shot and its history back as they were. Scripts run in
+    /// a group.
+    pub fn begin_group(&mut self) -> Group {
+        Group { before: self.project.clone(), undo: std::mem::take(&mut self.undo), redo: std::mem::take(&mut self.redo), changes: self.changes }
+    }
+
+    /// Close a group as one undo step labelled `label` (nothing when nothing changed).
+    pub fn end_group(&mut self, g: Group, label: &str) {
+        let changed = self.changes != g.changes;
+        self.undo = g.undo;
+        if changed {
+            self.redo.clear();
+            self.push(Entry { label: label.to_string(), parts: vec![Part::Whole(Box::new(g.before))] });
+        } else {
+            self.redo = g.redo;
+        }
+    }
+
+    /// Drop a group's work: the shot, its history and its change count return to how they were
+    /// at [`Engine::begin_group`].
+    pub fn abandon_group(&mut self, g: Group) {
+        self.project = g.before;
+        self.undo = g.undo;
+        self.redo = g.redo;
+        self.changes = g.changes;
     }
 
     pub(crate) fn push(&mut self, entry: Entry) {

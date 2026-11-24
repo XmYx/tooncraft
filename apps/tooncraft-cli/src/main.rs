@@ -6,6 +6,8 @@
 //! tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
 //! tooncraft-cli info <file.toon>
 //! tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   apply JSON-lines commands, then save
+//! tooncraft-cli run-script <file.toon> <script.rhai> [--arg NAME=VALUE]… [--time-limit SECONDS]   run a script, then save
+//! tooncraft-cli batch-script <script.rhai> <file.toon>… [--arg NAME=VALUE]… [--out-dir DIR]   run a script on each shot
 //! tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
 //! tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
 //! tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
@@ -35,6 +37,8 @@ const USAGE: &str = "usage:
   tooncraft-cli import-video <file.toon> <movie.mp4|.mov> [--frame N] [--from SECONDS] [--every N] [--max N] [--on-top] [--keep-length]
   tooncraft-cli info <file.toon>
   tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   (text commands use the fonts given, by file name)
+  tooncraft-cli run-script <file.toon> <script.rhai> [--arg NAME=VALUE]… [--time-limit SECONDS]
+  tooncraft-cli batch-script <script.rhai> <file.toon>… [--arg NAME=VALUE]… [--out-dir DIR] [--time-limit SECONDS]
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
   tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
   tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
@@ -87,6 +91,9 @@ impl Args {
                         | "layer"
                         | "threads"
                         | "font"
+                        | "arg"
+                        | "out-dir"
+                        | "time-limit"
                         | "from"
                         | "every"
                         | "max"
@@ -121,6 +128,40 @@ fn size(s: Option<&str>, default: (u32, u32)) -> Result<(u32, u32), String> {
 
 fn num(s: Option<&str>, default: u32) -> Result<u32, String> {
     s.map(|v| v.parse::<u32>().map_err(|_| format!("not a number: {v}"))).unwrap_or(Ok(default))
+}
+
+/// A script's source, `--arg NAME=VALUE` pairs and limits (`--time-limit SECONDS`).
+fn script_setup(a: &Args, script: &Path) -> Result<(String, Vec<(String, String)>, tooncraft_script::Limits), String> {
+    let limits =
+        tooncraft_script::Limits { max_time: std::time::Duration::from_secs(u64::from(num(a.flag("time-limit"), 10)?.clamp(1, 3600))), ..Default::default() };
+    let len = std::fs::metadata(script).map_err(|e| format!("{}: {e}", script.display()))?.len();
+    if len > limits.max_source_bytes as u64 {
+        return Err(format!("{}: a script over {} bytes is not read", script.display(), limits.max_source_bytes));
+    }
+    let source = std::fs::read_to_string(script).map_err(|e| format!("{}: {e}", script.display()))?;
+    let mut args = Vec::new();
+    for (_, v) in a.flags.iter().filter(|(n, _)| n == "arg") {
+        let v = v.as_deref().ok_or("--arg needs NAME=VALUE")?;
+        let (k, v) = v.split_once('=').ok_or_else(|| format!("--arg {v}: write NAME=VALUE"))?;
+        args.push((k.to_string(), v.to_string()));
+    }
+    Ok((source, args, limits))
+}
+
+/// Run a script on a shot, printing its output; its error (with the place) fails the command.
+fn run_script(e: &mut Engine, script: &Path, source: &str, args: &[(String, String)], limits: &tooncraft_script::Limits) -> Result<(), String> {
+    let label = script.file_stem().and_then(|s| s.to_str()).unwrap_or("Script");
+    let r = tooncraft_script::run(e, source, label, args, limits);
+    for line in &r.output {
+        println!("{line}");
+    }
+    match r.error {
+        Some(err) => Err(format!("{}: {err} (nothing was changed)", script.display())),
+        None => {
+            println!("{}: {} commands in {} ms", script.display(), r.commands, r.elapsed.as_millis());
+            Ok(())
+        }
+    }
 }
 
 fn save(path: &Path, e: &Engine) -> Result<(), String> {
@@ -301,6 +342,44 @@ fn run() -> Result<(), String> {
                 }
             }
             save(&path, &e)
+        }
+        "run-script" => {
+            let path = rest.file(0)?;
+            let script = rest.file(1)?;
+            let (source, args, limits) = script_setup(&rest, &script)?;
+            let mut e = load(&path)?;
+            run_script(&mut e, &script, &source, &args, &limits)?;
+            save(&path, &e)
+        }
+        "batch-script" => {
+            let script = rest.file(0)?;
+            let shots = rest.positional.get(1..).unwrap_or_default();
+            if shots.is_empty() {
+                return Err(format!("batch-script needs one or more shots\n\n{USAGE}"));
+            }
+            let (source, args, limits) = script_setup(&rest, &script)?;
+            let out_dir = rest.flag("out-dir").map(PathBuf::from);
+            if let Some(d) = &out_dir {
+                std::fs::create_dir_all(d).map_err(|e| format!("{}: {e}", d.display()))?;
+            }
+            let mut failed = 0;
+            for shot in shots {
+                let shot = PathBuf::from(shot);
+                println!("== {}", shot.display());
+                let done = load(&shot).and_then(|mut e| {
+                    run_script(&mut e, &script, &source, &args, &limits)?;
+                    let to = match (&out_dir, shot.file_name()) {
+                        (Some(d), Some(n)) => d.join(n),
+                        _ => shot.clone(),
+                    };
+                    save(&to, &e)
+                });
+                if let Err(err) = done {
+                    eprintln!("{}: {err}", shot.display());
+                    failed += 1;
+                }
+            }
+            if failed > 0 { Err(format!("{failed} of {} shots failed", shots.len())) } else { Ok(()) }
         }
         "export" => {
             let e = load(&rest.file(0)?)?;

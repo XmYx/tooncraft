@@ -273,3 +273,50 @@ fn import_video_round_trip() {
     let (ok, out) = cli(&["import-video", shot_s, movie.to_str().unwrap(), "--from", "-1"]);
     assert!(!ok && out.contains("--from"), "{out}");
 }
+
+#[test]
+fn scripts_run_and_batch() {
+    struct Gone(std::path::PathBuf);
+    impl Drop for Gone {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let dir = std::env::temp_dir().join(format!("tooncraft-cli-script-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let _gone = Gone(dir.clone());
+    let examples = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/scripts");
+    let ex = |n: &str| examples.join(n).to_str().unwrap().to_string();
+    let a = dir.join("a.toon");
+    let b = dir.join("b.toon");
+    let (a, b) = (a.to_str().unwrap(), b.to_str().unwrap());
+    assert!(cli(&["demo", a, "--size", "160x90"]).0);
+    assert!(cli(&["demo", b, "--size", "160x90"]).0);
+    // every example script runs on the demo shot
+    let (ok, out) = cli(&["run-script", a, &ex("number_layers.rhai"), "--arg", "prefix=Level"]);
+    assert!(ok && out.contains("named 3 layers"), "{out}");
+    let (ok, out) = cli(&["run-script", a, &ex("mark_seconds.rhai")]);
+    assert!(ok && out.contains("marked 2 seconds"), "{out}");
+    let (ok, out) = cli(&["run-script", a, &ex("exposure_report.rhai")]);
+    assert!(ok && out.contains("Level 1:") && out.contains("drawings"), "{out}");
+    // the files under examples/scripts are all run above
+    let mut names: Vec<String> = std::fs::read_dir(&examples).unwrap().map(|e| e.unwrap().file_name().into_string().unwrap()).collect();
+    names.sort();
+    assert_eq!(names, ["exposure_report.rhai", "mark_seconds.rhai", "number_layers.rhai"], "a new example script needs a test here");
+    // a failing script changes nothing and says where
+    let bad = dir.join("bad.rhai");
+    std::fs::write(&bad, "run(#{cmd: \"rename_layer\", layer: 0, name: \"X\"});\nrun(#{cmd: \"rename_layer\", layer: 99, name: \"Y\"});").unwrap();
+    let (ok, out) = cli(&["run-script", b, bad.to_str().unwrap()]);
+    assert!(!ok && out.contains("line 2") && out.contains("nothing was changed"), "{out}");
+    let (_, out) = cli(&["run-script", b, &ex("exposure_report.rhai")]);
+    assert!(!out.contains("X:"), "the first rename was rolled back: {out}");
+    // a batch over two shots, written to another folder
+    let out_dir = dir.join("out");
+    let (ok, out) = cli(&["batch-script", &ex("number_layers.rhai"), a, b, "--out-dir", out_dir.to_str().unwrap()]);
+    assert!(ok, "{out}");
+    assert!(out_dir.join("a.toon").is_file() && out_dir.join("b.toon").is_file());
+    // one bad shot fails the batch but the others are still done
+    let missing = dir.join("missing.toon");
+    let (ok, out) = cli(&["batch-script", &ex("mark_seconds.rhai"), missing.to_str().unwrap(), b]);
+    assert!(!ok && out.contains("1 of 2 shots failed"), "{out}");
+}
