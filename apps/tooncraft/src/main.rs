@@ -78,6 +78,8 @@ mod shell_ui_tests;
 mod sound;
 mod sound_panel;
 mod start_screen;
+#[cfg(test)]
+mod swatch_ui_tests;
 mod tablet;
 mod textures;
 mod theme;
