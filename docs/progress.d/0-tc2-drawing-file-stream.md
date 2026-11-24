@@ -1,0 +1,1 @@
+- 2026-11-24: Saving a drawing file reads and encodes one drawing at a time instead of holding all of an item's drawings at once.
