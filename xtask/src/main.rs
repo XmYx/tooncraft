@@ -215,12 +215,10 @@ const ALLOWED: &[&str] = &[
     "MPL-2.0",
 ];
 
-/// Is an SPDX expression satisfiable from the allowlist? `OR` needs one side, `AND` both. A
-/// trailing `+` ("or later") is read as the version itself: the house rules count `MPL-2.0+` as
-/// `MPL-2.0`.
+/// Is an SPDX expression satisfiable from the allowlist? `OR` needs one side, `AND` both. The
+/// house rules count `MPL-2.0+` as `MPL-2.0`; no other "or later" `+` is read that way.
 fn spdx_ok(expr: &str) -> bool {
-    let e = expr.replace(['(', ')'], " ").replace('/', " OR ").replace("+ ", " ");
-    let e = e.strip_suffix('+').unwrap_or(&e);
+    let e = expr.replace(['(', ')'], " ").replace('/', " OR ").replace("MPL-2.0+", "MPL-2.0");
     e.split(" OR ").any(|alt| {
         let alt = alt.trim();
         if ALLOWED.contains(&alt) {
@@ -578,6 +576,7 @@ mod tests {
         assert!(spdx_ok("MPL-2.0+"), "the house rules count MPL-2.0+ as MPL-2.0");
         assert!(spdx_ok("(MPL-2.0+ OR GPL-3.0)") && spdx_ok("MIT AND MPL-2.0+"));
         assert!(!spdx_ok("GPL-2.0+") && !spdx_ok("LGPL-2.1+ AND MIT"), "a version outside the list stays outside");
+        assert!(!spdx_ok("Apache-2.0+") && !spdx_ok("CC-BY-4.0+"), "only MPL-2.0+ is read as its version");
         assert!(spdx_ok("MIT OR Apache-2.0") && !spdx_ok("GPL-3.0"));
     }
 
