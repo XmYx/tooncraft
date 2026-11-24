@@ -310,12 +310,12 @@ Weight: 4
 | Opacity with falloff | all | D | S | |
 | Tint colours for before and after | all | D | S | |
 | Onion by drawings or by frames | TV TB | D | S | The reach shows in the before and after tints on the timeline ruler; right-click the Onion Skin toggle above the canvas for quick settings |
-| Onion on the current layer or on all layers | TV CS | P | S | Both work; only the current-layer path is tested |
+| Onion on the current layer or on all layers | TV CS | D | S | "Onion skin on every visible layer" in the Onion Skin panel and popover; hidden layers and layers left out of the onion skin stay out (tested on the CPU render) |
 | Onion skin as outlines | TV | D | S | Also: hide only the step before |
 | Onion settings per layer | TV TB | D | S | Own settings for a layer in the Onion Skin panel (steps, opacity, colours, outlines); an onion toggle in each timeline row leaves a layer out or takes it back; the shot's switch still turns all off |
-| Pick the exact relative frames shown | TB CS | P | S | An opacity per step on each side (0 hides that step), and key drawings only; no free list of offsets |
+| Pick the exact relative frames shown | TB CS | D | S | "Exact frames" in the Onion Skin panel: type the offsets (`-4 -2 +2`, up to 16, ±99 frames); also an opacity per step on each side and key drawings only; the ruler shows the picked reach |
 | Light table: pin any frame of any layer, with opacity | TB CS | D | S | |
-| Shift and trace: move or turn a pinned frame without changing it | TB TV | M | M | |
+| Shift and trace: move or turn a pinned frame without changing it | TB TV | D | M | Each light-table pin in the Onion Skin panel has Across, Down and Turn fields and Reset Shift; the drawing is untouched (`shift_pin` command, saved in the shot, `--shift-trace`) |
 
 ## Animation tools
 

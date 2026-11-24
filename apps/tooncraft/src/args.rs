@@ -21,6 +21,7 @@ Options:
   --loop <A..B>              start with the loop range on frames A to B (1-based)
   --light-table              pin frame 1 of the top layer to the light table and show it
   --camera-path              key a camera move and pick the Transform tool (the camera path)
+  --shift-trace              as --light-table, with the pin shifted and turned (shift and trace)
   --rulers                   start with a straight ruler and two-point perspective rulers on
   --thumbnails               start with drawing thumbnails in the timeline
   --light                    light theme
@@ -40,6 +41,7 @@ pub struct Cli {
     pub light: bool,
     pub light_table: bool,
     pub camera_path: bool,
+    pub shift_trace: bool,
     pub select: Option<(u32, u32)>,
     pub thumbnails: bool,
     pub file: Option<PathBuf>,
@@ -92,6 +94,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             "--light" => cli.light = true,
             "--light-table" => cli.light_table = true,
             "--camera-path" => cli.camera_path = true,
+            "--shift-trace" => (cli.light_table, cli.shift_trace) = (true, true),
             "--rulers" => cli.rulers = true,
             "--thumbnails" => cli.thumbnails = true,
             "--select" => {
