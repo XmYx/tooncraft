@@ -28,6 +28,8 @@ pub use curve::{Curve, MAX_POINTS, MIN_GAP};
 pub use dab::Dab;
 #[cfg(test)]
 mod paint_tests;
+#[cfg(test)]
+mod wet_tests;
 pub use grain::{Grain, GrainKind, builtin_grain, paper_grain};
 pub use response::{Dynamics, Inputs, Mapping, Response, Source, Target, hash01};
 pub use stabilizer::Stabilizer;
@@ -266,11 +268,41 @@ pub struct Wet {
     /// off, the brush paints its own colour). On the smudge brush: how fast it lets go of the
     /// colour it carries and reloads from the layer (low values drag long smears).
     pub pickup: f32,
+    /// 0 … 1: water in the paint. Diluted paint goes on thinner and more transparent.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub dilution: f32,
+    /// 0 … 1: how quickly the brush runs dry along the stroke (0 never does).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub dry: f32,
+    /// 0 … 1: pigment pooling at the edge of the stroke as it dries (watercolour edges).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub edge: f32,
+    /// 0 … 1: paint creeping a little way past the edge of the stroke into the paper.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub bleed: f32,
 }
 
 impl Default for Wet {
     fn default() -> Self {
-        Self { pickup: 0.0 }
+        Self { pickup: 0.0, dilution: 0.0, dry: 0.0, edge: 0.0, bleed: 0.0 }
+    }
+}
+
+impl Wet {
+    /// Whether the brush carries a load of paint (pickup, water or drying).
+    pub fn carries_paint(&self) -> bool {
+        self.pickup > 0.0 || self.dilution > 0.0 || self.dry > 0.0
+    }
+
+    fn sanitized(self, preset: Wet) -> Wet {
+        let f = |v: f32, d: f32| if v.is_finite() { v.clamp(0.0, 1.0) } else { d };
+        Wet {
+            pickup: f(self.pickup, preset.pickup),
+            dilution: f(self.dilution, 0.0),
+            dry: f(self.dry, 0.0),
+            edge: f(self.edge, 0.0),
+            bleed: f(self.bleed, 0.0),
+        }
     }
 }
 
@@ -393,7 +425,7 @@ impl Brush {
                 grain_scale: 3.0,
                 grain_kind: GrainKind::Clouds,
                 dynamics: Dynamics::linear(0.3, 0.6, 0.0, 0.15),
-                wet: Wet { pickup: 0.45 },
+                wet: Wet { pickup: 0.45, edge: 0.35, ..Wet::default() },
                 smoothing: Smoothing { average: 0.4, ..Smoothing::default() },
                 ..base
             },
@@ -403,7 +435,7 @@ impl Brush {
                 flow: 0.55,
                 spacing: 0.06,
                 dynamics: Dynamics::linear(0.3, 0.0, 0.0, 0.15),
-                wet: Wet { pickup: 0.3 },
+                wet: Wet { pickup: 0.3, ..Wet::default() },
                 ..base
             },
         }
@@ -434,7 +466,7 @@ impl Brush {
                 min_size: f(self.dynamics.min_size, 0.01, 1.0, p.dynamics.min_size),
                 response: self.dynamics.response.sanitized(),
             },
-            wet: Wet { pickup: f(self.wet.pickup, 0.0, 1.0, p.wet.pickup) },
+            wet: self.wet.sanitized(p.wet),
             smoothing: Smoothing {
                 average: f(self.smoothing.average, 0.0, 1.0, p.smoothing.average),
                 string: f(self.smoothing.string, 0.0, 500.0, p.smoothing.string),

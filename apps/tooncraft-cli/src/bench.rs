@@ -77,7 +77,7 @@ pub fn run(json: bool) -> Result<(), String> {
         ("stroke: eraser 40 px", Brush { size: 40.0, ..Brush::preset(BrushKind::Eraser) }),
         ("stroke: ink 6 px, 25 response curves and jitter", busy),
         ("stroke: chalk 30 px, canvas-weave grain", Brush { size: 30.0, grain_kind: GrainKind::Canvas, ..Brush::preset(BrushKind::Chalk) }),
-        ("stroke: watercolour 34 px (wet mixing)", Brush { size: 34.0, wet: Wet { pickup: 0.5 }, ..Brush::preset(BrushKind::Watercolour) }),
+        ("stroke: watercolour 34 px (wet mixing)", Brush { size: 34.0, wet: Wet { pickup: 0.5, ..Wet::default() }, ..Brush::preset(BrushKind::Watercolour) }),
         ("stroke: smudge 30 px", Brush { size: 30.0, ..Brush::preset(BrushKind::Smudge) }),
     ] {
         let (mean, p50, p99) = stroke_latency(brush)?;
