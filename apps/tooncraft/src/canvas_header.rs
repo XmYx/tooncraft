@@ -1,5 +1,5 @@
 //! The strip above the canvas: on/off toggles for what the canvas shows (onion skin, light table,
-//! field guide, mirror view, symmetry), so the tool options bar holds only the tool's settings.
+//! field guide, mirror view, symmetry, rulers), so the tool options bar holds only the tool's settings.
 //! Each toggle is a selectable button with its state published to assistive technology.
 
 use tooncraft_doc::symmetry::SymmetryMode;
@@ -46,6 +46,7 @@ pub fn strip(app: &mut ToonApp, ui: &mut egui::Ui) {
             sym.mode = if on { SymmetryMode::Vertical } else { SymmetryMode::Off };
             app.run(Command::SetSymmetry { symmetry: sym });
         }
+        crate::rulers_ui::toggle(app, ui);
     });
     ui.separator();
 }

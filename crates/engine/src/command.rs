@@ -123,6 +123,10 @@ pub enum Command {
     SetSymmetry {
         symmetry: tooncraft_doc::symmetry::Symmetry,
     },
+    /// Stroke rulers and grid snapping for the following strokes (a setting, not an undo step).
+    SetRulers {
+        rulers: tooncraft_doc::rulers::Rulers,
+    },
     /// Paint text into the drawing (one undo step): `x`, `y` is the anchor at the top of the
     /// first line (its left edge, centre or right edge by the alignment).
     Text {
@@ -983,6 +987,11 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::RecolourLayer { layer, from, to, tolerance } => crate::drawing::recolour(e, layer, from, to, tolerance),
         Command::SetSymmetry { symmetry } => {
             e.project.symmetry = symmetry.sanitized();
+            e.touch();
+            Ok(())
+        }
+        Command::SetRulers { rulers } => {
+            e.project.rulers = rulers.sanitized();
             e.touch();
             Ok(())
         }

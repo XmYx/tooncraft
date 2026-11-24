@@ -1,0 +1,1 @@
+- 2026-11-23: Stroke rulers: straight, curve, ellipse and concentric rulers and one-, two- and three-point perspective that freehand strokes follow (symmetry copies follow too), grid snapping for freehand strokes, handles dragged on the canvas or typed in the Rulers menu above the canvas, saved with the shot; `SetRulers` command and `--rulers` launch state.

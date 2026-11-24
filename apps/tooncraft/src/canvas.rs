@@ -230,6 +230,10 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
         app.set_status(tl!("Stroke cancelled"));
         return;
     }
+    // a press on a ruler handle moves it, with any tool
+    if crate::rulers_ui::drag(app, ui, rect) {
+        return;
+    }
     let (layer, frame) = (app.layer, app.frame);
     match app.tool {
         Tool::Fill if app.aids.lasso_fill => {
@@ -821,6 +825,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
     painter.add(Shape::closed_line(corners.to_vec(), Stroke::new(1.0, Color32::from_black_alpha(120))));
     draw_selection(&painter, app, &c, pal);
     crate::draw_aids::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    crate::rulers_ui::overlay(&painter, app, &|x, y| c.screen(x, y));
     crate::text_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
     // the bucket's gap-closing reach, as a ring around the pointer
     if app.tool == Tool::Fill

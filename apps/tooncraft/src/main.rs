@@ -53,6 +53,9 @@ mod panels_ui_tests;
 mod pegs;
 mod pipeline;
 mod preferences;
+mod rulers_ui;
+#[cfg(test)]
+mod rulers_ui_tests;
 mod scene_menus;
 mod scene_presets;
 #[cfg(test)]

@@ -19,6 +19,7 @@ Options:
   --bench-playback <SECONDS> play the shot for SECONDS, print frame timing and quit
   --select <A..B>            start with frames A to B (1-based) of the top layer selected
   --light-table              pin frame 1 of the top layer to the light table and show it
+  --rulers                   start with a straight ruler and two-point perspective rulers on
   --thumbnails               start with drawing thumbnails in the timeline
   --light                    light theme
   -h, --help                 print this help
@@ -42,6 +43,7 @@ pub struct Cli {
     pub layout: Option<String>,
     pub vertical: bool,
     pub tool: Option<String>,
+    pub rulers: bool,
 }
 
 /// The windows `--open` knows.
@@ -78,6 +80,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             "--demo" => cli.demo = true,
             "--light" => cli.light = true,
             "--light-table" => cli.light_table = true,
+            "--rulers" => cli.rulers = true,
             "--thumbnails" => cli.thumbnails = true,
             "--select" => {
                 let v = it.next().ok_or("--select needs A..B")?;

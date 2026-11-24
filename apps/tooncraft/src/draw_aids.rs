@@ -47,6 +47,11 @@ pub struct DrawAids {
     pub gradient_drag: Option<((f32, f32), (f32, f32))>,
     pub snap_grid: bool,
     pub hold_straighten: bool,
+    /// The ruler handle being dragged (ruler, handle, the rulers as they were at the press, so
+    /// Escape puts them back), see `rulers_ui`.
+    pub ruler_drag: Option<(usize, usize, tooncraft_doc::rulers::Rulers)>,
+    /// The rulers' canvas outlines, kept until the rulers or the canvas size change.
+    pub ruler_outlines: std::cell::RefCell<crate::rulers_ui::Outlines>,
     /// The text tool's style and the text box being typed (`text_tool`).
     pub text: crate::text_tool::TextTool,
     /// Points of the live stroke (for the recogniser) and when the pen last moved.
@@ -67,6 +72,8 @@ impl Default for DrawAids {
             gradient_drag: None,
             snap_grid: false,
             hold_straighten: true,
+            ruler_drag: None,
+            ruler_outlines: Default::default(),
             text: Default::default(),
             stroke: Vec::new(),
             still_since: None,
