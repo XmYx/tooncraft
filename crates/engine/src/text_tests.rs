@@ -27,7 +27,7 @@ fn digest(e: &Engine) -> u64 {
     let Some(s) = e.project.drawing_at(0, 0).and_then(|d| e.project.drawing(d)) else { return 0 };
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for (i, tile) in s.tiles() {
-        for b in (i as u32).to_le_bytes().iter().chain(tile.bytes()) {
+        for b in i.to_le_bytes().iter().chain(tile.bytes()) {
             h ^= *b as u64;
             h = h.wrapping_mul(0x0100_0000_01b3);
         }
