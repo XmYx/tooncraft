@@ -69,3 +69,29 @@ fn curve_commands_read_from_json_lines() {
     let cmd: Command = serde_json::from_str(line).unwrap();
     assert_eq!(cmd, Command::SetPegEases { peg: PegId(1), frames: vec![0, 10], ease: Ease::Hold });
 }
+
+#[test]
+fn a_recorded_take_sets_its_keys_as_one_undo_step_and_refusals_change_nothing() {
+    let (mut e, peg) = engine_with_keys();
+    let depth = e.undo_len();
+    let key = |frame, x| tooncraft_doc::PegKey { x, ..tooncraft_doc::PegKey::rest(frame) };
+    e.apply(Command::SetPegKeys { peg, keys: vec![key(10, 7.0), key(11, 8.0), key(12, f32::NAN)] }).unwrap();
+    assert_eq!(frames(&e, peg), [(0, 0.0), (10, 7.0), (11, 8.0), (12, 0.0), (20, 20.0)], "a hostile value is sanitized");
+    assert_eq!(e.undo_len(), depth + 1);
+    assert_eq!(e.undo_label(), Some("Record motion"));
+    e.undo().unwrap();
+    assert_eq!(frames(&e, peg), [(0, 0.0), (10, 50.0), (20, 20.0)]);
+    let before = e.project.clone();
+    let depth = e.undo_len();
+    let many = (0..=tooncraft_doc::peg::MAX_PEG_KEYS as u32).map(|f| key(f % 40, 1.0)).collect();
+    for bad in [
+        Command::SetPegKeys { peg, keys: vec![key(5, 1.0), key(40, 1.0)] },
+        Command::SetPegKeys { peg: PegId(9), keys: vec![key(5, 1.0)] },
+        Command::SetPegKeys { peg, keys: many },
+    ] {
+        assert!(e.apply(bad).is_err());
+    }
+    e.apply(Command::SetPegKeys { peg, keys: vec![] }).unwrap();
+    assert_eq!(e.project, before, "refused or empty takes change nothing");
+    assert_eq!(e.undo_len(), depth, "and push no undo step");
+}

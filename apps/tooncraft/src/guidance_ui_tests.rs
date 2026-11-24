@@ -296,6 +296,20 @@ fn the_export_dialog_offers_each_formats_options() {
 }
 
 #[test]
+fn the_layered_exr_export_takes_a_range_a_size_and_digits() {
+    let mut h = harness();
+    crate::export_dialog::open(h.state_mut(), "exr-layers");
+    h.run();
+    h.get(By::new().role(egui::Role::ComboBox).label("Format"));
+    assert_eq!(h.state().export_dialog.as_ref().unwrap().kind, "exr-layers");
+    assert!(crate::export_dialog::formats().iter().any(|(k, n)| *k == "exr-layers" && n == "Layered OpenEXR Sequence"));
+    h.get(By::new().role(egui::Role::ComboBox).label("Size"));
+    h.get_by_label("Digits in frame numbers");
+    click(&mut h, "Cancel");
+    assert!(h.state().export_dialog.is_none());
+}
+
+#[test]
 fn layouts_and_colour_chips() {
     let mut h = harness();
     click(&mut h, "Window");
@@ -435,6 +449,7 @@ fn a_layer_can_have_its_own_onion_settings() {
 fn launch_options_open_windows_layouts_and_tools() {
     for (cli, check) in [
         (Cli { open: Some("preferences".into()), ..Cli::default() }, &(|a: &ToonApp| a.preferences.open) as &dyn Fn(&ToonApp) -> bool),
+        (Cli { open: Some("pen".into()), ..Cli::default() }, &(|a: &ToonApp| a.preferences.open && a.preferences.tab == crate::preferences::Tab::Pen)),
         (Cli { open: Some("export".into()), ..Cli::default() }, &|a: &ToonApp| a.export_dialog.is_some()),
         (Cli { open: Some("find".into()), ..Cli::default() }, &|a: &ToonApp| a.find.open),
         (Cli { open: Some("new-shot".into()), ..Cli::default() }, &|a: &ToonApp| a.new_shot.is_some()),
