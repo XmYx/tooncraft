@@ -352,7 +352,7 @@ Weight: 4
 | Multiplane depth with parallax | TV TB | D | M | |
 | Camera shake | TV TB | D | S | Repeatable |
 | Camera frame on the canvas, crop to it | all | D | S | |
-| Camera path editing on the canvas | TB PD | M | S | |
+| Camera path editing on the canvas | TB PD | D | S | The camera centre's path over the shot with a square per key; with the Transform tool a key's square drags to move it and the current frame's cross drags to key the camera there (one undo step, Escape cancels; the camera frame follows); typed values in the Camera panel (`--camera-path`) |
 | Depth of field by layer depth | TB | M | M | |
 | Several cameras and camera cuts in a shot | TB | M | M | |
 | Free 3D camera over a layered scene | TB | M | L | Depth trucks only |

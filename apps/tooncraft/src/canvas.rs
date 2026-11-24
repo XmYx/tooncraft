@@ -286,7 +286,10 @@ fn handle_input(app: &mut ToonApp, ui: &egui::Ui, rect: Rect, resp: &egui::Respo
                 (c.x, c.y)
             };
             let to_s = |x: f32, y: f32| view.to_screen(rect, size, pos2(x, y));
-            crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
+            // a camera key's handle wins over the peg
+            if !crate::camera_path::input(app, ui, resp, &to_c, &to_s) {
+                crate::peg_transform::input(app, ui, resp, &to_c, &to_s);
+            }
         }
         _ if mods.alt => {
             if resp.clicked()
@@ -909,7 +912,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         crate::peg_transform::overlay(app, &painter, &|x, y| c.screen(x, y), pal.accent, pal.panel);
     }
     // camera frame
-    let cam = &app.engine.project.camera;
+    // while a camera key is dragged, the frame follows it
+    let preview = crate::camera_path::previewed(app);
+    let cam = preview.as_ref().unwrap_or(&app.engine.project.camera);
     if app.show_camera && (!cam.keys.is_empty() || !cam.shakes.is_empty()) {
         let (w, h) = (app.engine.project.width(), app.engine.project.height());
         let map = cam.output_to_canvas(app.frame, w, h);
@@ -926,6 +931,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             painter.text(*p0 + vec2(4.0, 3.0), egui::Align2::LEFT_TOP, tl!("Camera"), egui::FontId::proportional(12.0), col);
         }
     }
+    crate::camera_path::draw(app, &painter, &|x, y| c.screen(x, y), pal.accent);
     // the text box being typed floats over the canvas
     let (view, size) = (c.view, c.size);
     crate::text_tool::edit_box(app, ui.ctx(), rect, &|x, y| view.to_screen(rect, size, pos2(x, y)));

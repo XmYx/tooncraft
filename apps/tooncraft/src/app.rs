@@ -307,6 +307,8 @@ pub struct ToonApp {
     pub keys: crate::keys::Keys,
     /// Show the camera frame on the canvas.
     pub show_camera: bool,
+    /// A camera key being dragged on the canvas (see `camera_path`).
+    pub camera_drag: Option<crate::camera_path::CameraDrag>,
     pub peg_ui: crate::pegs::PegUi,
     pub transform_ui: crate::peg_transform::TransformUi,
     pub curve_ui: crate::curves::CurveUi,
@@ -459,6 +461,7 @@ impl ToonApp {
             sound: crate::sound::Sound::default(),
             keys: crate::keys::Keys::new(!cfg!(test) && cli.screenshot.is_none()),
             show_camera: true,
+            camera_drag: None,
             peg_ui: Default::default(),
             transform_ui: Default::default(),
             curve_ui: Default::default(),
@@ -539,6 +542,14 @@ impl ToonApp {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
             app.run(Command::SetLightTable { enabled: Some(true), opacity: Some(0.3) });
+        }
+        if cli.camera_path {
+            let (w, h) = (app.engine.project.width() as f32, app.engine.project.height() as f32);
+            let last = app.engine.project.length().saturating_sub(1);
+            app.run(Command::SetCameraKey { frame: 0, x: w * 0.35, y: h * 0.45, zoom: 1.6, angle: 0.0 });
+            app.run(Command::SetCameraKey { frame: last / 2, x: w * 0.5, y: h * 0.35, zoom: 1.4, angle: 0.0 });
+            app.run(Command::SetCameraKey { frame: last, x: w * 0.65, y: h * 0.55, zoom: 1.2, angle: -6.0 });
+            app.tool = Tool::Transform;
         }
         if cli.rulers {
             crate::rulers_ui::demo(&mut app);
