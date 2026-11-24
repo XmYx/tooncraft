@@ -173,9 +173,9 @@ Weight: 3
 |---|---|---|---|---|
 | Paper colour | all | D | S | Exported or left out per shot |
 | Paper grain that shapes pencil and chalk dabs | TV CS PD | D | S | Hashed grain, so a replay gives the same pixels |
-| Visible paper texture under the drawing | TV CS PD | M | S | |
+| Visible paper texture under the drawing | TV CS PD | D | S | Any grain (also a grain image) shades the paper colour with its own strength, size, rotation and contrast: one repeating tile on the canvas, the same pixels in exports with the paper; `SetPaperTexture`, saved with the shot |
 | Paper and grain library, grain images from files | TV CS PD | D | M | Four built-in grains and tileable grain images saved in the shot |
-| Grain scale, rotation and contrast | TV CS | P | S | Scale only |
+| Grain scale, rotation and contrast | TV CS | D | S | Per brush in the brush editor (`grain_scale`, `grain_angle`, `grain_contrast` in `.toonbrush` files), and for the paper texture |
 | Texture overlay on a layer or a fill | CS PD | M | S | |
 | Canvas size presets | all | D | S | Eleven video, cinema, square and portrait presets with their frame rates in New Shot and Canvas Size, the aspect ratio shown, and the user's own saved presets |
 | Canvas resize and crop with anchors | all | D | S | Drawings move whole pixels, never resampled; one undo step |
@@ -216,7 +216,7 @@ Weight: 5
 | Ellipse selection | all | D | S | The select tool's Ellipse mode |
 | Select by colour with tolerance (magic wand) | all | D | S | Magic Wand mode: tolerance, this drawing or all visible layers, the touching area or that colour everywhere |
 | Add, subtract and intersect selections | all | D | S | A mode option, or Shift (add), Alt (subtract) and both (intersect) while dragging; holes and separate parts stay one selection |
-| Invert, grow, shrink and feather a selection | all | P | S | Invert (Ctrl+Shift+I), grow and shrink by up to 64 px; no feather (selections are hard-edged) |
+| Invert, grow, shrink and feather a selection | all | D | S | Invert (Ctrl+Shift+I), grow and shrink by up to 64 px; Feather in the Select tool's options (up to 64 px) softens the edge, and moving, distorting, erasing, copying and filling the selection blend over it (one undo step each; `feather` in command files) |
 | Painted selection masks (quick mask) | TV CS PD | M | M | |
 | Move, scale and rotate a selection with a live preview | all | D | S | One undo step |
 | Flips and 90° turns | all | D | S | |

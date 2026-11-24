@@ -1,0 +1,1 @@
+- 2026-11-24: Paper texture under the drawing (Colour panel ▸ Paper texture, `SetPaperTexture`): any grain shades the paper with its own strength, size, rotation and contrast, shown on the canvas as one cached repeating tile and identical in exports with the paper. Brush grain gains rotation and contrast (`grain_angle`, `grain_contrast`).

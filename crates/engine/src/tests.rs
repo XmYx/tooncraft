@@ -488,13 +488,14 @@ fn selection_commands() {
         skew_x: 0.0,
         skew_y: 0.0,
         resample: Default::default(),
+        feather: 0.0,
     })
     .unwrap();
     assert_eq!(e.pick_color(0, 210, 80), before, "the ring moved by (150, 40)");
     assert_ne!(e.pick_color(0, 60, 40), before);
     e.undo().unwrap();
     assert_eq!(e.pick_color(0, 60, 40), before);
-    e.apply(Command::ClearSelection { layer: 0, frame: 0, polygon: sq, rings: Vec::new() }).unwrap();
+    e.apply(Command::ClearSelection { layer: 0, frame: 0, polygon: sq, rings: Vec::new(), feather: 0.0 }).unwrap();
     assert!(e.project.drawing(e.project.drawing_at(0, 0).unwrap()).unwrap().is_empty());
     e.apply(Command::PastePixels { layer: 0, frame: 3, x: 10.0, y: 10.0, width: 2, height: 1, rgba: vec![255, 0, 0, 255, 0, 0, 255, 255] }).unwrap();
     assert_eq!(e.pick_color(3, 10, 10), [255, 0, 0, 255]);
@@ -1116,6 +1117,29 @@ fn a_full_shot_refuses_a_video_without_changing() {
     assert_eq!(e.project.length(), 2, "the shot did not grow");
     assert_eq!(e.project, before, "nothing changed");
     assert_eq!(e.undo_label().map(str::to_owned), undo, "and no undo step was added");
+}
+
+#[test]
+fn paper_texture_command_sets_saves_and_refuses_a_missing_image() {
+    let mut e = engine();
+    let cmd: Command =
+        serde_json::from_str(r#"{"cmd":"set_paper_texture","texture":{"kind":"canvas","scale":4,"angle":15,"contrast":1.5,"strength":0.6}}"#).unwrap();
+    e.apply(cmd).unwrap();
+    let t = e.project.paper.texture;
+    assert_eq!((t.kind, t.strength), (tooncraft_brush::GrainKind::Canvas, 0.6));
+    assert!(e.is_dirty(), "a setting change is unsaved work");
+    let back = tooncraft_format::from_bytes(&tooncraft_format::to_bytes(&e.project).unwrap()).unwrap();
+    assert_eq!(back.paper.texture, t, "saved with the shot");
+    // an image that is not in the tip table is refused and changes nothing
+    let missing = tooncraft_doc::PaperTexture { kind: tooncraft_brush::GrainKind::Image, image: Some(77), ..t };
+    assert_eq!(e.apply(Command::SetPaperTexture { texture: missing }), Err(EngineError::NoGrainImage(77)));
+    assert_eq!(e.project.paper.texture, t);
+    // hostile numbers are clamped
+    e.apply(Command::SetPaperTexture { texture: tooncraft_doc::PaperTexture { strength: 9.0, scale: f32::NAN, ..t } }).unwrap();
+    assert_eq!((e.project.paper.texture.strength, e.project.paper.texture.scale), (1.0, 3.0));
+    // a file without a texture loads with plain paper
+    let plain = tooncraft_format::from_bytes(&tooncraft_format::to_bytes(&engine().project).unwrap()).unwrap();
+    assert!(plain.paper.texture.is_off());
 }
 
 #[test]
