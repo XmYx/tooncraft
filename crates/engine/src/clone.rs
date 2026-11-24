@@ -13,6 +13,11 @@ pub const MAX_CLONE_POINTS: usize = 20_000;
 pub const MAX_CLONE_SIZE: f32 = 1000.0;
 /// Most pixels one stroke may cover (its bounding box).
 pub const MAX_CLONE_PIXELS: u64 = 40_000_000;
+/// Most pixel steps one stroke may take, summed over its dabs (each dab's area): a long
+/// 1000 px stroke fits (about 45 000 px of path), a hostile zig-zag is refused up front.
+pub const MAX_CLONE_WORK: u64 = 300_000_000;
+/// Most dabs along one stroke's path, painted or not.
+pub const MAX_CLONE_DABS: u64 = 4_000_000;
 
 /// The stamp's tip: diameter in pixels, hardness (0 soft … 1 hard edge) and opacity (0…1).
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -111,12 +116,49 @@ pub fn clone_stamp(
     if bw as u64 * bh as u64 > MAX_CLONE_PIXELS {
         return Err(EngineError::Limit("pixels in one clone stroke"));
     }
-    // the strongest dab over each pixel
-    let mut cover = vec![0.0f32; bw as usize * bh as usize];
+    // the dab centres along the path, and the pixel work they cost (each dab's area clipped
+    // to the box), checked before any pixel is touched: a big tip on a long zig-zag path is
+    // refused instead of running for minutes
     let step = (tip.size * 0.15).max(1.0);
-    let mut dab = |cx: f32, cy: f32| {
+    let clipped = |cx: f32, cy: f32| -> (i64, i64, i64, i64) {
         let (lx, ly) = (((cx - r).floor() as i64).max(bx0 as i64), ((cy - r).floor() as i64).max(by0 as i64));
         let (hx, hy) = (((cx + r).ceil() as i64).min(bx1 as i64), ((cy + r).ceil() as i64).min(by1 as i64));
+        (lx, ly, hx, hy)
+    };
+    let mut centres: Vec<(f32, f32)> = Vec::new();
+    let mut work: u64 = 0;
+    let mut add = |cx: f32, cy: f32, centres: &mut Vec<(f32, f32)>| -> Result<()> {
+        let (lx, ly, hx, hy) = clipped(cx, cy);
+        if hx > lx && hy > ly {
+            work = work.saturating_add(((hx - lx) * (hy - ly)) as u64);
+            if work > MAX_CLONE_WORK {
+                return Err(EngineError::Limit("pixels painted by one clone stroke"));
+            }
+            centres.push((cx, cy));
+        }
+        Ok(())
+    };
+    let Some(&first) = points.first() else { return Ok(()) };
+    add(first.0, first.1, &mut centres)?;
+    let mut steps: u64 = 0;
+    for pair in points.windows(2) {
+        let (a, b) = (pair[0], pair[1]);
+        let len = (b.0 - a.0).hypot(b.1 - a.1);
+        // dabs off the box paint nothing but still take a step: cap the steps too
+        let n = ((len / step).ceil() as u64).clamp(1, MAX_CLONE_DABS);
+        steps = steps.saturating_add(n);
+        if steps > MAX_CLONE_DABS {
+            return Err(EngineError::Limit("dabs in one clone stroke"));
+        }
+        for k in 1..=n {
+            let t = k as f32 / n as f32;
+            add(a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t, &mut centres)?;
+        }
+    }
+    // the strongest dab over each pixel
+    let mut cover = vec![0.0f32; bw as usize * bh as usize];
+    for (cx, cy) in centres {
+        let (lx, ly, hx, hy) = clipped(cx, cy);
         for y in ly..hy {
             for x in lx..hx {
                 let d = ((x as f32 + 0.5 - cx).powi(2) + (y as f32 + 0.5 - cy).powi(2)).sqrt();
@@ -128,23 +170,6 @@ pub fn clone_stamp(
                     }
                 }
             }
-        }
-    };
-    let Some(&first) = points.first() else { return Ok(()) };
-    dab(first.0, first.1);
-    // a cap on dabs, so a hostile path with huge jumps stays bounded
-    let mut budget: u64 = 4_000_000;
-    for pair in points.windows(2) {
-        let (a, b) = (pair[0], pair[1]);
-        let len = (b.0 - a.0).hypot(b.1 - a.1);
-        let n = ((len / step).ceil() as u64).clamp(1, 100_000);
-        budget = budget.saturating_sub(n);
-        if budget == 0 {
-            break;
-        }
-        for k in 1..=n {
-            let t = k as f32 / n as f32;
-            dab(a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t);
         }
     }
     // read the source as it is before painting

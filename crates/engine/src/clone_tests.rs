@@ -96,6 +96,26 @@ fn another_layer_is_a_source_and_old_files_read() {
     assert!(matches!(c, Command::CloneStamp { tip, source_layer: None, .. } if tip == CloneTip::default()));
 }
 
+#[test]
+fn a_hostile_zig_zag_is_refused_promptly_and_paints_nothing() {
+    // a 1000 px tip zig-zagging 20 000 times across a big canvas: about 10^11 pixel steps if
+    // painted, refused up front instead
+    let mut e = Engine::new(Project::new("Big", 4000, 4000, 12, 1).unwrap());
+    let points: Vec<(f32, f32)> = (0..20_000).map(|i| if i % 2 == 0 { (0.0, 0.0) } else { (3999.0, 3999.0) }).collect();
+    let undo = e.undo_len();
+    let t = std::time::Instant::now();
+    let r = e.apply(Command::CloneStamp { layer: 0, frame: 0, source_layer: None, offset: (5.0, 5.0), tip: hard(1000.0), points });
+    assert!(matches!(r, Err(crate::EngineError::Limit(_))), "{r:?}");
+    assert!(t.elapsed() < std::time::Duration::from_secs(5), "took {:?}", t.elapsed());
+    assert_eq!(e.undo_len(), undo, "nothing painted");
+    // tiny tips with huge jumps: many steps off the canvas are refused too
+    let jumps: Vec<(f32, f32)> = (0..20_000).map(|i| if i % 2 == 0 { (-1.0e6, 0.0) } else { (1.0e6, 0.0) }).collect();
+    let t = std::time::Instant::now();
+    let r = e.apply(Command::CloneStamp { layer: 0, frame: 0, source_layer: None, offset: (5.0, 5.0), tip: hard(1.0), points: jumps });
+    assert!(matches!(r, Err(crate::EngineError::Limit(_))), "{r:?}");
+    assert!(t.elapsed() < std::time::Duration::from_secs(5), "took {:?}", t.elapsed());
+}
+
 proptest! {
     #[test]
     fn hostile_stamps_never_panic(
