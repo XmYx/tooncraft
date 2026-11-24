@@ -85,7 +85,7 @@ fn timing_layout() -> Layout<Pane> {
         axis: SplitAxis::Vertical,
         size: SplitSize::Ratio(0.55),
         first: Box::new(tabs(&[Pane::Canvas])),
-        second: Box::new(tabs(&[Pane::Timeline])),
+        second: Box::new(tabs(&[Pane::Timeline, Pane::Curves])),
     };
     let right = Node::Split {
         axis: SplitAxis::Vertical,

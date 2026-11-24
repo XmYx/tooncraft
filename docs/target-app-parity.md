@@ -193,9 +193,9 @@ Weight: 7
 | Eyedropper | all | D | S | |
 | Gradient tool (linear, radial) | all | D | S | Gradient tool (G): drag start to end, to transparent or to white, kept inside the selection |
 | Symmetry and mirror drawing (axes, radial) | TV CS PD | D | M | Left and right, top and bottom, four ways, radial and mirrored radial (2 to 32 copies) with the axes drawn on the canvas; a mirrored stroke is one undo step and the setting is saved in the shot |
-| Stroke rulers: straight, curve, ellipse, concentric | TV TB CS | M | M | |
-| Perspective rulers with vanishing points | TV CS PD | M | M | |
-| Grid display and snapping strokes to it | TV TB CS | P | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it; freehand strokes do not |
+| Stroke rulers: straight, curve, ellipse, concentric | TV TB CS | D | M | Rulers above the canvas: a stroke started near a straight, curve or ellipse ruler follows it, a concentric ruler takes every stroke on the ellipse through its start; handles drag on the canvas or are typed in the Rulers menu; saved with the shot |
+| Perspective rulers with vanishing points | TV CS PD | D | M | One, two or three vanishing points; after a few pixels of travel the stroke runs on the line through the closest point in that direction |
+| Grid display and snapping strokes to it | TV TB CS | D | S | The field guide draws a grid; shape corners, polyline points and gradient ends snap to it, and with Rulers ▸ Snap strokes to grid lines a freehand stroke started near a grid line runs along it |
 | Snap the end of a stroke to a clean line or ellipse when held | CS PD | D | S | Hold to straighten: hold the pen still for half a second and a rough line or loop becomes a clean line or ellipse |
 | Text tool | TV TB CS | M | M | |
 | Clone stamp | TV CS | M | S | |
@@ -292,7 +292,7 @@ Weight: 9
 | Play range, loop and ping-pong | all | D | S | Loop, ping-pong, and "Play Selection" for the selected frames |
 | Frame rate change and timecode display | all | D | S | Frame rate per shot; the position and the marker list show HH:MM:SS:FF (non-drop-frame) |
 | Timeline zoom and scroll | all | D | S | Zoom buttons, Alt+= and Alt+-, Ctrl and the wheel or a pinch; scroll as before |
-| Graph editor for keyed values | TB CS PD | M | L | Per-key easing and a two-handle curve; no curve view |
+| Graph editor for keyed values | TB CS PD | P | L | The Curves panel plots each peg value against frames: drag keys in time and value (one undo step, Escape cancels), move them from the keyboard, ease many keys at once, drag the two ease handles. Camera, opacity and effect keys still edit in their own panels |
 | Several shots or scenes in one project | TV TB | M | L | |
 | Nested sequences (a shot or symbol inside a shot) | TB CS PD | M | L | |
 | Record transforms live while playing | PD | M | M | |
@@ -489,7 +489,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Feature | Refs | Status | Size | Notes |
 |---|---|---|---|---|
 | Main window: tools left, canvas centre, sheet right, colour and properties at the side, timeline below | TB | P | M | Same family of layout; tool settings sit in a bar above the canvas, not in a properties panel |
-| Start screen with recent shots and a new-shot form | TB | M | S | ToonCraft opens straight into a blank shot |
+| Start screen with recent shots and a new-shot form | TB | D | S | With no shot to open: a new-shot form with size presets, the recent shots (missing ones marked), Open… and the demo shot; waits for a recovery offer to be answered; turn it off in Preferences (`--open start` shows it) |
 | Named workspaces picked from a bar | TB | D | S | The Workspace picker in the top bar (Drawing, Timing, Ink and Paint, Exposure Sheet); saved ones in View ▸ Workspaces (`--layout`) |
 | Compositing workspace with a node view | TB | M | XL | No node view |
 | Scripting workspace with a script editor and log | TB | M | L | No scripting panels |
@@ -498,7 +498,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Dark theme and a light theme | TB | D | S | Contrast tested |
 | Status line: zoom, drawing, tool, frame, pointer position, colour | TB | D | S | Frame, layer, drawing, canvas pixel under the pointer, tool, colour, zoom |
 | Top menus for play, drawing, scene and windows | TB | D | M | File, Edit, Frame, Layer, Drawing, Play, Scene, View, Window, Help |
-| File menu with recent files | TB | P | S | No recent list |
+| File menu with recent files | TB | D | S | File ▸ Open Recent: the last 12 shots opened or saved, newest first, missing ones marked, Clear Recent Shots |
 | Edit menu with selection and transform items | TB | D | S | Undo and redo with names, Preferences, select, invert, grow and shrink, transform submenu |
 | View menu: zoom, rotate, mirror, onion, light table, guides, workspaces | TB | D | S | |
 | Play commands with speed | TB | D | S | Frame menu and timeline: play, step, in and out, speed, Play Around |
@@ -528,7 +528,7 @@ exists. `cargo xtask parity` reports this area's row parity as the UI parity.
 | Light table on the canvas | TB | D | S | |
 | Camera frame and safe areas | TB | D | S | |
 | Separate drawing, reference and perspective views | TB | M | M | One canvas |
-| Curve editor | TB | M | L | |
+| Curve editor | TB | D | L | The Curves panel beside the timeline: value buttons, the graph with keys, other values faintly behind, an ease box with handles and typed values (`--panel curves`) |
 | Layer properties window | TB | D | S | Inline in the Layers panel and the layer right-click menu |
 | Library window for drawings | TB | M | L | The library holds brushes only |
 | Preferences, shortcut editor with search, playback speed | TB | D | S | (`--open preferences`, `--open shortcuts`) |

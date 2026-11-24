@@ -10,6 +10,7 @@ tooncraft	A copy of the clip starting at the current frame
 tooncraft	A new layer	
 tooncraft	A new peg; with a peg selected, the new one hangs from it	
 tooncraft	A new shot (Ctrl+N)	
+tooncraft	A short bouncing-ball shot to try things on	
 tooncraft	A track per layer and a clip per exposure, for editing and pipeline tools	
 tooncraft	About ToonCraft	
 tooncraft	Actual Size	
@@ -17,16 +18,23 @@ tooncraft	Actual size
 tooncraft	Add	
 tooncraft	Add All to Palette	
 tooncraft	Add Area	
+tooncraft	Add Concentric Ruler	
 tooncraft	Add Current Brush	
 tooncraft	Add Current Colour	
+tooncraft	Add Curve Ruler	
+tooncraft	Add Ellipse Ruler	
 tooncraft	Add Inbetweens	
 tooncraft	Add Layer Above	
 tooncraft	Add Marker	
 tooncraft	Add Marker Here	
+tooncraft	Add One-Point Perspective	
 tooncraft	Add Other	
 tooncraft	Add Peg	
 tooncraft	Add Shake Here	
 tooncraft	Add Sound…	
+tooncraft	Add Straight Ruler	
+tooncraft	Add Three-Point Perspective	
+tooncraft	Add Two-Point Perspective	
 tooncraft	Add a Peg for This Layer	
 tooncraft	Add a look	
 tooncraft	Add effect	
@@ -111,6 +119,7 @@ tooncraft	Choose a brush tool first
 tooncraft	Choose a brush tool to change its settings.	
 tooncraft	Choose a layer	
 tooncraft	Choose frames to flip first (Ctrl+Alt+Enter on each)	
+tooncraft	Choose keys to ease them	
 tooncraft	Choose…	
 tooncraft	Cinema 2K, 24 fps	
 tooncraft	Cinema 4K, 24 fps	
@@ -120,6 +129,7 @@ tooncraft	Clear Drawing
 tooncraft	Clear Flip Set	
 tooncraft	Clear Frame	
 tooncraft	Clear In and Out	
+tooncraft	Clear Recent Shots	
 tooncraft	Clear frame	
 tooncraft	Clear frame (Delete)	
 tooncraft	Clear {mouth}	
@@ -151,6 +161,7 @@ tooncraft	Colours already premultiplied
 tooncraft	Colours you paint with show up here	
 tooncraft	Comic	
 tooncraft	Command	
+tooncraft	Concentric ruler	
 tooncraft	Copied	
 tooncraft	Copied {frames} frames from {layers} layers	
 tooncraft	Copies	
@@ -172,7 +183,9 @@ tooncraft	Crop to the camera frame at the current frame (no rotation)
 tooncraft	Current colour #{hex}	
 tooncraft	Current colour: open the Colour panel	
 tooncraft	Curve	
+tooncraft	Curve ruler	
 tooncraft	Curve: {source} to {target}	
+tooncraft	Curves	
 tooncraft	Custom curve	
 tooncraft	Cut	
 tooncraft	Cut Frames	
@@ -210,6 +223,7 @@ tooncraft	Drag inside to move, corners to scale, the top knob to rotate
 tooncraft	Drag the four corners freely (perspective), then Apply	
 tooncraft	Drag to move, a corner to scale, the knob to turn, the cross to move the pivot	
 tooncraft	Drag to pan; wheel zooms, Alt+wheel rotates	
+tooncraft	Draw the peg's other values faintly, each scaled to fit, to compare their timing	
 tooncraft	Drawing	
 tooncraft	Drawing (standard)	
 tooncraft	Drawing Layer	
@@ -237,6 +251,8 @@ tooncraft	Dynamics
 tooncraft	Dynamics for {target}	
 tooncraft	Each drawing on {n}s	
 tooncraft	Ease curve	
+tooncraft	Ease for {n} chosen keys	
+tooncraft	Ease handles: {a}, {b} and {c}, {d}	
 tooncraft	Ease in	
 tooncraft	Ease in and out	
 tooncraft	Ease out	
@@ -248,6 +264,7 @@ tooncraft	Effect stack
 tooncraft	Effects	
 tooncraft	Effects on {layer}, frame {frame}	
 tooncraft	Ellipse	
+tooncraft	Ellipse ruler	
 tooncraft	Empty	
 tooncraft	Empty Only	
 tooncraft	Erase Selection	
@@ -457,6 +474,7 @@ tooncraft	Keep the top in place
 tooncraft	Keep the top left in place	
 tooncraft	Keep the top right in place	
 tooncraft	Key	
+tooncraft	Key Here	
 tooncraft	Key at frame {n}	
 tooncraft	Key clip {n} volume here	
 tooncraft	Key colour	
@@ -565,6 +583,7 @@ tooncraft	Move the layer up
 tooncraft	Move {name} down	
 tooncraft	Move {name} up	
 tooncraft	Move, scale and turn the selection to these numbers	
+tooncraft	Moving the {kind}	
 tooncraft	Multiply	
 tooncraft	Mute clip {n}	
 tooncraft	Mute {track}	
@@ -612,8 +631,10 @@ tooncraft	No mark
 tooncraft	No markers yet	
 tooncraft	No next drawing	
 tooncraft	No other key drawing on this layer; mark keys from a cell's right-click menu	
+tooncraft	No pegs yet. Add one in the Pegs panel to see its keys here.	
 tooncraft	No pegs yet. Add one, then hang the current layer from it.	
 tooncraft	No pixels of that colour on the layer	
+tooncraft	No recent shots	
 tooncraft	No sound in this shot.	
 tooncraft	No symmetry	
 tooncraft	None	
@@ -657,8 +678,10 @@ tooncraft	Opacity per step
 tooncraft	Open	
 tooncraft	Open (A I)	
 tooncraft	Open Palette…	
+tooncraft	Open Recent	
 tooncraft	Open Stack…	
 tooncraft	Open a shot (Ctrl+O)	
+tooncraft	Open the Demo Shot	
 tooncraft	OpenEXR Sequence	
 tooncraft	OpenEXR Sequence…	
 tooncraft	OpenRaster, Current Frame	
@@ -669,6 +692,7 @@ tooncraft	Opposite
 tooncraft	Or hold Shift to add, Alt to subtract, both to intersect	
 tooncraft	Orange	
 tooncraft	Other consonants	
+tooncraft	Other values	
 tooncraft	Outline	
 tooncraft	Outline and fill	
 tooncraft	Outline colour	
@@ -700,6 +724,7 @@ tooncraft	Paste Frames, Moving Later Frames
 tooncraft	Paste as New Drawings	
 tooncraft	Paste frames, moving later frames right	
 tooncraft	Pasted	
+tooncraft	Peg	
 tooncraft	Peg {n}	
 tooncraft	Peg “{name}”	
 tooncraft	Pegs	
@@ -707,6 +732,9 @@ tooncraft	Pen down: arrow keys draw, Enter lifts
 tooncraft	Pen lifted	
 tooncraft	Pencil	
 tooncraft	Pencils	
+tooncraft	Perspective, one point	
+tooncraft	Perspective, three points	
+tooncraft	Perspective, two points	
 tooncraft	Pick Colour Here	
 tooncraft	Pick colour	
 tooncraft	Picked #{hex}	
@@ -735,6 +763,7 @@ tooncraft	Playback
 tooncraft	Playback loops back after this frame	
 tooncraft	Playback speed; the sound plays only at 100 %	
 tooncraft	Playback starts here	
+tooncraft	Point {n} X	
 tooncraft	Point {n} in	
 tooncraft	Point {n} out	
 tooncraft	Polygon	
@@ -777,9 +806,12 @@ tooncraft	Re-time Between Keys
 tooncraft	Re-time Layer	
 tooncraft	Re-time the selected frames (or the whole layer)	
 tooncraft	Re-timed on {n}s; no drawing was deleted	
+tooncraft	Reach	
 tooncraft	Recent	
 tooncraft	Recent colour #{hex}	
 tooncraft	Recent colours	
+tooncraft	Recent shots	
+tooncraft	Recent shots not saved: {error}	
 tooncraft	Recolour Every Drawing of the Layer	
 tooncraft	Recolour Layer	
 tooncraft	Recoloured	
@@ -799,6 +831,7 @@ tooncraft	Reference Image…
 tooncraft	Reference image added under the drawing, locked	
 tooncraft	Reload Library	
 tooncraft	Remove	
+tooncraft	Remove All Rulers	
 tooncraft	Remove Area	
 tooncraft	Remove Key	
 tooncraft	Remove Marker	
@@ -810,6 +843,7 @@ tooncraft	Remove clip {n} volume key
 tooncraft	Remove from Palette	
 tooncraft	Remove opacity key	
 tooncraft	Remove point	
+tooncraft	Remove this ruler	
 tooncraft	Remove this shake	
 tooncraft	Remove {name}	
 tooncraft	Remove {name} from favourites	
@@ -844,6 +878,9 @@ tooncraft	Rotation
 tooncraft	Round	
 tooncraft	Round (O)	
 tooncraft	Roundness	
+tooncraft	Ruler move cancelled	
+tooncraft	Rulers	
+tooncraft	Rulers on: strokes started near a grid line follow it; right-click Rulers to add a ruler	
 tooncraft	S-curve	
 tooncraft	Safe Areas	
 tooncraft	Saturation	
@@ -890,6 +927,7 @@ tooncraft	Set In
 tooncraft	Set Key	
 tooncraft	Set Name	
 tooncraft	Set Out	
+tooncraft	Set a key at the current frame with the peg's values there	
 tooncraft	Shadow colour	
 tooncraft	Shake the camera for 12 frames from the current frame	
 tooncraft	Shakes	
@@ -901,9 +939,11 @@ tooncraft	Shift: 15° lines, squares, circles
 tooncraft	Shortcut changed	
 tooncraft	Shot	
 tooncraft	Shot colours	
+tooncraft	Shots you open or save are listed here.	
 tooncraft	Show	
 tooncraft	Show Layer	
 tooncraft	Show a mouth drawing at the current frame, then press its “Use” button.	
+tooncraft	Show and edit this value	
 tooncraft	Show drawing thumbnails in the cells	
 tooncraft	Show fewer, wider frames (Alt+=)	
 tooncraft	Show layers labelled	
@@ -917,8 +957,10 @@ tooncraft	Show the drawings before and after this one (O); right-click for its s
 tooncraft	Show the pinned drawings under this one	
 tooncraft	Show the position as HH:MM:SS:FF instead of a frame number	
 tooncraft	Show the sheet down the page: layers as columns, frames as rows	
+tooncraft	Show the start window when opening with no shot	
 tooncraft	Show this drawing at the current frame, leaving the frames after it as they are	
 tooncraft	Show this layer only where the layer below has paint	
+tooncraft	Show this window at start	
 tooncraft	Show {category} brushes	
 tooncraft	Show {layer}	
 tooncraft	Show {name} here	
@@ -943,6 +985,7 @@ tooncraft	Smoothing
 tooncraft	Smoothing for new brushes	
 tooncraft	Smudge	
 tooncraft	Smudges	
+tooncraft	Snap strokes to grid lines	
 tooncraft	Snap to grid	
 tooncraft	Soft airbrush	
 tooncraft	Soft blur	
@@ -984,10 +1027,13 @@ tooncraft	Steps before
 tooncraft	Stop	
 tooncraft	Stop Clipping	
 tooncraft	Straight line from the last stroke	
+tooncraft	Straight ruler	
 tooncraft	Straightened	
 tooncraft	Strength	
 tooncraft	Stroke cancelled	
+tooncraft	Strokes follow rulers	
 tooncraft	Strokes only recolour paint that is already on the layer	
+tooncraft	Strokes started near a ruler follow it; right-click to add rulers and choose grid snapping	
 tooncraft	Subtract	
 tooncraft	Swap Drawing	
 tooncraft	Swatch #{hex}	
@@ -1131,10 +1177,13 @@ tooncraft	{done} steps, {undone} to redo
 tooncraft	{drawings} drawings ({unused} not exposed)	
 tooncraft	{drawing} (held)	
 tooncraft	{fps} fps playback · {ms} ms/frame	
+tooncraft	{f} frames, {v} (Escape cancels)	
 tooncraft	{key} was taken from “{command}”	
 tooncraft	{layer}, frame {frame}	
 tooncraft	{layer}, frame {frame}: {cell}	
+tooncraft	{name} (missing)	
 tooncraft	{name} and {n} more	
+tooncraft	{name} curve: {count} keys	
 tooncraft	{name} is a favourite	
 tooncraft	{name} is no longer a favourite	
 tooncraft	{name}, {category}	

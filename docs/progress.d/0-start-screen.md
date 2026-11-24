@@ -1,0 +1,1 @@
+- 2026-11-23: A start window when ToonCraft opens with no shot (a new-shot form with size presets, the recent shots, Open… and the demo shot; it can be turned off in Preferences or from the window), and File ▸ Open Recent with the last 12 shots, missing ones marked.

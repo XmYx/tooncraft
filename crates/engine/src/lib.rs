@@ -14,6 +14,8 @@ pub mod burnin;
 #[cfg(test)]
 mod cells_tests;
 mod command;
+#[cfg(test)]
+mod curves_tests;
 pub mod demo;
 pub mod drawing;
 #[cfg(test)]
@@ -95,6 +97,12 @@ struct LiveStroke {
     /// Symmetry copies: each has its own stroke engine (smoothing and spacing per copy), all
     /// painting into the same stroke so overlaps never darken.
     mirrors: Vec<(tooncraft_doc::symmetry::Mirror, StrokeEngine)>,
+    /// The stroke follows a ruler (see [`tooncraft_doc::rulers`]); positions are snapped before
+    /// smoothing and symmetry.
+    snap: Option<tooncraft_doc::rulers::Snapper>,
+    /// Samples the ruler has not released yet, oldest first: each comes back with its own time
+    /// and pressure (the snapper releases positions in the order it was fed).
+    held: std::collections::VecDeque<Sample>,
 }
 
 fn mirror_sample(m: &tooncraft_doc::symmetry::Mirror, s: Sample) -> Sample {
@@ -283,7 +291,8 @@ impl Engine {
         let stroke = Stroke::begin_with(surface, brush, images);
         let (w, h) = (self.project.width(), self.project.height());
         let mirrors = self.project.symmetry.copies(w, h).into_iter().map(|m| (m, StrokeEngine::new(brush))).collect();
-        self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors });
+        let snap = self.project.rulers.snapper(w, h);
+        self.live = Some(LiveStroke { last: None, drawing, created, engine: StrokeEngine::new(brush), stroke, mirrors, snap, held: Default::default() });
         Ok(())
     }
 
@@ -297,9 +306,24 @@ impl Engine {
         if let Some(s) = sample.sanitized() {
             live.last = Some(s);
         }
-        let mut dabs = live.engine.feed(sample);
-        for (m, eng) in &mut live.mirrors {
-            dabs.extend(eng.feed(mirror_sample(m, sample)));
+        let samples: Vec<Sample> = match &mut live.snap {
+            // the stroke engine drops unusable samples anyway; keeping them out of the snapper
+            // keeps its output in step with `held`
+            Some(snap) => match sample.sanitized() {
+                Some(s) => {
+                    live.held.push_back(s);
+                    snap.feed((s.x, s.y)).into_iter().filter_map(|(x, y)| live.held.pop_front().map(|h| Sample { x, y, ..h })).collect()
+                }
+                None => Vec::new(),
+            },
+            None => vec![sample],
+        };
+        let mut dabs = Vec::new();
+        for sample in samples {
+            dabs.extend(live.engine.feed(sample));
+            for (m, eng) in &mut live.mirrors {
+                dabs.extend(eng.feed(mirror_sample(m, sample)));
+            }
         }
         let surface = self.project.drawing_mut(live.drawing).ok_or(EngineError::NotStroking)?;
         live.stroke.add(surface, &dabs);
@@ -309,7 +333,19 @@ impl Engine {
     /// Finish the live stroke as one undo step.
     pub fn end_stroke(&mut self) -> Result<()> {
         let mut live = self.live.take().ok_or(EngineError::NotStroking)?;
-        let mut dabs = live.engine.finish();
+        let mut dabs = Vec::new();
+        // samples a ruler still held back (a short tap near a perspective ruler)
+        if let Some(snap) = &mut live.snap {
+            for (x, y) in snap.finish() {
+                let Some(h) = live.held.pop_front() else { break };
+                let s = Sample { x, y, ..h };
+                dabs.extend(live.engine.feed(s));
+                for (m, eng) in &mut live.mirrors {
+                    dabs.extend(eng.feed(mirror_sample(m, s)));
+                }
+            }
+        }
+        dabs.extend(live.engine.finish());
         for (_, eng) in &mut live.mirrors {
             dabs.extend(eng.finish());
         }

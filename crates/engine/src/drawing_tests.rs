@@ -209,3 +209,66 @@ fn the_wand_can_select_one_colour_everywhere() {
     assert!(all.get(160, 20) && !one.get(160, 20));
     assert!(crate::select::wand_with(&e, 0, 0, 999, 20, 10, false, false).is_none());
 }
+
+#[test]
+fn rulers_steer_strokes_and_save_with_the_shot() {
+    use tooncraft_doc::rulers::{Ruler, Rulers};
+    let mut e = engine();
+    let rulers = Rulers { on: true, list: vec![Ruler::Line { a: (0.0, 50.0), b: (200.0, 50.0) }], ..Rulers::default() };
+    e.apply(Command::SetRulers { rulers: rulers.clone() }).unwrap();
+    assert_eq!(e.undo_len(), 0, "a setting, not an undo step");
+    // a wobbly stroke started near y = 50
+    let samples: Vec<Sample> = (0..40).map(|i| Sample::at(20.0 + i as f32 * 4.0, 45.0 + (i % 4) as f32 * 3.0, 1.0, i as f64 * 0.01)).collect();
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: samples.clone() }).unwrap();
+    assert_ne!(e.pick_color(0, 100, 50), PAPER, "painted on the ruler");
+    for y in [40, 44, 56, 60] {
+        assert_eq!(e.pick_color(0, 100, y), PAPER, "nothing off the ruler at y = {y}");
+    }
+    assert_eq!(e.undo_len(), 1);
+    // with symmetry too: the snapped stroke is mirrored
+    e.apply(Command::SetRulers { rulers: Rulers { list: vec![Ruler::Line { a: (30.0, 0.0), b: (30.0, 100.0) }], ..rulers.clone() } }).unwrap();
+    e.apply(Command::SetSymmetry { symmetry: Symmetry { mode: SymmetryMode::Vertical, center: None, spokes: 6 } }).unwrap();
+    let down: Vec<Sample> = (0..20).map(|i| Sample::at(26.0 + (i % 3) as f32 * 3.0, 10.0 + i as f32 * 4.0, 1.0, i as f64 * 0.01)).collect();
+    e.apply(Command::Stroke { layer: 0, frame: 1, brush: ink(), samples: down }).unwrap();
+    assert_ne!(e.pick_color(1, 30, 40), PAPER);
+    assert_ne!(e.pick_color(1, 170, 40), PAPER, "the mirrored copy of the snapped stroke");
+    assert_eq!(e.pick_color(1, 37, 40), PAPER);
+    let bytes = tooncraft_format::to_bytes(&e.project).unwrap();
+    assert_eq!(tooncraft_format::from_bytes(&bytes).unwrap().rulers, e.project.rulers);
+    // rulers off: freehand again
+    e.apply(Command::SetRulers { rulers: Rulers::default() }).unwrap();
+    e.apply(Command::Stroke { layer: 0, frame: 2, brush: ink(), samples }).unwrap();
+    assert_ne!(e.pick_color(2, 32, 54), PAPER, "the wobble is kept");
+}
+
+#[test]
+fn a_tap_near_a_perspective_ruler_still_paints() {
+    use tooncraft_doc::rulers::{Ruler, Rulers};
+    let mut e = engine();
+    e.apply(Command::SetRulers { rulers: Rulers { on: true, list: vec![Ruler::Perspective { points: vec![(0.0, 0.0)] }], ..Rulers::default() } }).unwrap();
+    e.apply(Command::Stroke { layer: 0, frame: 0, brush: ink(), samples: vec![Sample::at(100.0, 50.0, 1.0, 0.0)] }).unwrap();
+    assert_ne!(e.pick_color(0, 100, 50), PAPER);
+}
+
+#[test]
+fn samples_held_by_a_perspective_ruler_keep_their_own_pressure() {
+    use tooncraft_doc::rulers::{Ruler, Rulers};
+    // a horizontal stroke towards a vanishing point on the left: the first samples are held
+    // while the direction is decided; light ones must stay light
+    let paint = |rulers: bool| {
+        let mut e = engine();
+        if rulers {
+            e.apply(Command::SetRulers { rulers: Rulers { on: true, list: vec![Ruler::Perspective { points: vec![(0.0, 50.0)] }], ..Rulers::default() } })
+                .unwrap();
+        }
+        // two light samples 2.5 px apart are held; the heavy one 17.5 px on decides the direction
+        let mut samples = vec![Sample::at(180.0, 50.0, 0.1, 0.0), Sample::at(177.5, 50.0, 0.1, 0.01)];
+        samples.extend((0..20).map(|i| Sample::at(160.0 - i as f32 * 3.0, 50.0, 1.0, 0.02 + i as f64 * 0.01)));
+        e.apply(Command::Stroke { layer: 0, frame: 0, brush: Brush { size: 20.0, ..ink() }, samples }).unwrap();
+        let width = |x: u32| (0..100).filter(|y| e.pick_color(0, x, *y)[0] < 128).count();
+        (width(179), width(100))
+    };
+    let (free, snapped) = (paint(false), paint(true));
+    assert!(free.0 + 5 < free.1, "the light start is thinner without rulers: {free:?}");
+    assert_eq!(snapped, free, "and just as thin when a ruler held those samples");
+}

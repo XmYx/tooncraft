@@ -24,6 +24,8 @@ pub struct Prefs {
     // general
     pub autosave_seconds: u32,
     pub undo_megabytes: u32,
+    /// Show the start window when ToonCraft opens with no shot.
+    pub start_screen: bool,
     // drawing
     pub smoothing: f32,
     pub gap: u8,
@@ -51,6 +53,7 @@ impl Default for Prefs {
     fn default() -> Self {
         Self {
             autosave_seconds: 45,
+            start_screen: true,
             undo_megabytes: (tooncraft_engine::DEFAULT_UNDO_BUDGET >> 20) as u32,
             smoothing: 0.3,
             gap: 3,
@@ -117,6 +120,7 @@ impl Prefs {
             Tab::General => {
                 self.autosave_seconds = d.autosave_seconds;
                 self.undo_megabytes = d.undo_megabytes;
+                self.start_screen = d.start_screen;
             }
             Tab::Drawing => {
                 self.smoothing = d.smoothing;
@@ -225,6 +229,8 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
                 Tab::General => {
                     num(ui, tl!("Autosave every"), &mut p.autosave_seconds, AUTOSAVE_RANGE.0, AUTOSAVE_RANGE.1, tl!(" s"));
                     num(ui, tl!("Undo memory"), &mut p.undo_megabytes, UNDO_RANGE.0, UNDO_RANGE.1, tl!(" MB"));
+                    ui.checkbox(&mut p.start_screen, tl!("Show the start window when opening with no shot"));
+                    ui.end_row();
                 }
                 Tab::Drawing => {
                     let l = ui.label(tl!("Smoothing for new brushes"));
@@ -291,14 +297,19 @@ pub fn window(app: &mut ToonApp, ctx: &egui::Context) {
     if p != before {
         app.preferences.prefs = p;
         apply_live(app);
-        if let Some(path) = app.preferences.store.clone()
-            && let Err(e) = app.preferences.prefs.save(&path)
-        {
-            app.set_status(tlf!("Preferences not saved: {error}", error = e));
-        }
+        save_now(app);
     }
     if !open || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
         app.preferences.open = false;
+    }
+}
+
+/// Write the preferences now (nothing in tests and screenshots); a failure is a status message.
+pub fn save_now(app: &mut ToonApp) {
+    if let Some(path) = app.preferences.store.clone()
+        && let Err(e) = app.preferences.prefs.save(&path)
+    {
+        app.set_status(tlf!("Preferences not saved: {error}", error = e));
     }
 }
 
