@@ -8,7 +8,15 @@ use crate::{Command, Engine, EngineError};
 fn stroke(e: &mut Engine, layer: usize, x0: f32, x1: f32, y: f32) {
     let brush = tooncraft_brush::Brush { size: 6.0, color: [0, 0, 0, 255], ..Default::default() };
     let samples = (0..=20)
-        .map(|i| tooncraft_brush::Sample { x: x0 + (x1 - x0) * i as f32 / 20.0, y, pressure: 1.0, tilt_x: 0.0, tilt_y: 0.0, time: i as f64 * 0.01 })
+        .map(|i| tooncraft_brush::Sample {
+            x: x0 + (x1 - x0) * i as f32 / 20.0,
+            y,
+            pressure: 1.0,
+            tilt_x: 0.0,
+            tilt_y: 0.0,
+            time: i as f64 * 0.01,
+            rotation: 0.0,
+        })
         .collect();
     e.apply(Command::Stroke { layer, frame: 0, brush, samples }).unwrap();
 }

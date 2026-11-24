@@ -539,6 +539,10 @@ impl ToonApp {
             let layer = app.layer;
             app.run(Command::TogglePin { layer, frame: 0 });
             app.run(Command::SetLightTable { enabled: Some(true), opacity: Some(0.3) });
+            if cli.shift_trace {
+                app.run(Command::ShiftPin { index: 0, x: 60, y: 24, turn: 120 });
+                app.workspace.raise(Pane::Onion);
+            }
         }
         if cli.rulers {
             crate::rulers_ui::demo(&mut app);

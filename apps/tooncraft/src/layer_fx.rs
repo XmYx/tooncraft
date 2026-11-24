@@ -106,6 +106,7 @@ pub fn launch(app: &mut ToonApp, id: &str) -> bool {
                 tilt_x: 0.0,
                 tilt_y: 0.0,
                 time: i as f64 * 0.01,
+                rotation: 0.0,
             })
             .collect();
         app.run(Command::Stroke { layer, frame: app.frame, brush, samples });
