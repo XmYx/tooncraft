@@ -223,6 +223,59 @@ fn fill_options(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.add(egui::DragValue::new(&mut app.fill.spread).range(0..=tooncraft_raster::fill::MAX_SPREAD).suffix(" px")).labelled_by(l.id);
     ui.checkbox(&mut app.fill_every_frame, tl!("Every drawing of the layer"));
     ui.checkbox(&mut app.aids.lasso_fill, tl!("Lasso fill")).on_hover_text(tl!("Drag around an area to fill it"));
+    ui.separator();
+    auto_paint_options(app, ui);
+}
+
+/// Paint the following drawings (or the selected cells) like the current one.
+fn auto_paint_options(app: &mut ToonApp, ui: &mut egui::Ui) {
+    let range = app.has_range();
+    if !range {
+        let l = ui.label(tl!("Next drawings"));
+        ui.add(egui::DragValue::new(&mut app.aids.auto_paint_count).range(1..=tooncraft_engine::auto_paint::MAX_AUTO_DRAWINGS as u32)).labelled_by(l.id);
+    }
+    let tip = if range {
+        tl!("Paint the drawings in the selected cells like this one: each enclosed area takes the colour this drawing has there")
+    } else {
+        tl!("Paint the next drawings like this one: each enclosed area takes the colour this drawing has there")
+    };
+    if ui.button(tl!("Paint Like This Drawing")).on_hover_text(tip).clicked() {
+        paint_like_this(app);
+    }
+}
+
+/// Run auto paint from the current drawing over the selected cells' frames, or the frames of
+/// the next drawings on the layer.
+pub fn paint_like_this(app: &mut ToonApp) {
+    let (layer, from) = (app.layer, app.frame);
+    let frames: Vec<u32> = if app.has_range() {
+        let (_, _, f0, f1) = app.selection();
+        (f0..=f1).collect()
+    } else {
+        let Some(l) = app.engine.project.layers.get(layer) else { return };
+        let mut seen = std::collections::BTreeSet::new();
+        let mut out = Vec::new();
+        for f in from..app.engine.project.length() {
+            if let Some(d) = l.drawing_at(f)
+                && seen.insert(d)
+            {
+                out.push(f);
+                if out.len() > app.aids.auto_paint_count as usize {
+                    break;
+                }
+            }
+        }
+        out
+    };
+    let before = app.engine.undo_len();
+    let (options, reference) = (app.fill, app.fill_reference);
+    if app.run(tooncraft_engine::Command::AutoPaint { layer, from, frames, options, reference }) {
+        if app.engine.undo_len() > before {
+            app.set_status(tl!("Painted the drawings like this one"));
+        } else {
+            app.set_status(tl!("Nothing to paint: no enclosed areas match this drawing's colours"));
+        }
+    }
 }
 
 /// Select: how to select, flip and turn, then how a new area combines and the typed box.

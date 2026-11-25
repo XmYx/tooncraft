@@ -1,0 +1,1 @@
+- 2026-11-24: Paint Like This Drawing: the next drawings on a layer (or the selected cells) take the colours of the current one, area by area, as one undo step (`auto_paint`).

@@ -915,6 +915,7 @@ tooncraft	Next Key Drawing
 tooncraft	Next Line	
 tooncraft	Next Marker	
 tooncraft	Next drawing	
+tooncraft	Next drawings	
 tooncraft	Next frame	
 tooncraft	Next key drawing	
 tooncraft	Next marker	
@@ -967,6 +968,7 @@ tooncraft	Notes
 tooncraft	Nothing copied yet	
 tooncraft	Nothing is selected	
 tooncraft	Nothing moved: no motion recorded	
+tooncraft	Nothing to paint: no enclosed areas match this drawing's colours	
 tooncraft	Nothing to redo	
 tooncraft	Nothing to select there	
 tooncraft	Nothing to undo	
@@ -1049,12 +1051,16 @@ tooncraft	PNG Sequence per Layer
 tooncraft	PNG Sequence per Layer…	
 tooncraft	PNG Sequence…	
 tooncraft	Paint	
+tooncraft	Paint Like This Drawing	
 tooncraft	Paint bucket	
 tooncraft	Paint creeps a little way past the edge of the stroke into the paper	
 tooncraft	Paint into the mask to hide parts of this layer	
 tooncraft	Paint on Layer Mask	
 tooncraft	Paint on top of the drawing, behind it (only filling gaps), or only where there is already paint	
+tooncraft	Paint the drawings in the selected cells like this one: each enclosed area takes the colour this drawing has there	
+tooncraft	Paint the next drawings like this one: each enclosed area takes the colour this drawing has there	
 tooncraft	Paint the text into the drawing (Ctrl+Enter)	
+tooncraft	Painted the drawings like this one	
 tooncraft	Painting the layer mask	
 tooncraft	Painting the layer mask: paint hides, the eraser brings the layer back	
 tooncraft	Palette	

@@ -75,4 +75,32 @@ fn main() {
     if let Err(e) = craft_fonts_build::Embed::new().write("craft_fonts.rs") {
         println!("cargo::error={e}");
     }
+    windows_resources();
+}
+
+/// Embeds the app icon and VERSIONINFO in tooncraft.exe when targeting Windows; elsewhere it does
+/// nothing. A missing resource compiler is a warning, so a cross-compile still links, unless
+/// `TOONCRAFT_REQUIRE_WINRES=1` (set by `packaging/windows/package.ps1`) makes it an error.
+fn windows_resources() {
+    println!("cargo::rerun-if-changed=../../assets/app-icon/tooncraft.ico");
+    println!("cargo::rerun-if-env-changed=TOONCRAFT_REQUIRE_WINRES");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        return;
+    }
+    let manifest = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap_or_default());
+    let icon = manifest.join("../../assets/app-icon/tooncraft.ico");
+    let mut res = winresource::WindowsResource::new();
+    res.set_icon(&icon.to_string_lossy())
+        .set("ProductName", "ToonCraft")
+        .set("FileDescription", "ToonCraft frame-by-frame animation")
+        .set("LegalCopyright", "Copyright (c) the ToonCraft authors. MIT OR Apache-2.0.")
+        .set("OriginalFilename", "tooncraft.exe")
+        .set("InternalName", "tooncraft");
+    if let Err(e) = res.compile() {
+        if std::env::var("TOONCRAFT_REQUIRE_WINRES").is_ok_and(|v| v == "1") {
+            println!("cargo::error=embedding Windows resources failed: {e}");
+        } else {
+            println!("cargo::warning=tooncraft.exe built without icon/version resources: {e}");
+        }
+    }
 }

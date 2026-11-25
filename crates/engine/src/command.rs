@@ -57,6 +57,17 @@ pub enum Command {
         #[serde(default)]
         reference: FillReference,
     },
+    /// Paint the drawings at `frames` on `layer` like the drawing at `from`: each enclosed empty
+    /// region takes the colour the reference drawing has most under it. One undo step.
+    AutoPaint {
+        layer: usize,
+        from: u32,
+        frames: Vec<u32>,
+        #[serde(default)]
+        options: FillOptions,
+        #[serde(default)]
+        reference: FillReference,
+    },
     /// Fill with swatch `swatch` of the shot's palette `palette`, and link the paint to the
     /// swatch so editing it later recolours this paint (and not other paint of that colour).
     /// `all_frames`: the same point in every drawing on the layer.
@@ -1307,6 +1318,11 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::Fill { layer, frame, x, y, color, options, reference } => {
             frame_ok(e, frame)?;
             e.fill(layer, frame, x, y, color, options, reference).map(|_| ())
+        }
+        Command::AutoPaint { layer, from, frames, options, reference } => {
+            frame_ok(e, from)?;
+            let frames: Vec<u32> = frames.into_iter().filter(|f| *f < e.project.length()).take(4 * crate::auto_paint::MAX_AUTO_DRAWINGS).collect();
+            crate::auto_paint::auto_paint(e, layer, from, &frames, options, reference).map(|_| ())
         }
         Command::SwatchFill { palette, swatch, layer, frame, x, y, options, reference, all_frames } => {
             frame_ok(e, frame)?;
