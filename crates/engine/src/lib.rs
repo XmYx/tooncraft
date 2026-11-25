@@ -179,6 +179,8 @@ pub struct Engine {
     pub page_budget: u64,
     /// Ends and corners of new lines drawn on vector layers (not saved with the shot).
     pub line_style: tooncraft_vector::LineStyle,
+    /// Set when a pixel edit turned a vector drawing into pixels; see [`Engine::take_lines_to_pixels`].
+    lines_to_pixels: bool,
 }
 
 impl Engine {
@@ -195,6 +197,7 @@ impl Engine {
             pages: None,
             page_budget: paging::DEFAULT_PAGE_BUDGET,
             line_style: Default::default(),
+            lines_to_pixels: false,
             recording: None,
         }
     }
@@ -238,6 +241,12 @@ impl Engine {
     /// Steps that can be redone.
     pub fn redo_len(&self) -> usize {
         self.redo.len()
+    }
+
+    /// True once after a pixel edit turned a vector drawing's lines into pixels (the app says
+    /// so; undo brings the lines back).
+    pub fn take_lines_to_pixels(&mut self) -> bool {
+        std::mem::take(&mut self.lines_to_pixels)
     }
 
     pub fn undo_len(&self) -> usize {
@@ -338,9 +347,26 @@ impl Engine {
         self.changes = g.changes;
     }
 
-    pub(crate) fn push(&mut self, entry: Entry) {
+    pub(crate) fn push(&mut self, mut entry: Entry) {
         if entry.parts.is_empty() {
             return;
+        }
+        // a pixel edit on a vector drawing (a fill, a transform, liquify …) would be painted
+        // over by the next repaint from its lines: the drawing becomes pixels in the same step,
+        // and undo brings its lines back
+        let painted: Vec<DrawingId> = entry
+            .parts
+            .iter()
+            .filter_map(|p| match p {
+                Part::Tiles { drawing, .. } if self.project.vectors.contains_key(drawing) => Some(*drawing),
+                _ => None,
+            })
+            .collect();
+        for id in painted {
+            if let Some(v) = self.project.vectors.remove(&id) {
+                entry.parts.push(Part::Vector { id, strokes: Some(v) });
+                self.lines_to_pixels = true;
+            }
         }
         self.undo.push(entry);
         self.redo.clear();

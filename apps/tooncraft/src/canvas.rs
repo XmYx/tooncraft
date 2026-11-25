@@ -150,6 +150,7 @@ fn end(app: &mut ToonApp) {
     if let Err(e) = app.engine.end_stroke() {
         app.set_status(e.to_string());
     }
+    app.note_lines_to_pixels();
     app.stroke_start = None;
 }
 
@@ -969,6 +970,7 @@ pub fn show_as(app: &mut ToonApp, ui: &mut egui::Ui, id: egui::Id, main: bool, o
     crate::quick_mask::overlay(&painter, app, &|x, y| c.screen(x, y));
     draw_selection(&painter, app, &c, pal);
     crate::draw_aids::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
+    crate::contour_tool::lines_overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
     if app.tool == Tool::Contour {
         crate::contour_tool::overlay(&painter, app, &|x, y| c.screen(x, y), pal.accent);
     }

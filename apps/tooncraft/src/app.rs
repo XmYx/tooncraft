@@ -670,6 +670,7 @@ impl ToonApp {
             app.run(Command::SetCameraKey { frame: last, x: w * 0.65, y: h * 0.55, zoom: 1.2, angle: -6.0, camera: 0 });
             app.tool = Tool::Transform;
         }
+        app.aids.vector_lines = cli.vector_lines;
         if cli.rulers {
             crate::rulers_ui::demo(&mut app);
         }
@@ -770,6 +771,13 @@ impl ToonApp {
         self.status = s.into();
     }
 
+    /// Say so when the last edit turned a vector drawing's lines into pixels.
+    pub fn note_lines_to_pixels(&mut self) {
+        if self.engine.take_lines_to_pixels() {
+            self.set_status(tl!("This drawing's vector lines are pixels now (Undo brings the lines back)"));
+        }
+    }
+
     fn autosave_key(&self) -> String {
         tooncraft_format::autosave::key_for(self.path.as_deref(), &self.engine.project.name)
     }
@@ -797,6 +805,7 @@ impl ToonApp {
                 if let Some(c) = painted {
                     crate::history_panel::note_colour(&mut self.recent, c);
                 }
+                self.note_lines_to_pixels();
                 true
             }
             Err(e) => {
@@ -1670,6 +1679,7 @@ impl ToonApp {
                         crate::menus::SEP,
                         "view.onion",
                         "view.light_table",
+                        "view.vector_lines",
                         crate::menus::SEP,
                         "view.light_theme",
                     ],

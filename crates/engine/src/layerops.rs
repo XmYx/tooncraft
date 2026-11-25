@@ -32,7 +32,14 @@ pub(crate) fn duplicate(e: &mut Engine, layer: usize) -> Result<()> {
     let mut made = Vec::new();
     match build_copy(e, layer, &src, &mut made) {
         Ok(()) => {
-            let mut parts: Vec<Part> = made.into_iter().map(|id| Part::Drawing { id, surface: None }).collect();
+            let mut parts: Vec<Part> = Vec::with_capacity(made.len() * 2 + 1);
+            for id in made {
+                parts.push(Part::Drawing { id, surface: None });
+                // a vector drawing's copy keeps its lines
+                if e.project.vectors.contains_key(&id) {
+                    parts.push(Part::Vector { id, strokes: None });
+                }
+            }
             parts.push(before);
             e.push(Entry { label: "Duplicate layer".into(), parts });
             Ok(())
@@ -40,6 +47,7 @@ pub(crate) fn duplicate(e: &mut Engine, layer: usize) -> Result<()> {
         Err(err) => {
             for id in made {
                 e.project.swap_drawing(id, None);
+                e.project.vectors.remove(&id);
             }
             Entry { label: String::new(), parts: vec![before] }.swap(&mut e.project);
             Err(err)
@@ -58,6 +66,9 @@ fn build_copy(e: &mut Engine, layer: usize, src: &Layer, made: &mut Vec<DrawingI
         let Some(surface) = e.project.drawing_owned(d)? else { return Ok(None) };
         let n = e.project.add_drawing(Some(surface))?;
         made.push(n);
+        if let Some(v) = e.project.vectors.get(&d).cloned() {
+            e.project.vectors.insert(n, v);
+        }
         map.insert(d, n);
         Ok(Some(n))
     };

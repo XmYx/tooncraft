@@ -288,6 +288,7 @@ pub static ALL: &[Cmd] = &[
         }),
         |a| a.engine.project.onion.enabled,
     ),
+    toggle(cmd("view.vector_lines", tlm!("Vector Lines"), None, G::View, NoKey, |a, _, _| a.aids.vector_lines = !a.aids.vector_lines), |a| a.aids.vector_lines),
     toggle(cmd("view.mirror", tlm!("Mirror view"), Some(Icon::Mirror), G::View, Remap("M"), |a, _, _| a.view.flip = !a.view.flip), |a| a.view.flip),
     cmd("view.pin", tlm!("Pin frame to the light table"), Some(Icon::LightTable), G::View, Remap("Shift+L"), |a, _, _| {
         let (layer, frame) = layer_frame(a);

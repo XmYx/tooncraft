@@ -52,6 +52,9 @@ pub struct DrawAids {
     pub clone: crate::clone_tool::CloneTool,
     /// The contour tool's chosen line and drag.
     pub contour: crate::contour_tool::ContourTool,
+    /// View > Vector Lines: the centre lines and points of the current vector drawing drawn
+    /// over the canvas with every tool.
+    pub vector_lines: bool,
     /// The liquify tool's settings and stroke.
     pub liquify: crate::liquify_tool::LiquifyTool,
     /// The gradient's own stops (from a gradient swatch or the stop editor); empty: the
@@ -85,6 +88,7 @@ impl Default for DrawAids {
             auto_paint_count: 6,
             clone: Default::default(),
             contour: Default::default(),
+            vector_lines: false,
             liquify: Default::default(),
             gradient_stops: Vec::new(),
             snap_grid: false,

@@ -61,6 +61,7 @@ are due in the pull request that proposes ToonCraft. Until then every label is p
 | Paint Like This Drawing, Next drawings | Our wording | Use |
 | Quick Mask | Generic selection term (common across painting tools) | Use (common) |
 | Contour (tool), Line width, Smooth Line, Use Current Colour, Delete Line | Generic drawing words | Use (common) |
+| Vector Lines (View menu) | Generic drawing words | Use (common) |
 | All selected cells, Transform drawings | Descriptive | Use |
 | Mesh Warp, Grid, Apply Mesh Warp, Cancel Mesh Warp | Generic image-editing words | Use (common) |
 | Liquify, Push, Twirl left, Twirl right, Pinch, Bloat, Strength | Generic image-editing words (liquify is the common term) | Use (common) |
