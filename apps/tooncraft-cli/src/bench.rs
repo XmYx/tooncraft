@@ -45,6 +45,7 @@ fn stroke_latency(brush: Brush) -> Result<(f64, f64, f64), String> {
                 tilt_x: 0.2,
                 tilt_y: 0.1,
                 time: i as f64 / 240.0,
+                rotation: 0.0,
             };
             let t0 = Instant::now();
             e.stroke_to(sample).map_err(|e| e.to_string())?;
@@ -73,10 +74,15 @@ pub fn run(json: bool) -> Result<(), String> {
         ("stroke: pencil 4 px", Brush { size: 4.0, ..Brush::preset(BrushKind::Pencil) }),
         ("stroke: chalk 30 px", Brush { size: 30.0, ..Brush::preset(BrushKind::Chalk) }),
         ("stroke: airbrush 120 px", Brush { size: 120.0, ..Brush::preset(BrushKind::Airbrush) }),
+        ("stroke: airbrush 500 px", Brush { size: 500.0, ..Brush::preset(BrushKind::Airbrush) }),
+        ("stroke: airbrush 1000 px", Brush { size: 1000.0, ..Brush::preset(BrushKind::Airbrush) }),
+        ("stroke: ink 500 px", ink(500.0)),
+        ("stroke: chalk 1000 px, paper grain", Brush { size: 1000.0, ..Brush::preset(BrushKind::Chalk) }),
+        ("stroke: watercolour 600 px (wet mixing)", Brush { size: 600.0, ..Brush::preset(BrushKind::Watercolour) }),
         ("stroke: eraser 40 px", Brush { size: 40.0, ..Brush::preset(BrushKind::Eraser) }),
         ("stroke: ink 6 px, 25 response curves and jitter", busy),
         ("stroke: chalk 30 px, canvas-weave grain", Brush { size: 30.0, grain_kind: GrainKind::Canvas, ..Brush::preset(BrushKind::Chalk) }),
-        ("stroke: watercolour 34 px (wet mixing)", Brush { size: 34.0, wet: Wet { pickup: 0.5 }, ..Brush::preset(BrushKind::Watercolour) }),
+        ("stroke: watercolour 34 px (wet mixing)", Brush { size: 34.0, wet: Wet { pickup: 0.5, ..Wet::default() }, ..Brush::preset(BrushKind::Watercolour) }),
         ("stroke: smudge 30 px", Brush { size: 30.0, ..Brush::preset(BrushKind::Smudge) }),
     ] {
         let (mean, p50, p99) = stroke_latency(brush)?;

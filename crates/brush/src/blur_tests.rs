@@ -8,7 +8,7 @@ fn blur(size: f32) -> Brush {
     Brush {
         size,
         hardness: 0.3,
-        wet: Wet { pickup: 1.0 },
+        wet: Wet { pickup: 1.0, ..Wet::default() },
         smoothing: Smoothing { average: 0.0, catch_up: false, ..Default::default() },
         ..Brush::preset(BrushKind::Smudge)
     }

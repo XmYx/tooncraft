@@ -1,0 +1,1 @@
+- 2026-11-24: Interface language picker: Preferences ▸ General ▸ Language offers the system language, English and every built-in craft-i18n catalog by its own name; the choice applies at once and is kept in the preferences (a hostile code in the file follows the system).

@@ -10,12 +10,22 @@
 mod i18n;
 mod app;
 mod args;
+#[cfg(test)]
+mod auto_paint_ui_tests;
 mod brush_editor;
 mod brush_library;
 mod brush_presets;
+mod camera_path;
+#[cfg(test)]
+mod camera_path_ui_tests;
+#[cfg(test)]
+mod cameras_ui_tests;
 mod canvas;
 mod canvas_header;
 mod canvas_tools;
+mod clone_tool;
+#[cfg(test)]
+mod clone_ui_tests;
 mod color;
 mod colour_layers_ui;
 #[cfg(test)]
@@ -28,10 +38,16 @@ mod commands;
 mod context_menus;
 #[cfg(test)]
 mod context_menus_ui_tests;
+mod contour_tool;
+#[cfg(test)]
+mod contour_ui_tests;
 mod curves;
 #[cfg(test)]
 mod curves_ui_tests;
+mod display_session;
 mod dock;
+#[cfg(test)]
+mod dock_ui_tests;
 mod draw_aids;
 #[cfg(test)]
 mod drawaids_ui_tests;
@@ -42,19 +58,36 @@ mod effects_panel;
 mod export_dialog;
 mod frame_cache;
 #[cfg(test)]
+mod fx_ui_tests;
+#[cfg(test)]
 mod gaps_ui_tests;
+#[cfg(test)]
+mod gradient_swatch_ui_tests;
 #[cfg(test)]
 mod guidance_ui_tests;
 mod history_panel;
 #[cfg(test)]
 mod history_ui_tests;
 mod icons;
+#[cfg(test)]
+mod ik_ui_tests;
 mod import_dialog;
+#[cfg(test)]
+mod keyboard_reach_ui_tests;
 mod keys;
+#[cfg(test)]
+mod language_ui_tests;
+mod layer_fx;
 mod layer_ops;
 mod layer_tree;
 mod layers_list;
+#[cfg(test)]
+mod linked_style_ui_tests;
 mod lipsync_panel;
+mod liquify_tool;
+#[cfg(test)]
+mod liquify_ui_tests;
+mod macro_ui;
 mod menu_actions;
 #[cfg(test)]
 mod menu_actions_tests;
@@ -62,6 +95,13 @@ mod menu_commands;
 mod menus;
 #[cfg(test)]
 mod menus_ui_tests;
+#[cfg(test)]
+mod mesh_warp_ui_tests;
+mod motion_record;
+#[cfg(test)]
+mod motion_record_ui_tests;
+#[cfg(test)]
+mod multi_transform_ui_tests;
 mod onion_popover;
 mod panel_chrome;
 mod panel_views;
@@ -72,8 +112,18 @@ mod peg_transform;
 #[cfg(test)]
 mod peg_transform_ui_tests;
 mod pegs;
+#[cfg(test)]
+mod pen_ui_tests;
 mod pipeline;
+#[cfg(test)]
+mod poses_ui_tests;
 mod preferences;
+mod quick_mask;
+#[cfg(test)]
+mod quick_mask_ui_tests;
+mod reference_viewer;
+#[cfg(test)]
+mod reference_viewer_ui_tests;
 mod rulers_ui;
 #[cfg(test)]
 mod rulers_ui_tests;
@@ -97,6 +147,8 @@ mod status_strip;
 mod swatch_ui_tests;
 mod tablet;
 #[cfg(test)]
+mod tc3_anim_ui_tests;
+#[cfg(test)]
 mod tcui_time_ui_tests;
 mod text_tool;
 #[cfg(test)]
@@ -114,6 +166,11 @@ mod timeline_ruler;
 mod timeline_ui_tests;
 mod timing_panel;
 mod tool_options;
+mod tool_palettes;
+#[cfg(test)]
+mod tool_palettes_ui_tests;
+#[cfg(test)]
+mod tool_properties_ui_tests;
 mod tool_rail;
 mod top_bar;
 #[cfg(test)]
@@ -125,7 +182,11 @@ mod unsaved;
 mod unsaved_ui_tests;
 #[cfg(test)]
 mod vector_ui_tests;
+mod video_dialog;
 mod view;
+mod views;
+#[cfg(test)]
+mod views_ui_tests;
 mod workspaces;
 
 use args::{Cli, Launch};
@@ -135,7 +196,7 @@ pub const APP_ID: &str = "ai.storyteller.tooncraft";
 
 fn main() -> eframe::Result {
     let cli: Cli = match args::parse(std::env::args().skip(1)) {
-        Ok(Launch::Run(cli)) => cli,
+        Ok(Launch::Run(cli)) => *cli,
         Ok(Launch::Print(text)) => {
             print!("{text}");
             return Ok(());
@@ -146,9 +207,18 @@ fn main() -> eframe::Result {
         }
     };
     let size = if cli.screenshot.is_some() { [1600.0, 1000.0] } else { [1500.0, 940.0] };
-    let options = eframe::NativeOptions {
+    #[allow(unused_mut)]
+    let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_title("ToonCraft").with_app_id(APP_ID).with_inner_size(size).with_min_inner_size([900.0, 600.0]),
         ..Default::default()
     };
+    // a pen on a Wayland session works only through Xwayland (see display_session.rs)
+    #[cfg(target_os = "linux")]
+    if display_session::choose_xwayland() {
+        options.event_loop_builder = Some(Box::new(|b| {
+            use winit::platform::x11::EventLoopBuilderExtX11;
+            b.with_x11();
+        }));
+    }
     eframe::run_native("ToonCraft", options, Box::new(move |cc| Ok(Box::new(app::ToonApp::new(cc, cli)))))
 }

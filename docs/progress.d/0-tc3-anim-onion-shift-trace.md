@@ -1,0 +1,1 @@
+- 2026-11-24: Onion skin "Exact frames" shows the frames at typed offsets (`-4 -2 +2`); light-table pins can be shifted and turned to trace over them without changing the drawing (shift and trace, `shift_pin`); the all-layers onion skin is tested.

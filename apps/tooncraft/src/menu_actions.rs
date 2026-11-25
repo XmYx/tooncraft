@@ -66,8 +66,9 @@ fn transform(app: &mut ToonApp, scale: (f32, f32), angle: f32, label: &str) {
         skew_x: 0.0,
         skew_y: 0.0,
         resample,
+        feather: 0.0,
     };
-    if app.run(Command::Batch { label: label.into(), commands: vec![cmd] }) {
+    if crate::selection_tools::run_transform(app, cmd, Some(label)) {
         app.set_status(label.to_string());
     }
 }
@@ -112,7 +113,19 @@ pub fn fill_selection(app: &mut ToonApp) {
     let Some(area) = app.selection.clone() else { return };
     let (layer, frame, c) = (app.layer, app.frame, app.color);
     let area_rings = crate::selection_tools::extra_rings(app);
-    let cmd = Command::Gradient { layer, frame, kind: Default::default(), from: (0.0, 0.0), to: (1.0, 0.0), start: c, end: c, area: Some(area), area_rings };
+    let cmd = Command::Gradient {
+        layer,
+        frame,
+        kind: Default::default(),
+        from: (0.0, 0.0),
+        to: (1.0, 0.0),
+        start: c,
+        end: c,
+        area: Some(area),
+        area_rings,
+        stops: Vec::new(),
+        feather: app.sel.feather,
+    };
     app.run(Command::Batch { label: tl!("Fill selection").to_string(), commands: vec![cmd] });
 }
 

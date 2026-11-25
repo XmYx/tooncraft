@@ -11,24 +11,30 @@
 
 pub mod camera;
 pub mod colour_art;
+pub mod comp;
 mod exposure;
 pub mod guides;
+pub mod ik;
 pub mod library;
 pub mod markers;
 mod onion;
 pub mod paging;
 pub mod palette;
 pub mod peg;
+pub mod pose;
 pub mod render;
 pub mod rulers;
 pub mod sound;
 pub mod symmetry;
 pub mod timing;
 
-pub use camera::{Camera, CameraKey, Shake};
+pub use camera::{Camera, CameraCut, CameraKey, Shake, ShotCamera};
 pub use exposure::{Cell, ExposureError, reverse_cells};
 pub use markers::{MAX_MARKER_TEXT, MAX_MARKERS, MAX_NAME, parse_timecode, timecode};
-pub use onion::{LightTable, MAX_STEPS as ONION_MAX_STEPS, OnionMode, OnionSkin, Pin};
+pub use onion::{
+    LightTable, MAX_PICK_OFFSET as ONION_MAX_PICK_OFFSET, MAX_PICKED as ONION_MAX_PICKED, MAX_PIN_SHIFT, MAX_STEPS as ONION_MAX_STEPS, OnionMode, OnionSkin,
+    PickError, Pin, PinShift,
+};
 pub use peg::{Channel, Ease, Peg, PegId, PegKey};
 pub use render::{RenderOptions, render_camera, render_frame, render_region};
 pub use sound::{AudioTrack, Soundtrack, VolumeKey};
@@ -95,6 +101,22 @@ pub enum DocError {
     TooManyPegs,
     #[error("there is no peg {0}")]
     NoPeg(u64),
+    #[error("there is no camera {0}")]
+    NoSuchCamera(usize),
+    #[error("a shot can have at most {} cameras besides the main one", camera::MAX_CAMERAS)]
+    TooManyCameras,
+    #[error("a shot can have at most {} camera cuts", camera::MAX_CUTS)]
+    TooManyCuts,
+    #[error("a peg can have at most {} keys", peg::MAX_PEG_KEYS)]
+    TooManyPegKeys,
+    #[error("there is no light-table pin {0}")]
+    NoSuchPin(usize),
+    #[error("there is no pose {0}")]
+    NoSuchPose(usize),
+    #[error("a shot can keep at most {} poses", pose::MAX_POSES)]
+    TooManyPoses,
+    #[error("none of the pose's pegs is in the shot")]
+    PoseFitsNoPeg,
     #[error("a drawing could not be read back from the page file")]
     PageRead,
     #[error("a drawing could not be written to the page file (is the disk full?)")]
@@ -175,8 +197,41 @@ pub struct Layer {
     /// A colour layer's drawings: (line drawing, colour drawing) pairs.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub colour_pairs: Vec<(DrawingId, DrawingId)>,
+    /// A painted mask over the whole layer (every frame), see [`LayerMask`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mask: Option<LayerMask>,
+    /// An adjustment layer: its effects act on everything composited below it (in its clipping
+    /// target), where its drawing has paint, or everywhere when it has no drawing at that frame.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub adjustment: bool,
+    /// A reference layer: the fill bucket and the magic wand look at it when they are set to
+    /// look at reference layers (whatever layer they paint or select on).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub reference: bool,
     /// One cell per frame of the shot.
     pub cells: Vec<Cell>,
+}
+
+/// A layer's painted mask: one drawing in the layer's own space (it moves with the layer's
+/// transform). Paint in it hides the layer, the eraser brings it back; `invert` turns that
+/// round (paint shows, nothing else does). An empty mask hides nothing.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LayerMask {
+    pub drawing: DrawingId,
+    #[serde(default = "yes")]
+    pub enabled: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub invert: bool,
+    /// Strokes, fills and erasing on this layer go into the mask instead of the drawings.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub editing: bool,
+}
+
+impl LayerMask {
+    /// How much of the layer a mask pixel (premultiplied) keeps, 0…255.
+    pub fn keep(&self, px: [u8; 4]) -> u8 {
+        if self.invert { px[3] } else { 255 - px[3] }
+    }
 }
 
 fn is_zero(v: &f32) -> bool {
@@ -311,11 +366,98 @@ pub struct Paper {
     pub color: [u8; 3],
     /// Show the paper in exports (off: transparent background).
     pub export: bool,
+    /// A texture shading the paper colour (off at strength 0).
+    #[serde(skip_serializing_if = "PaperTexture::is_off")]
+    pub texture: PaperTexture,
 }
 
 impl Default for Paper {
     fn default() -> Self {
-        Self { color: [246, 243, 236], export: true }
+        Self { color: [246, 243, 236], export: true, texture: PaperTexture::default() }
+    }
+}
+
+/// Side of the square tile the paper texture repeats with, in canvas pixels.
+pub const PAPER_TILE: u32 = 512;
+
+/// How far a valley of the paper texture darkens the paper colour at full strength.
+const PAPER_DEPTH: f32 = 0.45;
+
+/// The visible texture of the paper: one of the grains, shading the paper colour (valleys
+/// darker), the same under the drawing on the canvas and in exports with the paper.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PaperTexture {
+    pub kind: tooncraft_brush::GrainKind,
+    /// The grain image (its id in the shot's tip table) when `kind` is `Image`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<u64>,
+    /// Feature size in canvas pixels, 0.5 … 64.
+    pub scale: f32,
+    /// Rotation in degrees.
+    pub angle: f32,
+    /// 0.1 … 4; 1 is the texture as it is.
+    pub contrast: f32,
+    /// 0 (off, plain paper) … 1.
+    pub strength: f32,
+}
+
+impl Default for PaperTexture {
+    fn default() -> Self {
+        Self { kind: tooncraft_brush::GrainKind::Paper, image: None, scale: 3.0, angle: 0.0, contrast: 1.0, strength: 0.0 }
+    }
+}
+
+impl PaperTexture {
+    pub fn is_off(&self) -> bool {
+        self.strength <= 0.0
+    }
+
+    /// Clamp every field to its range (files and command input are hostile).
+    pub fn sanitized(self) -> Self {
+        let f = |v: f32, lo: f32, hi: f32, d: f32| if v.is_finite() { v.clamp(lo, hi) } else { d };
+        PaperTexture {
+            kind: self.kind,
+            image: self.image,
+            scale: f(self.scale, 0.5, 64.0, 3.0),
+            angle: if self.angle.is_finite() { (self.angle + 180.0).rem_euclid(360.0) - 180.0 } else { 0.0 },
+            contrast: f(self.contrast, 0.1, tooncraft_brush::MAX_GRAIN_CONTRAST, 1.0),
+            strength: f(self.strength, 0.0, 1.0, 0.0),
+        }
+    }
+}
+
+/// The paper colour with its texture, ready to look up: the colour of every canvas pixel.
+pub struct PaperLook {
+    color: [u8; 3],
+    strength: f32,
+    grain: Option<tooncraft_brush::Grain>,
+}
+
+impl PaperLook {
+    /// Straight RGB of the paper at canvas pixel `(x, y)`.
+    pub fn at(&self, x: u32, y: u32) -> [u8; 3] {
+        let Some(g) = &self.grain else { return self.color };
+        let h = g.seamless(x, y, PAPER_TILE);
+        let k = 1.0 - self.strength * PAPER_DEPTH * (1.0 - h);
+        self.color.map(|c| (c as f32 * k).round().clamp(0.0, 255.0) as u8)
+    }
+
+    /// Whether the paper is one flat colour.
+    pub fn is_plain(&self) -> bool {
+        self.grain.is_none()
+    }
+
+    /// The repeating tile (`PAPER_TILE` square, straight RGBA, row-major) for the canvas display.
+    pub fn tile(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity((PAPER_TILE * PAPER_TILE * 4) as usize);
+        for y in 0..PAPER_TILE {
+            for x in 0..PAPER_TILE {
+                let c = self.at(x, y);
+                out.extend_from_slice(&[c[0], c[1], c[2], 255]);
+            }
+        }
+        out
     }
 }
 
@@ -340,6 +482,10 @@ pub struct Project {
     /// Audio track switches by track index (tracks past the end have defaults).
     pub audio_tracks: Vec<AudioTrack>,
     pub camera: Camera,
+    /// Cameras besides the main one.
+    pub cameras: Vec<ShotCamera>,
+    /// Which camera films the shot from which frame, sorted by frame.
+    pub camera_cuts: Vec<CameraCut>,
     pub folders: Vec<Folder>,
     /// Image brush tips used by this shot's brushes, by id.
     pub tips: BTreeMap<u64, std::sync::Arc<tooncraft_brush::Tip>>,
@@ -361,6 +507,10 @@ pub struct Project {
     pub library: Vec<library::Item>,
     /// Stroke rulers and grid snapping (a drawing aid stored with the shot).
     pub rulers: rulers::Rulers,
+    /// The compositing graph (when switched on, it builds the frame instead of the layer stack).
+    pub comp: comp::CompGraph,
+    /// Named poses of pegs, to put back on any frame.
+    pub poses: Vec<pose::Pose>,
     next_drawing: u64,
     next_layer: u64,
 }
@@ -378,6 +528,8 @@ impl PartialEq for Project {
             && self.sounds == o.sounds
             && self.audio_tracks == o.audio_tracks
             && self.camera == o.camera
+            && self.cameras == o.cameras
+            && self.camera_cuts == o.camera_cuts
             && self.folders == o.folders
             && self.tips == o.tips
             && self.pegs == o.pegs
@@ -388,10 +540,23 @@ impl PartialEq for Project {
             && self.palettes == o.palettes
             && self.library == o.library
             && self.rulers == o.rulers
+            && self.comp == o.comp
+            && self.poses == o.poses
     }
 }
 
 impl Project {
+    /// The paper's look: its colour and, when on, its texture (a grain image missing from the
+    /// tip table falls back to the paper grain).
+    pub fn paper_look(&self) -> PaperLook {
+        let t = self.paper.texture.sanitized();
+        if t.is_off() {
+            return PaperLook { color: self.paper.color, strength: 0.0, grain: None };
+        }
+        let image = t.image.and_then(|i| self.tips.get(&i).cloned());
+        PaperLook { color: self.paper.color, strength: t.strength, grain: Some(tooncraft_brush::Grain::new(t.kind, t.scale, t.angle, t.contrast, image)) }
+    }
+
     /// A new shot with one empty layer.
     pub fn new(name: &str, width: u32, height: u32, fps: u32, length: u32) -> Result<Self> {
         if width == 0 || height == 0 || width > MAX_SIDE || height > MAX_SIDE {
@@ -418,10 +583,14 @@ impl Project {
             vectors: BTreeMap::new(),
             library: Vec::new(),
             rulers: rulers::Rulers::default(),
+            comp: comp::CompGraph::default(),
+            poses: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
             camera: Camera::default(),
+            cameras: Vec::new(),
+            camera_cuts: Vec::new(),
             folders: Vec::new(),
             tips: BTreeMap::new(),
             pegs: Vec::new(),
@@ -452,10 +621,14 @@ impl Project {
             vectors: BTreeMap::new(),
             library: Vec::new(),
             rulers: rulers::Rulers::default(),
+            comp: comp::CompGraph::default(),
+            poses: Vec::new(),
             light_table: LightTable::default(),
             sounds: Vec::new(),
             audio_tracks: Vec::new(),
             camera: Camera::default(),
+            cameras: Vec::new(),
+            camera_cuts: Vec::new(),
             folders: Vec::new(),
             tips: BTreeMap::new(),
             pegs: Vec::new(),
@@ -495,7 +668,7 @@ impl Project {
                 return Err(RasterError::BadSize(d.width(), d.height()).into());
             }
         }
-        p.paper = paper;
+        p.paper = Paper { texture: paper.texture.sanitized(), ..paper };
         p.drawings = drawings.into_iter().map(|(k, v)| (k, paging::Slot::Resident(v))).collect();
         p.onion = onion.sanitized();
         p.light_table = light_table.sanitized();
@@ -524,6 +697,9 @@ impl Project {
             }
             layer.opacity_keys = keys;
             layer.mouth_chart.retain(|_, d| p.drawings.contains_key(d));
+            if layer.mask.is_some_and(|m| !p.drawings.contains_key(&m.drawing)) {
+                layer.mask = None;
+            }
             if !seen.insert(layer.id) {
                 layer.id = LayerId(u64::MAX); // fixed below
             }
@@ -579,13 +755,16 @@ impl Project {
             p.pivot = (p.pivot.0 + fx, p.pivot.1 + fy);
         }
         // the camera's neutral centre is the canvas centre: keep keyed framings where they were
-        for k in &mut self.camera.keys {
+        for k in self.cameras.iter_mut().map(|c| &mut c.camera).chain(std::iter::once(&mut self.camera)).flat_map(|c| c.keys.iter_mut()) {
             k.x += fx;
             k.y += fy;
         }
         self.width = width;
         self.height = height;
         self.camera = std::mem::take(&mut self.camera).sanitized(width, height);
+        for c in &mut self.cameras {
+            c.camera = std::mem::take(&mut c.camera).sanitized(width, height);
+        }
         Ok(())
     }
 
@@ -655,6 +834,9 @@ impl Project {
                 onion: None,
                 colour_of: None,
                 colour_pairs: Vec::new(),
+                mask: None,
+                adjustment: false,
+                reference: false,
                 cells: vec![Cell::Blank; self.length as usize],
             },
         );
@@ -776,8 +958,14 @@ impl Project {
 
     /// Drawings no cell of a layer or a library item refers to.
     pub fn unused_drawings(&self) -> Vec<DrawingId> {
-        let used: std::collections::BTreeSet<DrawingId> =
-            self.layers.iter().flat_map(|l| l.cells.iter()).chain(self.library.iter().flat_map(|i| i.cells.iter())).filter_map(|c| c.key()).collect();
+        let used: std::collections::BTreeSet<DrawingId> = self
+            .layers
+            .iter()
+            .flat_map(|l| l.cells.iter())
+            .chain(self.library.iter().flat_map(|i| i.cells.iter()))
+            .filter_map(|c| c.key())
+            .chain(self.layers.iter().filter_map(|l| l.mask.map(|m| m.drawing)))
+            .collect();
         self.drawings.keys().filter(|d| !used.contains(d)).copied().collect()
     }
 
@@ -988,6 +1176,16 @@ impl Project {
             Some(id) => peg::chain(&self.pegs, id, frame),
             None => Affine::IDENTITY,
         }
+    }
+
+    /// Where a light-table pin of layer `layer` is shown: the layer's transform at the pinned
+    /// frame, then the pin's shift, turned about the canvas centre.
+    pub fn pin_transform(&self, layer: usize, pin: &Pin) -> Affine {
+        let t = self.layer_transform(layer, pin.frame);
+        if pin.shift.is_none() {
+            return t;
+        }
+        t.then(&pin.shift.affine((self.width() as f32 / 2.0, self.height() as f32 / 2.0)))
     }
 
     /// Canvas positions of a peg's pivot over `from..=to` (its motion path), at most 10 000

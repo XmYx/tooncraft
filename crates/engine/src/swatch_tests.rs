@@ -90,3 +90,109 @@ fn edit_swatch_reads_from_a_command_file_line() {
     e.apply(c).unwrap();
     assert_eq!(e.project.palettes[0].swatches[1].rgb, [1, 2, 3]);
 }
+
+#[test]
+fn a_fill_from_a_swatch_is_linked_so_only_it_follows_the_swatch() {
+    // a plain drawing pair: one fill made from the swatch, one plain fill in the same colour
+    let mut e = Engine::new(Project::new("Linked", 32, 32, 12, 2).unwrap());
+    e.apply(Command::AddLayer { name: "Two".into(), index: Some(1) }).unwrap();
+    let mut p = Palette::new("Characters");
+    p.push("skin", SKIN);
+    e.apply(Command::SetPalettes { palettes: vec![p] }).unwrap();
+    e.apply(Command::SwatchFill {
+        palette: 0,
+        swatch: 0,
+        layer: 0,
+        frame: 0,
+        x: 4,
+        y: 4,
+        options: Default::default(),
+        reference: Default::default(),
+        all_frames: false,
+    })
+    .unwrap();
+    assert_eq!(rgb_at(&e, 0, 0), [SKIN[0], SKIN[1], SKIN[2], 255], "filled with the swatch colour");
+    assert_eq!(e.undo_label(), Some("Fill"));
+    assert_eq!(e.project.palettes[0].swatches[0].links.len(), 1, "the fill is linked");
+    fill(&mut e, 1, 0, 4, SKIN, 255);
+    // the swatch changes: only the linked fill follows; the plain one in the same colour stays
+    e.apply(Command::EditSwatch { palette: 0, swatch: 0, rgb: NEW, name: None, update_paint: true }).unwrap();
+    assert_eq!(rgb_at(&e, 0, 0), [NEW[0], NEW[1], NEW[2], 255], "linked paint follows");
+    assert_eq!(rgb_at(&e, 1, 0), [SKIN[0], SKIN[1], SKIN[2], 255], "unlinked paint stays");
+    // undo the edit, then the fill: the link goes with the fill
+    e.undo().unwrap();
+    assert_eq!(rgb_at(&e, 0, 0), [SKIN[0], SKIN[1], SKIN[2], 255]);
+    e.undo().unwrap();
+    e.undo().unwrap();
+    assert!(e.project.palettes[0].swatches[0].links.is_empty(), "undoing the fill drops its link");
+    // a missing swatch is an error; old palettes without links read
+    let bad = Command::SwatchFill {
+        palette: 3,
+        swatch: 0,
+        layer: 0,
+        frame: 0,
+        x: 4,
+        y: 4,
+        options: Default::default(),
+        reference: Default::default(),
+        all_frames: false,
+    };
+    assert!(matches!(e.apply(bad), Err(EngineError::NoSwatch(3, 0))));
+    let old: Palette = serde_json::from_str(r#"{"name":"Old","swatches":[{"name":"a","rgb":[1,2,3]}]}"#).unwrap();
+    assert!(old.swatches[0].links.is_empty());
+}
+
+#[test]
+fn links_are_capped_when_read() {
+    use tooncraft_doc::palette::{FillLink, MAX_LINK_RUNS, MAX_LINKS};
+    let mut p = Palette::new("Big");
+    p.push("x", SKIN);
+    let link = FillLink { drawing: tooncraft_doc::DrawingId(1), runs: vec![(0, 0, 1); MAX_LINK_RUNS + 5] };
+    p.swatches[0].links = vec![link; MAX_LINKS + 3];
+    let p = p.sanitized();
+    assert_eq!(p.swatches[0].links.len(), MAX_LINKS);
+    assert_eq!(p.swatches[0].links[0].runs.len(), MAX_LINK_RUNS);
+}
+
+#[test]
+fn all_links_together_stay_within_the_budget_and_undo_counts_them() {
+    use tooncraft_doc::palette::{FillLink, MAX_TOTAL_LINK_RUNS, link_runs, sanitize_all};
+    // a hostile file: many swatches each with many big links
+    let big = FillLink { drawing: tooncraft_doc::DrawingId(1), runs: vec![(0, 0, 1); 100_000] };
+    let mut p = Palette::new("Big");
+    for i in 0..30 {
+        p.push(&format!("s{i}"), SKIN);
+    }
+    for s in &mut p.swatches {
+        s.links = vec![big.clone(); 3];
+    }
+    let v = sanitize_all(vec![p.clone(), p]);
+    assert!(link_runs(&v) <= MAX_TOTAL_LINK_RUNS, "{}", link_runs(&v));
+    // a fill keeps only its swatch's links in the undo step, and the undo budget sees them
+    let mut e = Engine::new(Project::new("Linked", 32, 32, 12, 2).unwrap());
+    let mut p = Palette::new("Characters");
+    p.push("skin", SKIN);
+    e.apply(Command::SetPalettes { palettes: vec![p] }).unwrap();
+    for _ in 0..3 {
+        e.apply(Command::ClearDrawing { layer: 0, frame: 0 }).ok();
+        e.apply(Command::SwatchFill {
+            palette: 0,
+            swatch: 0,
+            layer: 0,
+            frame: 0,
+            x: 4,
+            y: 4,
+            options: Default::default(),
+            reference: Default::default(),
+            all_frames: false,
+        })
+        .unwrap();
+    }
+    let top = e.undo.last().unwrap();
+    assert!(top.parts.iter().any(|p| matches!(p, crate::undo::Part::SwatchLinks(0, 0, l) if l.len() == 2)), "the undo part holds the two links from before");
+    assert!(!top.parts.iter().any(|p| matches!(p, crate::undo::Part::Palettes(_))), "no full palettes copy");
+    assert!(top.bytes() >= 2 * 32 * 12, "the links are counted: {}", top.bytes());
+    // editing the swatch without updating the paint drops its links
+    e.apply(Command::EditSwatch { palette: 0, swatch: 0, rgb: NEW, name: None, update_paint: false }).unwrap();
+    assert!(e.project.palettes[0].swatches[0].links.is_empty());
+}

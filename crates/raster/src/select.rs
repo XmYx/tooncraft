@@ -266,6 +266,90 @@ pub fn grow(m: &Mask, n: i32, w: u32, h: u32) -> Option<Mask> {
     crop(&buf, w, h)
 }
 
+/// Largest feather radius, in pixels.
+pub const MAX_FEATHER: f32 = 64.0;
+
+/// A soft-edged copy of the mask: the edge fades over about `radius` pixels on each side (three
+/// box blurs, close to a Gaussian), so moving, erasing, copying or filling the selection blends
+/// into what is around it. `radius` is clamped to [`MAX_FEATHER`]; below half a pixel the mask
+/// comes back as it is. Work is linear in the mask's box (grown by the radius) whatever the
+/// radius; `None` past [`MAX_SELECTION_PIXELS`] or when nothing is left.
+pub fn feather(m: &Mask, radius: f32, w: u32, h: u32) -> Option<Mask> {
+    let radius = if radius.is_finite() { radius.clamp(0.0, MAX_FEATHER) } else { 0.0 };
+    if radius < 0.5 || m.width == 0 || m.height == 0 {
+        return Some(m.clone());
+    }
+    // three boxes of radius b have a spread of about b·1.4; reach the full radius with them
+    let b = ((radius / 1.5).round() as u32).max(1);
+    let pad = 3 * b;
+    let x0 = m.x.saturating_sub(pad);
+    let y0 = m.y.saturating_sub(pad);
+    let x1 = m.x.saturating_add(m.width).saturating_add(pad).min(w);
+    let y1 = m.y.saturating_add(m.height).saturating_add(pad).min(h);
+    if x0 >= x1 || y0 >= y1 {
+        return None;
+    }
+    let (bw, bh) = ((x1 - x0) as usize, (y1 - y0) as usize);
+    if bw as u64 * bh as u64 > MAX_SELECTION_PIXELS {
+        return None;
+    }
+    // values ×255 kept as u32 so three passes do not lose the faint ends of the edge
+    let mut buf = vec![0u32; bw * bh];
+    for y in 0..bh {
+        for x in 0..bw {
+            buf[y * bw + x] = m.value(x0 + x as u32, y0 + y as u32) as u32 * 255;
+        }
+    }
+    let r = b as usize;
+    let mut line = Vec::new();
+    let mut blur = |buf: &mut Vec<u32>, len: usize, lines: usize, at: &dyn Fn(usize, usize) -> usize| {
+        let div = (2 * r + 1) as u64;
+        line.resize(len, 0u32);
+        for l in 0..lines {
+            // sliding sum over [i - r, i + r]; outside the box counts as unselected
+            let mut sum: u64 = (0..r.min(len)).map(|i| buf[at(l, i)] as u64).sum();
+            for i in 0..len {
+                if i + r < len {
+                    sum += buf[at(l, i + r)] as u64;
+                }
+                if i > r {
+                    sum -= buf[at(l, i - r - 1)] as u64;
+                }
+                line[i] = (sum / div) as u32;
+            }
+            for (i, v) in line.iter().enumerate() {
+                buf[at(l, i)] = *v;
+            }
+        }
+    };
+    for _ in 0..3 {
+        blur(&mut buf, bw, bh, &|l, i| l * bw + i);
+        blur(&mut buf, bh, bw, &|l, i| i * bw + l);
+    }
+    let data: Vec<u8> = buf.iter().map(|v| ((*v + 127) / 255).min(255) as u8).collect();
+    // crop to what is still set
+    let (mut cx0, mut cy0, mut cx1, mut cy1) = (usize::MAX, usize::MAX, 0, 0);
+    for y in 0..bh {
+        for x in 0..bw {
+            if data[y * bw + x] != 0 {
+                cx0 = cx0.min(x);
+                cy0 = cy0.min(y);
+                cx1 = cx1.max(x + 1);
+                cy1 = cy1.max(y + 1);
+            }
+        }
+    }
+    if cx0 >= cx1 {
+        return None;
+    }
+    let (mw, mh) = (cx1 - cx0, cy1 - cy0);
+    let mut out = Vec::with_capacity(mw * mh);
+    for y in cy0..cy1 {
+        out.extend_from_slice(&data[y * bw + cx0..y * bw + cx1]);
+    }
+    Some(Mask { x: x0 + cx0 as u32, y: y0 + cy0 as u32, width: mw as u32, height: mh as u32, data: out })
+}
+
 /// Most corner points the traced outline of a selection may have.
 pub const MAX_TRACE_POINTS: usize = 200_000;
 
@@ -422,10 +506,11 @@ pub fn copy(surface: &Surface, mask: &Mask) -> RgbaImage {
     let mut img = RgbaImage::transparent(mask.width, mask.height);
     surface.composite_region(&mut img, mask.x, mask.y, 1.0, None);
     for (i, m) in mask.data.iter().enumerate() {
-        if *m == 0 {
+        if *m != 255 {
             let at = i * 4;
             if let Some(px) = img.data.get_mut(at..at + 4) {
-                px.copy_from_slice(&[0; 4]);
+                let w = crate::fill::weigh([px[0], px[1], px[2], px[3]], *m);
+                px.copy_from_slice(&w);
             }
         }
     }
@@ -448,9 +533,11 @@ pub fn clear(surface: &mut Surface, mask: &Mask) {
             let px = tile.bytes_mut();
             for r in 0..TILE {
                 for c in 0..TILE {
-                    if mask.get(tx * TILE + c, ty * TILE + r) {
+                    let m = mask.value(tx * TILE + c, ty * TILE + r);
+                    if m != 0 {
                         let i = ((r * TILE + c) * 4) as usize;
-                        px[i..i + 4].copy_from_slice(&[0; 4]);
+                        let kept = crate::fill::weigh([px[i], px[i + 1], px[i + 2], px[i + 3]], 255 - m);
+                        px[i..i + 4].copy_from_slice(&kept);
                     }
                 }
             }
@@ -636,6 +723,82 @@ pub fn distort(surface: &mut Surface, mask: &Mask, quad: [(f32, f32); 4], r: Res
     out
 }
 
+/// Most cells a mesh warp grid has along each side.
+pub const MAX_MESH_CELLS: u32 = 16;
+
+/// Where `p` sits in the quad `a b c d` (corners at (0,0), (1,0), (1,1), (0,1)) by inverting
+/// the bilinear map; `None` outside it or when the quad is degenerate there.
+pub fn inverse_bilinear(p: (f32, f32), a: (f32, f32), b: (f32, f32), c: (f32, f32), d: (f32, f32)) -> Option<(f32, f32)> {
+    let cross = |u: (f32, f32), v: (f32, f32)| u.0 * v.1 - u.1 * v.0;
+    let e = (b.0 - a.0, b.1 - a.1);
+    let f = (d.0 - a.0, d.1 - a.1);
+    let g = (a.0 - b.0 + c.0 - d.0, a.1 - b.1 + c.1 - d.1);
+    let h = (p.0 - a.0, p.1 - a.1);
+    let (k2, k1, k0) = (cross(g, f), cross(e, f) + cross(h, g), cross(h, e));
+    let u_for = |v: f32| -> Option<f32> {
+        let (dx, dy) = (e.0 + g.0 * v, e.1 + g.1 * v);
+        if dx.abs() >= dy.abs() { (dx.abs() > 1e-8).then(|| (h.0 - f.0 * v) / dx) } else { Some((h.1 - f.1 * v) / dy) }
+    };
+    let inside = |t: f32| (-1e-4..=1.0 + 1e-4).contains(&t);
+    let candidates: Vec<f32> = if k2.abs() < 1e-8 {
+        if k1.abs() < 1e-8 {
+            return None;
+        }
+        vec![-k0 / k1]
+    } else {
+        let disc = k1 * k1 - 4.0 * k0 * k2;
+        if disc < 0.0 {
+            return None;
+        }
+        let s = disc.sqrt();
+        vec![(-k1 - s) / (2.0 * k2), (-k1 + s) / (2.0 * k2)]
+    };
+    candidates.into_iter().filter(|v| v.is_finite() && inside(*v)).find_map(|v| u_for(v).filter(|u| u.is_finite() && inside(*u)).map(|u| (u, v)))
+}
+
+/// Warp the pixels under `mask` with a grid of `cols` × `rows` cells over its box: `points`
+/// (row by row, (cols + 1) × (rows + 1) of them) are where the grid's points land. Each cell's
+/// pixels follow its four corners bilinearly.
+pub fn mesh_warp(surface: &mut Surface, mask: &Mask, cols: u32, rows: u32, points: &[(f32, f32)], r: Resample) -> Result<(), RasterError> {
+    let bad = RasterError::BadImage { got: points.len(), want: ((cols + 1) * (rows + 1)) as usize };
+    if cols == 0 || rows == 0 || cols > MAX_MESH_CELLS || rows > MAX_MESH_CELLS || points.len() != ((cols + 1) * (rows + 1)) as usize {
+        return Err(bad);
+    }
+    if points.iter().any(|p| !p.0.is_finite() || !p.1.is_finite() || p.0.abs() > 1.0e6 || p.1.abs() > 1.0e6) {
+        return Err(bad);
+    }
+    let img = copy(surface, mask);
+    let before = surface.clone();
+    clear(surface, mask);
+    let origin = (mask.x as f32, mask.y as f32);
+    let (w, h) = (img.width as f32, img.height as f32);
+    let at = |i: u32, j: u32| points.get((j * (cols + 1) + i) as usize).copied().unwrap_or((0.0, 0.0));
+    let mut out = Ok(());
+    'cells: for j in 0..rows {
+        for i in 0..cols {
+            let (a, b, c, d) = (at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1));
+            // half-open cells, so a pixel on a shared edge is drawn once
+            let (last_col, last_row) = (i + 1 == cols, j + 1 == rows);
+            let inverse = |x: f32, y: f32| -> Option<(f32, f32)> {
+                let (u, v) = inverse_bilinear((x, y), a, b, c, d)?;
+                if (u >= 1.0 && !last_col) || (v >= 1.0 && !last_row) {
+                    return None;
+                }
+                let (u, v) = (u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
+                Some((origin.0 + (i as f32 + u) / cols as f32 * w, origin.1 + (j as f32 + v) / rows as f32 * h))
+            };
+            if let Err(e) = draw_mapped(surface, &img, &[a, b, c, d], r, &inverse, origin) {
+                out = Err(e);
+                break 'cells;
+            }
+        }
+    }
+    if out.is_err() {
+        *surface = before;
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -651,6 +814,30 @@ mod tests {
             }
         }
         s
+    }
+
+    #[test]
+    fn a_flat_mesh_leaves_the_pixels_and_a_moved_point_bends_them() {
+        let mut s = dot_surface();
+        let m = polygon_mask(200, 200, &[(0.0, 0.0), (60.0, 0.0), (60.0, 60.0), (0.0, 60.0)]).unwrap();
+        let grid = |dx: f32| -> Vec<(f32, f32)> {
+            (0..3).flat_map(|j| (0..3).map(move |i| (i as f32 * 30.0 + if i == 1 && j == 1 { dx } else { 0.0 }, j as f32 * 30.0))).collect()
+        };
+        let before = s.clone();
+        mesh_warp(&mut s, &m, 2, 2, &grid(0.0), Resample::Nearest).unwrap();
+        assert_eq!(s.pixel(30, 30), before.pixel(30, 30), "an unmoved grid keeps the dot");
+        assert_eq!(s.pixel(10, 10)[3], 0);
+        // pull the middle point 20 px right: the dot (20…40) follows towards the right
+        mesh_warp(&mut s, &m, 2, 2, &grid(20.0), Resample::Nearest).unwrap();
+        assert!(s.pixel(45, 30)[3] > 0, "pulled right");
+        assert_eq!(s.pixel(22, 50)[3], 0, "the bottom edge stayed: no paint low down");
+        assert!(mesh_warp(&mut s, &m, 2, 2, &grid(0.0)[..5], Resample::Nearest).is_err(), "wrong point count");
+        assert!(mesh_warp(&mut s, &m, 0, 2, &[], Resample::Nearest).is_err());
+        let mut nan = grid(0.0);
+        nan[4] = (f32::NAN, 1.0);
+        assert!(mesh_warp(&mut s, &m, 2, 2, &nan, Resample::Nearest).is_err());
+        assert_eq!(inverse_bilinear((5.0, 5.0), (0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)), Some((0.5, 0.5)));
+        assert_eq!(inverse_bilinear((50.0, 5.0), (0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)), None);
     }
 
     #[test]
@@ -764,8 +951,57 @@ mod tests {
         assert!(t.apply(30.0, 40.0).0 > 30.0, "points below the pivot shift right");
     }
 
+    #[test]
+    fn feather_softens_the_edge_and_weights_erase_and_copy() {
+        let (w, h) = (100, 100);
+        let hard = polygon_mask(w, h, &rect(30.0, 30.0, 70.0, 70.0)).unwrap();
+        assert!(feather(&hard, 0.2, w, h).unwrap() == hard, "under half a pixel: unchanged");
+        let soft = feather(&hard, 6.0, w, h).unwrap();
+        assert_eq!(soft.value(50, 50), 255, "the middle stays fully selected");
+        assert_eq!(soft.value(5, 5), 0, "far outside stays out");
+        let edge = soft.value(30, 50);
+        assert!(edge > 60 && edge < 200, "the edge is half selected, got {edge}");
+        assert!(soft.value(26, 50) > 0 && soft.value(26, 50) < edge, "it fades outside the outline");
+        assert!(soft.value(34, 50) > edge && soft.value(34, 50) < 255, "and inside it");
+        assert!(soft.x < hard.x && soft.width > hard.width, "the box grows with the fade");
+        // hostile radii are clamped, and a radius past the cap costs no more than the cap
+        assert!(feather(&hard, f32::NAN, w, h).unwrap() == hard);
+        let capped = feather(&hard, 1e9, w, h).unwrap();
+        assert_eq!(capped, feather(&hard, MAX_FEATHER, w, h).unwrap());
+        // erase: fully inside clears, the edge keeps part of the paint, outside keeps it all
+        let mut s = Surface::new(w, h).unwrap();
+        let red = [255, 0, 0, 255];
+        let all = Mask { x: 0, y: 0, width: w, height: h, data: vec![255; (w * h) as usize] };
+        crate::fill::paint_over(&mut s, &all, red);
+        let copied = copy(&s, &soft);
+        let at = |img: &RgbaImage, x: u32, y: u32| img.pixel(x - soft.x, y - soft.y);
+        assert_eq!(at(&copied, 50, 50), red);
+        assert_eq!(at(&copied, 30, 50)[3], edge, "the copy carries the mask's softness");
+        clear(&mut s, &soft);
+        assert_eq!(s.pixel(50, 50)[3], 0);
+        assert_eq!(s.pixel(30, 50)[3], 255 - edge);
+        assert_eq!(s.pixel(5, 5), red);
+        // a soft fill paints less at the edge
+        let mut s = Surface::new(w, h).unwrap();
+        crate::fill::paint_over(&mut s, &soft, red);
+        assert_eq!(s.pixel(50, 50), red);
+        assert_eq!(s.pixel(30, 50)[3], edge);
+    }
+
     proptest::proptest! {
         #![proptest_config(proptest::prelude::ProptestConfig::with_cases(48))]
+        #[test]
+        fn hostile_feather_never_panics(pts in proptest::collection::vec((-500f32..700.0, -500f32..700.0), 0..12), r in -1e6f32..1e6) {
+            if let Some(m) = polygon_mask(200, 150, &pts)
+                && let Some(f) = feather(&m, r, 200, 150)
+            {
+                proptest::prop_assert!(f.x + f.width <= 200 && f.y + f.height <= 150);
+                proptest::prop_assert_eq!(f.data.len(), (f.width * f.height) as usize);
+                let mut s = dot_surface();
+                let _ = transform(&mut s, &f, Affine::translate(3.0, -2.0));
+            }
+        }
+
         #[test]
         fn hostile_selection_ops_never_panic(pts in proptest::collection::vec((-500f32..700.0, -500f32..700.0), 0..12), n in -200i32..200, q in proptest::collection::vec((-1e5f32..1e5, -1e5f32..1e5), 4)) {
             if let Some(m) = polygon_mask(200, 150, &pts) {

@@ -20,7 +20,8 @@ pub struct State {
     pub combine: Combine,
     pub resample: Resample,
     pub wand_tolerance: u8,
-    pub wand_all_layers: bool,
+    /// What the magic wand looks at.
+    pub wand_reference: tooncraft_engine::FillReference,
     /// Pixels for Grow and Shrink.
     pub grow_by: i32,
     /// Skew, degrees, for Apply Skew.
@@ -36,11 +37,30 @@ pub struct State {
     typed_for: Vec<(f32, f32)>,
     /// Width and height change together.
     pub keep_proportions: bool,
+    /// Soft edge of the selection, pixels (0: hard): moving, erasing, copying and filling blend
+    /// over this distance.
+    pub feather: f32,
+    /// Move, scale, turn, flip and skew every drawing in the timeline's selected cells at once.
+    pub all_cells: bool,
+    /// Mesh warp in progress: cells across, cells down and where the grid's points are.
+    pub mesh: Option<(u32, u32, Vec<(f32, f32)>)>,
+    /// Cells along each side of a new mesh warp grid.
+    pub mesh_cells: u32,
+    /// Quick mask: the selection being painted (see `quick_mask`).
+    pub quick: Option<crate::quick_mask::QuickMask>,
 }
 
 impl State {
     pub fn new() -> Self {
-        Self { wand_tolerance: 32, grow_by: 4, contiguous: true, keep_proportions: true, ..Self::default() }
+        Self {
+            wand_tolerance: 32,
+            grow_by: 4,
+            contiguous: true,
+            keep_proportions: true,
+            mesh_cells: 3,
+            wand_reference: tooncraft_engine::FillReference::Layer,
+            ..Self::default()
+        }
     }
 }
 
@@ -88,7 +108,14 @@ pub fn set_rings(app: &mut ToonApp, mut rings: Vec<Vec<(f32, f32)>>) {
     app.sel.distort = None;
 }
 
-/// The current selection as a mask.
+/// The current selection as a mask with its feather (soft values at the edge), for copying.
+pub fn soft_mask(app: &ToonApp) -> Option<Mask> {
+    let main = app.selection.as_ref()?;
+    let (w, h) = (app.engine.project.width(), app.engine.project.height());
+    tooncraft_engine::select::soft_mask(w, h, main, &extra_rings(app), app.sel.feather)
+}
+
+/// The current selection as a mask (hard-edged: the outline the tools combine and trace).
 pub fn mask(app: &ToonApp) -> Option<Mask> {
     let main = app.selection.as_ref()?;
     let (w, h) = (app.engine.project.width(), app.engine.project.height());
@@ -155,9 +182,9 @@ pub fn wand(app: &mut ToonApp, x: f32, y: f32, op: Combine) {
     if x < 0.0 || y < 0.0 {
         return;
     }
-    let (tol, all) = (app.sel.wand_tolerance, app.sel.wand_all_layers);
+    let (tol, reference) = (app.sel.wand_tolerance, app.sel.wand_reference);
     let contiguous = app.sel.contiguous;
-    match tooncraft_engine::select::wand_with(&app.engine, app.layer, app.frame, x as u32, y as u32, tol, all, contiguous) {
+    match tooncraft_engine::select::wand_looking_at(&app.engine, app.layer, app.frame, (x as u32, y as u32), tol, reference, contiguous) {
         Some(m) => {
             apply_mask(app, &m, op);
             let n = m.count();
@@ -249,11 +276,43 @@ pub fn start_distort(app: &mut ToonApp) {
     }
 }
 
+/// Start a mesh warp: a grid of `mesh_cells` × `mesh_cells` over the selection's box, its
+/// points the handles.
+pub fn start_mesh(app: &mut ToonApp) {
+    if let Some(m) = mask(app) {
+        let n = app.sel.mesh_cells.clamp(1, tooncraft_raster::select::MAX_MESH_CELLS);
+        let (x0, y0, w, h) = (m.x as f32, m.y as f32, m.width as f32, m.height as f32);
+        let points = (0..=n).flat_map(|j| (0..=n).map(move |i| (x0 + w * i as f32 / n as f32, y0 + h * j as f32 / n as f32))).collect();
+        app.sel.mesh = Some((n, n, points));
+        app.sel.distort = None;
+    }
+}
+
+/// Apply the mesh warp in progress (one undo step); the selection becomes the grid's outline.
+pub fn apply_mesh(app: &mut ToonApp) {
+    let (Some((cols, rows, points)), Some(main)) = (app.sel.mesh.clone(), app.selection.clone()) else { return };
+    let (layer, frame, rings, resample, feather) = (app.layer, app.frame, extra_rings(app), app.sel.resample, app.sel.feather);
+    if app.run(Command::MeshWarpSelection { layer, frame, polygon: main, rings, cols, rows, points: points.clone(), resample, feather }) {
+        set_rings(app, vec![mesh_outline(cols, rows, &points)]);
+    }
+    app.sel.mesh = None;
+}
+
+/// The outline of a mesh grid: its border points in order round it.
+pub fn mesh_outline(cols: u32, rows: u32, points: &[(f32, f32)]) -> Vec<(f32, f32)> {
+    let at = |i: u32, j: u32| points.get((j * (cols + 1) + i) as usize).copied().unwrap_or((0.0, 0.0));
+    let mut out: Vec<(f32, f32)> = (0..cols).map(|i| at(i, 0)).collect();
+    out.extend((0..rows).map(|j| at(cols, j)));
+    out.extend((1..=cols).rev().map(|i| at(i, rows)));
+    out.extend((1..=rows).rev().map(|j| at(0, j)));
+    out
+}
+
 /// Apply the distort in progress (one undo step); the selection becomes the new quad.
 pub fn apply_distort(app: &mut ToonApp) {
     let (Some(corners), Some(main)) = (app.sel.distort, app.selection.clone()) else { return };
     let (layer, frame, rings, resample) = (app.layer, app.frame, extra_rings(app), app.sel.resample);
-    if app.run(Command::DistortSelection { layer, frame, polygon: main, rings, corners, resample }) {
+    if app.run(Command::DistortSelection { layer, frame, polygon: main, rings, corners, resample, feather: app.sel.feather }) {
         set_rings(app, vec![corners.to_vec()]);
     }
     app.sel.distort = None;
@@ -277,8 +336,9 @@ pub fn apply_skew(app: &mut ToonApp) {
         skew_x: kx,
         skew_y: ky,
         resample,
+        feather: app.sel.feather,
     };
-    if app.run(cmd) {
+    if run_transform(app, cmd, None) {
         let t = tooncraft_raster::select::Affine::about_skewed(tooncraft_engine::select::pivot(&main), 0.0, 0.0, 1.0, 1.0, 0.0, (kx, ky));
         map_rings(app, |p| t.apply(p.0, p.1));
     }
@@ -312,7 +372,7 @@ pub fn options(app: &mut ToonApp, ui: &mut egui::Ui) {
     if app.select_mode == crate::app::SelectMode::Wand {
         let l = ui.label(tl!("Tolerance"));
         ui.add(egui::Slider::new(&mut app.sel.wand_tolerance, 0..=255)).labelled_by(l.id);
-        ui.checkbox(&mut app.sel.wand_all_layers, tl!("Look at all visible layers"));
+        crate::layer_fx::reference_picker(ui, "wand-ref", &mut app.sel.wand_reference);
         ui.checkbox(&mut app.sel.contiguous, tl!("Touching only")).on_hover_text(tl!("Off: that colour everywhere in the picture"));
         ui.separator();
     }
@@ -364,6 +424,12 @@ pub fn options(app: &mut ToonApp, ui: &mut egui::Ui) {
         let n = app.sel.grow_by;
         grow(app, -n);
     }
+    let multi = ui.add_enabled(app.has_range(), egui::Checkbox::new(&mut app.sel.all_cells, tl!("All selected cells")));
+    multi.on_hover_text(tl!("Move, scale, turn, flip and skew every drawing in the timeline's selected cells together"));
+    let l = ui.label(tl!("Feather"));
+    ui.add(egui::DragValue::new(&mut app.sel.feather).range(0.0..=select::MAX_FEATHER).max_decimals(1).suffix(tl!(" px")))
+        .labelled_by(l.id)
+        .on_hover_text(tl!("Soft edge: moving, erasing, copying and filling the selection fade out over this many pixels"));
     ui.separator();
     let l = ui.label(tl!("Resampling"));
     egui::ComboBox::from_id_salt("select-resample")
@@ -382,6 +448,22 @@ pub fn options(app: &mut ToonApp, ui: &mut egui::Ui) {
     if ui.add_enabled(has, egui::Button::new(tl!("Apply Skew"))).clicked() {
         apply_skew(app);
     }
+    if app.sel.mesh.is_some() {
+        if ui.button(tl!("Apply Mesh Warp")).clicked() {
+            apply_mesh(app);
+        }
+        if ui.button(tl!("Cancel Mesh Warp")).clicked() {
+            app.sel.mesh = None;
+        }
+    } else {
+        let l = ui.label(tl!("Grid"));
+        ui.add(egui::DragValue::new(&mut app.sel.mesh_cells).range(1..=8).suffix(" × "))
+            .labelled_by(l.id)
+            .on_hover_text(tl!("Cells along each side of the mesh"));
+        if ui.add_enabled(has, egui::Button::new(tl!("Mesh Warp"))).on_hover_text(tl!("Drag the grid's points to bend the selection, then Apply")).clicked() {
+            start_mesh(app);
+        }
+    }
     if app.sel.distort.is_some() {
         if ui.button(tl!("Apply Distort")).clicked() {
             apply_distort(app);
@@ -392,4 +474,51 @@ pub fn options(app: &mut ToonApp, ui: &mut egui::Ui) {
     } else if ui.add_enabled(has, egui::Button::new(tl!("Distort"))).on_hover_text(tl!("Drag the four corners freely (perspective), then Apply")).clicked() {
         start_distort(app);
     }
+}
+
+/// Run a selection transform: on the current drawing, or with "All selected cells" on and a
+/// block of cells selected, on every drawing in it (each drawing once, however long it is held;
+/// locked layers left out) as one undo step.
+pub fn run_transform(app: &mut ToonApp, cmd: Command, label: Option<&str>) -> bool {
+    let multi = app.sel.all_cells && app.has_range() && matches!(cmd, Command::TransformSelection { .. });
+    if !multi {
+        return match label {
+            Some(l) => app.run(Command::Batch { label: l.to_string(), commands: vec![cmd] }),
+            None => app.run(cmd),
+        };
+    }
+    let (l0, l1, f0, f1) = app.selection();
+    let mut seen = std::collections::HashSet::new();
+    let mut commands = Vec::new();
+    for l in l0..=l1 {
+        if app.engine.project.layers.get(l).is_none_or(|layer| layer.locked) {
+            continue;
+        }
+        for f in f0..=f1 {
+            if let Some(id) = app.engine.project.drawing_at(l, f)
+                && seen.insert(id)
+            {
+                let mut c = cmd.clone();
+                if let Command::TransformSelection { layer, frame, .. } = &mut c {
+                    *layer = l;
+                    *frame = f;
+                }
+                commands.push(c);
+            }
+        }
+    }
+    if commands.is_empty() {
+        app.set_status(tl!("No drawings in the selected cells to transform"));
+        return false;
+    }
+    if commands.len() > tooncraft_engine::MAX_BATCH {
+        app.set_status(tlf!("Select at most {n} drawings to transform at once", n = tooncraft_engine::MAX_BATCH));
+        return false;
+    }
+    let n = commands.len();
+    let ok = app.run(Command::Batch { label: label.map(str::to_string).unwrap_or_else(|| tl!("Transform drawings").to_string()), commands });
+    if ok {
+        app.set_status(tlf!("Transformed {n} drawings", n = n));
+    }
+    ok
 }

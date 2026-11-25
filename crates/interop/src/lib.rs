@@ -9,6 +9,7 @@
 //! | [`psd`] | export, import | one frame as a layered Photoshop document |
 //! | [`ora`] | import | an OpenRaster document's layers |
 //! | [`xdts`] | export, import | the exposure-sheet interchange format (`.xdts`) |
+//! | [`sheet_pdf`] | export | the exposure sheet as a PDF to print |
 //! | [`levels`] | export, import | the sheet plus one PNG per drawing, ready to relink |
 //! | [`layer_sequences`] | export | one transparent PNG sequence per layer for compositing |
 //! | [`gif`] | import | the frames and delays of an animated GIF |
@@ -17,6 +18,7 @@
 //! | [`otio`] | export | edit decisions as OpenTimelineIO: a track per layer, a clip per exposure, markers |
 //! | [`drawing_file`] | export, import | one drawing-library item (drawings and timing) as a `.toondrawings` file |
 //! | [`palette`] | export, import | colour palettes: GIMP `.gpl` (read through craft-palette), Photoshop swatches `.aco` |
+//! | [`video`] | import | the pictures of an MP4 or QuickTime movie (H.264, H.265) with their times |
 //!
 //! Imported files are hostile: every reader bounds its allocations and returns an error for
 //! truncated or corrupt input, never a panic. Imported pixels are premultiplied RGBA8
@@ -29,6 +31,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+pub mod abr;
 pub mod boards;
 mod common;
 pub mod drawing_file;
@@ -40,6 +43,8 @@ pub mod otio;
 pub mod palette;
 pub mod prores;
 pub mod psd;
+pub mod sheet_pdf;
+pub mod video;
 pub mod xdts;
 
 #[cfg(test)]
@@ -63,3 +68,9 @@ pub enum InteropError {
 }
 
 pub type Result<T> = std::result::Result<T, InteropError>;
+
+impl From<craft_pdf::write::WriteError> for InteropError {
+    fn from(e: craft_pdf::write::WriteError) -> Self {
+        InteropError::Encode(e.to_string())
+    }
+}

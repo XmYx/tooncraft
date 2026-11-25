@@ -1,0 +1,1 @@
+- 2026-11-24: Reference layers chosen per tool: layers marked Reference Layer, and the paint bucket and magic wand each look at this layer, all visible layers or the reference layers.

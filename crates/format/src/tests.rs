@@ -14,11 +14,18 @@ fn sample() -> Project {
     }
     p.layers[0].cells = vec![Cell::Key(a), Cell::Hold, Cell::Key(b), Cell::Blank, Cell::Blank, Cell::Blank];
     p.add_layer("Colour", 0).unwrap();
-    p.light_table.toggle(tooncraft_doc::Pin { layer: p.layers[1].id, frame: 2 });
+    p.light_table.toggle(tooncraft_doc::Pin::new(p.layers[1].id, 2));
+    p.light_table.pins[0].shift = tooncraft_doc::PinShift { x: 7, y: -3, turn: 150 };
     p.onion.before = 3;
     p.tips.insert(7, std::sync::Arc::new(tooncraft_brush::Tip::new("leaf", 2, 2, vec![0, 255, 128, 64]).unwrap()));
     p.camera.enabled = true;
     p.camera.set(tooncraft_doc::CameraKey { frame: 2, x: 100.0, y: 80.0, zoom: 1.5, angle: 10.0 });
+    let mut close = tooncraft_doc::Camera { enabled: true, ..Default::default() };
+    close.set(tooncraft_doc::CameraKey { frame: 0, x: 120.0, y: 90.0, zoom: 3.0, angle: 0.0 });
+    p.cameras.push(tooncraft_doc::ShotCamera { name: "Close".into(), camera: close });
+    p.camera_cuts.push(tooncraft_doc::CameraCut { frame: 3, camera: 1 });
+    let key = tooncraft_doc::PegKey { x: 12.0, angle: 30.0, ..tooncraft_doc::PegKey::rest(0) };
+    p.poses.push(tooncraft_doc::pose::Pose { name: "Wave".into(), keys: vec![(tooncraft_doc::PegId(4), key)] });
     p
 }
 
@@ -173,4 +180,15 @@ fn version_names() {
     std::fs::write(dir.join("shot_v003.toon"), b"x").unwrap();
     assert_eq!(next_version_path(&dir.join("shot_v002.toon")), dir.join("shot_v004.toon"));
     assert_eq!(next_version_path(&dir.join("a_vx.toon")), dir.join("a_vx_v002.toon"));
+}
+
+#[test]
+fn hostile_poses_are_capped_and_repaired_on_load() {
+    let mut p = sample();
+    let bad = tooncraft_doc::PegKey { x: 1.0e30, ..tooncraft_doc::PegKey::rest(9) };
+    p.poses = vec![tooncraft_doc::pose::Pose { name: " Slump ".into(), keys: vec![(tooncraft_doc::PegId(1), bad)] }; tooncraft_doc::pose::MAX_POSES + 3];
+    let q = from_bytes(&to_bytes(&p).unwrap()).unwrap();
+    assert_eq!(q.poses.len(), tooncraft_doc::pose::MAX_POSES);
+    assert_eq!(q.poses[0].name, "Slump");
+    assert_eq!((q.poses[0].keys[0].1.x, q.poses[0].keys[0].1.frame), (1.0e6, 0));
 }

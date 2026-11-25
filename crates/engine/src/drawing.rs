@@ -56,12 +56,12 @@ fn samples_along(line: &[(f32, f32)], pressure: f32) -> Vec<Sample> {
         let n = ((w[1].0 - w[0].0).hypot(w[1].1 - w[0].1) / 2.0).ceil().clamp(1.0, 20_000.0) as usize;
         for k in 0..n {
             let t = k as f32 / n as f32;
-            out.push(Sample { x: w[0].0 + (w[1].0 - w[0].0) * t, y: w[0].1 + (w[1].1 - w[0].1) * t, pressure, tilt_x: 0.0, tilt_y: 0.0, time });
+            out.push(Sample { x: w[0].0 + (w[1].0 - w[0].0) * t, y: w[0].1 + (w[1].1 - w[0].1) * t, pressure, tilt_x: 0.0, tilt_y: 0.0, time, rotation: 0.0 });
             time += 0.002;
         }
     }
     if let Some(l) = line.last() {
-        out.push(Sample { x: l.0, y: l.1, pressure, tilt_x: 0.0, tilt_y: 0.0, time });
+        out.push(Sample { x: l.0, y: l.1, pressure, tilt_x: 0.0, tilt_y: 0.0, time, rotation: 0.0 });
     }
     out
 }
@@ -147,10 +147,10 @@ pub(crate) fn gradient(
     kind: GradientKind,
     from: (f32, f32),
     to: (f32, f32),
-    start: [u8; 4],
-    end: [u8; 4],
+    stops: &[tooncraft_doc::palette::Stop],
     area: Option<&[(f32, f32)]>,
     area_rings: &[Vec<(f32, f32)>],
+    feather: f32,
 ) -> Result<()> {
     if !finite(&[from, to]) {
         return Err(EngineError::Import("gradient ends must be finite".into()));
@@ -167,13 +167,11 @@ pub(crate) fn gradient(
         rings.extend(area_rings.iter().filter(|r| finite(r)).map(|r| r.as_slice()).take(crate::select::MAX_RINGS));
     }
     let Some(mask) = select::rings_mask(w, h, &rings) else { return Ok(()) };
+    // a feather softens the selection's edge only (a whole-canvas gradient has none)
+    let Some(mask) = (if area.is_some() { select::feather(&mask, feather, w, h) } else { Some(mask) }) else { return Ok(()) };
     let (dx, dy) = (to.0 - from.0, to.1 - from.1);
     let len2 = (dx * dx + dy * dy).max(1e-6);
-    let lerp = |t: f32| -> [u8; 4] {
-        let t = t.clamp(0.0, 1.0);
-        let c = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t).round() as u8;
-        premultiply([c(start[0], end[0]), c(start[1], end[1]), c(start[2], end[2]), c(start[3], end[3])])
-    };
+    let lerp = |t: f32| -> [u8; 4] { premultiply(tooncraft_doc::palette::stop_colour(stops, t)) };
     let (drawing, mut parts) = e.ensure_drawing(layer, frame)?;
     let s = e.project.drawing_mut(drawing).ok_or(EngineError::NoDrawing(frame))?;
     s.begin_capture();
@@ -189,7 +187,8 @@ pub(crate) fn gradient(
             for r in 0..t {
                 for c in 0..t {
                     let (x, y) = (tx * t + c, ty * t + r);
-                    if !mask.get(x, y) {
+                    let m = mask.value(x, y);
+                    if m == 0 {
                         continue;
                     }
                     let (px_x, px_y) = (x as f32 + 0.5 - from.0, y as f32 + 0.5 - from.1);
@@ -198,7 +197,7 @@ pub(crate) fn gradient(
                         GradientKind::Radial => (px_x * px_x + px_y * px_y).sqrt() / len2.sqrt(),
                     };
                     let i = ((r * t + c) * 4) as usize;
-                    let out = tooncraft_raster::over([px[i], px[i + 1], px[i + 2], px[i + 3]], lerp(f));
+                    let out = tooncraft_raster::over([px[i], px[i + 1], px[i + 2], px[i + 3]], tooncraft_raster::fill::weigh(lerp(f), m));
                     px[i..i + 4].copy_from_slice(&out);
                 }
             }
@@ -314,15 +313,154 @@ fn recolour_drawings(e: &mut Engine, drawings: &[tooncraft_doc::DrawingId], near
     parts
 }
 
+/// Fill with a swatch's colour and link the filled pixels to the swatch (see
+/// [`tooncraft_doc::palette::FillLink`]). One undo step for the paint and the link.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn swatch_fill(
+    e: &mut Engine,
+    (palette, swatch): (usize, usize),
+    layer: usize,
+    frame: u32,
+    at: (u32, u32),
+    options: tooncraft_raster::fill::FillOptions,
+    reference: crate::FillReference,
+    all_frames: bool,
+) -> Result<()> {
+    let color = e.project.palettes.get(palette).and_then(|p| p.swatches.get(swatch)).map(|s| s.rgba()).ok_or(EngineError::NoSwatch(palette, swatch))?;
+    let frames: Vec<u32> = if all_frames {
+        let l = e.project.layer(layer)?;
+        let mut seen = std::collections::BTreeSet::new();
+        (0..e.project.length()).filter(|f| l.drawing_at(*f).is_some_and(|d| seen.insert(d))).collect()
+    } else {
+        vec![frame]
+    };
+    let mut parts = Vec::new();
+    for f in frames {
+        if let Some(p) = e.fill_parts_for(layer, f, at, color, options, reference)? {
+            parts.extend(p);
+        }
+    }
+    if parts.is_empty() {
+        return Ok(());
+    }
+    // the pixels each fill changed: compare the tiles before (the undo snapshot) and now
+    let mut links: Vec<tooncraft_doc::palette::FillLink> = Vec::new();
+    for part in &parts {
+        let Part::Tiles { drawing, tiles } = part else { continue };
+        let mut runs = Vec::new();
+        let Some(s) = e.project.drawing(*drawing) else { continue };
+        let t = tooncraft_raster::TILE;
+        for (index, old) in tiles {
+            let (tx, ty) = s.tile_coords(*index);
+            let now = s.tile(*index);
+            let px = |tile: Option<&std::sync::Arc<tooncraft_raster::Tile>>, i: usize| {
+                tile.and_then(|t| t.bytes().get(i..i + 4).map(|b| [b[0], b[1], b[2], b[3]])).unwrap_or([0; 4])
+            };
+            let changed = |x: u32, y: u32| {
+                let i = (((y - ty * t) * t + (x - tx * t)) * 4) as usize;
+                px(old.as_ref(), i) != px(now, i)
+            };
+            if let Some(l) = tooncraft_doc::palette::FillLink::from_pixels(*drawing, (tx * t, ty * t, t, t), changed) {
+                runs.extend(l.runs);
+            }
+        }
+        // one link per drawing and fill; runs that touch across tile edges join up
+        runs.sort_unstable();
+        let mut joined: Vec<(u32, u32, u32)> = Vec::with_capacity(runs.len());
+        for (y, x, n) in runs {
+            match joined.last_mut() {
+                Some(last) if last.0 == y && last.1.saturating_add(last.2) == x => last.2 = last.2.saturating_add(n),
+                _ => joined.push((y, x, n)),
+            }
+        }
+        let mut runs = joined;
+        if !runs.is_empty() {
+            runs.truncate(tooncraft_doc::palette::MAX_LINK_RUNS);
+            links.push(tooncraft_doc::palette::FillLink { drawing: *drawing, runs });
+        }
+    }
+    // only this swatch's links go into the undo step (not a copy of every palette)
+    let Some(s) = e.project.palettes.get_mut(palette).and_then(|p| p.swatches.get_mut(swatch)) else { return Err(EngineError::NoSwatch(palette, swatch)) };
+    let before = s.links.clone();
+    s.links.extend(links);
+    let extra = s.links.len().saturating_sub(tooncraft_doc::palette::MAX_LINKS);
+    s.links = s.links.split_off(extra);
+    // the project-wide budget: drop this swatch's oldest links until everything fits
+    let total = tooncraft_doc::palette::link_runs(&e.project.palettes);
+    if total > tooncraft_doc::palette::MAX_TOTAL_LINK_RUNS
+        && let Some(s) = e.project.palettes.get_mut(palette).and_then(|p| p.swatches.get_mut(swatch))
+    {
+        let mut over = total - tooncraft_doc::palette::MAX_TOTAL_LINK_RUNS;
+        let mut drop = 0;
+        for l in &s.links {
+            if over == 0 {
+                break;
+            }
+            over = over.saturating_sub(l.runs.len());
+            drop += 1;
+        }
+        s.links = s.links.split_off(drop.min(s.links.len()));
+    }
+    parts.push(Part::SwatchLinks(palette, swatch, before));
+    e.push(Entry { label: "Fill".into(), parts });
+    Ok(())
+}
+
+/// Recolour only the pixels in `links` that are near the old colour.
+fn recolour_links(e: &mut Engine, links: &[tooncraft_doc::palette::FillLink], near: impl Fn([u8; 4]) -> bool, to: [u8; 3]) -> Vec<Part> {
+    let mut parts = Vec::new();
+    let mut by_drawing: std::collections::BTreeMap<tooncraft_doc::DrawingId, Vec<&tooncraft_doc::palette::FillLink>> = std::collections::BTreeMap::new();
+    for l in links {
+        by_drawing.entry(l.drawing).or_default().push(l);
+    }
+    for (d, ls) in by_drawing {
+        // a locked layer's drawing keeps its paint
+        let locked = (0..e.project.layers.len()).any(|i| e.check_unlocked(i).is_err() && layer_drawings(e, i).is_ok_and(|v| v.contains(&d)));
+        if locked {
+            continue;
+        }
+        let Some(s) = e.project.drawing_mut(d) else { continue };
+        let t = tooncraft_raster::TILE;
+        s.begin_capture();
+        for l in ls {
+            for (x, y) in l.pixels() {
+                let Some(index) = s.tile_index(x / t, y / t) else { continue };
+                let Some(tile) = s.tile_mut(index) else { continue };
+                let i = (((y % t) * t + (x % t)) * 4) as usize;
+                if let Some(p) = tile.bytes_mut().get_mut(i..i + 4) {
+                    let cur = [p[0], p[1], p[2], p[3]];
+                    if near(cur) {
+                        p.copy_from_slice(&premultiply([to[0], to[1], to[2], cur[3]]));
+                    }
+                }
+            }
+        }
+        let tiles = s.take_capture();
+        if !tiles.is_empty() {
+            parts.push(Part::Tiles { drawing: d, tiles });
+        }
+    }
+    parts
+}
+
 /// Change swatch `swatch` of the shot's palette `palette` (its name when given, and its colour).
 /// With `update_paint`, the paint in the old colour on every unlocked layer takes the new colour
 /// (matched exactly, opacity kept), so fills made from the swatch follow it. One undo step for
 /// the swatch and the paint together.
 pub(crate) fn edit_swatch(e: &mut Engine, palette: usize, swatch: usize, rgb: [u8; 3], name: Option<String>, update_paint: bool) -> Result<()> {
     let old = e.project.palettes.get(palette).and_then(|p| p.swatches.get(swatch)).map(|s| s.rgb).ok_or(EngineError::NoSwatch(palette, swatch))?;
+    let links: Vec<tooncraft_doc::palette::FillLink> =
+        e.project.palettes.get(palette).and_then(|p| p.swatches.get(swatch)).map(|s| s.links.clone()).unwrap_or_default();
     let before = e.project.palettes.clone();
     let mut parts = Vec::new();
-    if update_paint && old != rgb {
+    let near = |p: [u8; 4]| {
+        let want = premultiply([old[0], old[1], old[2], p[3]]);
+        p[3] > 0 && (0..3).all(|k| p[k].abs_diff(want[k]) <= 1)
+    };
+    if update_paint && old != rgb && !links.is_empty() {
+        // linked: only the paint filled from this swatch follows
+        parts = recolour_links(e, &links, near, rgb);
+    } else if update_paint && old != rgb {
         let mut drawings = Vec::new();
         let mut seen = std::collections::BTreeSet::new();
         for i in 0..e.project.layers.len() {
@@ -345,6 +483,11 @@ pub(crate) fn edit_swatch(e: &mut Engine, palette: usize, swatch: usize, rgb: [u
     }
     let mut v = before.clone();
     if let Some(s) = v.get_mut(palette).and_then(|p| p.swatches.get_mut(swatch)) {
+        // without updating the paint, the linked paint keeps the old colour: it is no longer
+        // this swatch's paint, so the links go
+        if !update_paint && old != rgb {
+            s.links.clear();
+        }
         s.rgb = rgb;
         if let Some(n) = name {
             s.name = n;

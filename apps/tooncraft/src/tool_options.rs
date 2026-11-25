@@ -4,7 +4,6 @@
 //! in the box), then the options of that tool. The full brush settings are in the Brush panel.
 
 use egui::{Color32, Sense, Stroke, vec2};
-use tooncraft_engine::FillReference;
 
 use crate::app::{Tool, ToonApp};
 
@@ -14,7 +13,22 @@ pub const HEIGHT: f32 = 28.0;
 const BAR: egui::Vec2 = vec2(72.0, 4.0);
 
 pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
-    ui.horizontal_wrapped(|ui| {
+    ui.horizontal_wrapped(|ui| body(app, ui));
+}
+
+/// The Tool Properties panel: the same settings as the bar, one per line, for a
+/// side-panel layout. Its widgets have their own ids, so the bar and the panel can both show.
+pub fn panel(app: &mut ToonApp, ui: &mut egui::Ui) {
+    ui.push_id("tool-properties", |ui| {
+        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            // one setting per line: a side panel is narrow and tall
+            ui.vertical(|ui| body(app, ui));
+        });
+    });
+}
+
+fn body(app: &mut ToonApp, ui: &mut egui::Ui) {
+    {
         ui.spacing_mut().item_spacing.x = 6.0;
         tool_menu(app, ui);
         ui.separator();
@@ -31,6 +45,9 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
         match app.tool {
             Tool::Fill => fill_options(app, ui),
             Tool::Gradient => crate::draw_aids::gradient_options(app, ui),
+            Tool::Clone => crate::clone_tool::options(app, ui),
+            Tool::Contour => crate::contour_tool::options(app, ui),
+            Tool::Liquify => crate::liquify_tool::options(app, ui),
             Tool::Text => crate::text_tool::options(app, ui),
             Tool::Picker => {
                 ui.label(tl!("Click the canvas to pick a colour (Alt+click with any brush)"));
@@ -55,7 +72,7 @@ pub fn show(app: &mut ToonApp, ui: &mut egui::Ui) {
             Tool::Transform => crate::peg_transform::options(app, ui),
             _ => {}
         }
-    });
+    }
 }
 
 /// The tool's glyph and name; a click lists the other tools of its group.
@@ -110,6 +127,11 @@ pub enum Scale {
 /// and a box to type in. The box is the keyboard path (arrow keys and typing); it carries the
 /// name for assistive technology. Returns whether the value changed.
 pub fn scrub(ui: &mut egui::Ui, name: &str, v: &mut f32, range: std::ops::RangeInclusive<f32>, scale: Scale, suffix: &str) -> bool {
+    // one unit, so a wrapping row (the Tool Properties panel) never parts the name from its bar
+    ui.horizontal(|ui| scrub_row(ui, name, v, range, scale, suffix)).inner
+}
+
+fn scrub_row(ui: &mut egui::Ui, name: &str, v: &mut f32, range: std::ops::RangeInclusive<f32>, scale: Scale, suffix: &str) -> bool {
     let (lo, hi) = (*range.start(), *range.end());
     if !v.is_finite() {
         *v = lo;
@@ -193,20 +215,7 @@ fn fill_options(app: &mut ToonApp, ui: &mut egui::Ui) {
     if scrub(ui, tl!("Tolerance"), &mut tolerance, 0.0..=255.0, Scale::Linear, "") {
         app.fill.tolerance = tolerance.round().clamp(0.0, 255.0) as u8;
     }
-    let l = ui.label(tl!("Look at"));
-    let text = |r: FillReference| match r {
-        FillReference::Layer => tl!("This layer"),
-        FillReference::AllLayers => tl!("All visible layers"),
-    };
-    egui::ComboBox::from_id_salt("fill-ref")
-        .selected_text(text(app.fill_reference))
-        .show_ui(ui, |ui| {
-            for r in [FillReference::AllLayers, FillReference::Layer] {
-                ui.selectable_value(&mut app.fill_reference, r, text(r));
-            }
-        })
-        .response
-        .labelled_by(l.id);
+    crate::layer_fx::reference_picker(ui, "fill-ref", &mut app.fill_reference);
     ui.separator();
     let l = ui.label(tl!("Close gaps"));
     ui.add(egui::DragValue::new(&mut app.fill.gap).range(0..=tooncraft_raster::fill::MAX_GAP).suffix(" px")).labelled_by(l.id);
@@ -214,6 +223,59 @@ fn fill_options(app: &mut ToonApp, ui: &mut egui::Ui) {
     ui.add(egui::DragValue::new(&mut app.fill.spread).range(0..=tooncraft_raster::fill::MAX_SPREAD).suffix(" px")).labelled_by(l.id);
     ui.checkbox(&mut app.fill_every_frame, tl!("Every drawing of the layer"));
     ui.checkbox(&mut app.aids.lasso_fill, tl!("Lasso fill")).on_hover_text(tl!("Drag around an area to fill it"));
+    ui.separator();
+    auto_paint_options(app, ui);
+}
+
+/// Paint the following drawings (or the selected cells) like the current one.
+fn auto_paint_options(app: &mut ToonApp, ui: &mut egui::Ui) {
+    let range = app.has_range();
+    if !range {
+        let l = ui.label(tl!("Next drawings"));
+        ui.add(egui::DragValue::new(&mut app.aids.auto_paint_count).range(1..=tooncraft_engine::auto_paint::MAX_AUTO_DRAWINGS as u32)).labelled_by(l.id);
+    }
+    let tip = if range {
+        tl!("Paint the drawings in the selected cells like this one: each enclosed area takes the colour this drawing has there")
+    } else {
+        tl!("Paint the next drawings like this one: each enclosed area takes the colour this drawing has there")
+    };
+    if ui.button(tl!("Paint Like This Drawing")).on_hover_text(tip).clicked() {
+        paint_like_this(app);
+    }
+}
+
+/// Run auto paint from the current drawing over the selected cells' frames, or the frames of
+/// the next drawings on the layer.
+pub fn paint_like_this(app: &mut ToonApp) {
+    let (layer, from) = (app.layer, app.frame);
+    let frames: Vec<u32> = if app.has_range() {
+        let (_, _, f0, f1) = app.selection();
+        (f0..=f1).collect()
+    } else {
+        let Some(l) = app.engine.project.layers.get(layer) else { return };
+        let mut seen = std::collections::BTreeSet::new();
+        let mut out = Vec::new();
+        for f in from..app.engine.project.length() {
+            if let Some(d) = l.drawing_at(f)
+                && seen.insert(d)
+            {
+                out.push(f);
+                if out.len() > app.aids.auto_paint_count as usize {
+                    break;
+                }
+            }
+        }
+        out
+    };
+    let before = app.engine.undo_len();
+    let (options, reference) = (app.fill, app.fill_reference);
+    if app.run(tooncraft_engine::Command::AutoPaint { layer, from, frames, options, reference }) {
+        if app.engine.undo_len() > before {
+            app.set_status(tl!("Painted the drawings like this one"));
+        } else {
+            app.set_status(tl!("Nothing to paint: no enclosed areas match this drawing's colours"));
+        }
+    }
 }
 
 /// Select: how to select, flip and turn, then how a new area combines and the typed box.

@@ -230,6 +230,9 @@ mod tests {
             opacity_keys: Vec::new(),
             matte: None,
             mouth_chart: Default::default(),
+            mask: None,
+            adjustment: false,
+            reference: false,
             cells,
         }
     }

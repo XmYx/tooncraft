@@ -6,12 +6,15 @@
 //! tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
 //! tooncraft-cli info <file.toon>
 //! tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   apply JSON-lines commands, then save
+//! tooncraft-cli run-script <file.toon> <script.rhai> [--arg NAME=VALUE]… [--time-limit SECONDS]   run a script, then save
+//! tooncraft-cli batch-script <script.rhai> <file.toon>… [--arg NAME=VALUE]… [--out-dir DIR]   run a script on each shot
 //! tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N]) [--range A..B] [--transparent]
 //! tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
-//! tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
+//! tooncraft-cli export <file.toon> (--sheet-pdf <file.pdf> | --frames-pdf <file.pdf> [--per-page 1|2|4|6|9|12] [--range A..B]) [--paper a4|letter]
+//! tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --exr-layers <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
 //! tooncraft-cli check <file.toon>                          interrupted saves, backup, load check
 //! tooncraft-cli bench [--json]                             stroke latency, fill, compositing, save
-//! tooncraft-cli brush (make <kind> <file> | info <file> | preview <file> <png> [--size WxH])
+//! tooncraft-cli brush (make <kind> <file> | info <file> | preview <file> <png> [--size WxH] | import-abr <file.abr> <dir>)
 //! ```
 //! Exit codes: 0 success, 1 failure, 2 usage error.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
@@ -32,16 +35,21 @@ const USAGE: &str = "usage:
   tooncraft-cli new <file.toon> [--size WxH] [--fps N] [--frames N] [--name NAME]
   tooncraft-cli demo <file.toon> [--size WxH] [--large [--frames N]]
   tooncraft-cli import <file.toon> <image>… [--frame N] [--hold N] [--name NAME]
+  tooncraft-cli import-video <file.toon> <movie.mp4|.mov> [--frame N] [--from SECONDS] [--every N] [--max N] [--on-top] [--keep-length]
   tooncraft-cli info <file.toon>
   tooncraft-cli run <file.toon> <commands.jsonl | -> [--font <file.ttf>]…   (text commands use the fonts given, by file name)
+  tooncraft-cli run-script <file.toon> <script.rhai> [--arg NAME=VALUE]… [--time-limit SECONDS]
+  tooncraft-cli batch-script <script.rhai> <file.toon>… [--arg NAME=VALUE]… [--out-dir DIR] [--time-limit SECONDS]
   tooncraft-cli export <file.toon> (--png <dir> | --gif <file> | --ora <file> [--frame N] | …) [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--mp4 <file> | --mov <file>) [--codec h264|h265|av1] [--range A..B]
   tooncraft-cli export <file.toon> (--webp <file> | --webp-frame <file> [--frame N]) [--lossy [--quality 0-100]] [--range A..B] [--transparent]
-  tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
+  tooncraft-cli export <file.toon> (--sheet-pdf <file.pdf> | --frames-pdf <file.pdf> [--per-page 1|2|4|6|9|12] [--range A..B]) [--paper a4|letter]
+  tooncraft-cli export <file.toon> (--tga <dir> | --tiff <dir> | --exr-layers <dir> | --psd-frames <file> [--psb]) [--range A..B] [--transparent]
   tooncraft-cli check <file.toon>
   tooncraft-cli scrub <file.toon>          step through every frame; time and memory (TOONCRAFT_PAGE_BUDGET_MB)
   tooncraft-cli bench [--json]
   tooncraft-cli bench --effects [--size WxH] [--frames N] [--threads N] [--json]
-  tooncraft-cli brush (make <kind> <file.toonbrush> | info <file.toonbrush> | preview <file.toonbrush> <out.png> [--size WxH])
+  tooncraft-cli brush (make <kind> <file.toonbrush> | info <file.toonbrush> | preview <file.toonbrush> <out.png> [--size WxH] | import-abr <file.abr> <dir>)
 ";
 
 struct Args {
@@ -66,6 +74,8 @@ impl Args {
                         | "gif"
                         | "ora"
                         | "mp4"
+                        | "mov"
+                        | "codec"
                         | "apng"
                         | "frame"
                         | "range"
@@ -78,6 +88,11 @@ impl Args {
                         | "webp-frame"
                         | "tga"
                         | "tiff"
+                        | "sheet-pdf"
+                        | "paper"
+                        | "frames-pdf"
+                        | "per-page"
+                        | "exr-layers"
                         | "psd-frames"
                         | "quality"
                         | "prores-layers"
@@ -86,6 +101,12 @@ impl Args {
                         | "layer"
                         | "threads"
                         | "font"
+                        | "arg"
+                        | "out-dir"
+                        | "time-limit"
+                        | "from"
+                        | "every"
+                        | "max"
                 );
                 let v = if takes { it.next() } else { None };
                 flags.push((name.to_string(), v));
@@ -117,6 +138,40 @@ fn size(s: Option<&str>, default: (u32, u32)) -> Result<(u32, u32), String> {
 
 fn num(s: Option<&str>, default: u32) -> Result<u32, String> {
     s.map(|v| v.parse::<u32>().map_err(|_| format!("not a number: {v}"))).unwrap_or(Ok(default))
+}
+
+/// A script's source, `--arg NAME=VALUE` pairs and limits (`--time-limit SECONDS`).
+fn script_setup(a: &Args, script: &Path) -> Result<(String, Vec<(String, String)>, tooncraft_script::Limits), String> {
+    let limits =
+        tooncraft_script::Limits { max_time: std::time::Duration::from_secs(u64::from(num(a.flag("time-limit"), 10)?.clamp(1, 3600))), ..Default::default() };
+    let len = std::fs::metadata(script).map_err(|e| format!("{}: {e}", script.display()))?.len();
+    if len > limits.max_source_bytes as u64 {
+        return Err(format!("{}: a script over {} bytes is not read", script.display(), limits.max_source_bytes));
+    }
+    let source = std::fs::read_to_string(script).map_err(|e| format!("{}: {e}", script.display()))?;
+    let mut args = Vec::new();
+    for (_, v) in a.flags.iter().filter(|(n, _)| n == "arg") {
+        let v = v.as_deref().ok_or("--arg needs NAME=VALUE")?;
+        let (k, v) = v.split_once('=').ok_or_else(|| format!("--arg {v}: write NAME=VALUE"))?;
+        args.push((k.to_string(), v.to_string()));
+    }
+    Ok((source, args, limits))
+}
+
+/// Run a script on a shot, printing its output; its error (with the place) fails the command.
+fn run_script(e: &mut Engine, script: &Path, source: &str, args: &[(String, String)], limits: &tooncraft_script::Limits) -> Result<(), String> {
+    let label = script.file_stem().and_then(|s| s.to_str()).unwrap_or("Script");
+    let r = tooncraft_script::run(e, source, label, args, limits);
+    for line in &r.output {
+        println!("{line}");
+    }
+    match r.error {
+        Some(err) => Err(format!("{}: {err} (nothing was changed)", script.display())),
+        None => {
+            println!("{}: {} commands in {} ms", script.display(), r.commands, r.elapsed.as_millis());
+            Ok(())
+        }
+    }
 }
 
 fn save(path: &Path, e: &Engine) -> Result<(), String> {
@@ -183,6 +238,15 @@ fn range(a: &Args, p: &Project) -> Result<ExportOptions, String> {
         o.paper = false;
     }
     Ok(o)
+}
+
+/// `--paper a4|letter` (A4 when not given).
+fn print_paper(a: &Args) -> Result<tooncraft_interop::sheet_pdf::Paper, String> {
+    match a.flag("paper").unwrap_or("a4") {
+        "a4" | "A4" => Ok(tooncraft_interop::sheet_pdf::Paper::A4),
+        "letter" | "Letter" => Ok(tooncraft_interop::sheet_pdf::Paper::Letter),
+        other => Err(format!("unknown paper {other:?}: use a4 or letter")),
+    }
 }
 
 fn webp_options(a: &Args) -> Result<export::WebpOptions, String> {
@@ -298,6 +362,44 @@ fn run() -> Result<(), String> {
             }
             save(&path, &e)
         }
+        "run-script" => {
+            let path = rest.file(0)?;
+            let script = rest.file(1)?;
+            let (source, args, limits) = script_setup(&rest, &script)?;
+            let mut e = load(&path)?;
+            run_script(&mut e, &script, &source, &args, &limits)?;
+            save(&path, &e)
+        }
+        "batch-script" => {
+            let script = rest.file(0)?;
+            let shots = rest.positional.get(1..).unwrap_or_default();
+            if shots.is_empty() {
+                return Err(format!("batch-script needs one or more shots\n\n{USAGE}"));
+            }
+            let (source, args, limits) = script_setup(&rest, &script)?;
+            let out_dir = rest.flag("out-dir").map(PathBuf::from);
+            if let Some(d) = &out_dir {
+                std::fs::create_dir_all(d).map_err(|e| format!("{}: {e}", d.display()))?;
+            }
+            let mut failed = 0;
+            for shot in shots {
+                let shot = PathBuf::from(shot);
+                println!("== {}", shot.display());
+                let done = load(&shot).and_then(|mut e| {
+                    run_script(&mut e, &script, &source, &args, &limits)?;
+                    let to = match (&out_dir, shot.file_name()) {
+                        (Some(d), Some(n)) => d.join(n),
+                        _ => shot.clone(),
+                    };
+                    save(&to, &e)
+                });
+                if let Err(err) = done {
+                    eprintln!("{}: {err}", shot.display());
+                    failed += 1;
+                }
+            }
+            if failed > 0 { Err(format!("{failed} of {} shots failed", shots.len())) } else { Ok(()) }
+        }
         "export" => {
             let e = load(&rest.file(0)?)?;
             let o = range(&rest, &e.project)?;
@@ -310,8 +412,16 @@ fn run() -> Result<(), String> {
                 export::gif(&e.project, Path::new(file), o, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {file}");
-            } else if let Some(file) = rest.flag("mp4") {
-                export::mp4(&e.project, Path::new(file), o, progress).map_err(|e| e.to_string())?;
+            } else if let Some((file, container)) =
+                rest.flag("mp4").map(|f| (f, export::Container::Mp4)).or_else(|| rest.flag("mov").map(|f| (f, export::Container::Mov)))
+            {
+                let codec = match rest.flag("codec").unwrap_or("h264") {
+                    "h264" => export::VideoCodec::H264,
+                    "h265" | "hevc" => export::VideoCodec::Hevc,
+                    "av1" => export::VideoCodec::Av1,
+                    other => return Err(format!("--codec is h264, h265 or av1, not “{other}”")),
+                };
+                export::video(&e.project, Path::new(file), o, codec, container, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {file}");
             } else if let Some(file) = rest.flag("apng") {
@@ -323,6 +433,21 @@ fn run() -> Result<(), String> {
                 let bytes = tooncraft_interop::psd::export_frame(&e.project, frame).map_err(|e| e.to_string())?;
                 std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
                 println!("wrote {file}");
+            } else if let Some(file) = rest.flag("frames-pdf") {
+                let paper = print_paper(&rest)?;
+                let per_page = num(rest.flag("per-page"), 4)?;
+                let labels = tooncraft_interop::sheet_pdf::Labels::default();
+                let bytes = tooncraft_interop::sheet_pdf::frames(&e.project, paper, o.start, o.end, per_page, epaint_default_fonts::UBUNTU_LIGHT, &labels)
+                    .map_err(|e| e.to_string())?;
+                std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
+                println!("wrote {file} ({} frames, {per_page} to a page)", o.end - o.start);
+            } else if let Some(file) = rest.flag("sheet-pdf") {
+                let paper = print_paper(&rest)?;
+                let labels = tooncraft_interop::sheet_pdf::Labels::default();
+                let bytes = tooncraft_interop::sheet_pdf::export(&e.project, paper, epaint_default_fonts::UBUNTU_LIGHT, &labels).map_err(|e| e.to_string())?;
+                std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
+                let (_, _, pages) = tooncraft_interop::sheet_pdf::layout(&e.project, paper);
+                println!("wrote {file} ({pages} pages)");
             } else if let Some(dir) = rest.flag("levels") {
                 let files = tooncraft_interop::levels::export(&e.project, Path::new(dir)).map_err(|e| e.to_string())?;
                 println!("wrote an XDTS sheet and {} drawings to {dir}", files.len().saturating_sub(1));
@@ -360,6 +485,10 @@ fn run() -> Result<(), String> {
                 let files = export::tiff_sequence(&e.project, Path::new(dir), "frame", o, progress).map_err(|e| e.to_string())?;
                 eprintln!();
                 println!("wrote {} TIFF files to {dir}", files.len());
+            } else if let Some(dir) = rest.flag("exr-layers") {
+                let files = export::exr_layered_sequence(&e.project, Path::new(dir), "frame", o, progress).map_err(|e| e.to_string())?;
+                eprintln!();
+                println!("wrote {} layered OpenEXR files to {dir}", files.len());
             } else if let Some(file) = rest.flag("psd-frames") {
                 let bytes = tooncraft_interop::psd::export_frames(&e.project, o.start, o.end, rest.has("psb")).map_err(|e| e.to_string())?;
                 std::fs::write(file, bytes).map_err(|e| format!("{file}: {e}"))?;
@@ -370,7 +499,7 @@ fn run() -> Result<(), String> {
                 println!("wrote {file}");
             } else {
                 return Err(format!(
-                    "export needs --png, --gif, --mp4, --apng, --prores, --prores-layers, --wav, --mouth-sheet, --psd, --layers, --levels or --ora\n\n{USAGE}"
+                    "export needs --png, --gif, --mp4, --mov, --apng, --prores, --prores-layers, --wav, --mouth-sheet, --psd, --layers, --levels or --ora\n\n{USAGE}"
                 ));
             }
             Ok(())
@@ -386,6 +515,25 @@ fn run() -> Result<(), String> {
             let hold = num(rest.flag("hold"), 1)?;
             let name = rest.flag("name").unwrap_or("Imported").to_string();
             e.apply(Command::ImportImages { paths: images, frame, hold, name, options: Default::default() }).map_err(|e| e.to_string())?;
+            save(&path, &e)
+        }
+        "import-video" => {
+            let path = rest.file(0)?;
+            let mut e = load(&path)?;
+            let src = rest.positional.get(1).cloned().ok_or_else(|| format!("import-video needs a movie file\n\n{USAGE}"))?;
+            let frame = num(rest.flag("frame"), 1)?.max(1) - 1;
+            let from_seconds = match rest.flag("from") {
+                Some(s) => s.parse::<f64>().ok().filter(|v| v.is_finite() && *v >= 0.0).ok_or_else(|| format!("--from takes seconds, not “{s}”"))?,
+                None => 0.0,
+            };
+            let options = tooncraft_engine::VideoImport {
+                from_seconds,
+                every: num(rest.flag("every"), 1)?.max(1),
+                max_frames: num(rest.flag("max"), 0)?,
+                reference: !rest.has("on-top"),
+                grow: !rest.has("keep-length"),
+            };
+            e.apply(Command::ImportVideo { path: src, frame, options }).map_err(|e| e.to_string())?;
             save(&path, &e)
         }
         "import-layers" | "import-gif" | "import-sheet" | "set-sound" => {

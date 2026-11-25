@@ -20,7 +20,7 @@ fn ellipse(cx: f32, cy: f32, rx: f32, ry: f32, start: f32, turns: f32, wobble: f
             let w = 1.0 + (a * 3.0).sin() * wobble;
             // pressure swells in the middle of the line, like a hand-inked circle
             let p = 0.35 + 0.65 * (t * std::f32::consts::PI).sin();
-            Sample { x: cx + a.cos() * rx * w, y: cy + a.sin() * ry * w, pressure: p, tilt_x: 0.0, tilt_y: 0.0, time: t as f64 * 0.6 }
+            Sample { x: cx + a.cos() * rx * w, y: cy + a.sin() * ry * w, pressure: p, tilt_x: 0.0, tilt_y: 0.0, time: t as f64 * 0.6, rotation: 0.0 }
         })
         .collect()
 }
@@ -105,8 +105,8 @@ pub fn demo(width: u32, height: u32) -> Result<Engine> {
     e.project.light_table.enabled = false;
     // a slow push-in over the shot
     let (cx, cy) = (640.0 * s, 360.0 * sy);
-    e.apply(Command::SetCameraKey { frame: 0, x: cx, y: cy, zoom: 1.0, angle: 0.0 })?;
-    e.apply(Command::SetCameraKey { frame: DEMO_FRAMES - 1, x: cx + 60.0 * s, y: cy + 30.0 * sy, zoom: 1.12, angle: 0.0 })?;
+    e.apply(Command::SetCameraKey { frame: 0, x: cx, y: cy, zoom: 1.0, angle: 0.0, camera: 0 })?;
+    e.apply(Command::SetCameraKey { frame: DEMO_FRAMES - 1, x: cx + 60.0 * s, y: cy + 30.0 * sy, zoom: 1.12, angle: 0.0, camera: 0 })?;
     e.mark_saved();
     Ok(e)
 }

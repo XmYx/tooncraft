@@ -1,0 +1,1 @@
+- 2026-11-24: Custom tool palettes: the Tool Palette panel shows a named set of commands as buttons and edits it (add by search, reorder, remove, rename, several palettes); a radial menu (V) rings the chosen palette's commands round the pointer, by pointer or arrow keys.
