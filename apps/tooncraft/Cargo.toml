@@ -35,7 +35,7 @@ craft-audio = { workspace = true }
 craft-keymap = { workspace = true }
 serde_json = { workspace = true }
 craft-atomic = { workspace = true }
-cpal = "0.16"
+cpal = "0.18"
 
 [build-dependencies]
 craft-fonts-build = { workspace = true }

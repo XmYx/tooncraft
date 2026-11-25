@@ -46,7 +46,7 @@ craft-keymap = { git = "https://github.com/storytold/craft-libs", rev = "0649a07
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0" }
 craft-font-catalog = { git = "https://github.com/storytold/craft-libs", rev = "0649a07aa11834fa5bd7052c8b97a861db532a22", version = "=0.1.0", default-features = false }
 # text shaping, the same crate and version craft-font-catalog shapes with
-harfrust = "0.13"
+harfrust = "0.16"
 
 # foundation
 thiserror = "2"
@@ -60,7 +60,7 @@ proptest = { version = "1", default-features = false, features = ["std"] }
 egui = "0.37"
 eframe = { version = "0.37", default-features = false }
 egui_kittest = "0.37"
-rfd = "0.17"
+rfd = "0.18"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
