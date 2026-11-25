@@ -38,6 +38,8 @@ cpal = "0.16"
 
 [build-dependencies]
 craft-fonts-build = { workspace = true }
+# Icon + VERSIONINFO for tooncraft.exe; build.rs only uses it when targeting Windows.
+winresource = "0.1"
 
 [dev-dependencies]
 egui_kittest = { workspace = true }
