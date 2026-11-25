@@ -138,6 +138,23 @@ pub fn overlay(painter: &egui::Painter, app: &ToonApp, to_screen: &dyn Fn(f32, f
     }
 }
 
+/// View > Vector Lines: every line of the current vector drawing as its centre line, with its
+/// points, whatever the tool.
+pub fn lines_overlay(painter: &egui::Painter, app: &ToonApp, to_screen: &dyn Fn(f32, f32) -> Pos2, accent: Color32) {
+    if !app.aids.vector_lines {
+        return;
+    }
+    let Some(v) = drawing(app) else { return };
+    let line = Stroke::new(1.0, accent);
+    for s in &v.strokes {
+        let pts: Vec<Pos2> = s.samples(2.0).iter().map(|q| to_screen(q.x, q.y)).collect();
+        painter.add(egui::Shape::line(pts, line));
+        for q in &s.points {
+            painter.circle_filled(to_screen(q.x, q.y), 2.0, accent);
+        }
+    }
+}
+
 /// The tool's options: the chosen line's properties.
 pub fn options(app: &mut ToonApp, ui: &mut egui::Ui) {
     sync(app);

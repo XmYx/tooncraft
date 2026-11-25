@@ -1,0 +1,1 @@
+- 2026-11-25: Vector layers keep shapes (with sharp corners) and every symmetry copy as editable lines, copies of layers and pasted cells keep their lines, View ▸ Vector Lines shows the centre lines with any tool, and a pixel edit on a vector drawing turns it into pixels in the same undo step instead of being painted over later.

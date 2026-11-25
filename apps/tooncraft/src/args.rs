@@ -28,6 +28,7 @@ Options:
   --camera-path              key a camera move and pick the Transform tool (the camera path)
   --shift-trace              as --light-table, with the pin shifted and turned (shift and trace)
   --rulers                   start with a straight ruler and two-point perspective rulers on
+  --vector-lines             show View ▸ Vector Lines (the centre lines of vector drawings)
   --thumbnails               start with drawing thumbnails in the timeline
   --light                    light theme
   --fx <IDS>                 add effects to the current layer (comma-separated ids such as lens_flare,
@@ -64,6 +65,7 @@ pub struct Cli {
     pub vertical: bool,
     pub tool: Option<String>,
     pub rulers: bool,
+    pub vector_lines: bool,
     /// Effect ids added to the current layer at launch (screenshots).
     pub fx: Vec<String>,
     /// A right-click menu to open at start (for screenshots of the menus).
@@ -132,6 +134,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Launch, String> {
             "--camera-path" => cli.camera_path = true,
             "--shift-trace" => (cli.light_table, cli.shift_trace) = (true, true),
             "--rulers" => cli.rulers = true,
+            "--vector-lines" => cli.vector_lines = true,
             "--thumbnails" => cli.thumbnails = true,
             "--select" => {
                 let v = it.next().ok_or("--select needs A..B")?;

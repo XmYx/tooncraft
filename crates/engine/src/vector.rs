@@ -22,6 +22,8 @@ pub(crate) struct Live {
     brush: Brush,
     style: LineStyle,
     points: Vec<VPoint>,
+    /// The symmetry copies: each mirror and the points it makes of the stroke.
+    mirrors: Vec<(tooncraft_doc::symmetry::Mirror, Vec<VPoint>)>,
 }
 
 impl Live {
@@ -29,12 +31,18 @@ impl Live {
     pub(crate) fn begin(p: &Project, layer: usize, frame: u32, drawing: DrawingId, brush: Brush, style: LineStyle) -> Option<Live> {
         let on_vector_layer = p.layers.get(layer).is_some_and(|l| l.vector);
         let blank_or_vector = p.vectors.contains_key(&drawing) || p.drawing(drawing).is_some_and(|s| s.is_empty());
-        (on_vector_layer && blank_or_vector).then(|| Live { layer, frame, brush, style, points: Vec::new() })
+        let mirrors = p.symmetry.copies(p.width(), p.height()).into_iter().map(|m| (m, Vec::new())).collect();
+        (on_vector_layer && blank_or_vector).then(|| Live { layer, frame, brush, style, points: Vec::new(), mirrors })
     }
 
     pub(crate) fn push(&mut self, s: Sample) {
         if self.points.len() < MAX_LIVE_POINTS {
-            self.points.push(VPoint::new(s.x, s.y, self.brush.size * s.pressure.clamp(0.05, 1.0)));
+            let width = self.brush.size * s.pressure.clamp(0.05, 1.0);
+            self.points.push(VPoint::new(s.x, s.y, width));
+            for (m, points) in &mut self.mirrors {
+                let (x, y) = m.apply(s.x, s.y);
+                points.push(VPoint::new(x, y, width));
+            }
         }
     }
 
@@ -48,7 +56,10 @@ impl Live {
             let Some(stroke) = e.project.vectors.get(&id).and_then(|v| v.stroke_at(first.x, first.y, reach)) else { return Ok(()) };
             return edit(e, self.layer, self.frame, VectorEdit::EraseToCrossings { stroke, x: first.x, y: first.y });
         }
-        add_stroke(e, self.layer, self.frame, self.brush.color, &self.points, 0.6, self.style)
+        // the line and its symmetry copies, one undo step
+        let mut lines = vec![self.points];
+        lines.extend(self.mirrors.into_iter().map(|(_, p)| p));
+        add_strokes(e, self.layer, self.frame, self.brush.color, &lines, 0.6, self.style)
     }
 }
 
@@ -154,13 +165,36 @@ fn commit(e: &mut Engine, id: DrawingId, v: VDrawing, surface: Surface, label: &
     e.push(Entry { label: label.into(), parts });
 }
 
+/// Run `f` with sharp corners for new vector lines when `corners` (a rectangle, polygon or
+/// polyline) and the layer keeps vector lines: round corners make a smooth curve through the
+/// points, which would round a rectangle into a blob.
+pub(crate) fn with_corners(e: &mut Engine, layer: usize, corners: bool, f: impl FnOnce(&mut Engine) -> Result<()>) -> Result<()> {
+    let vector = e.project.layers.get(layer).is_some_and(|l| l.vector);
+    let style = e.line_style;
+    if corners && vector && style.join == tooncraft_vector::Join::Round {
+        e.line_style.join = tooncraft_vector::Join::Sharp;
+    }
+    let r = f(e);
+    e.line_style = style;
+    r
+}
+
 /// Add a drawn stroke to the vector drawing at a layer's frame (a new one on a blank cell).
 pub(crate) fn add_stroke(e: &mut Engine, layer: usize, frame: u32, color: [u8; 4], points: &[VPoint], tolerance: f32, style: LineStyle) -> Result<()> {
+    add_strokes(e, layer, frame, color, &[points.to_vec()], tolerance, style)
+}
+
+/// Add several drawn strokes (a line and its symmetry copies) as one undo step.
+pub(crate) fn add_strokes(e: &mut Engine, layer: usize, frame: u32, color: [u8; 4], lines: &[Vec<VPoint>], tolerance: f32, style: LineStyle) -> Result<()> {
     if !e.project.layer(layer)?.vector {
         return Err(EngineError::NotVector);
     }
-    let mut stroke = VStroke::from_points(points, color, tolerance)?;
-    stroke.style = style;
+    let mut strokes = Vec::with_capacity(lines.len());
+    for points in lines {
+        let mut stroke = VStroke::from_points(points, color, tolerance)?;
+        stroke.style = style;
+        strokes.push(stroke);
+    }
     if let Some(d) = e.project.drawing_at(layer, frame)
         && !e.project.vectors.contains_key(&d)
         && e.project.drawing(d).is_some_and(|s| !s.is_empty())
@@ -170,7 +204,8 @@ pub(crate) fn add_stroke(e: &mut Engine, layer: usize, frame: u32, color: [u8; 4
     }
     let (id, created) = e.ensure_drawing(layer, frame)?;
     let mut v = e.project.vectors.get(&id).cloned().unwrap_or_default();
-    let painted = v.add(stroke).map_err(EngineError::from).and_then(|_| render(&v, e.project.width(), e.project.height()));
+    let added: std::result::Result<(), tooncraft_vector::VectorError> = strokes.into_iter().try_for_each(|s| v.add(s).map(|_| ()));
+    let painted = added.map_err(EngineError::from).and_then(|_| render(&v, e.project.width(), e.project.height()));
     match painted {
         Ok(surface) => {
             commit(e, id, v, surface, "Vector stroke", created);

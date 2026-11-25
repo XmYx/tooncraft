@@ -236,3 +236,107 @@ fn a_lines_ends_and_corners_are_an_undoable_edit_and_repaint_it() {
     e.apply(c).unwrap();
     assert!(ink(&e, 166, 100), "square end reaches past the point");
 }
+
+fn pen(e: &mut Engine, pts: &[(f32, f32)]) {
+    use tooncraft_brush::{Brush, BrushKind, Sample};
+    let brush = Brush { size: 4.0, color: [0, 0, 0, 255], ..Brush::preset(BrushKind::Ink) };
+    e.begin_stroke(0, 0, brush).unwrap();
+    for (i, (x, y)) in pts.iter().enumerate() {
+        e.stroke_to(Sample::at(*x, *y, 1.0, i as f64 * 0.01)).unwrap();
+    }
+    e.end_stroke().unwrap();
+}
+
+fn lines(e: &Engine, layer: usize, frame: u32) -> Option<usize> {
+    let d = e.project.drawing_at(layer, frame)?;
+    e.project.vectors.get(&d).map(|v| v.strokes.len())
+}
+
+#[test]
+fn a_mirrored_pen_stroke_keeps_every_copy_as_a_line_in_one_step() {
+    use tooncraft_doc::symmetry::{Symmetry, SymmetryMode};
+    let mut e = engine();
+    e.apply(Command::SetSymmetry { symmetry: Symmetry { mode: SymmetryMode::Vertical, ..Default::default() } }).unwrap();
+    let depth = e.undo_len();
+    pen(&mut e, &(0..=30).map(|i| (30.0 + i as f32, 60.0 + i as f32)).collect::<Vec<_>>());
+    assert_eq!(e.undo_len(), depth + 1, "one step");
+    assert_eq!(lines(&e, 0, 0), Some(2), "the line and its mirror copy");
+    // the copy is a line too: across the centre (x = 100) and editable
+    assert!(ink(&e, 45, 75) && ink(&e, 155, 75), "both painted");
+    e.apply(Command::EditVector { layer: 0, frame: 0, edit: VectorEdit::DeleteStroke { stroke: 1 } }).unwrap();
+    assert!(ink(&e, 45, 75) && !ink(&e, 155, 75), "the copy goes on its own");
+    e.apply(Command::SetSymmetry { symmetry: Symmetry { mode: SymmetryMode::Both, ..Default::default() } }).unwrap();
+    pen(&mut e, &[(20.0, 20.0), (40.0, 30.0)]);
+    assert_eq!(lines(&e, 0, 0), Some(5), "four more copies");
+}
+
+#[test]
+fn copied_layers_and_pasted_copies_keep_their_lines() {
+    let mut e = engine();
+    line(&mut e, &[(20.0, 100.0), (180.0, 100.0)], 4.0).unwrap();
+    e.apply(Command::DuplicateLayer { layer: 0 }).unwrap();
+    assert_eq!(e.project.layers.len(), 2);
+    assert_eq!(lines(&e, 1, 0), Some(1), "the layer copy keeps the line");
+    assert_ne!(e.project.drawing_at(0, 0), e.project.drawing_at(1, 0), "its own drawing");
+    // and it stays editable on its own
+    e.apply(Command::EditVector { layer: 1, frame: 0, edit: VectorEdit::MovePoint { stroke: 0, point: 0, x: 20.0, y: 20.0 } }).unwrap();
+    assert_eq!(lines(&e, 0, 0), Some(1));
+    e.undo().unwrap();
+    e.undo().unwrap();
+    assert_eq!(e.project.layers.len(), 1);
+    assert_eq!(e.project.vectors.len(), 1, "the copy's lines go with the undo");
+    // a pasted copy of the cell
+    let d = e.project.drawing_at(0, 0).unwrap();
+    e.apply(Command::PasteCells { layer: 0, frame: 3, block: vec![vec![tooncraft_doc::Cell::Key(d)]], insert: false, duplicate: true }).unwrap();
+    let pasted = e.project.drawing_at(0, 3).unwrap();
+    assert_ne!(pasted, d);
+    assert_eq!(lines(&e, 0, 3), Some(1), "the pasted copy keeps the line");
+    e.undo().unwrap();
+    assert!(!e.project.vectors.contains_key(&pasted));
+}
+
+#[test]
+fn a_pixel_edit_turns_the_lines_into_pixels_and_undo_brings_them_back() {
+    let mut e = engine();
+    for pts in [[(40.0, 50.0), (160.0, 50.0)], [(150.0, 40.0), (150.0, 160.0)], [(160.0, 150.0), (40.0, 150.0)], [(50.0, 160.0), (50.0, 40.0)]] {
+        line(&mut e, &pts, 4.0).unwrap();
+    }
+    assert!(!e.take_lines_to_pixels());
+    let depth = e.undo_len();
+    let fill =
+        Command::Fill { layer: 0, frame: 0, x: 100, y: 100, color: [200, 0, 0, 255], options: FillOptions::default(), reference: FillReference::AllLayers };
+    e.apply(fill).unwrap();
+    assert_eq!(e.undo_len(), depth + 1, "one step");
+    assert!(e.take_lines_to_pixels(), "the app is told");
+    assert!(!e.take_lines_to_pixels(), "once");
+    assert_eq!(lines(&e, 0, 0), None, "pixels now");
+    // the fill is not painted over by a later edit: a vector edit is refused instead
+    let edit = Command::EditVector { layer: 0, frame: 0, edit: VectorEdit::SetWidth { stroke: 0, point: None, width: 9.0 } };
+    assert!(e.apply(edit.clone()).is_err());
+    assert_eq!(e.pick_color(0, 100, 100), [200, 0, 0, 255], "the fill stays");
+    e.undo().unwrap();
+    assert_eq!(lines(&e, 0, 0), Some(4), "undo brings the lines back");
+    assert_ne!(e.pick_color(0, 100, 100), [200, 0, 0, 255]);
+    e.apply(edit).unwrap();
+    e.redo().ok();
+    // a stroke edit after the undo starts a new history: the fill's redo is gone, the lines stay lines
+    assert_eq!(lines(&e, 0, 0), Some(4));
+}
+
+#[test]
+fn shapes_on_a_vector_layer_are_lines() {
+    let mut e = engine();
+    let brush = tooncraft_brush::Brush { size: 3.0, color: [0, 0, 0, 255], ..tooncraft_brush::Brush::preset(tooncraft_brush::BrushKind::Ink) };
+    e.apply(Command::Shape { layer: 0, frame: 0, brush, shape: crate::shapes::ShapeKind::Rectangle, from: (40.0, 40.0), to: (160.0, 120.0), constrain: false })
+        .unwrap();
+    assert_eq!(e.undo_label(), Some("Shape"));
+    let d = e.project.drawing_at(0, 0).unwrap();
+    let s = &e.project.vectors[&d].strokes[0];
+    assert!(s.points.len() >= 5, "the corners are kept: {}", s.points.len());
+    assert!(s.points.iter().any(|p| (p.x - 160.0).abs() < 1.5 && (p.y - 120.0).abs() < 1.5), "a corner point");
+    assert!(ink(&e, 100, 40) && ink(&e, 160, 80) && !ink(&e, 100, 80));
+    // and editable: move a corner
+    let corner = s.points.iter().position(|p| (p.x - 160.0).abs() < 1.5 && (p.y - 120.0).abs() < 1.5).unwrap();
+    e.apply(Command::EditVector { layer: 0, frame: 0, edit: VectorEdit::MovePoint { stroke: 0, point: corner, x: 180.0, y: 180.0 } }).unwrap();
+    assert!(!ink(&e, 160, 118));
+}

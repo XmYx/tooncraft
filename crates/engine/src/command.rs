@@ -1332,14 +1332,15 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
         Command::Shape { layer, frame, brush, shape, from, to, constrain } => {
             let samples = crate::shapes::samples(shape, from, to, constrain, 1.0);
             let brush = tooncraft_brush::Brush { smoothing: tooncraft_brush::Smoothing { average: 0.0, string: 0.0, catch_up: true }, ..brush };
-            apply(e, Command::Stroke { layer, frame, brush, samples })?;
+            let corners = shape == crate::shapes::ShapeKind::Rectangle;
+            crate::vector::with_corners(e, layer, corners, |e| apply(e, Command::Stroke { layer, frame, brush, samples }))?;
             if let Some(top) = e.undo.last_mut() {
                 top.label = "Shape".into();
             }
             Ok(())
         }
         Command::PathShape { layer, frame, brush, points, closed, curve, outline, fill } => {
-            crate::drawing::path_shape(e, layer, frame, brush, &points, closed, curve, outline, fill)
+            crate::vector::with_corners(e, layer, !curve, |e| crate::drawing::path_shape(e, layer, frame, brush, &points, closed, curve, outline, fill))
         }
         Command::Gradient { layer, frame, kind, from, to, start, end, area, area_rings, stops, feather } => {
             frame_ok(e, frame)?;
@@ -1511,6 +1512,11 @@ pub(crate) fn apply(e: &mut Engine, cmd: Command) -> Result<()> {
                                     let Some(src) = e.project.drawing(d).cloned() else { continue };
                                     let n = e.project.add_drawing(Some(src))?;
                                     parts.insert(0, Part::Drawing { id: n, surface: None });
+                                    // a vector drawing's copy keeps its lines
+                                    if let Some(v) = e.project.vectors.get(&d).cloned() {
+                                        e.project.vectors.insert(n, v);
+                                        parts.insert(0, Part::Vector { id: n, strokes: None });
+                                    }
                                     map.insert(d, n);
                                     n
                                 }
