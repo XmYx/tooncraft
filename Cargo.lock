@@ -4406,7 +4406,7 @@ checksum = "009dbb7700f11c55ef83aebbe4c0e9cf1f1ac0844bd8d6f00dc38f302026e13a"
 
 [[package]]
 name = "tooncraft"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "cpal",
@@ -4440,7 +4440,7 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-brush"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proptest",
  "serde",
@@ -4450,7 +4450,7 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "craft-psd",
  "epaint_default_fonts",
@@ -4467,7 +4467,7 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-doc"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "log",
  "proptest",
@@ -4483,7 +4483,7 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-engine"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "craft-atomic",
  "craft-audio",
@@ -4515,7 +4515,7 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-format"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "craft-atomic",
@@ -4533,7 +4533,7 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-fx"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proptest",
  "serde",
@@ -4544,7 +4544,7 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-interop"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "craft-atomic",
  "craft-gif",
@@ -4570,7 +4570,7 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-lipsync"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proptest",
  "serde",
@@ -4578,7 +4578,7 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-raster"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proptest",
  "serde",
@@ -4587,7 +4587,7 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-script"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proptest",
  "rhai",
@@ -4598,7 +4598,7 @@ dependencies = [
 
 [[package]]
 name = "tooncraft-vector"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proptest",
  "serde",
@@ -5781,7 +5781,7 @@ checksum = "9440ea3e5aeabb0ac63af70daf835274065238cdd0cec83418f417eae38bacee"
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "craft-image-codecs",
  "craft-svg",
