@@ -33,6 +33,8 @@ pub struct Pen {
     pub eraser: bool,
 }
 
+// photocraft-tablet exists only where Cargo.toml pulls it in (not on FreeBSD).
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 impl Pen {
     fn from_sample(s: photocraft_tablet::Sample) -> Pen {
         let s = s.sanitized();
@@ -84,6 +86,7 @@ impl Tablet {
         let mut t = Tablet::default();
         let latest = t.latest.clone();
         let ctx2 = ctx.clone();
+        #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
         let _callback = move |s: Option<photocraft_tablet::Sample>| {
             let pen = s.map(Pen::from_sample);
             match latest.lock() {
@@ -115,6 +118,11 @@ impl Tablet {
                 t.backend = "Windows Ink";
             }
             Err(e) => t.status = e.to_string(),
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+        {
+            let _ = (latest, ctx2);
+            t.status = "No pen backend on this system: pressure and tilt come only from touch events.".into();
         }
         t
     }
